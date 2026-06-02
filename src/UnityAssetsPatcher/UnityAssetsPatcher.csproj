@@ -7,4 +7,15 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+        <!-- 类型数据库必须与可执行文件一起发布，运行时从 AppContext.BaseDirectory 定位。 -->
+        <Content Include="Assets\AssetsRipper.tpk">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AssetsTools.NET" Version="3.0.4"/>
+    </ItemGroup>
+
 </Project>
