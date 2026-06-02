@@ -11,10 +11,7 @@ public sealed record AssetsInfo
     }
 
     public long PathId { get; }
-
     public int TypeId { get; }
-
     public string TypeName { get; }
-
     public uint ByteSize { get; }
 }

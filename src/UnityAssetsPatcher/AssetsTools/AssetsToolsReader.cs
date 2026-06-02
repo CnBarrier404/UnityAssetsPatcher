@@ -51,6 +51,48 @@ public sealed class AssetsToolsReader : IAssetsReader
         }
     }
 
+    public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+    {
+        if (!File.Exists(assetsFilePath))
+        {
+            throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
+        }
+
+        if (!File.Exists(_tpkFilePath))
+        {
+            throw new FileNotFoundException($"TPK file not found: {_tpkFilePath}", _tpkFilePath);
+        }
+
+        var manager = new AssetsManager();
+
+        try
+        {
+            manager.LoadClassPackage(_tpkFilePath);
+            AssetsFileInstance assetsFileInstance = manager.LoadAssetsFile(assetsFilePath, true);
+
+            manager.LoadClassDatabaseFromPackage(assetsFileInstance.file.Metadata.UnityVersion);
+
+            AssetTypeValueField field = manager.GetBaseField(assetsFileInstance, pathId);
+
+            return field.IsDummy
+                ? throw new InvalidOperationException($"Asset not found or cannot be read: {pathId}")
+                : CreateAssetsFieldInfo(field);
+        }
+        finally
+        {
+            manager.UnloadAll(true);
+        }
+    }
+
+    private static AssetsFieldInfo CreateAssetsFieldInfo(AssetTypeValueField field)
+    {
+        return new AssetsFieldInfo(
+            field.FieldName,
+            field.TypeName,
+            field.Value?.ToString(),
+            field.Children.Select(CreateAssetsFieldInfo).ToArray());
+    }
+
     private static string GetTypeName(int typeId)
     {
         return Enum.IsDefined(typeof(AssetClassID), typeId) ? ((AssetClassID)typeId).ToString() : "Unknown";

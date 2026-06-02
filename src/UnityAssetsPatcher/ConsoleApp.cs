@@ -17,14 +17,21 @@ public sealed class ConsoleApp
 
     public int Run(string[] args)
     {
-        if (args.Length != 2 || !string.Equals(args[0], "inspect", StringComparison.OrdinalIgnoreCase))
+        if (!IsInspectCommand(args))
         {
-            _error.WriteLine("Usage: UnityAssetsPatcher inspect <assets-file>");
+            _error.WriteLine("Usage:");
+            _error.WriteLine("  UnityAssetsPatcher inspect <assets-file>");
+            _error.WriteLine("  UnityAssetsPatcher inspect <assets-file> <path-id> --detail");
             return 1;
         }
 
         try
         {
+            if (args.Length == 4)
+            {
+                return PrintAssetsFieldTree(args);
+            }
+
             var assets = _assetsReader.ReadAssetsInfo(args[1]);
 
             _output.WriteLine($"{"Path ID",12} | {"Type ID",7} | {"Type Name",-24} | {"Byte Size",10}");
@@ -41,6 +48,40 @@ public sealed class ConsoleApp
         {
             _error.WriteLine(exception.Message);
             return 1;
+        }
+    }
+
+    private static bool IsInspectCommand(string[] args)
+    {
+        if (args.Length == 2)
+        {
+            return string.Equals(args[0], "inspect", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return args.Length == 4
+               && string.Equals(args[0], "inspect", StringComparison.OrdinalIgnoreCase)
+               && long.TryParse(args[2], out _)
+               && string.Equals(args[3], "--detail", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int PrintAssetsFieldTree(string[] args)
+    {
+        long pathId = long.Parse(args[2]);
+        AssetsFieldInfo fieldTree = _assetsReader.ReadAssetsFieldInfo(args[1], pathId);
+
+        PrintAssetsField(fieldTree, 0);
+        return 0;
+    }
+
+    private void PrintAssetsField(AssetsFieldInfo field, int depth)
+    {
+        string indentation = new(' ', depth * 2);
+        string value = field.Value is null ? string.Empty : $": {field.Value}";
+        _output.WriteLine($"{indentation}{field.Name} ({field.TypeName}){value}");
+
+        foreach (AssetsFieldInfo child in field.Children)
+        {
+            PrintAssetsField(child, depth + 1);
         }
     }
 }

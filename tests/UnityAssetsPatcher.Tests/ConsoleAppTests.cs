@@ -43,18 +43,56 @@ public sealed class ConsoleAppTests
         Assert.Contains("Usage:", error.ToString());
     }
 
+    /// <summary>
+    /// 验证 inspect detail 模式会读取指定 Path ID，并按层级输出资产字段树。
+    /// </summary>
+    [Fact]
+    public void Run_WhenInspectVerboseCommandIsValid_PrintsSelectedAssetFieldTree()
+    {
+        var reader = new StubAssetsReader(
+            [],
+            new AssetsFieldInfo(
+                "AudioClip",
+                "AudioClip",
+                null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "ambient", []),
+                ]));
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        int exitCode = app.Run(["inspect", "sharedassets0.assets", "4", "--detail"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(4, reader.ReceivedPathId);
+        Assert.Contains("AudioClip (AudioClip)", output.ToString());
+        Assert.Contains("  m_Name (string): ambient", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
     private sealed class StubAssetsReader : IAssetsReader
     {
         private readonly IReadOnlyList<AssetsInfo> _result;
+        private readonly AssetsFieldInfo? _fieldTree;
 
-        public StubAssetsReader(IReadOnlyList<AssetsInfo> result)
+        public StubAssetsReader(IReadOnlyList<AssetsInfo> result, AssetsFieldInfo? fieldTree = null)
         {
             _result = result;
+            _fieldTree = fieldTree;
         }
+
+        public long? ReceivedPathId { get; private set; }
 
         public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
         {
             return _result;
+        }
+
+        public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+        {
+            ReceivedPathId = pathId;
+            return _fieldTree ?? throw new InvalidOperationException("Field tree was not configured.");
         }
     }
 }
