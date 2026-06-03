@@ -140,15 +140,146 @@ public sealed class ConsoleAppTests
         Assert.Equal(string.Empty, error.ToString());
     }
 
+    /// <summary>
+    /// 验证 find --config 会按 JSON include 条件精准定位匹配资产。
+    /// </summary>
+    [Fact]
+    public void Run_WhenFindCommandUsesConfig_PrintsOnlyAssetsMatchingAllIncludedFields()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "type": "Camera",
+              "include": [
+                {
+                  "near clip plane": 0.01,
+                  "far clip plane": 100,
+                  "field of view": 90.0
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsReader(
+            [
+                new AssetsInfo(10, 20, "Camera", 128),
+                new AssetsInfo(11, 20, "Camera", 128),
+                new AssetsInfo(12, 1, "GameObject", 128),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new(
+                    "Camera",
+                    "Camera",
+                    null,
+                    [
+                        new AssetsFieldInfo("near clip plane", "float", "0.010000001", []),
+                        new AssetsFieldInfo("far clip plane", "float", "100.0", []),
+                        new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    ]),
+                [11] = new(
+                    "Camera",
+                    "Camera",
+                    null,
+                    [
+                        new AssetsFieldInfo("near clip plane", "float", "0.3", []),
+                        new AssetsFieldInfo("far clip plane", "float", "100.0", []),
+                        new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    ]),
+            });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["find", "resources.assets", "--config", configPath]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("10", text);
+            Assert.Contains("Camera", text);
+            Assert.DoesNotContain("11", text);
+            Assert.DoesNotContain("12", text);
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
+    /// 验证 include 数组中的多个对象按 OR 语义匹配。
+    /// </summary>
+    [Fact]
+    public void Run_WhenFindConfigHasMultipleIncludeGroups_PrintsAssetsMatchingAnyGroup()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "type": "Camera",
+              "include": [
+                {
+                  "field of view": 60.0
+                },
+                {
+                  "field of view": 90.0
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsReader(
+            [
+                new AssetsInfo(20, 20, "Camera", 128),
+                new AssetsInfo(21, 20, "Camera", 128),
+                new AssetsInfo(22, 20, "Camera", 128),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [20] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "60.0", [])]),
+                [21] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+                [22] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "75.0", [])]),
+            });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["find", "resources.assets", "--config", configPath]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("20", text);
+            Assert.Contains("21", text);
+            Assert.DoesNotContain("22", text);
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
     private sealed class StubAssetsReader : IAssetsReader
     {
         private readonly IReadOnlyList<AssetsInfo> _result;
-        private readonly AssetsFieldInfo? _fieldTree;
+        private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldTrees;
 
         public StubAssetsReader(IReadOnlyList<AssetsInfo> result, AssetsFieldInfo? fieldTree = null)
+            : this(result,
+                fieldTree is null
+                    ? new Dictionary<long, AssetsFieldInfo>()
+                    : new Dictionary<long, AssetsFieldInfo> { [4] = fieldTree }) { }
+
+        public StubAssetsReader(IReadOnlyList<AssetsInfo> result, IReadOnlyDictionary<long, AssetsFieldInfo> fieldTrees)
         {
             _result = result;
-            _fieldTree = fieldTree;
+            _fieldTrees = fieldTrees;
         }
 
         public long? ReceivedPathId { get; private set; }
@@ -161,7 +292,9 @@ public sealed class ConsoleAppTests
         public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
         {
             ReceivedPathId = pathId;
-            return _fieldTree ?? throw new InvalidOperationException("Field tree was not configured.");
+            return _fieldTrees.TryGetValue(pathId, out AssetsFieldInfo? fieldTree)
+                ? fieldTree
+                : throw new InvalidOperationException("Field tree was not configured.");
         }
     }
 }
