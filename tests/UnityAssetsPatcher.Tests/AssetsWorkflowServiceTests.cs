@@ -102,6 +102,76 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
+    /// 验证一个 patch 配置可以同时预览多个组件类型的修改。
+    /// </summary>
+    [Fact]
+    public void PreviewPatch_WhenConfigHasMultiplePatchTargets_ReturnsOperationsForEachTarget()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "patches": [
+                {
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "path": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                },
+                {
+                  "type": "Light",
+                  "include": [
+                    {
+                      "m_Intensity": 1.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "path": "m_Intensity",
+                      "from": 1.0,
+                      "to": 2.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var service = new AssetsWorkflowService(new StubAssetsReader(
+            [
+                new AssetsInfo(4, 20, "Camera", 128),
+                new AssetsInfo(5, 108, "Light", 96),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+                [5] = new("Light", "Light", null, [new AssetsFieldInfo("m_Intensity", "float", "1.0", [])]),
+            }));
+
+        try
+        {
+            PatchPreviewResult preview = service.PreviewPatch(new PatchPreviewRequest("resources.assets", configPath));
+
+            Assert.Equal([4L, 5L], preview.Assets.Select(asset => asset.Asset.PathId));
+            Assert.Equal("field of view", Assert.Single(preview.Assets[0].Operations).Path);
+            Assert.Equal("m_Intensity", Assert.Single(preview.Assets[1].Operations).Path);
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
     /// 验证 apply 在所有 set 操作可应用时，会调用写入器并返回输出摘要。
     /// </summary>
     [Fact]
@@ -155,6 +225,273 @@ public sealed class AssetsWorkflowServiceTests
             PatchWriteAsset asset = Assert.Single(writer.Plan);
             Assert.Equal(4, asset.PathId);
             Assert.Equal("field of view", Assert.Single(asset.Operations).Path);
+        }
+        finally
+        {
+            File.Delete(configPath);
+            File.Delete(inputPath);
+            File.Delete(outputPath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证 apply 可以把多个组件类型的修改合并成一次写入计划。
+    /// </summary>
+    [Fact]
+    public void ApplyPatch_WhenConfigHasMultiplePatchTargets_WritesAllMatchedAssets()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        File.WriteAllText(inputPath, "original");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "patches": [
+                {
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "path": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                },
+                {
+                  "type": "Light",
+                  "include": [
+                    {
+                      "m_Intensity": 1.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "path": "m_Intensity",
+                      "from": 1.0,
+                      "to": 2.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var writer = new StubAssetsPatchWriter();
+        var service = new AssetsWorkflowService(
+            new StubAssetsReader(
+                [
+                    new AssetsInfo(4, 20, "Camera", 128),
+                    new AssetsInfo(5, 108, "Light", 96),
+                ],
+                new Dictionary<long, AssetsFieldInfo>
+                {
+                    [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+                    [5] = new("Light", "Light", null, [new AssetsFieldInfo("m_Intensity", "float", "1.0", [])]),
+                }),
+            writer);
+
+        try
+        {
+            PatchApplyResult result =
+                service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, backupDirectory));
+
+            Assert.Equal(2, result.AssetCount);
+            Assert.Equal(2, result.OperationCount);
+            Assert.Equal([4L, 5L], writer.Plan.Select(asset => asset.PathId));
+            Assert.Equal("field of view", Assert.Single(writer.Plan[0].Operations).Path);
+            Assert.Equal("m_Intensity", Assert.Single(writer.Plan[1].Operations).Path);
+        }
+        finally
+        {
+            File.Delete(configPath);
+            File.Delete(inputPath);
+            File.Delete(outputPath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证多个 patch target 命中同一个资产时，会合并为同一个写入资产项，避免后一次写入覆盖前一次修改。
+    /// </summary>
+    [Fact]
+    public void ApplyPatch_WhenMultiplePatchTargetsMatchSameAsset_MergesOperationsForSingleWriteAsset()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        File.WriteAllText(inputPath, "original");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "patches": [
+                {
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "path": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                },
+                {
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "near clip plane": 0.3
+                    }
+                  ],
+                  "set": [
+                    {
+                      "path": "near clip plane",
+                      "from": 0.3,
+                      "to": 0.1
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var writer = new StubAssetsPatchWriter();
+        var service = new AssetsWorkflowService(
+            new StubAssetsReader(
+                [new AssetsInfo(4, 20, "Camera", 128)],
+                new Dictionary<long, AssetsFieldInfo>
+                {
+                    [4] = new("Camera", "Camera", null,
+                    [
+                        new AssetsFieldInfo("field of view", "float", "90.0", []),
+                        new AssetsFieldInfo("near clip plane", "float", "0.3", []),
+                    ]),
+                }),
+            writer);
+
+        try
+        {
+            PatchApplyResult result =
+                service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, backupDirectory));
+
+            Assert.Equal(1, result.AssetCount);
+            Assert.Equal(2, result.OperationCount);
+            PatchWriteAsset asset = Assert.Single(writer.Plan);
+            Assert.Equal(4, asset.PathId);
+            Assert.Equal(["field of view", "near clip plane"], asset.Operations.Select(operation => operation.Path));
+        }
+        finally
+        {
+            File.Delete(configPath);
+            File.Delete(inputPath);
+            File.Delete(outputPath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证 patch 可以用 UABEA 风格的单元素对象数组描述复合字段，并在写入计划中展开为子字段修改。
+    /// </summary>
+    [Fact]
+    public void ApplyPatch_WhenSetUsesCompositeObjectArray_ExpandsChildFieldOperations()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        File.WriteAllText(inputPath, "original");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "type": "Light",
+              "include": [
+                {
+                  "m_Color": [
+                    {
+                      "r": 0.5411765,
+                      "g": 0.61960787,
+                      "b": 0.67058825,
+                      "a": 1.0
+                    }
+                  ]
+                }
+              ],
+              "set": [
+                {
+                  "path": "m_Color",
+                  "from": [
+                    {
+                      "r": 0.5411765,
+                      "g": 0.61960787,
+                      "b": 0.67058825,
+                      "a": 1.0
+                    }
+                  ],
+                  "to": [
+                    {
+                      "r": 1.0,
+                      "g": 1.0,
+                      "b": 1.0,
+                      "a": 1.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var writer = new StubAssetsPatchWriter();
+        var service = new AssetsWorkflowService(
+            new StubAssetsReader(
+                [new AssetsInfo(8, 108, "Light", 96)],
+                new Dictionary<long, AssetsFieldInfo>
+                {
+                    [8] = new("Light", "Light", null,
+                    [
+                        new AssetsFieldInfo("m_Color", "ColorRGBA", null,
+                        [
+                            new AssetsFieldInfo("r", "float", "0.5411765", []),
+                            new AssetsFieldInfo("g", "float", "0.61960787", []),
+                            new AssetsFieldInfo("b", "float", "0.67058825", []),
+                            new AssetsFieldInfo("a", "float", "1.0", []),
+                        ]),
+                    ]),
+                }),
+            writer);
+
+        try
+        {
+            PatchApplyResult result =
+                service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, backupDirectory));
+
+            Assert.Equal(1, result.AssetCount);
+            Assert.Equal(4, result.OperationCount);
+            PatchWriteAsset asset = Assert.Single(writer.Plan);
+            Assert.Equal(
+                ["m_Color.r", "m_Color.g", "m_Color.b", "m_Color.a"],
+                asset.Operations.Select(operation => operation.Path));
+            Assert.All(asset.Operations, operation => Assert.Equal(1.0d, operation.To.GetDouble()));
         }
         finally
         {

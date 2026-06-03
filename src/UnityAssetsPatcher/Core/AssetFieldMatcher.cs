@@ -12,7 +12,7 @@ public static class AssetFieldMatcher
         {
             AssetsFieldInfo? field = FindField(fieldTree, path);
 
-            if (field?.Value is null || !MatchesValue(field.Value, expectedValue))
+            if (field is null || !MatchesFieldValue(field, expectedValue))
             {
                 return false;
             }
@@ -44,6 +44,16 @@ public static class AssetFieldMatcher
         return current;
     }
 
+    public static bool MatchesFieldValue(AssetsFieldInfo field, JsonElement expectedValue)
+    {
+        if (TryGetObjectValue(expectedValue, out JsonElement objectValue))
+        {
+            return MatchesObjectValue(field, objectValue);
+        }
+
+        return field.Value is not null && MatchesValue(field.Value, expectedValue);
+    }
+
     public static bool MatchesValue(string actualValue, JsonElement expectedValue)
     {
         return expectedValue.ValueKind switch
@@ -61,6 +71,31 @@ public static class AssetFieldMatcher
         return value.ValueKind == JsonValueKind.String ? value.GetString() ?? string.Empty : value.GetRawText();
     }
 
+    public static bool TryGetObjectValue(JsonElement value, out JsonElement objectValue)
+    {
+        switch (value.ValueKind)
+        {
+            case JsonValueKind.Object:
+                objectValue = value;
+                return true;
+            case JsonValueKind.Array when value.GetArrayLength() == 1:
+            {
+                JsonElement firstElement = value.EnumerateArray().Single();
+
+                if (firstElement.ValueKind == JsonValueKind.Object)
+                {
+                    objectValue = firstElement;
+                    return true;
+                }
+
+                break;
+            }
+        }
+
+        objectValue = default;
+        return false;
+    }
+
     private static AssetsFieldInfo? FindDescendantByName(AssetsFieldInfo field, string name)
     {
         if (string.Equals(field.Name, name, StringComparison.Ordinal))
@@ -72,6 +107,22 @@ public static class AssetFieldMatcher
             .Select(child => FindDescendantByName(child, name))
             .OfType<AssetsFieldInfo>()
             .FirstOrDefault();
+    }
+
+    private static bool MatchesObjectValue(AssetsFieldInfo field, JsonElement expectedObject)
+    {
+        foreach (JsonProperty property in expectedObject.EnumerateObject())
+        {
+            AssetsFieldInfo? child = field.Children.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, property.Name, StringComparison.Ordinal));
+
+            if (child is null || !MatchesFieldValue(child, property.Value))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool MatchesNumber(string actualValue, JsonElement expectedValue)

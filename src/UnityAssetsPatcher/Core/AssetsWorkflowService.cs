@@ -28,12 +28,15 @@ public sealed class AssetsWorkflowService
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
         var matches = new List<AssetMatch>();
 
-        foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(request.AssetsFilePath,
-                     queryConfig))
+        foreach (AssetPatchTarget target in queryConfig.Targets)
         {
-            var includeGroup = queryConfig.IncludeGroups
-                .First(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
-            matches.Add(new AssetMatch(asset, includeGroup));
+            foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(request.AssetsFilePath,
+                         target))
+            {
+                var includeGroup = target.IncludeGroups
+                    .First(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
+                matches.Add(new AssetMatch(asset, includeGroup));
+            }
         }
 
         return matches;
@@ -43,33 +46,27 @@ public sealed class AssetsWorkflowService
     {
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
 
-        if (queryConfig.SetOperations is null || queryConfig.SetOperations.Count == 0)
+        if (!HasPatchOperations(queryConfig))
         {
             throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
         }
 
         var assets = new List<PatchPreviewAssetResult>();
 
-        foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(request.AssetsFilePath,
-                     queryConfig))
+        foreach (AssetPatchTarget target in queryConfig.Targets)
         {
-            var operationResults = new List<PatchPreviewOperationResult>();
-
-            foreach (PatchSetOperation operation in queryConfig.SetOperations)
+            foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(request.AssetsFilePath,
+                         target))
             {
-                AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.Path);
-                string oldValue = field?.Value ?? "<missing>";
-                bool matches = field?.Value is not null && AssetFieldMatcher.MatchesValue(field.Value, operation.From);
+                var operationResults = new List<PatchPreviewOperationResult>();
 
-                operationResults.Add(new PatchPreviewOperationResult(
-                    operation.Path,
-                    oldValue,
-                    operation.From,
-                    operation.To,
-                    matches));
+                foreach (PatchSetOperation operation in target.SetOperations ?? [])
+                {
+                    operationResults.AddRange(CreatePatchPreviewOperationResults(fieldTree, operation));
+                }
+
+                assets.Add(new PatchPreviewAssetResult(asset, operationResults));
             }
-
-            assets.Add(new PatchPreviewAssetResult(asset, operationResults));
         }
 
         return new PatchPreviewResult(assets);
@@ -105,7 +102,7 @@ public sealed class AssetsWorkflowService
 
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
 
-        if (queryConfig.SetOperations is null || queryConfig.SetOperations.Count == 0)
+        if (!HasPatchOperations(queryConfig))
         {
             throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
         }
@@ -135,18 +132,19 @@ public sealed class AssetsWorkflowService
             plan.Sum(asset => asset.Operations.Count));
     }
 
-    private IEnumerable<(AssetsInfo Asset, AssetsFieldInfo FieldTree)> FindMatchingAssets(string assetsFilePath,
-        AssetQueryConfig queryConfig)
+    private IEnumerable<(AssetsInfo Asset, AssetsFieldInfo FieldTree)> FindMatchingAssets(
+        string assetsFilePath,
+        AssetPatchTarget target)
     {
         var assets = _assetsReader.ReadAssetsInfo(assetsFilePath)
-            .Where(asset => string.Equals(asset.TypeName, queryConfig.Type, StringComparison.OrdinalIgnoreCase))
+            .Where(asset => string.Equals(asset.TypeName, target.Type, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
         foreach (AssetsInfo asset in assets)
         {
             AssetsFieldInfo fieldTree = _assetsReader.ReadAssetsFieldInfo(assetsFilePath, asset.PathId);
             bool matches =
-                queryConfig.IncludeGroups.Any(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
+                target.IncludeGroups.Any(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
 
             if (matches)
             {
@@ -157,37 +155,164 @@ public sealed class AssetsWorkflowService
 
     private IReadOnlyList<PatchWriteAsset> CreatePatchWritePlan(string assetsFilePath, AssetQueryConfig queryConfig)
     {
-        if (queryConfig.SetOperations is null)
+        if (!HasPatchOperations(queryConfig))
         {
             return [];
         }
 
-        var assets = new List<PatchWriteAsset>();
+        var operationGroups = new Dictionary<long, List<PatchWriteOperation>>();
 
-        foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(assetsFilePath, queryConfig))
+        foreach (AssetPatchTarget target in queryConfig.Targets)
         {
-            var operations = new List<PatchWriteOperation>();
-
-            foreach (PatchSetOperation operation in queryConfig.SetOperations)
+            foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(assetsFilePath, target))
             {
-                EnsureSupportedPatchValue(operation.To, operation.Path);
-
-                AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.Path);
-                string oldValue = field?.Value ?? "<missing>";
-
-                if (field?.Value is null || !AssetFieldMatcher.MatchesValue(field.Value, operation.From))
+                if (!operationGroups.TryGetValue(asset.PathId, out List<PatchWriteOperation>? operations))
                 {
-                    throw new InvalidOperationException(
-                        $"Patch operation cannot be applied for Path ID {asset.PathId}, field '{operation.Path}': current value {oldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+                    operations = [];
+                    operationGroups.Add(asset.PathId, operations);
                 }
 
-                operations.Add(new PatchWriteOperation(operation.Path, oldValue, operation.To));
+                foreach (PatchSetOperation operation in target.SetOperations ?? [])
+                {
+                    operations.AddRange(CreatePatchWriteOperations(asset.PathId, fieldTree, operation));
+                }
             }
-
-            assets.Add(new PatchWriteAsset(asset.PathId, operations));
         }
 
-        return assets;
+        return operationGroups
+            .Select(group => new PatchWriteAsset(group.Key, group.Value))
+            .ToArray();
+    }
+
+    private static bool HasPatchOperations(AssetQueryConfig queryConfig)
+    {
+        return queryConfig.Targets.All(target => target.SetOperations is { Count: > 0 });
+    }
+
+    private static IReadOnlyList<PatchPreviewOperationResult> CreatePatchPreviewOperationResults(
+        AssetsFieldInfo fieldTree,
+        PatchSetOperation operation)
+    {
+        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.Path);
+
+        if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
+        {
+            string oldValue = field?.Value ?? "<missing>";
+            bool matches = field is not null && AssetFieldMatcher.MatchesFieldValue(field, operation.From);
+
+            return
+            [
+                new PatchPreviewOperationResult(
+                    operation.Path,
+                    oldValue,
+                    operation.From,
+                    operation.To,
+                    matches)
+            ];
+        }
+
+        if (field is null)
+        {
+            return
+            [
+                new PatchPreviewOperationResult(
+                    operation.Path,
+                    "<missing>",
+                    operation.From,
+                    operation.To,
+                    false)
+            ];
+        }
+
+        bool parentMatches = AssetFieldMatcher.MatchesFieldValue(field, operation.From);
+        var results = new List<PatchPreviewOperationResult>();
+
+        foreach (JsonProperty property in toObject.EnumerateObject())
+        {
+            AssetsFieldInfo? child = FindDirectChild(field, property.Name);
+            string childPath = $"{operation.Path}.{property.Name}";
+            string oldValue = child?.Value ?? "<missing>";
+
+            results.Add(new PatchPreviewOperationResult(
+                childPath,
+                oldValue,
+                GetObjectPropertyOrDefault(operation.From, property.Name),
+                property.Value.Clone(),
+                parentMatches && child?.Value is not null));
+        }
+
+        return results;
+    }
+
+    private static IReadOnlyList<PatchWriteOperation> CreatePatchWriteOperations(
+        long pathId,
+        AssetsFieldInfo fieldTree,
+        PatchSetOperation operation)
+    {
+        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.Path);
+
+        if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
+        {
+            EnsureSupportedPatchValue(operation.To, operation.Path);
+            string oldValue = field?.Value ?? "<missing>";
+
+            if (field is null || !AssetFieldMatcher.MatchesFieldValue(field, operation.From))
+            {
+                throw new InvalidOperationException(
+                    $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.Path}': current value {oldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+            }
+
+            return [new PatchWriteOperation(operation.Path, oldValue, operation.To)];
+        }
+
+        string compositeOldValue = field is null ? "<missing>" : FormatObjectFieldValue(field);
+
+        if (field is null || !AssetFieldMatcher.MatchesFieldValue(field, operation.From))
+        {
+            throw new InvalidOperationException(
+                $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.Path}': current value {compositeOldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+        }
+
+        var operations = new List<PatchWriteOperation>();
+
+        foreach (JsonProperty property in toObject.EnumerateObject())
+        {
+            string childPath = $"{operation.Path}.{property.Name}";
+            EnsureSupportedPatchValue(property.Value, childPath);
+
+            AssetsFieldInfo child = FindDirectChild(field, property.Name)
+                                    ?? throw new InvalidOperationException(
+                                        $"Field not found for Path ID {pathId}: {childPath}");
+
+            string oldValue = child.Value ?? throw new InvalidOperationException(
+                $"Patch operation cannot be applied for Path ID {pathId}, field '{childPath}': current value <missing> does not match expected {AssetFieldMatcher.FormatJsonValue(GetObjectPropertyOrDefault(operation.From, property.Name))}.");
+
+            operations.Add(new PatchWriteOperation(childPath, oldValue, property.Value.Clone()));
+        }
+
+        return operations;
+    }
+
+    private static AssetsFieldInfo? FindDirectChild(AssetsFieldInfo field, string name)
+    {
+        return field.Children.FirstOrDefault(child => string.Equals(child.Name, name, StringComparison.Ordinal));
+    }
+
+    private static JsonElement GetObjectPropertyOrDefault(JsonElement value, string propertyName)
+    {
+        return AssetFieldMatcher.TryGetObjectValue(value, out JsonElement objectValue) &&
+               objectValue.TryGetProperty(propertyName, out JsonElement propertyValue)
+            ? propertyValue.Clone()
+            : value;
+    }
+
+    private static string FormatObjectFieldValue(AssetsFieldInfo field)
+    {
+        string properties = string.Join(", ", field.Children
+            .Where(child => child.Value is not null)
+            .Select(child => $"{child.Name}: {child.Value}"));
+
+        return properties.Length == 0 ? "<missing>" : $"{{ {properties} }}";
     }
 
     private static void EnsureSupportedPatchValue(JsonElement value, string path)

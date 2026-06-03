@@ -14,12 +14,38 @@ public static class AssetQueryConfigLoader
 
         JsonElement root = JsonUtils.ReadElementFromFile(configPath);
 
-        string type = root.TryGetProperty("type", out JsonElement typeElement) &&
+        if (root.TryGetProperty("patches", out JsonElement patchesElement))
+        {
+            if (patchesElement.ValueKind != JsonValueKind.Array)
+            {
+                throw new InvalidOperationException("Query config 'patches' property must be an array.");
+            }
+
+            var targets = patchesElement.EnumerateArray()
+                .Select(ReadPatchTarget)
+                .ToArray();
+
+            return targets.Length == 0
+                ? throw new InvalidOperationException("Query config patches array cannot be empty.")
+                : new AssetQueryConfig(targets);
+        }
+
+        return new AssetQueryConfig([ReadPatchTarget(root)]);
+    }
+
+    private static AssetPatchTarget ReadPatchTarget(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("Each patch target must be an object.");
+        }
+
+        string type = element.TryGetProperty("type", out JsonElement typeElement) &&
                       typeElement.ValueKind == JsonValueKind.String
             ? typeElement.GetString() ?? throw new InvalidOperationException("Query config type cannot be empty.")
             : throw new InvalidOperationException("Query config must contain a string 'type' property.");
 
-        if (!root.TryGetProperty("include", out JsonElement includeElement) ||
+        if (!element.TryGetProperty("include", out JsonElement includeElement) ||
             includeElement.ValueKind != JsonValueKind.Array)
         {
             throw new InvalidOperationException("Query config must contain an 'include' array.");
@@ -40,11 +66,11 @@ public static class AssetQueryConfigLoader
 
         IReadOnlyList<PatchSetOperation>? setOperations = null;
 
-        if (!root.TryGetProperty("set", out JsonElement setElement))
+        if (!element.TryGetProperty("set", out JsonElement setElement))
         {
             return includeGroups.Count == 0
                 ? throw new InvalidOperationException("Query config include array cannot be empty.")
-                : new AssetQueryConfig(type, includeGroups, setOperations);
+                : new AssetPatchTarget(type, includeGroups, setOperations);
         }
 
         if (setElement.ValueKind != JsonValueKind.Array)
@@ -58,7 +84,7 @@ public static class AssetQueryConfigLoader
 
         return includeGroups.Count == 0
             ? throw new InvalidOperationException("Query config include array cannot be empty.")
-            : new AssetQueryConfig(type, includeGroups, setOperations);
+            : new AssetPatchTarget(type, includeGroups, setOperations);
     }
 
     private static PatchSetOperation ReadPatchSetOperation(JsonElement element)
