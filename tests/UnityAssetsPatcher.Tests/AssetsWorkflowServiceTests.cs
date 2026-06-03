@@ -12,7 +12,7 @@ public sealed class AssetsWorkflowServiceTests
     public void FindAssets_WhenConfigHasMultipleIncludeGroups_ReturnsAssetsMatchingAnyGroup()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -60,7 +60,7 @@ public sealed class AssetsWorkflowServiceTests
     public void PreviewPatch_WhenSetFromDoesNotMatch_ReturnsSkippedOperationResult()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -108,7 +108,7 @@ public sealed class AssetsWorkflowServiceTests
     public void PreviewPatch_WhenConfigHasMultiplePatchTargets_ReturnsOperationsForEachTarget()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -182,7 +182,7 @@ public sealed class AssetsWorkflowServiceTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         File.WriteAllText(inputPath, "original");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -249,7 +249,7 @@ public sealed class AssetsWorkflowServiceTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         File.WriteAllText(inputPath, "original");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -335,7 +335,7 @@ public sealed class AssetsWorkflowServiceTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         File.WriteAllText(inputPath, "original");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -421,7 +421,7 @@ public sealed class AssetsWorkflowServiceTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         File.WriteAllText(inputPath, "original");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -515,7 +515,7 @@ public sealed class AssetsWorkflowServiceTests
         string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
         File.WriteAllText(inputPath, "original");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -570,7 +570,7 @@ public sealed class AssetsWorkflowServiceTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
         File.WriteAllText(inputPath, "original");
         File.WriteAllText(outputPath, "existing");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -625,7 +625,7 @@ public sealed class AssetsWorkflowServiceTests
         string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         File.WriteAllText(inputPath, "original");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {

@@ -2,7 +2,12 @@ using System.Text.Json;
 
 namespace UnityAssetsPatcher.Core;
 
-public sealed record AssetQueryConfig(IReadOnlyList<AssetPatchTarget> Targets);
+public sealed record AssetQueryConfig(
+    string Name,
+    string Author,
+    string Version,
+    string? Description,
+    IReadOnlyList<AssetPatchTarget> Targets);
 
 public sealed record AssetPatchTarget(
     string Type,

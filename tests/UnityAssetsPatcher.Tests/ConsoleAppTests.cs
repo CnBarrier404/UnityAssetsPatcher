@@ -165,7 +165,7 @@ public sealed class ConsoleAppTests
     public void Run_WhenFindCommandUsesConfig_PrintsOnlyAssetsMatchingAllIncludedFields()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -235,7 +235,7 @@ public sealed class ConsoleAppTests
     public void Run_WhenFindConfigHasMultipleIncludeGroups_PrintsAssetsMatchingAnyGroup()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -290,7 +290,7 @@ public sealed class ConsoleAppTests
     public void Run_WhenPatchCommandUsesDryRun_PrintsPlannedChangesWithoutWriting()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -366,7 +366,7 @@ public sealed class ConsoleAppTests
     public void Run_WhenPatchDryRunSetFromDoesNotMatch_PrintsSkippedChange()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {
@@ -423,7 +423,7 @@ public sealed class ConsoleAppTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         File.WriteAllText(inputPath, "original");
-        File.WriteAllText(
+        TestManifest.Write(
             configPath,
             """
             {

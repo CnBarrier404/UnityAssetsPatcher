@@ -24,7 +24,7 @@ public sealed class PatchCommandModule : ICommandModule
         };
         var configOption = new Option<string>("--config")
         {
-            Description = "Path to the patch JSON config.",
+            Description = "Path to the mod manifest JSON.",
             Required = true
         };
         var command = new Command("preview", "Print planned patch changes without writing.")
@@ -55,7 +55,7 @@ public sealed class PatchCommandModule : ICommandModule
         };
         var configOption = new Option<string>("--config")
         {
-            Description = "Path to the patch JSON config.",
+            Description = "Path to the mod manifest JSON.",
             Required = true
         };
         var outputOption = new Option<string>("--output")

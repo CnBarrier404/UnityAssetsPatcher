@@ -13,10 +13,10 @@ public sealed class FindCommandModule : ICommandModule
         };
         var configOption = new Option<string>("--config")
         {
-            Description = "Path to the asset query JSON config.",
+            Description = "Path to the mod manifest JSON.",
             Required = true
         };
-        var command = new Command("find", "Find assets matching a JSON query config.")
+        var command = new Command("find", "Find assets matching a mod manifest.")
         {
             assetsFileArgument,
             configOption
