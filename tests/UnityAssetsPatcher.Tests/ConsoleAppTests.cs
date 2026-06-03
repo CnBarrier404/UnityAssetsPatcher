@@ -28,6 +28,75 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
+    /// 验证 inspect 默认限制摘要输出数量，避免大型 assets 文件刷满终端。
+    /// </summary>
+    [Fact]
+    public void Run_WhenInspectCommandHasManyAssets_PrintsLimitedSummaryAndTruncationHint()
+    {
+        var assets = Enumerable.Range(1, 201)
+            .Select(id => new AssetsInfo(id, 20, $"Asset{id}", 128))
+            .ToArray();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
+
+        int exitCode = app.Run(["inspect", "resources.assets"]);
+
+        string text = output.ToString();
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Asset200", text);
+        Assert.DoesNotContain("Asset201", text);
+        Assert.Contains("Showing 200 of 201 assets.", text);
+        Assert.Contains("--all", text);
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    /// <summary>
+    /// 验证 inspect --all 会输出完整摘要表。
+    /// </summary>
+    [Fact]
+    public void Run_WhenInspectCommandUsesAll_PrintsEveryAssetSummary()
+    {
+        var assets = Enumerable.Range(1, 201)
+            .Select(id => new AssetsInfo(id, 20, $"Asset{id}", 128))
+            .ToArray();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
+
+        int exitCode = app.Run(["inspect", "resources.assets", "--all"]);
+
+        string text = output.ToString();
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Asset201", text);
+        Assert.DoesNotContain("Showing 200 of 201 assets.", text);
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    /// <summary>
+    /// 验证 inspect --limit 可以自定义摘要输出数量。
+    /// </summary>
+    [Fact]
+    public void Run_WhenInspectCommandUsesLimit_PrintsRequestedAssetSummaryCount()
+    {
+        var assets = Enumerable.Range(1, 10)
+            .Select(id => new AssetsInfo(id, 20, $"Asset{id}", 128))
+            .ToArray();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
+
+        int exitCode = app.Run(["inspect", "resources.assets", "--limit", "3"]);
+
+        string text = output.ToString();
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Asset3", text);
+        Assert.DoesNotContain("Asset4", text);
+        Assert.Contains("Showing 3 of 10 assets.", text);
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    /// <summary>
     /// 验证缺少命令行参数时，程序会输出使用说明并返回非零退出码。
     /// </summary>
     [Fact]

@@ -4,6 +4,8 @@ namespace UnityAssetsPatcher;
 
 public sealed class ConsoleApp
 {
+    private const int DefaultAssetSummaryLimit = 200;
+
     private readonly IAssetsReader _assetsReader;
     private readonly TextWriter _output;
     private readonly TextWriter _error;
@@ -20,44 +22,80 @@ public sealed class ConsoleApp
         if (!IsInspectCommand(args))
         {
             _error.WriteLine("Usage:");
-            _error.WriteLine("  UnityAssetsPatcher inspect <assets-file>");
+            _error.WriteLine("  UnityAssetsPatcher inspect <assets-file> [--limit <count> | --all]");
             _error.WriteLine("  UnityAssetsPatcher inspect <assets-file> <path-id> --detail");
             return 1;
         }
 
         try
         {
-            if (args.Length == 4)
+            if (IsInspectDetailCommand(args))
             {
                 return PrintAssetsFieldTree(args);
             }
 
             var assets = _assetsReader.ReadAssetsInfo(args[1]);
+            int? limit = GetAssetSummaryLimit(args);
+            var assetsToPrint = limit is null ? assets : assets.Take(limit.Value);
 
             _output.WriteLine($"{"Path ID",12} | {"Type ID",7} | {"Type Name",-24} | {"Byte Size",10}");
             _output.WriteLine(new string('-', 64));
 
-            foreach (AssetsInfo asset in assets)
+            foreach (AssetsInfo asset in assetsToPrint)
             {
                 _output.WriteLine($"{asset.PathId,12} | {asset.TypeId,7} | {asset.TypeName,-24} | {asset.ByteSize,10}");
             }
+
+            if (limit is null || assets.Count <= limit.Value)
+            {
+                return 0;
+            }
+
+            _output.WriteLine();
+            _output.WriteLine(
+                $"Showing {limit.Value} of {assets.Count} assets. Use --all to print every row or --limit <count> to choose a different limit.");
 
             return 0;
         }
         catch (Exception exception)
         {
             _error.WriteLine(exception.Message);
+
             return 1;
         }
     }
 
     private static bool IsInspectCommand(string[] args)
     {
-        if (args.Length == 2)
+        if (args.Length == 2 || IsInspectSummaryOption(args))
         {
             return string.Equals(args[0], "inspect", StringComparison.OrdinalIgnoreCase);
         }
 
+        return IsInspectDetailCommand(args);
+    }
+
+    private static bool IsInspectSummaryOption(string[] args)
+    {
+        return args.Length == 3 && string.Equals(args[2], "--all", StringComparison.OrdinalIgnoreCase)
+               || args.Length == 4
+               && string.Equals(args[2], "--limit", StringComparison.OrdinalIgnoreCase)
+               && int.TryParse(args[3], out int limit)
+               && limit > 0;
+    }
+
+    private static int? GetAssetSummaryLimit(string[] args)
+    {
+        return args.Length switch
+        {
+            3 when string.Equals(args[2], "--all", StringComparison.OrdinalIgnoreCase) => null,
+            4 when string.Equals(args[2], "--limit", StringComparison.OrdinalIgnoreCase) => int.Parse(args[3]),
+            _ => DefaultAssetSummaryLimit
+        };
+    }
+
+    private static bool IsInspectDetailCommand(string[] args)
+    {
         return args.Length == 4
                && string.Equals(args[0], "inspect", StringComparison.OrdinalIgnoreCase)
                && long.TryParse(args[2], out _)
