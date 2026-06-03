@@ -19,7 +19,7 @@ public sealed class ConsoleAppTests
         var error = new StringWriter();
         var app = new ConsoleApp(reader, output, error);
 
-        int exitCode = app.Run(["inspect", "sharedassets0.assets"]);
+        int exitCode = app.Run(["inspect", "list", "sharedassets0.assets"]);
 
         Assert.Equal(0, exitCode);
         Assert.Contains("Path ID", output.ToString());
@@ -40,13 +40,13 @@ public sealed class ConsoleAppTests
         var error = new StringWriter();
         var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
 
-        int exitCode = app.Run(["inspect", "resources.assets"]);
+        int exitCode = app.Run(["inspect", "list", "resources.assets"]);
 
         string text = output.ToString();
         Assert.Equal(0, exitCode);
-        Assert.Contains("Asset200", text);
-        Assert.DoesNotContain("Asset201", text);
-        Assert.Contains("Showing 200 of 201 assets.", text);
+        Assert.Contains("Asset100", text);
+        Assert.DoesNotContain("Asset101", text);
+        Assert.Contains("Showing 100 of 201 assets.", text);
         Assert.Contains("--all", text);
         Assert.Equal(string.Empty, error.ToString());
     }
@@ -64,7 +64,7 @@ public sealed class ConsoleAppTests
         var error = new StringWriter();
         var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
 
-        int exitCode = app.Run(["inspect", "resources.assets", "--all"]);
+        int exitCode = app.Run(["inspect", "list", "resources.assets", "--all"]);
 
         string text = output.ToString();
         Assert.Equal(0, exitCode);
@@ -86,7 +86,7 @@ public sealed class ConsoleAppTests
         var error = new StringWriter();
         var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
 
-        int exitCode = app.Run(["inspect", "resources.assets", "--limit", "3"]);
+        int exitCode = app.Run(["inspect", "list", "resources.assets", "--limit", "3"]);
 
         string text = output.ToString();
         Assert.Equal(0, exitCode);
@@ -97,7 +97,25 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证缺少命令行参数时，程序会输出使用说明并返回非零退出码。
+    /// 验证 inspect list 不允许同时使用 --all 和 --limit，避免产生歧义。
+    /// </summary>
+    [Fact]
+    public void Run_WhenInspectListUsesAllAndLimit_PrintsErrorAndReturnsNonZeroExitCode()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(new StubAssetsReader([]), output, error);
+
+        int exitCode = app.Run(["inspect", "list", "resources.assets", "--all", "--limit", "3"]);
+
+        Assert.NotEqual(0, exitCode);
+        Assert.Equal(string.Empty, output.ToString());
+        Assert.Contains("--all", error.ToString());
+        Assert.Contains("--limit", error.ToString());
+    }
+
+    /// <summary>
+    /// 验证缺少命令行参数时，程序会输出解析错误并返回非零退出码。
     /// </summary>
     [Fact]
     public void Run_WhenArgumentsAreMissing_PrintsUsageAndReturnsNonZeroExitCode()
@@ -109,7 +127,7 @@ public sealed class ConsoleAppTests
         int exitCode = app.Run([]);
 
         Assert.NotEqual(0, exitCode);
-        Assert.Contains("Usage:", error.ToString());
+        Assert.NotEqual(string.Empty, error.ToString());
     }
 
     /// <summary>
@@ -131,7 +149,7 @@ public sealed class ConsoleAppTests
         var error = new StringWriter();
         var app = new ConsoleApp(reader, output, error);
 
-        int exitCode = app.Run(["inspect", "sharedassets0.assets", "4", "--detail"]);
+        int exitCode = app.Run(["inspect", "fields", "sharedassets0.assets", "4"]);
 
         Assert.Equal(0, exitCode);
         Assert.Equal(4, reader.ReceivedPathId);
@@ -325,7 +343,7 @@ public sealed class ConsoleAppTests
 
         try
         {
-            int exitCode = app.Run(["patch", "resources.assets", "--config", configPath, "--dry-run"]);
+            int exitCode = app.Run(["patch", "preview", "resources.assets", "--config", configPath]);
 
             string text = output.ToString();
             Assert.Equal(0, exitCode);
@@ -379,7 +397,7 @@ public sealed class ConsoleAppTests
 
         try
         {
-            int exitCode = app.Run(["patch", "resources.assets", "--config", configPath, "--dry-run"]);
+            int exitCode = app.Run(["patch", "preview", "resources.assets", "--config", configPath]);
 
             string text = output.ToString();
             Assert.Equal(0, exitCode);
