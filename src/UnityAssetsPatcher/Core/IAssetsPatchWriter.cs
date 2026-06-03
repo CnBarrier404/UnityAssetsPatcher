@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace UnityAssetsPatcher.Core;
 
 public interface IAssetsPatchWriter
@@ -7,4 +9,4 @@ public interface IAssetsPatchWriter
 
 public sealed record PatchWriteAsset(long PathId, IReadOnlyList<PatchWriteOperation> Operations);
 
-public sealed record PatchWriteOperation(string Path, string OldValue, System.Text.Json.JsonElement To);
+public sealed record PatchWriteOperation(string Path, string OldValue, JsonElement To);

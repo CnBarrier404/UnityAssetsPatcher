@@ -516,6 +516,89 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
+    /// 验证 apply 可以按 Texture2D 名字动态解析 Path ID，并写入 Material 贴图槽的 m_PathID。
+    /// </summary>
+    [Fact]
+    public void ApplyPatch_WhenSetToUsesPathIdResolver_WritesResolvedTexturePathId()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        File.WriteAllText(inputPath, "original");
+        TestManifest.Write(
+            configPath,
+            $$"""
+              {
+                "target": "{{Path.GetFileName(inputPath)}}",
+                "type": "Material",
+                "include": [
+                  {
+                    "m_Name": "TargetMaterial"
+                  }
+                ],
+                "set": [
+                  {
+                    "field": "m_SavedProperties.m_TexEnvs.Array.data[first=_EmissionMap].second.m_Texture.m_PathID",
+                    "from": 0,
+                    "to": {
+                      "$pathId": {
+                        "type": "Texture2D",
+                        "include": [
+                          {
+                            "m_Name": "EmissionTexture"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+              """);
+        var writer = new StubAssetsPatchWriter();
+        var service = new AssetsWorkflowService(
+            new StubAssetsReader(
+                [
+                    new AssetsInfo(4, 21, "Material", 256),
+                    new AssetsInfo(8842, 28, "Texture2D", 512),
+                ],
+                new Dictionary<long, AssetsFieldInfo>
+                {
+                    [4] = CreateMaterialFieldTree(pathId: "0"),
+                    [8842] = new("Texture2D", "Texture2D", null,
+                    [
+                        new AssetsFieldInfo("m_Name", "string", "EmissionTexture", []),
+                    ]),
+                }),
+            writer);
+
+        try
+        {
+            PatchApplyResult result =
+                service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, backupDirectory));
+
+            Assert.Equal(1, result.AssetCount);
+            Assert.Equal(1, result.OperationCount);
+            PatchWriteOperation operation = Assert.Single(Assert.Single(writer.Plan).Operations);
+            Assert.Equal(
+                "m_SavedProperties.m_TexEnvs.Array.data[first=_EmissionMap].second.m_Texture.m_PathID",
+                operation.Path);
+            Assert.Equal("0", operation.OldValue);
+            Assert.Equal(8842, operation.To.GetInt64());
+        }
+        finally
+        {
+            File.Delete(configPath);
+            File.Delete(inputPath);
+            File.Delete(outputPath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// 验证 apply 在 from 不匹配时严格失败，并且不会写文件。
     /// </summary>
     [Fact]
@@ -1040,5 +1123,46 @@ public sealed class AssetsWorkflowServiceTests
             Plan = plan;
             File.WriteAllText(outputPath, "patched");
         }
+    }
+
+    private static AssetsFieldInfo CreateMaterialFieldTree(string pathId)
+    {
+        return new AssetsFieldInfo(
+            "Material",
+            "Material",
+            null,
+            [
+                new AssetsFieldInfo("m_Name", "string", "TargetMaterial", []),
+                new AssetsFieldInfo("m_SavedProperties", "UnityPropertySheet", null,
+                [
+                    new AssetsFieldInfo("m_TexEnvs", "map", null,
+                    [
+                        new AssetsFieldInfo("Array", "Array", null,
+                        [
+                            CreateTexEnv("_MainTex", "17"),
+                            CreateTexEnv("_EmissionMap", pathId),
+                        ]),
+                    ]),
+                ]),
+            ]);
+    }
+
+    private static AssetsFieldInfo CreateTexEnv(string name, string pathId)
+    {
+        return new AssetsFieldInfo(
+            "data",
+            "pair",
+            null,
+            [
+                new AssetsFieldInfo("first", "string", name, []),
+                new AssetsFieldInfo("second", "UnityTexEnv", null,
+                [
+                    new AssetsFieldInfo("m_Texture", "PPtr<Texture2D>", null,
+                    [
+                        new AssetsFieldInfo("m_FileID", "int", "0", []),
+                        new AssetsFieldInfo("m_PathID", "SInt64", pathId, []),
+                    ]),
+                ]),
+            ]);
     }
 }

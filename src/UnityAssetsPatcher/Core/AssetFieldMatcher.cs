@@ -23,17 +23,18 @@ public static class AssetFieldMatcher
 
     public static AssetsFieldInfo? FindField(AssetsFieldInfo fieldTree, string path)
     {
-        if (!path.Contains('.', StringComparison.Ordinal))
+        var segments = AssetFieldPath.Parse(path);
+
+        if (segments is [{ HasSelector: false }])
         {
-            return FindDescendantByName(fieldTree, path);
+            return FindDescendantByName(fieldTree, segments[0].Name);
         }
 
         AssetsFieldInfo? current = fieldTree;
 
-        foreach (string segment in path.Split('.'))
+        foreach (AssetFieldPathSegment segment in segments)
         {
-            current = current.Children.FirstOrDefault(child =>
-                string.Equals(child.Name, segment, StringComparison.Ordinal));
+            current = FindChildBySegment(current, segment);
 
             if (current is null)
             {
@@ -54,7 +55,7 @@ public static class AssetFieldMatcher
         return field.Value is not null && MatchesValue(field.Value, expectedValue);
     }
 
-    public static bool MatchesValue(string actualValue, JsonElement expectedValue)
+    private static bool MatchesValue(string actualValue, JsonElement expectedValue)
     {
         return expectedValue.ValueKind switch
         {
@@ -123,6 +124,26 @@ public static class AssetFieldMatcher
         }
 
         return true;
+    }
+
+    private static AssetsFieldInfo? FindChildBySegment(AssetsFieldInfo field, AssetFieldPathSegment segment)
+    {
+        return field.Children.FirstOrDefault(child =>
+            string.Equals(child.Name, segment.Name, StringComparison.Ordinal) &&
+            MatchesSelector(child, segment));
+    }
+
+    private static bool MatchesSelector(AssetsFieldInfo field, AssetFieldPathSegment segment)
+    {
+        if (!segment.HasSelector)
+        {
+            return true;
+        }
+
+        AssetsFieldInfo? selectorField = field.Children.FirstOrDefault(child =>
+            string.Equals(child.Name, segment.SelectorFieldName, StringComparison.Ordinal));
+
+        return string.Equals(selectorField?.Value, segment.SelectorValue, StringComparison.Ordinal);
     }
 
     private static bool MatchesNumber(string actualValue, JsonElement expectedValue)

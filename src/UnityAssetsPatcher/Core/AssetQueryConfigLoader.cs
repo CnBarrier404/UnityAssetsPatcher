@@ -197,7 +197,7 @@ public static class AssetQueryConfigLoader
     private static JsonElement ReadManifestElementFromZip(string zipPath)
     {
         using ZipArchive archive = ZipFile.OpenRead(zipPath);
-        ZipArchiveEntry[] manifests = archive.Entries
+        var manifests = archive.Entries
             .Where(entry => !string.IsNullOrEmpty(entry.Name) &&
                             string.Equals(entry.Name, "manifest.json", StringComparison.OrdinalIgnoreCase))
             .ToArray();

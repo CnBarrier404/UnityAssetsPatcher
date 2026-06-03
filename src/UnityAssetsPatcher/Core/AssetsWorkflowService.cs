@@ -26,7 +26,7 @@ public sealed class AssetsWorkflowService
     public IReadOnlyList<AssetMatch> FindAssets(FindAssetsRequest request)
     {
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
-        IReadOnlyList<AssetPatchTarget> targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
+        var targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
         var matches = new List<AssetMatch>();
 
         foreach (AssetPatchTarget target in targets)
@@ -46,7 +46,7 @@ public sealed class AssetsWorkflowService
     public PatchPreviewResult PreviewPatch(PatchPreviewRequest request)
     {
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
-        IReadOnlyList<AssetPatchTarget> targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
+        var targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
 
         return CreatePatchPreviewResult(request.AssetsFilePath, targets);
     }
@@ -64,16 +64,16 @@ public sealed class AssetsWorkflowService
         }
 
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ZipFilePath);
-        IReadOnlyDictionary<string, string> targetPaths = ResolveInstallTargetPaths(
+        var targetPaths = ResolveInstallTargetPaths(
             request.GameDirectory,
             queryConfig.Targets.Select(target => target.Target));
         var fileResults = new List<InstallPreviewFileResult>();
 
-        foreach (IGrouping<string, AssetPatchTarget> targetGroup in queryConfig.Targets
+        foreach (var targetGroup in queryConfig.Targets
                      .GroupBy(target => target.Target, StringComparer.OrdinalIgnoreCase))
         {
             string assetsFilePath = targetPaths[targetGroup.Key];
-            AssetPatchTarget[] targets = targetGroup.ToArray();
+            var targets = targetGroup.ToArray();
             PatchPreviewResult preview = CreatePatchPreviewResult(assetsFilePath, targets);
             fileResults.Add(new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview));
         }
@@ -106,7 +106,10 @@ public sealed class AssetsWorkflowService
 
                 foreach (PatchSetOperation operation in target.SetOperations ?? [])
                 {
-                    operationResults.AddRange(CreatePatchPreviewOperationResults(fieldTree, operation));
+                    operationResults.AddRange(CreatePatchPreviewOperationResults(
+                        assetsFilePath,
+                        fieldTree,
+                        operation));
                 }
 
                 assets.Add(new PatchPreviewAssetResult(asset, operationResults));
@@ -124,7 +127,7 @@ public sealed class AssetsWorkflowService
         }
 
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
-        IReadOnlyList<AssetPatchTarget> targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
+        var targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
 
         return ApplyPatchTargets(request.AssetsFilePath, request.OutputPath, request.BackupDirectory, targets);
     }
@@ -153,17 +156,17 @@ public sealed class AssetsWorkflowService
             throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
         }
 
-        IReadOnlyDictionary<string, string> targetPaths = ResolveInstallTargetPaths(
+        var targetPaths = ResolveInstallTargetPaths(
             request.GameDirectory,
             queryConfig.Targets.Select(target => target.Target));
         var plans = new List<InstallFilePlan>();
 
-        foreach (IGrouping<string, AssetPatchTarget> targetGroup in queryConfig.Targets
+        foreach (var targetGroup in queryConfig.Targets
                      .GroupBy(target => target.Target, StringComparer.OrdinalIgnoreCase))
         {
             string assetsFilePath = targetPaths[targetGroup.Key];
-            AssetPatchTarget[] targets = targetGroup.ToArray();
-            IReadOnlyList<PatchWriteAsset> plan = CreatePatchWritePlan(assetsFilePath, targets);
+            var targets = targetGroup.ToArray();
+            var plan = CreatePatchWritePlan(assetsFilePath, targets);
 
             if (plan.Count == 0)
             {
@@ -235,7 +238,7 @@ public sealed class AssetsWorkflowService
             throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
         }
 
-        IReadOnlyList<PatchWriteAsset> plan = CreatePatchWritePlan(assetsFilePath, targets);
+        var plan = CreatePatchWritePlan(assetsFilePath, targets);
 
         if (plan.Count == 0)
         {
@@ -350,7 +353,7 @@ public sealed class AssetsWorkflowService
         {
             foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(assetsFilePath, target))
             {
-                if (!operationGroups.TryGetValue(asset.PathId, out List<PatchWriteOperation>? operations))
+                if (!operationGroups.TryGetValue(asset.PathId, out var operations))
                 {
                     operations = [];
                     operationGroups.Add(asset.PathId, operations);
@@ -358,7 +361,11 @@ public sealed class AssetsWorkflowService
 
                 foreach (PatchSetOperation operation in target.SetOperations ?? [])
                 {
-                    operations.AddRange(CreatePatchWriteOperations(asset.PathId, fieldTree, operation));
+                    operations.AddRange(CreatePatchWriteOperations(
+                        assetsFilePath,
+                        asset.PathId,
+                        fieldTree,
+                        operation));
                 }
             }
         }
@@ -373,10 +380,12 @@ public sealed class AssetsWorkflowService
         return targets.Count > 0 && targets.All(target => target.SetOperations is { Count: > 0 });
     }
 
-    private static IReadOnlyList<PatchPreviewOperationResult> CreatePatchPreviewOperationResults(
+    private IReadOnlyList<PatchPreviewOperationResult> CreatePatchPreviewOperationResults(
+        string assetsFilePath,
         AssetsFieldInfo fieldTree,
         PatchSetOperation operation)
     {
+        operation = ResolvePatchSetOperation(assetsFilePath, operation);
         AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.Path);
 
         if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
@@ -428,11 +437,13 @@ public sealed class AssetsWorkflowService
         return results;
     }
 
-    private static IReadOnlyList<PatchWriteOperation> CreatePatchWriteOperations(
+    private IReadOnlyList<PatchWriteOperation> CreatePatchWriteOperations(
+        string assetsFilePath,
         long pathId,
         AssetsFieldInfo fieldTree,
         PatchSetOperation operation)
     {
+        operation = ResolvePatchSetOperation(assetsFilePath, operation);
         AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.Path);
 
         if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
@@ -475,6 +486,107 @@ public sealed class AssetsWorkflowService
         }
 
         return operations;
+    }
+
+    private PatchSetOperation ResolvePatchSetOperation(string assetsFilePath, PatchSetOperation operation)
+    {
+        JsonElement resolvedTo = ResolvePatchValue(assetsFilePath, operation.To);
+
+        return new PatchSetOperation(operation.Path, operation.From.Clone(), resolvedTo);
+    }
+
+    private JsonElement ResolvePatchValue(string assetsFilePath, JsonElement value)
+    {
+        if (!TryGetPathIdResolver(value, out JsonElement resolver))
+        {
+            return value.Clone();
+        }
+
+        long pathId = ResolvePathIdReference(assetsFilePath, resolver);
+        return JsonSerializer.SerializeToElement(pathId);
+    }
+
+    private long ResolvePathIdReference(string assetsFilePath, JsonElement resolver)
+    {
+        string type = ReadRequiredPathIdResolverString(resolver, "type");
+        var includeGroups =
+            ReadPathIdResolverIncludeGroups(resolver);
+
+        var target = new AssetPatchTarget(
+            Path.GetFileName(assetsFilePath),
+            type,
+            includeGroups,
+            null);
+        var matches = FindMatchingAssets(assetsFilePath, target)
+            .Select(match => match.Asset)
+            .ToArray();
+
+        return matches.Length switch
+        {
+            1 => matches[0].PathId,
+            0 => throw new InvalidOperationException(
+                $"Path ID reference did not match any assets for type '{type}'."),
+            _ => throw new InvalidOperationException(
+                $"Path ID reference matched multiple assets for type '{type}'.")
+        };
+    }
+
+    private static bool TryGetPathIdResolver(JsonElement value, out JsonElement resolver)
+    {
+        if (value.ValueKind == JsonValueKind.Object &&
+            value.EnumerateObject().Count() == 1 &&
+            value.TryGetProperty("$pathId", out resolver) &&
+            resolver.ValueKind == JsonValueKind.Object)
+        {
+            return true;
+        }
+
+        resolver = default;
+        return false;
+    }
+
+    private static string ReadRequiredPathIdResolverString(JsonElement resolver, string propertyName)
+    {
+        if (!resolver.TryGetProperty(propertyName, out JsonElement propertyElement) ||
+            propertyElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException(
+                $"Path ID reference must contain a non-empty string '{propertyName}' property.");
+        }
+
+        string? value = propertyElement.GetString();
+
+        return string.IsNullOrWhiteSpace(value)
+            ? throw new InvalidOperationException(
+                $"Path ID reference must contain a non-empty string '{propertyName}' property.")
+            : value;
+    }
+
+    private static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadPathIdResolverIncludeGroups(
+        JsonElement resolver)
+    {
+        if (!resolver.TryGetProperty("include", out JsonElement includeElement) ||
+            includeElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidOperationException("Path ID reference must contain an 'include' array.");
+        }
+
+        var includeGroups = new List<IReadOnlyDictionary<string, JsonElement>>();
+
+        foreach (JsonElement includeGroupElement in includeElement.EnumerateArray())
+        {
+            if (includeGroupElement.ValueKind != JsonValueKind.Object)
+            {
+                throw new InvalidOperationException("Each Path ID reference include entry must be an object.");
+            }
+
+            includeGroups.Add(includeGroupElement.EnumerateObject()
+                .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal));
+        }
+
+        return includeGroups.Count == 0
+            ? throw new InvalidOperationException("Path ID reference include array cannot be empty.")
+            : includeGroups;
     }
 
     private static AssetsFieldInfo? FindDirectChild(AssetsFieldInfo field, string name)

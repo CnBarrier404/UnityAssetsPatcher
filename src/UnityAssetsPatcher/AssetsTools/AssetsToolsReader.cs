@@ -1,6 +1,6 @@
+using System.Text.Json;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
-using System.Text.Json;
 using UnityAssetsPatcher.Core;
 
 namespace UnityAssetsPatcher.AssetsTools;
@@ -144,7 +144,7 @@ public sealed class AssetsToolsReader : IAssetsReader, IAssetsPatchWriter
 
                 using FileStream outputStream = File.Create(tempPath);
                 var writer = new AssetsFileWriter(outputStream);
-                assetsFile.Write(writer, 0);
+                assetsFile.Write(writer);
             }
             finally
             {
@@ -178,17 +178,18 @@ public sealed class AssetsToolsReader : IAssetsReader, IAssetsPatchWriter
 
     private static AssetTypeValueField? FindAssetToolsField(AssetTypeValueField field, string path)
     {
-        if (!path.Contains('.', StringComparison.Ordinal))
+        var segments = AssetFieldPath.Parse(path);
+
+        if (segments is [{ HasSelector: false }])
         {
-            return FindAssetToolsDescendantByName(field, path);
+            return FindAssetToolsDescendantByName(field, segments[0].Name);
         }
 
         AssetTypeValueField? current = field;
 
-        foreach (string segment in path.Split('.'))
+        foreach (AssetFieldPathSegment segment in segments)
         {
-            current = current.Children.FirstOrDefault(child =>
-                string.Equals(child.FieldName, segment, StringComparison.Ordinal));
+            current = FindAssetToolsChildBySegment(current, segment);
 
             if (current is null)
             {
@@ -210,6 +211,28 @@ public sealed class AssetsToolsReader : IAssetsReader, IAssetsPatchWriter
             .Select(child => FindAssetToolsDescendantByName(child, name))
             .OfType<AssetTypeValueField>()
             .FirstOrDefault();
+    }
+
+    private static AssetTypeValueField? FindAssetToolsChildBySegment(
+        AssetTypeValueField field,
+        AssetFieldPathSegment segment)
+    {
+        return field.Children.FirstOrDefault(child =>
+            string.Equals(child.FieldName, segment.Name, StringComparison.Ordinal) &&
+            MatchesAssetToolsSelector(child, segment));
+    }
+
+    private static bool MatchesAssetToolsSelector(AssetTypeValueField field, AssetFieldPathSegment segment)
+    {
+        if (!segment.HasSelector)
+        {
+            return true;
+        }
+
+        AssetTypeValueField? selectorField = field.Children.FirstOrDefault(child =>
+            string.Equals(child.FieldName, segment.SelectorFieldName, StringComparison.Ordinal));
+
+        return string.Equals(selectorField?.Value?.ToString(), segment.SelectorValue, StringComparison.Ordinal);
     }
 
     private static void ApplyJsonValue(AssetTypeValueField field, JsonElement value)
@@ -254,7 +277,7 @@ public sealed class AssetsToolsReader : IAssetsReader, IAssetsPatchWriter
                 field.AsULong = GetUInt64(value, field);
                 break;
             case AssetValueType.Float:
-                field.AsFloat = checked((float)GetDouble(value, field));
+                field.AsFloat = (float)GetDouble(value, field);
                 break;
             case AssetValueType.Double:
                 field.AsDouble = GetDouble(value, field);
