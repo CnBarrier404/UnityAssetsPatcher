@@ -1,3 +1,5 @@
+using System.IO.Compression;
+
 namespace UnityAssetsPatcher.Tests;
 
 internal static class TestManifest
@@ -12,11 +14,27 @@ internal static class TestManifest
         File.WriteAllText(
             configPath,
             $$"""
-            {
-              "name": "Test Mod",
-              "author": "UnityAssetsPatcher.Tests",
-              "version": "1.0.0"{{manifestPatchBody}}
-            }
-            """);
+              {
+                "name": "Test Mod",
+                "author": "UnityAssetsPatcher.Tests",
+                "version": "1.0.0"{{manifestPatchBody}}
+              }
+              """);
+    }
+
+    public static void WriteZip(string zipPath, string manifestBody, string entryName = "Mod/manifest.json")
+    {
+        using ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
+        ZipArchiveEntry entry = archive.CreateEntry(entryName);
+        using StreamWriter writer = new(entry.Open());
+        writer.Write(
+            $$"""
+              {
+                "name": "Test Mod",
+                "author": "UnityAssetsPatcher.Tests",
+                "version": "1.0.0",
+                {{manifestBody.Trim()[1..^1].Trim().Replace("\r\n", "\n").Replace("\n", "\n  ")}}
+              }
+              """);
     }
 }

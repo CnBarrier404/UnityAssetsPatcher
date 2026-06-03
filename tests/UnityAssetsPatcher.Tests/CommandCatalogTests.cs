@@ -22,6 +22,8 @@ public sealed class CommandCatalogTests
         Command inspect = Assert.Single(root.Subcommands, command => command.Name == "inspect");
         Assert.Contains(inspect.Subcommands, command => command.Name == "list");
         Assert.Contains(inspect.Subcommands, command => command.Name == "fields");
+        Command install = Assert.Single(root.Subcommands, command => command.Name == "install");
+        Assert.Contains(install.Subcommands, command => command.Name == "preview");
         Assert.Contains(root.Subcommands, command => command.Name == "find");
         Command patch = Assert.Single(root.Subcommands, command => command.Name == "patch");
         Assert.Contains(patch.Subcommands, command => command.Name == "preview");

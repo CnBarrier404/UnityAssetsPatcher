@@ -26,9 +26,10 @@ public sealed class AssetsWorkflowService
     public IReadOnlyList<AssetMatch> FindAssets(FindAssetsRequest request)
     {
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
+        IReadOnlyList<AssetPatchTarget> targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
         var matches = new List<AssetMatch>();
 
-        foreach (AssetPatchTarget target in queryConfig.Targets)
+        foreach (AssetPatchTarget target in targets)
         {
             foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(request.AssetsFilePath,
                          target))
@@ -45,17 +46,60 @@ public sealed class AssetsWorkflowService
     public PatchPreviewResult PreviewPatch(PatchPreviewRequest request)
     {
         AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
+        IReadOnlyList<AssetPatchTarget> targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
 
-        if (!HasPatchOperations(queryConfig))
+        return CreatePatchPreviewResult(request.AssetsFilePath, targets);
+    }
+
+    public InstallPreviewResult PreviewInstallMod(InstallPreviewRequest request)
+    {
+        if (!File.Exists(request.ZipFilePath))
+        {
+            throw new FileNotFoundException($"Mod zip file not found: {request.ZipFilePath}", request.ZipFilePath);
+        }
+
+        if (!Directory.Exists(request.GameDirectory))
+        {
+            throw new DirectoryNotFoundException($"Game directory not found: {request.GameDirectory}");
+        }
+
+        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ZipFilePath);
+        IReadOnlyDictionary<string, string> targetPaths = ResolveInstallTargetPaths(
+            request.GameDirectory,
+            queryConfig.Targets.Select(target => target.Target));
+        var fileResults = new List<InstallPreviewFileResult>();
+
+        foreach (IGrouping<string, AssetPatchTarget> targetGroup in queryConfig.Targets
+                     .GroupBy(target => target.Target, StringComparer.OrdinalIgnoreCase))
+        {
+            string assetsFilePath = targetPaths[targetGroup.Key];
+            AssetPatchTarget[] targets = targetGroup.ToArray();
+            PatchPreviewResult preview = CreatePatchPreviewResult(assetsFilePath, targets);
+            fileResults.Add(new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview));
+        }
+
+        return new InstallPreviewResult(queryConfig.Name, queryConfig.Version, fileResults);
+    }
+
+    private PatchPreviewResult CreatePatchPreviewResult(
+        string assetsFilePath,
+        IReadOnlyList<AssetPatchTarget> targets)
+    {
+        if (targets.Count == 0)
+        {
+            return new PatchPreviewResult([]);
+        }
+
+        if (!HasPatchOperations(targets))
         {
             throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
         }
 
         var assets = new List<PatchPreviewAssetResult>();
 
-        foreach (AssetPatchTarget target in queryConfig.Targets)
+        foreach (AssetPatchTarget target in targets)
         {
-            foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(request.AssetsFilePath,
+            foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(assetsFilePath,
                          target))
             {
                 var operationResults = new List<PatchPreviewOperationResult>();
@@ -79,18 +123,98 @@ public sealed class AssetsWorkflowService
             throw new InvalidOperationException("Assets patch writer was not configured.");
         }
 
-        if (!File.Exists(request.AssetsFilePath))
+        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
+        IReadOnlyList<AssetPatchTarget> targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
+
+        return ApplyPatchTargets(request.AssetsFilePath, request.OutputPath, request.BackupDirectory, targets);
+    }
+
+    public InstallModResult InstallMod(InstallModRequest request)
+    {
+        if (_assetsPatchWriter is null)
         {
-            throw new FileNotFoundException($"Assets file not found: {request.AssetsFilePath}", request.AssetsFilePath);
+            throw new InvalidOperationException("Assets patch writer was not configured.");
         }
 
-        string outputPath = request.OutputPath ?? request.AssetsFilePath;
+        if (!File.Exists(request.ZipFilePath))
+        {
+            throw new FileNotFoundException($"Mod zip file not found: {request.ZipFilePath}", request.ZipFilePath);
+        }
+
+        if (!Directory.Exists(request.GameDirectory))
+        {
+            throw new DirectoryNotFoundException($"Game directory not found: {request.GameDirectory}");
+        }
+
+        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ZipFilePath);
+
+        if (!HasPatchOperations(queryConfig.Targets))
+        {
+            throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
+        }
+
+        IReadOnlyDictionary<string, string> targetPaths = ResolveInstallTargetPaths(
+            request.GameDirectory,
+            queryConfig.Targets.Select(target => target.Target));
+        var plans = new List<InstallFilePlan>();
+
+        foreach (IGrouping<string, AssetPatchTarget> targetGroup in queryConfig.Targets
+                     .GroupBy(target => target.Target, StringComparer.OrdinalIgnoreCase))
+        {
+            string assetsFilePath = targetPaths[targetGroup.Key];
+            AssetPatchTarget[] targets = targetGroup.ToArray();
+            IReadOnlyList<PatchWriteAsset> plan = CreatePatchWritePlan(assetsFilePath, targets);
+
+            if (plan.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Patch config for target '{targetGroup.Key}' did not match any assets.");
+            }
+
+            plans.Add(new InstallFilePlan(targetGroup.Key, assetsFilePath, plan));
+        }
+
+        var fileResults = new List<InstallModFileResult>();
+
+        foreach (InstallFilePlan plan in plans)
+        {
+            PatchApplyResult result = WritePatchPlan(
+                plan.AssetsFilePath,
+                plan.AssetsFilePath,
+                true,
+                request.BackupDirectory,
+                plan.Assets);
+            string backupPath = result.BackupPath ??
+                                throw new InvalidOperationException("Install patch did not create a backup.");
+            fileResults.Add(new InstallModFileResult(
+                plan.Target,
+                result.OutputPath,
+                backupPath,
+                result.AssetCount,
+                result.OperationCount));
+        }
+
+        return new InstallModResult(queryConfig.Name, queryConfig.Version, fileResults);
+    }
+
+    private PatchApplyResult ApplyPatchTargets(
+        string assetsFilePath,
+        string? outputPathOption,
+        string backupDirectory,
+        IReadOnlyList<AssetPatchTarget> targets)
+    {
+        if (!File.Exists(assetsFilePath))
+        {
+            throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
+        }
+
+        string outputPath = outputPathOption ?? assetsFilePath;
         bool overwritesInput = string.Equals(
             Path.GetFullPath(outputPath),
-            Path.GetFullPath(request.AssetsFilePath),
+            Path.GetFullPath(assetsFilePath),
             StringComparison.OrdinalIgnoreCase);
 
-        if (request.OutputPath is not null && overwritesInput)
+        if (outputPathOption is not null && overwritesInput)
         {
             throw new InvalidOperationException("--output cannot point to the input assets file.");
         }
@@ -100,36 +224,94 @@ public sealed class AssetsWorkflowService
             throw new IOException($"Output file already exists: {outputPath}");
         }
 
-        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
+        if (targets.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Patch config did not contain a target for assets file: {Path.GetFileName(assetsFilePath)}");
+        }
 
-        if (!HasPatchOperations(queryConfig))
+        if (!HasPatchOperations(targets))
         {
             throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
         }
 
-        var plan = CreatePatchWritePlan(request.AssetsFilePath, queryConfig);
+        IReadOnlyList<PatchWriteAsset> plan = CreatePatchWritePlan(assetsFilePath, targets);
 
         if (plan.Count == 0)
         {
             throw new InvalidOperationException("Patch config did not match any assets.");
         }
 
+        return WritePatchPlan(assetsFilePath, outputPath, overwritesInput, backupDirectory, plan);
+    }
+
+    private PatchApplyResult WritePatchPlan(
+        string assetsFilePath,
+        string outputPath,
+        bool overwritesInput,
+        string backupDirectory,
+        IReadOnlyList<PatchWriteAsset> plan)
+    {
         string? backupPath = null;
 
         if (overwritesInput)
         {
-            Directory.CreateDirectory(request.BackupDirectory);
-            backupPath = CreateBackupPath(request.BackupDirectory, request.AssetsFilePath);
-            File.Copy(request.AssetsFilePath, backupPath, false);
+            Directory.CreateDirectory(backupDirectory);
+            backupPath = CreateBackupPath(backupDirectory, assetsFilePath);
+            File.Copy(assetsFilePath, backupPath, false);
         }
 
-        _assetsPatchWriter.WritePatch(request.AssetsFilePath, outputPath, plan);
+        _assetsPatchWriter!.WritePatch(assetsFilePath, outputPath, plan);
 
         return new PatchApplyResult(
             outputPath,
             backupPath,
             plan.Count,
             plan.Sum(asset => asset.Operations.Count));
+    }
+
+    private static IReadOnlyList<AssetPatchTarget> GetTargetsForAssetsFile(
+        AssetQueryConfig queryConfig,
+        string assetsFilePath)
+    {
+        string fileName = Path.GetFileName(assetsFilePath);
+
+        return queryConfig.Targets
+            .Where(target => string.Equals(target.Target, fileName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+    }
+
+    private static IReadOnlyDictionary<string, string> ResolveInstallTargetPaths(
+        string gameDirectory,
+        IEnumerable<string> targets)
+    {
+        string fullGameDirectory = Path.GetFullPath(gameDirectory);
+        var resolvedTargets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string target in targets.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            string[] matches = Directory.EnumerateFiles(fullGameDirectory, "*", SearchOption.AllDirectories)
+                .Where(file => string.Equals(Path.GetFileName(file), target, StringComparison.OrdinalIgnoreCase))
+                .Select(Path.GetFullPath)
+                .ToArray();
+
+            if (matches.Length == 0)
+            {
+                throw new FileNotFoundException(
+                    $"Target '{target}' was not found under game directory: {fullGameDirectory}",
+                    target);
+            }
+
+            if (matches.Length > 1)
+            {
+                throw new InvalidOperationException(
+                    $"Target '{target}' matched multiple files under game directory: {fullGameDirectory}");
+            }
+
+            resolvedTargets.Add(target, matches[0]);
+        }
+
+        return resolvedTargets;
     }
 
     private IEnumerable<(AssetsInfo Asset, AssetsFieldInfo FieldTree)> FindMatchingAssets(
@@ -153,16 +335,18 @@ public sealed class AssetsWorkflowService
         }
     }
 
-    private IReadOnlyList<PatchWriteAsset> CreatePatchWritePlan(string assetsFilePath, AssetQueryConfig queryConfig)
+    private IReadOnlyList<PatchWriteAsset> CreatePatchWritePlan(
+        string assetsFilePath,
+        IReadOnlyList<AssetPatchTarget> targets)
     {
-        if (!HasPatchOperations(queryConfig))
+        if (!HasPatchOperations(targets))
         {
             return [];
         }
 
         var operationGroups = new Dictionary<long, List<PatchWriteOperation>>();
 
-        foreach (AssetPatchTarget target in queryConfig.Targets)
+        foreach (AssetPatchTarget target in targets)
         {
             foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(assetsFilePath, target))
             {
@@ -184,9 +368,9 @@ public sealed class AssetsWorkflowService
             .ToArray();
     }
 
-    private static bool HasPatchOperations(AssetQueryConfig queryConfig)
+    private static bool HasPatchOperations(IReadOnlyList<AssetPatchTarget> targets)
     {
-        return queryConfig.Targets.All(target => target.SetOperations is { Count: > 0 });
+        return targets.Count > 0 && targets.All(target => target.SetOperations is { Count: > 0 });
     }
 
     private static IReadOnlyList<PatchPreviewOperationResult> CreatePatchPreviewOperationResults(
@@ -341,6 +525,11 @@ public sealed class AssetsWorkflowService
 
         return candidate;
     }
+
+    private sealed record InstallFilePlan(
+        string Target,
+        string AssetsFilePath,
+        IReadOnlyList<PatchWriteAsset> Assets);
 }
 
 public sealed record InspectListRequest(string AssetsFilePath, int? Limit);
@@ -357,7 +546,36 @@ public sealed record PatchApplyRequest(
     string? OutputPath,
     string BackupDirectory);
 
+public sealed record InstallModRequest(
+    string ZipFilePath,
+    string GameDirectory,
+    string BackupDirectory);
+
+public sealed record InstallPreviewRequest(string ZipFilePath, string GameDirectory);
+
 public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
+
+public sealed record InstallModResult(
+    string ModName,
+    string ModVersion,
+    IReadOnlyList<InstallModFileResult> Files);
+
+public sealed record InstallModFileResult(
+    string Target,
+    string AssetsFilePath,
+    string BackupPath,
+    int AssetCount,
+    int OperationCount);
+
+public sealed record InstallPreviewResult(
+    string ModName,
+    string ModVersion,
+    IReadOnlyList<InstallPreviewFileResult> Files);
+
+public sealed record InstallPreviewFileResult(
+    string Target,
+    string AssetsFilePath,
+    PatchPreviewResult Preview);
 
 public sealed record AssetMatch(AssetsInfo Asset, IReadOnlyDictionary<string, JsonElement> IncludeGroup);
 

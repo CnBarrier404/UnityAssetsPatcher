@@ -13,7 +13,7 @@ public sealed class FindCommandModule : ICommandModule
         };
         var configOption = new Option<string>("--config")
         {
-            Description = "Path to the mod manifest JSON.",
+            Description = "Path to the mod manifest JSON or zip.",
             Required = true
         };
         var command = new Command("find", "Find assets matching a mod manifest.")

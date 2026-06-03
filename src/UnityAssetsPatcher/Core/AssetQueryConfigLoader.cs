@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text.Json;
 using UnityAssetsPatcher.Utils;
 
@@ -12,7 +13,15 @@ public static class AssetQueryConfigLoader
             throw new FileNotFoundException($"Manifest file not found: {configPath}", configPath);
         }
 
-        JsonElement root = JsonUtils.ReadElementFromFile(configPath);
+        JsonElement root = Path.GetExtension(configPath).Equals(".zip", StringComparison.OrdinalIgnoreCase)
+            ? ReadManifestElementFromZip(configPath)
+            : JsonUtils.ReadElementFromFile(configPath);
+
+        return Load(root);
+    }
+
+    private static AssetQueryConfig Load(JsonElement root)
+    {
         string name = ReadRequiredMetadataString(root, "name");
         string author = ReadRequiredMetadataString(root, "author");
         string version = ReadRequiredMetadataString(root, "version");
@@ -76,6 +85,7 @@ public static class AssetQueryConfigLoader
             throw new InvalidOperationException("Each patch target must be an object.");
         }
 
+        string target = ReadTargetFileName(element);
         string type = element.TryGetProperty("type", out JsonElement typeElement) &&
                       typeElement.ValueKind == JsonValueKind.String
             ? typeElement.GetString() ?? throw new InvalidOperationException("Manifest patch type cannot be empty.")
@@ -106,7 +116,7 @@ public static class AssetQueryConfigLoader
         {
             return includeGroups.Count == 0
                 ? throw new InvalidOperationException("Manifest patch include array cannot be empty.")
-                : new AssetPatchTarget(type, includeGroups, setOperations);
+                : new AssetPatchTarget(target, type, includeGroups, setOperations);
         }
 
         if (setElement.ValueKind != JsonValueKind.Array)
@@ -120,7 +130,7 @@ public static class AssetQueryConfigLoader
 
         return includeGroups.Count == 0
             ? throw new InvalidOperationException("Manifest patch include array cannot be empty.")
-            : new AssetPatchTarget(type, includeGroups, setOperations);
+            : new AssetPatchTarget(target, type, includeGroups, setOperations);
     }
 
     private static PatchSetOperation ReadPatchSetOperation(JsonElement element)
@@ -130,10 +140,16 @@ public static class AssetQueryConfigLoader
             throw new InvalidOperationException("Each set entry must be an object.");
         }
 
-        if (!element.TryGetProperty("path", out JsonElement pathElement) ||
-            pathElement.ValueKind != JsonValueKind.String)
+        if (element.TryGetProperty("path", out _))
         {
-            throw new InvalidOperationException("Each set entry must contain a string 'path' property.");
+            throw new InvalidOperationException(
+                "Each set entry must use a string 'field' property; 'path' is not supported.");
+        }
+
+        if (!element.TryGetProperty("field", out JsonElement fieldElement) ||
+            fieldElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException("Each set entry must contain a string 'field' property.");
         }
 
         if (!element.TryGetProperty("from", out JsonElement fromElement))
@@ -146,7 +162,54 @@ public static class AssetQueryConfigLoader
             throw new InvalidOperationException("Each set entry must contain a 'to' property.");
         }
 
-        string path = pathElement.GetString() ?? throw new InvalidOperationException("Set path cannot be empty.");
-        return new PatchSetOperation(path, fromElement.Clone(), toElement.Clone());
+        string field = fieldElement.GetString() ?? throw new InvalidOperationException("Set field cannot be empty.");
+        return new PatchSetOperation(field, fromElement.Clone(), toElement.Clone());
+    }
+
+    private static string ReadTargetFileName(JsonElement element)
+    {
+        if (!element.TryGetProperty("target", out JsonElement targetElement) ||
+            targetElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException("Manifest patch must contain a string 'target' property.");
+        }
+
+        string? target = targetElement.GetString();
+
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            throw new InvalidOperationException("Manifest patch 'target' property cannot be empty.");
+        }
+
+        if (Path.IsPathRooted(target) ||
+            target.Contains('/', StringComparison.Ordinal) ||
+            target.Contains('\\', StringComparison.Ordinal) ||
+            target is "." or ".." ||
+            target.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            throw new InvalidOperationException(
+                "Manifest patch 'target' property must be a file name without directories.");
+        }
+
+        return target;
+    }
+
+    private static JsonElement ReadManifestElementFromZip(string zipPath)
+    {
+        using ZipArchive archive = ZipFile.OpenRead(zipPath);
+        ZipArchiveEntry[] manifests = archive.Entries
+            .Where(entry => !string.IsNullOrEmpty(entry.Name) &&
+                            string.Equals(entry.Name, "manifest.json", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (manifests.Length != 1)
+        {
+            throw new InvalidOperationException(
+                $"Zip file must contain exactly one manifest.json entry: {zipPath}");
+        }
+
+        using Stream stream = manifests[0].Open();
+        using JsonDocument document = JsonDocument.Parse(stream);
+        return document.RootElement.Clone();
     }
 }

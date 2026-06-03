@@ -49,7 +49,27 @@ public sealed class ConsoleOutputFormatter
     public static void WritePatchPreview(TextWriter output, PatchPreviewResult preview)
     {
         output.WriteLine("DRY RUN");
+        WritePatchPreviewAssets(output, preview);
+    }
 
+    public static void WriteInstallPreview(TextWriter output, InstallPreviewResult result)
+    {
+        output.WriteLine("DRY RUN");
+        output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
+        output.WriteLine($"Files: {result.Files.Count}");
+        output.WriteLine($"Assets: {result.Files.Sum(file => file.Preview.Assets.Count)}");
+        output.WriteLine(
+            $"Operations: {result.Files.Sum(file => file.Preview.Assets.Sum(asset => asset.Operations.Count))}");
+
+        foreach (InstallPreviewFileResult file in result.Files)
+        {
+            output.WriteLine($"{file.Target}: {file.AssetsFilePath}");
+            WritePatchPreviewAssets(output, file.Preview);
+        }
+    }
+
+    private static void WritePatchPreviewAssets(TextWriter output, PatchPreviewResult preview)
+    {
         foreach (PatchPreviewAssetResult assetResult in preview.Assets)
         {
             output.WriteLine($"Path ID: {assetResult.Asset.PathId} ({assetResult.Asset.TypeName})");
@@ -81,6 +101,21 @@ public sealed class ConsoleOutputFormatter
 
         output.WriteLine($"Assets: {result.AssetCount}");
         output.WriteLine($"Operations: {result.OperationCount}");
+    }
+
+    public static void WriteInstallResult(TextWriter output, InstallModResult result)
+    {
+        output.WriteLine("INSTALLED");
+        output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
+        output.WriteLine($"Files: {result.Files.Count}");
+        output.WriteLine($"Assets: {result.Files.Sum(file => file.AssetCount)}");
+        output.WriteLine($"Operations: {result.Files.Sum(file => file.OperationCount)}");
+
+        foreach (InstallModFileResult file in result.Files)
+        {
+            output.WriteLine($"{file.Target}: {file.AssetsFilePath}");
+            output.WriteLine($"  Backup: {file.BackupPath}");
+        }
     }
 
     private static void WriteAssetField(TextWriter output, AssetsFieldInfo field, int depth)

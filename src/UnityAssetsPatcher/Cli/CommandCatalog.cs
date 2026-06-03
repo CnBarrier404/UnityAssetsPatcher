@@ -9,6 +9,7 @@ public sealed class CommandCatalog
     public CommandCatalog() : this(
     [
         new InspectCommandModule(),
+        new InstallCommandModule(),
         new FindCommandModule(),
         new PatchCommandModule(),
     ]) { }

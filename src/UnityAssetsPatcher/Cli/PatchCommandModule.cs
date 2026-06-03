@@ -24,10 +24,10 @@ public sealed class PatchCommandModule : ICommandModule
         };
         var configOption = new Option<string>("--config")
         {
-            Description = "Path to the mod manifest JSON.",
+            Description = "Path to the mod manifest JSON or zip.",
             Required = true
         };
-        var command = new Command("preview", "Print planned patch changes without writing.")
+        var command = new Command("preview", "Print planned patch changes for an explicit assets file without writing.")
         {
             assetsFileArgument,
             configOption
@@ -55,7 +55,7 @@ public sealed class PatchCommandModule : ICommandModule
         };
         var configOption = new Option<string>("--config")
         {
-            Description = "Path to the mod manifest JSON.",
+            Description = "Path to the mod manifest JSON or zip.",
             Required = true
         };
         var outputOption = new Option<string>("--output")

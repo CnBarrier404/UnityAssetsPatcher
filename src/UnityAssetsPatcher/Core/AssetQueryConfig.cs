@@ -10,6 +10,7 @@ public sealed record AssetQueryConfig(
     IReadOnlyList<AssetPatchTarget> Targets);
 
 public sealed record AssetPatchTarget(
+    string Target,
     string Type,
     IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> IncludeGroups,
     IReadOnlyList<PatchSetOperation>? SetOperations);

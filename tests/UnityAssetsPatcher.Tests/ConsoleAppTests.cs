@@ -169,6 +169,7 @@ public sealed class ConsoleAppTests
             configPath,
             """
             {
+              "target": "resources.assets",
               "type": "Camera",
               "include": [
                 {
@@ -239,6 +240,7 @@ public sealed class ConsoleAppTests
             configPath,
             """
             {
+              "target": "resources.assets",
               "type": "Camera",
               "include": [
                 {
@@ -294,6 +296,7 @@ public sealed class ConsoleAppTests
             configPath,
             """
             {
+              "target": "resources.assets",
               "type": "Camera",
               "include": [
                 {
@@ -304,7 +307,7 @@ public sealed class ConsoleAppTests
               ],
               "set": [
                 {
-                  "path": "field of view",
+                  "field": "field of view",
                   "from": 90.0,
                   "to": 75.0
                 }
@@ -370,6 +373,7 @@ public sealed class ConsoleAppTests
             configPath,
             """
             {
+              "target": "resources.assets",
               "type": "Camera",
               "include": [
                 {
@@ -378,7 +382,7 @@ public sealed class ConsoleAppTests
               ],
               "set": [
                 {
-                  "path": "field of view",
+                  "field": "field of view",
                   "from": 60.0,
                   "to": 75.0
                 }
@@ -425,23 +429,24 @@ public sealed class ConsoleAppTests
         File.WriteAllText(inputPath, "original");
         TestManifest.Write(
             configPath,
-            """
-            {
-              "type": "Camera",
-              "include": [
-                {
-                  "field of view": 90.0
-                }
-              ],
-              "set": [
-                {
-                  "path": "field of view",
-                  "from": 90.0,
-                  "to": 75.0
-                }
-              ]
-            }
-            """);
+            $$"""
+              {
+                "target": "{{Path.GetFileName(inputPath)}}",
+                "type": "Camera",
+                "include": [
+                  {
+                    "field of view": 90.0
+                  }
+                ],
+                "set": [
+                  {
+                    "field": "field of view",
+                    "from": 90.0,
+                    "to": 75.0
+                  }
+                ]
+              }
+              """);
         var reader = new StubAssetsReader(
             [new AssetsInfo(50, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
@@ -472,6 +477,150 @@ public sealed class ConsoleAppTests
             if (Directory.Exists(backupDirectory))
             {
                 Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证 install 命令会接收 zip 文件和游戏安装目录，并输出安装摘要。
+    /// </summary>
+    [Fact]
+    public void Run_WhenInstallCommandUsesZipAndGameDir_PrintsInstallSummary()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsReader(
+            [new AssetsInfo(50, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [50] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, new StubAssetsPatchWriter(), backupDirectory, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["install", zipPath, "--game-dir", gameDirectory]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("INSTALLED", text);
+            Assert.Contains("Test Mod", text);
+            Assert.Contains("Files: 1", text);
+            Assert.Contains("Operations: 1", text);
+            Assert.Contains("sharedassets0.assets", text);
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证 install preview 会按 zip manifest 自动定位目标文件，并输出 dry-run 结果。
+    /// </summary>
+    [Fact]
+    public void Run_WhenInstallPreviewUsesZipAndGameDir_PrintsDryRunSummary()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsReader(
+            [new AssetsInfo(50, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [50] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["install", "preview", zipPath, "--game-dir", gameDirectory]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("DRY RUN", text);
+            Assert.Contains("Test Mod", text);
+            Assert.Contains("sharedassets0.assets", text);
+            Assert.Contains("field of view: 90.0 -> 75.0", text);
+            Assert.Equal("original", File.ReadAllText(targetPath));
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
             }
         }
     }
