@@ -69,6 +69,20 @@ public sealed class ConsoleOutputFormatter
         }
     }
 
+    public static void WritePatchApply(TextWriter output, PatchApplyResult result)
+    {
+        output.WriteLine("APPLIED");
+        output.WriteLine($"Output: {result.OutputPath}");
+
+        if (result.BackupPath is not null)
+        {
+            output.WriteLine($"Backup: {result.BackupPath}");
+        }
+
+        output.WriteLine($"Assets: {result.AssetCount}");
+        output.WriteLine($"Operations: {result.OperationCount}");
+    }
+
     private static void WriteAssetField(TextWriter output, AssetsFieldInfo field, int depth)
     {
         string indentation = new(' ', depth * 2);

@@ -412,6 +412,70 @@ public sealed class ConsoleAppTests
         }
     }
 
+    /// <summary>
+    /// 验证 patch apply 会解析输出路径，并打印应用摘要。
+    /// </summary>
+    [Fact]
+    public void Run_WhenPatchApplyCommandUsesOutput_PrintsApplySummary()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        File.WriteAllText(inputPath, "original");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "type": "Camera",
+              "include": [
+                {
+                  "field of view": 90.0
+                }
+              ],
+              "set": [
+                {
+                  "path": "field of view",
+                  "from": 90.0,
+                  "to": 75.0
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsReader(
+            [new AssetsInfo(50, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [50] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, new StubAssetsPatchWriter(), backupDirectory, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["patch", "apply", inputPath, "--config", configPath, "--output", outputPath]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("APPLIED", text);
+            Assert.Contains(outputPath, text);
+            Assert.Contains("Assets: 1", text);
+            Assert.Contains("Operations: 1", text);
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(configPath);
+            File.Delete(inputPath);
+            File.Delete(outputPath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
     private sealed class StubAssetsReader : IAssetsReader
     {
         private readonly IReadOnlyList<AssetsInfo> _result;
@@ -442,6 +506,14 @@ public sealed class ConsoleAppTests
             return _fieldTrees.TryGetValue(pathId, out AssetsFieldInfo? fieldTree)
                 ? fieldTree
                 : throw new InvalidOperationException("Field tree was not configured.");
+        }
+    }
+
+    private sealed class StubAssetsPatchWriter : IAssetsPatchWriter
+    {
+        public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
+        {
+            File.WriteAllText(outputPath, "patched");
         }
     }
 }

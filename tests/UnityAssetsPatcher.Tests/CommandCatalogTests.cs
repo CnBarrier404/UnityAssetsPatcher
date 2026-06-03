@@ -14,7 +14,8 @@ public sealed class CommandCatalogTests
     public void BuildRootCommand_RegistersSupportedCommands()
     {
         var service = new AssetsWorkflowService(new StubAssetsReader());
-        var context = new CommandContext(service, new ConsoleOutputFormatter(), TextWriter.Null, TextWriter.Null);
+        var context = new CommandContext(service, new ConsoleOutputFormatter(), "backup", TextWriter.Null,
+            TextWriter.Null);
 
         RootCommand root = new CommandCatalog().BuildRootCommand(context);
 
@@ -24,6 +25,7 @@ public sealed class CommandCatalogTests
         Assert.Contains(root.Subcommands, command => command.Name == "find");
         Command patch = Assert.Single(root.Subcommands, command => command.Name == "patch");
         Assert.Contains(patch.Subcommands, command => command.Name == "preview");
+        Assert.Contains(patch.Subcommands, command => command.Name == "apply");
     }
 
     private sealed class StubAssetsReader : IAssetsReader
