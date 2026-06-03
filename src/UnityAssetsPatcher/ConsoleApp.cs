@@ -27,11 +27,17 @@ public sealed class ConsoleApp
             _error.WriteLine("  UnityAssetsPatcher inspect <assets-file> [--limit <count> | --all]");
             _error.WriteLine("  UnityAssetsPatcher inspect <assets-file> <path-id> --detail");
             _error.WriteLine("  UnityAssetsPatcher find <assets-file> --config <json-path>");
+            _error.WriteLine("  UnityAssetsPatcher patch <assets-file> --config <json-path> --dry-run");
             return 1;
         }
 
         try
         {
+            if (IsPatchDryRunCommand(args))
+            {
+                return PrintPatchDryRun(args);
+            }
+
             if (IsFindCommand(args))
             {
                 return PrintFindResults(args);
@@ -75,7 +81,7 @@ public sealed class ConsoleApp
 
     private static bool IsSupportedCommand(string[] args)
     {
-        return IsInspectCommand(args) || IsFindCommand(args);
+        return IsInspectCommand(args) || IsFindCommand(args) || IsPatchDryRunCommand(args);
     }
 
     private static bool IsInspectCommand(string[] args)
@@ -93,6 +99,14 @@ public sealed class ConsoleApp
         return args.Length == 4
                && string.Equals(args[0], "find", StringComparison.OrdinalIgnoreCase)
                && string.Equals(args[2], "--config", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsPatchDryRunCommand(string[] args)
+    {
+        return args.Length == 5
+               && string.Equals(args[0], "patch", StringComparison.OrdinalIgnoreCase)
+               && string.Equals(args[2], "--config", StringComparison.OrdinalIgnoreCase)
+               && string.Equals(args[4], "--dry-run", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsInspectSummaryOption(string[] args)
@@ -155,6 +169,40 @@ public sealed class ConsoleApp
         return 0;
     }
 
+    private int PrintPatchDryRun(string[] args)
+    {
+        AssetQueryConfig queryConfig = LoadAssetQueryConfig(args[3]);
+
+        if (queryConfig.SetOperations is null || queryConfig.SetOperations.Count == 0)
+        {
+            throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
+        }
+
+        _output.WriteLine("DRY RUN");
+
+        foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(args[1], queryConfig))
+        {
+            _output.WriteLine($"Path ID: {asset.PathId} ({asset.TypeName})");
+
+            foreach (PatchSetOperation operation in queryConfig.SetOperations)
+            {
+                AssetsFieldInfo? field = FindField(fieldTree, operation.Path);
+                string oldValue = field?.Value ?? "<missing>";
+
+                if (field?.Value is null || !MatchesValue(field.Value, operation.From))
+                {
+                    _output.WriteLine(
+                        $"  {operation.Path}: skipped, current value {oldValue} does not match expected {FormatJsonValue(operation.From)}");
+                    continue;
+                }
+
+                _output.WriteLine($"  {operation.Path}: {oldValue} -> {FormatJsonValue(operation.To)}");
+            }
+        }
+
+        return 0;
+    }
+
     private static AssetQueryConfig LoadAssetQueryConfig(string configPath)
     {
         if (!File.Exists(configPath))
@@ -189,9 +237,73 @@ public sealed class ConsoleApp
                 .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal));
         }
 
+        IReadOnlyList<PatchSetOperation>? setOperations = null;
+
+        if (!root.TryGetProperty("set", out JsonElement setElement))
+        {
+            return includeGroups.Count == 0
+                ? throw new InvalidOperationException("Query config include array cannot be empty.")
+                : new AssetQueryConfig(type, includeGroups, setOperations);
+        }
+
+        if (setElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidOperationException("Query config 'set' property must be an array.");
+        }
+
+        setOperations = setElement.EnumerateArray()
+            .Select(ReadPatchSetOperation)
+            .ToArray();
+
         return includeGroups.Count == 0
             ? throw new InvalidOperationException("Query config include array cannot be empty.")
-            : new AssetQueryConfig(type, includeGroups);
+            : new AssetQueryConfig(type, includeGroups, setOperations);
+    }
+
+    private static PatchSetOperation ReadPatchSetOperation(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("Each set entry must be an object.");
+        }
+
+        if (!element.TryGetProperty("path", out JsonElement pathElement) ||
+            pathElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException("Each set entry must contain a string 'path' property.");
+        }
+
+        if (!element.TryGetProperty("from", out JsonElement fromElement))
+        {
+            throw new InvalidOperationException("Each set entry must contain a 'from' property.");
+        }
+
+        if (!element.TryGetProperty("to", out JsonElement toElement))
+        {
+            throw new InvalidOperationException("Each set entry must contain a 'to' property.");
+        }
+
+        string path = pathElement.GetString() ?? throw new InvalidOperationException("Set path cannot be empty.");
+        return new PatchSetOperation(path, fromElement.Clone(), toElement.Clone());
+    }
+
+    private IEnumerable<(AssetsInfo Asset, AssetsFieldInfo FieldTree)> FindMatchingAssets(string assetsFilePath,
+        AssetQueryConfig queryConfig)
+    {
+        var assets = _assetsReader.ReadAssetsInfo(assetsFilePath)
+            .Where(asset => string.Equals(asset.TypeName, queryConfig.Type, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        foreach (AssetsInfo asset in assets)
+        {
+            AssetsFieldInfo fieldTree = _assetsReader.ReadAssetsFieldInfo(assetsFilePath, asset.PathId);
+            bool matches = queryConfig.IncludeGroups.Any(group => MatchesIncludeGroup(fieldTree, group));
+
+            if (matches)
+            {
+                yield return (asset, fieldTree);
+            }
+        }
     }
 
     private static bool MatchesIncludeGroup(AssetsFieldInfo fieldTree,
@@ -308,5 +420,8 @@ public sealed class ConsoleApp
 
     private sealed record AssetQueryConfig(
         string Type,
-        IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> IncludeGroups);
+        IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> IncludeGroups,
+        IReadOnlyList<PatchSetOperation>? SetOperations);
+
+    private sealed record PatchSetOperation(string Path, JsonElement From, JsonElement To);
 }

@@ -265,6 +265,135 @@ public sealed class ConsoleAppTests
         }
     }
 
+    /// <summary>
+    /// 验证 patch --dry-run 会按 include 定位资产，并输出 set 字段的改动预览。
+    /// </summary>
+    [Fact]
+    public void Run_WhenPatchCommandUsesDryRun_PrintsPlannedChangesWithoutWriting()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "type": "Camera",
+              "include": [
+                {
+                  "near clip plane": 0.01,
+                  "far clip plane": 100,
+                  "field of view": 90.0
+                }
+              ],
+              "set": [
+                {
+                  "path": "field of view",
+                  "from": 90.0,
+                  "to": 75.0
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsReader(
+            [
+                new AssetsInfo(30, 20, "Camera", 128),
+                new AssetsInfo(31, 20, "Camera", 128),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [30] = new(
+                    "Camera",
+                    "Camera",
+                    null,
+                    [
+                        new AssetsFieldInfo("near clip plane", "float", "0.01", []),
+                        new AssetsFieldInfo("far clip plane", "float", "100.0", []),
+                        new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    ]),
+                [31] = new(
+                    "Camera",
+                    "Camera",
+                    null,
+                    [
+                        new AssetsFieldInfo("near clip plane", "float", "0.3", []),
+                        new AssetsFieldInfo("far clip plane", "float", "100.0", []),
+                        new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    ]),
+            });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["patch", "resources.assets", "--config", configPath, "--dry-run"]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("DRY RUN", text);
+            Assert.Contains("Path ID: 30", text);
+            Assert.Contains("field of view: 90.0 -> 75.0", text);
+            Assert.DoesNotContain("Path ID: 31", text);
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
+    /// 验证 patch --dry-run 在字段当前值不匹配 from 时会跳过该修改。
+    /// </summary>
+    [Fact]
+    public void Run_WhenPatchDryRunSetFromDoesNotMatch_PrintsSkippedChange()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "type": "Camera",
+              "include": [
+                {
+                  "field of view": 90.0
+                }
+              ],
+              "set": [
+                {
+                  "path": "field of view",
+                  "from": 60.0,
+                  "to": 75.0
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsReader(
+            [new AssetsInfo(40, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [40] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["patch", "resources.assets", "--config", configPath, "--dry-run"]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Path ID: 40", text);
+            Assert.Contains("skipped", text);
+            Assert.Contains("current value 90.0 does not match expected 60.0", text);
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
     private sealed class StubAssetsReader : IAssetsReader
     {
         private readonly IReadOnlyList<AssetsInfo> _result;
