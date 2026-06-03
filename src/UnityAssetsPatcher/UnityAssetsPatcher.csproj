@@ -11,6 +11,8 @@
     <ItemGroup>
         <Content Include="Assets\AssetsRipper.tpk">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <TargetPath>resources.tpk</TargetPath>
         </Content>
     </ItemGroup>
 
