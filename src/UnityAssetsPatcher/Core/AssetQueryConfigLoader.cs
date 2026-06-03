@@ -1,4 +1,5 @@
 using System.Text.Json;
+using UnityAssetsPatcher.Utils;
 
 namespace UnityAssetsPatcher.Core;
 
@@ -11,8 +12,7 @@ public static class AssetQueryConfigLoader
             throw new FileNotFoundException($"Query config file not found: {configPath}", configPath);
         }
 
-        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(configPath));
-        JsonElement root = document.RootElement;
+        JsonElement root = JsonUtils.ReadElementFromFile(configPath);
 
         string type = root.TryGetProperty("type", out JsonElement typeElement) &&
                       typeElement.ValueKind == JsonValueKind.String

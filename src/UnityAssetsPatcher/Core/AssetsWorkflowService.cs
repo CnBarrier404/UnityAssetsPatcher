@@ -7,10 +7,7 @@ public sealed class AssetsWorkflowService
     private readonly IAssetsReader _assetsReader;
     private readonly IAssetsPatchWriter? _assetsPatchWriter;
 
-    public AssetsWorkflowService(IAssetsReader assetsReader)
-        : this(assetsReader, null) { }
-
-    public AssetsWorkflowService(IAssetsReader assetsReader, IAssetsPatchWriter? assetsPatchWriter)
+    public AssetsWorkflowService(IAssetsReader assetsReader, IAssetsPatchWriter? assetsPatchWriter = null)
     {
         _assetsReader = assetsReader;
         _assetsPatchWriter = assetsPatchWriter;
@@ -113,7 +110,7 @@ public sealed class AssetsWorkflowService
             throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
         }
 
-        IReadOnlyList<PatchWriteAsset> plan = CreatePatchWritePlan(request.AssetsFilePath, queryConfig);
+        var plan = CreatePatchWritePlan(request.AssetsFilePath, queryConfig);
 
         if (plan.Count == 0)
         {
@@ -212,7 +209,7 @@ public sealed class AssetsWorkflowService
         string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         string candidate = Path.Combine(backupDirectory, $"{fileName}.{timestamp}{extension}");
 
-        for (var index = 1; File.Exists(candidate); index++)
+        for (int index = 1; File.Exists(candidate); index++)
         {
             candidate = Path.Combine(backupDirectory, $"{fileName}.{timestamp}.{index}{extension}");
         }
