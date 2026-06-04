@@ -11,7 +11,7 @@ public sealed class ConsoleAppTests
     [Fact]
     public void Run_WhenInspectCommandIsValid_PrintsAssetSummaryTable()
     {
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
         [
             new AssetsInfo(7, 20, "Camera", 128),
         ]);
@@ -38,7 +38,7 @@ public sealed class ConsoleAppTests
             .ToArray();
         var output = new StringWriter();
         var error = new StringWriter();
-        var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
+        var app = new ConsoleApp(new StubAssetsFileService(assets), output, error);
 
         int exitCode = app.Run(["inspect", "list", "resources.assets"]);
 
@@ -62,7 +62,7 @@ public sealed class ConsoleAppTests
             .ToArray();
         var output = new StringWriter();
         var error = new StringWriter();
-        var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
+        var app = new ConsoleApp(new StubAssetsFileService(assets), output, error);
 
         int exitCode = app.Run(["inspect", "list", "resources.assets", "--all"]);
 
@@ -84,7 +84,7 @@ public sealed class ConsoleAppTests
             .ToArray();
         var output = new StringWriter();
         var error = new StringWriter();
-        var app = new ConsoleApp(new StubAssetsReader(assets), output, error);
+        var app = new ConsoleApp(new StubAssetsFileService(assets), output, error);
 
         int exitCode = app.Run(["inspect", "list", "resources.assets", "--limit", "3"]);
 
@@ -104,7 +104,7 @@ public sealed class ConsoleAppTests
     {
         var output = new StringWriter();
         var error = new StringWriter();
-        var app = new ConsoleApp(new StubAssetsReader([]), output, error);
+        var app = new ConsoleApp(new StubAssetsFileService([]), output, error);
 
         int exitCode = app.Run(["inspect", "list", "resources.assets", "--all", "--limit", "3"]);
 
@@ -122,7 +122,7 @@ public sealed class ConsoleAppTests
     {
         var output = new StringWriter();
         var error = new StringWriter();
-        var app = new ConsoleApp(new StubAssetsReader([]), output, error);
+        var app = new ConsoleApp(new StubAssetsFileService([]), output, error);
 
         int exitCode = app.Run([]);
 
@@ -136,7 +136,7 @@ public sealed class ConsoleAppTests
     [Fact]
     public void Run_WhenInspectVerboseCommandIsValid_PrintsSelectedAssetFieldTree()
     {
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
             [],
             new AssetsFieldInfo(
                 "AudioClip",
@@ -180,7 +180,7 @@ public sealed class ConsoleAppTests
               ]
             }
             """);
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
             [
                 new AssetsInfo(10, 20, "Camera", 128),
                 new AssetsInfo(11, 20, "Camera", 128),
@@ -252,7 +252,7 @@ public sealed class ConsoleAppTests
               ]
             }
             """);
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
             [
                 new AssetsInfo(20, 20, "Camera", 128),
                 new AssetsInfo(21, 20, "Camera", 128),
@@ -314,7 +314,7 @@ public sealed class ConsoleAppTests
               ]
             }
             """);
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
             [
                 new AssetsInfo(30, 20, "Camera", 128),
                 new AssetsInfo(31, 20, "Camera", 128),
@@ -389,7 +389,7 @@ public sealed class ConsoleAppTests
               ]
             }
             """);
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
             [new AssetsInfo(40, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -447,7 +447,7 @@ public sealed class ConsoleAppTests
                 ]
               }
               """);
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
             [new AssetsInfo(50, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -455,7 +455,7 @@ public sealed class ConsoleAppTests
             });
         var output = new StringWriter();
         var error = new StringWriter();
-        var app = new ConsoleApp(reader, new StubAssetsPatchWriter(), backupDirectory, output, error);
+        var app = new ConsoleApp(reader, backupDirectory, output, error);
 
         try
         {
@@ -518,7 +518,7 @@ public sealed class ConsoleAppTests
               ]
             }
             """);
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
             [new AssetsInfo(50, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -526,7 +526,7 @@ public sealed class ConsoleAppTests
             });
         var output = new StringWriter();
         var error = new StringWriter();
-        var app = new ConsoleApp(reader, new StubAssetsPatchWriter(), backupDirectory, output, error);
+        var app = new ConsoleApp(reader, backupDirectory, output, error);
 
         try
         {
@@ -592,7 +592,7 @@ public sealed class ConsoleAppTests
               ]
             }
             """);
-        var reader = new StubAssetsReader(
+        var reader = new StubAssetsFileService(
             [new AssetsInfo(50, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -625,18 +625,19 @@ public sealed class ConsoleAppTests
         }
     }
 
-    private sealed class StubAssetsReader : IAssetsReader
+    private sealed class StubAssetsFileService : IAssetsFileService
     {
         private readonly IReadOnlyList<AssetsInfo> _result;
         private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldTrees;
 
-        public StubAssetsReader(IReadOnlyList<AssetsInfo> result, AssetsFieldInfo? fieldTree = null)
+        public StubAssetsFileService(IReadOnlyList<AssetsInfo> result, AssetsFieldInfo? fieldTree = null)
             : this(result,
                 fieldTree is null
                     ? new Dictionary<long, AssetsFieldInfo>()
                     : new Dictionary<long, AssetsFieldInfo> { [4] = fieldTree }) { }
 
-        public StubAssetsReader(IReadOnlyList<AssetsInfo> result, IReadOnlyDictionary<long, AssetsFieldInfo> fieldTrees)
+        public StubAssetsFileService(IReadOnlyList<AssetsInfo> result,
+            IReadOnlyDictionary<long, AssetsFieldInfo> fieldTrees)
         {
             _result = result;
             _fieldTrees = fieldTrees;
@@ -656,10 +657,7 @@ public sealed class ConsoleAppTests
                 ? fieldTree
                 : throw new InvalidOperationException("Field tree was not configured.");
         }
-    }
 
-    private sealed class StubAssetsPatchWriter : IAssetsPatchWriter
-    {
         public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
         {
             File.WriteAllText(outputPath, "patched");

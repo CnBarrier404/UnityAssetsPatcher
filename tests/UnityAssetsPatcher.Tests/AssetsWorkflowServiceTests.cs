@@ -28,7 +28,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = new AssetsWorkflowService(new StubAssetsReader(
+        var service = new AssetsWorkflowService(new StubAssetsFileService(
             [
                 new AssetsInfo(1, 20, "Camera", 128),
                 new AssetsInfo(2, 20, "Camera", 128),
@@ -81,7 +81,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = new AssetsWorkflowService(new StubAssetsReader(
+        var service = new AssetsWorkflowService(new StubAssetsFileService(
             [new AssetsInfo(4, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -150,7 +150,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = new AssetsWorkflowService(new StubAssetsReader(
+        var service = new AssetsWorkflowService(new StubAssetsFileService(
             [
                 new AssetsInfo(4, 20, "Camera", 128),
                 new AssetsInfo(5, 108, "Light", 96),
@@ -176,7 +176,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// Verifies that apply calls the writer and returns an output summary when all set operations can change.
+    /// Verifies that apply writes the patch plan and returns an output summary when all set operations can change.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenAllOperationsCanChange_CallsWriterAndReturnsSummary()
@@ -206,15 +206,13 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(4, 20, "Camera", 128)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
-                }),
-            writer);
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -225,9 +223,9 @@ public sealed class AssetsWorkflowServiceTests
             Assert.Null(result.BackupPath);
             Assert.Equal(1, result.AssetCount);
             Assert.Equal(1, result.OperationCount);
-            Assert.Equal(inputPath, writer.InputPath);
-            Assert.Equal(outputPath, writer.OutputPath);
-            PatchWriteAsset asset = Assert.Single(writer.Plan);
+            Assert.Equal(inputPath, assetsFileService.InputPath);
+            Assert.Equal(outputPath, assetsFileService.OutputPath);
+            PatchWriteAsset asset = Assert.Single(assetsFileService.Plan);
             Assert.Equal(4, asset.PathId);
             Assert.Equal("field of view", Assert.Single(asset.Operations).Path);
         }
@@ -294,19 +292,17 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [
-                    new AssetsInfo(4, 20, "Camera", 128),
-                    new AssetsInfo(5, 108, "Light", 96),
-                ],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
-                    [5] = new("Light", "Light", null, [new AssetsFieldInfo("m_Intensity", "float", "1.0", [])]),
-                }),
-            writer);
+        var assetsFileService = new StubAssetsFileService(
+            [
+                new AssetsInfo(4, 20, "Camera", 128),
+                new AssetsInfo(5, 108, "Light", 96),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+                [5] = new("Light", "Light", null, [new AssetsFieldInfo("m_Intensity", "float", "1.0", [])]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -315,9 +311,9 @@ public sealed class AssetsWorkflowServiceTests
 
             Assert.Equal(2, result.AssetCount);
             Assert.Equal(2, result.OperationCount);
-            Assert.Equal([4L, 5L], writer.Plan.Select(asset => asset.PathId));
-            Assert.Equal("field of view", Assert.Single(writer.Plan[0].Operations).Path);
-            Assert.Equal("m_Intensity", Assert.Single(writer.Plan[1].Operations).Path);
+            Assert.Equal([4L, 5L], assetsFileService.Plan.Select(asset => asset.PathId));
+            Assert.Equal("field of view", Assert.Single(assetsFileService.Plan[0].Operations).Path);
+            Assert.Equal("m_Intensity", Assert.Single(assetsFileService.Plan[1].Operations).Path);
         }
         finally
         {
@@ -382,19 +378,17 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(4, 20, "Camera", 128)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = new("Camera", "Camera", null,
-                    [
-                        new AssetsFieldInfo("field of view", "float", "90.0", []),
-                        new AssetsFieldInfo("near clip plane", "float", "0.3", []),
-                    ]),
-                }),
-            writer);
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    new AssetsFieldInfo("near clip plane", "float", "0.3", []),
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -403,7 +397,7 @@ public sealed class AssetsWorkflowServiceTests
 
             Assert.Equal(1, result.AssetCount);
             Assert.Equal(2, result.OperationCount);
-            PatchWriteAsset asset = Assert.Single(writer.Plan);
+            PatchWriteAsset asset = Assert.Single(assetsFileService.Plan);
             Assert.Equal(4, asset.PathId);
             Assert.Equal(["field of view", "near clip plane"], asset.Operations.Select(operation => operation.Path));
         }
@@ -471,24 +465,22 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(8, 108, "Light", 96)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [8] = new("Light", "Light", null,
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(8, 108, "Light", 96)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [8] = new("Light", "Light", null,
+                [
+                    new AssetsFieldInfo("m_Color", "ColorRGBA", null,
                     [
-                        new AssetsFieldInfo("m_Color", "ColorRGBA", null,
-                        [
-                            new AssetsFieldInfo("r", "float", "0.5411765", []),
-                            new AssetsFieldInfo("g", "float", "0.61960787", []),
-                            new AssetsFieldInfo("b", "float", "0.67058825", []),
-                            new AssetsFieldInfo("a", "float", "1.0", []),
-                        ]),
+                        new AssetsFieldInfo("r", "float", "0.5411765", []),
+                        new AssetsFieldInfo("g", "float", "0.61960787", []),
+                        new AssetsFieldInfo("b", "float", "0.67058825", []),
+                        new AssetsFieldInfo("a", "float", "1.0", []),
                     ]),
-                }),
-            writer);
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -497,7 +489,7 @@ public sealed class AssetsWorkflowServiceTests
 
             Assert.Equal(1, result.AssetCount);
             Assert.Equal(4, result.OperationCount);
-            PatchWriteAsset asset = Assert.Single(writer.Plan);
+            PatchWriteAsset asset = Assert.Single(assetsFileService.Plan);
             Assert.Equal(
                 ["m_Color.r", "m_Color.g", "m_Color.b", "m_Color.a"],
                 asset.Operations.Select(operation => operation.Path));
@@ -557,26 +549,24 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(9, 21, "Material", 96)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [9] = new("Material", "Material", null,
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(9, 21, "Material", 96)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [9] = new("Material", "Material", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "TargetMaterial", []),
+                    new AssetsFieldInfo("m_ValidKeywords", "vector", null,
                     [
-                        new AssetsFieldInfo("m_Name", "string", "TargetMaterial", []),
-                        new AssetsFieldInfo("m_ValidKeywords", "vector", null,
+                        new AssetsFieldInfo("Array", "Array", null,
                         [
-                            new AssetsFieldInfo("Array", "Array", null,
-                            [
-                                new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
-                                new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
-                            ]),
+                            new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
+                            new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
                         ]),
                     ]),
-                }),
-            writer);
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -585,7 +575,7 @@ public sealed class AssetsWorkflowServiceTests
 
             Assert.Equal(1, result.AssetCount);
             Assert.Equal(1, result.OperationCount);
-            PatchWriteOperation operation = Assert.Single(Assert.Single(writer.Plan).Operations);
+            PatchWriteOperation operation = Assert.Single(Assert.Single(assetsFileService.Plan).Operations);
             Assert.Equal("m_ValidKeywords.Array", operation.Path);
             Assert.Equal(
                 ["_METALLICSPECGLOSSMAP", "_NORMALMAP", "_EMISSION"],
@@ -635,26 +625,24 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(10, 21, "Material", 96)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [10] = new("Material", "Material", null,
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(10, 21, "Material", 96)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new("Material", "Material", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "Bone Parts", []),
+                    new AssetsFieldInfo("m_ValidKeywords", "vector", null,
                     [
-                        new AssetsFieldInfo("m_Name", "string", "Bone Parts", []),
-                        new AssetsFieldInfo("m_ValidKeywords", "vector", null,
+                        new AssetsFieldInfo("Array", "Array", null,
                         [
-                            new AssetsFieldInfo("Array", "Array", null,
-                            [
-                                new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
-                                new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
-                            ]),
+                            new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
+                            new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
                         ]),
                     ]),
-                }),
-            writer);
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -663,7 +651,7 @@ public sealed class AssetsWorkflowServiceTests
 
             Assert.Equal(1, result.AssetCount);
             Assert.Equal(1, result.OperationCount);
-            PatchWriteOperation operation = Assert.Single(Assert.Single(writer.Plan).Operations);
+            PatchWriteOperation operation = Assert.Single(Assert.Single(assetsFileService.Plan).Operations);
             Assert.Equal("m_ValidKeywords.Array", operation.Path);
             Assert.Equal(
                 ["_METALLICSPECGLOSSMAP", "_NORMALMAP", "_EMISSION"],
@@ -713,27 +701,25 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(10, 21, "Material", 96)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [10] = new("Material", "Material", null,
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(10, 21, "Material", 96)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new("Material", "Material", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "Bone Parts", []),
+                    new AssetsFieldInfo("m_ValidKeywords", "vector", null,
                     [
-                        new AssetsFieldInfo("m_Name", "string", "Bone Parts", []),
-                        new AssetsFieldInfo("m_ValidKeywords", "vector", null,
+                        new AssetsFieldInfo("Array", "Array", null,
                         [
-                            new AssetsFieldInfo("Array", "Array", null,
-                            [
-                                new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
-                                new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
-                                new AssetsFieldInfo("data", "string", "_EMISSION", []),
-                            ]),
+                            new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
+                            new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
+                            new AssetsFieldInfo("data", "string", "_EMISSION", []),
                         ]),
                     ]),
-                }),
-            writer);
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -742,7 +728,7 @@ public sealed class AssetsWorkflowServiceTests
 
             Assert.Equal(0, result.AssetCount);
             Assert.Equal(0, result.OperationCount);
-            Assert.False(writer.WasCalled);
+            Assert.False(assetsFileService.WasCalled);
         }
         finally
         {
@@ -796,22 +782,20 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
+        var assetsFileService = new StubAssetsFileService(
+            [
+                new AssetsInfo(4, 21, "Material", 256),
+                new AssetsInfo(8842, 28, "Texture2D", 512),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = CreateMaterialFieldTree(pathId: "0"),
+                [8842] = new("Texture2D", "Texture2D", null,
                 [
-                    new AssetsInfo(4, 21, "Material", 256),
-                    new AssetsInfo(8842, 28, "Texture2D", 512),
-                ],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = CreateMaterialFieldTree(pathId: "0"),
-                    [8842] = new("Texture2D", "Texture2D", null,
-                    [
-                        new AssetsFieldInfo("m_Name", "string", "EmissionTexture", []),
-                    ]),
-                }),
-            writer);
+                    new AssetsFieldInfo("m_Name", "string", "EmissionTexture", []),
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -820,7 +804,7 @@ public sealed class AssetsWorkflowServiceTests
 
             Assert.Equal(1, result.AssetCount);
             Assert.Equal(1, result.OperationCount);
-            PatchWriteOperation operation = Assert.Single(Assert.Single(writer.Plan).Operations);
+            PatchWriteOperation operation = Assert.Single(Assert.Single(assetsFileService.Plan).Operations);
             Assert.Equal(
                 "m_SavedProperties.m_TexEnvs.Array.data[first=_EmissionMap].second.m_Texture.m_PathID",
                 operation.Path);
@@ -869,15 +853,13 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(4, 20, "Camera", 128)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
-                }),
-            writer);
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -885,7 +867,7 @@ public sealed class AssetsWorkflowServiceTests
                 service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, Path.GetTempPath())));
 
             Assert.Contains("cannot be applied", exception.Message);
-            Assert.False(writer.WasCalled);
+            Assert.False(assetsFileService.WasCalled);
         }
         finally
         {
@@ -925,15 +907,13 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(4, 20, "Camera", 128)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
-                }),
-            writer);
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -941,7 +921,7 @@ public sealed class AssetsWorkflowServiceTests
                 service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, Path.GetTempPath())));
 
             Assert.Contains("already exists", exception.Message);
-            Assert.False(writer.WasCalled);
+            Assert.False(assetsFileService.WasCalled);
         }
         finally
         {
@@ -981,15 +961,13 @@ public sealed class AssetsWorkflowServiceTests
                 ]
               }
               """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(4, 20, "Camera", 128)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
-                }),
-            writer);
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -1065,7 +1043,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = new AssetsWorkflowService(new StubAssetsReader(
+        var service = new AssetsWorkflowService(new StubAssetsFileService(
             [
                 new AssetsInfo(4, 20, "Camera", 128),
                 new AssetsInfo(5, 108, "Light", 96),
@@ -1127,22 +1105,20 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(4, 20, "Camera", 128)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = new("Camera", "Camera", null,
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
                     [
-                        new AssetsFieldInfo("field of view", "float", "90.0", []),
-                        new AssetsFieldInfo("m_CullingMask", "BitField", null,
-                        [
-                            new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
-                        ]),
+                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
                     ]),
-                }),
-            writer);
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -1156,8 +1132,8 @@ public sealed class AssetsWorkflowServiceTests
             Assert.StartsWith(backupDirectory, file.BackupPath, StringComparison.OrdinalIgnoreCase);
             Assert.Equal(1, file.AssetCount);
             Assert.Equal(1, file.OperationCount);
-            Assert.Equal(targetPath, writer.InputPath);
-            Assert.Equal(targetPath, writer.OutputPath);
+            Assert.Equal(targetPath, assetsFileService.InputPath);
+            Assert.Equal(targetPath, assetsFileService.OutputPath);
             Assert.Equal("patched", File.ReadAllText(targetPath));
             Assert.True(File.Exists(file.BackupPath));
         }
@@ -1177,7 +1153,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// Verifies that install preview locates assets files from zip manifest targets without requiring a writer.
+    /// Verifies that install preview locates assets files from zip manifest targets without writing files.
     /// </summary>
     [Fact]
     public void PreviewInstallMod_WhenZipTargetMatchesSingleFile_ReturnsDryRunResultsWithoutWriter()
@@ -1212,7 +1188,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = new AssetsWorkflowService(new StubAssetsReader(
+        var service = new AssetsWorkflowService(new StubAssetsFileService(
             [new AssetsInfo(4, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -1292,15 +1268,13 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var writer = new StubAssetsPatchWriter();
-        var service = new AssetsWorkflowService(
-            new StubAssetsReader(
-                [new AssetsInfo(4, 20, "Camera", 128)],
-                new Dictionary<long, AssetsFieldInfo>
-                {
-                    [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
-                }),
-            writer);
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
 
         try
         {
@@ -1308,7 +1282,7 @@ public sealed class AssetsWorkflowServiceTests
                 service.InstallMod(new InstallModRequest(zipPath, gameDirectory, backupDirectory)));
 
             Assert.Contains("matched multiple files", exception.Message);
-            Assert.False(writer.WasCalled);
+            Assert.False(assetsFileService.WasCalled);
         }
         finally
         {
@@ -1325,12 +1299,13 @@ public sealed class AssetsWorkflowServiceTests
         }
     }
 
-    private sealed class StubAssetsReader : IAssetsReader
+    private sealed class StubAssetsFileService : IAssetsFileService
     {
         private readonly IReadOnlyList<AssetsInfo> _result;
         private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldTrees;
 
-        public StubAssetsReader(IReadOnlyList<AssetsInfo> result, IReadOnlyDictionary<long, AssetsFieldInfo> fieldTrees)
+        public StubAssetsFileService(IReadOnlyList<AssetsInfo> result,
+            IReadOnlyDictionary<long, AssetsFieldInfo> fieldTrees)
         {
             _result = result;
             _fieldTrees = fieldTrees;
@@ -1347,10 +1322,7 @@ public sealed class AssetsWorkflowServiceTests
                 ? fieldTree
                 : throw new InvalidOperationException("Field tree was not configured.");
         }
-    }
 
-    private sealed class StubAssetsPatchWriter : IAssetsPatchWriter
-    {
         public bool WasCalled { get; private set; }
         public string? InputPath { get; private set; }
         public string? OutputPath { get; private set; }

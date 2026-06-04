@@ -5,23 +5,21 @@ namespace UnityAssetsPatcher.Core;
 
 public sealed class AssetsWorkflowService
 {
-    private readonly IAssetsReader _assetsReader;
-    private readonly IAssetsPatchWriter? _assetsPatchWriter;
+    private readonly IAssetsFileService _assetsFileService;
 
-    public AssetsWorkflowService(IAssetsReader assetsReader, IAssetsPatchWriter? assetsPatchWriter = null)
+    public AssetsWorkflowService(IAssetsFileService assetsFileService)
     {
-        _assetsReader = assetsReader;
-        _assetsPatchWriter = assetsPatchWriter;
+        _assetsFileService = assetsFileService;
     }
 
     public IReadOnlyList<AssetsInfo> InspectList(InspectListRequest request)
     {
-        return _assetsReader.ReadAssetsInfo(request.AssetsFilePath);
+        return _assetsFileService.ReadAssetsInfo(request.AssetsFilePath);
     }
 
     public AssetsFieldInfo InspectFields(InspectFieldsRequest request)
     {
-        return _assetsReader.ReadAssetsFieldInfo(request.AssetsFilePath, request.PathId);
+        return _assetsFileService.ReadAssetsFieldInfo(request.AssetsFilePath, request.PathId);
     }
 
     public IReadOnlyList<AssetMatch> FindAssets(FindAssetsRequest request)
@@ -127,11 +125,6 @@ public sealed class AssetsWorkflowService
 
     public PatchApplyResult ApplyPatch(PatchApplyRequest request)
     {
-        if (_assetsPatchWriter is null)
-        {
-            throw new InvalidOperationException("Assets patch writer was not configured.");
-        }
-
         ModManifest manifest = ModManifestLoader.Load(request.ConfigPath);
         var targets = GetPatchesForAssetsFile(manifest, request.AssetsFilePath);
 
@@ -140,11 +133,6 @@ public sealed class AssetsWorkflowService
 
     public InstallModResult InstallMod(InstallModRequest request)
     {
-        if (_assetsPatchWriter is null)
-        {
-            throw new InvalidOperationException("Assets patch writer was not configured.");
-        }
-
         if (!File.Exists(request.ZipFilePath))
         {
             throw new FileNotFoundException($"Mod zip file not found: {request.ZipFilePath}", request.ZipFilePath);
@@ -283,7 +271,7 @@ public sealed class AssetsWorkflowService
             File.Copy(assetsFilePath, backupPath, false);
         }
 
-        _assetsPatchWriter!.WritePatch(assetsFilePath, outputPath, changedPlan);
+        _assetsFileService.WritePatch(assetsFilePath, outputPath, changedPlan);
 
         return new PatchApplyResult(
             outputPath,
@@ -340,13 +328,13 @@ public sealed class AssetsWorkflowService
         string assetsFilePath,
         ManifestPatch patch)
     {
-        var assets = _assetsReader.ReadAssetsInfo(assetsFilePath)
+        var assets = _assetsFileService.ReadAssetsInfo(assetsFilePath)
             .Where(asset => string.Equals(asset.TypeName, patch.AssetTypeName, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
         foreach (AssetsInfo asset in assets)
         {
-            AssetsFieldInfo fieldTree = _assetsReader.ReadAssetsFieldInfo(assetsFilePath, asset.PathId);
+            AssetsFieldInfo fieldTree = _assetsFileService.ReadAssetsFieldInfo(assetsFilePath, asset.PathId);
             bool matches =
                 patch.IncludeGroups.Any(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
 

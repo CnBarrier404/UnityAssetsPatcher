@@ -10,9 +10,9 @@ public static class Program
         // Source: https://github.com/AssetRipper/Tpk
         string tpkFilePath = Path.Combine(AppContext.BaseDirectory, "resources.tpk");
 
-        var assetsTools = new AssetsToolsReader(tpkFilePath);
+        var assetsFileService = new AssetsFileService(tpkFilePath);
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
-        var app = new ConsoleApp(assetsTools, assetsTools, backupDirectory, Console.Out, Console.Error);
+        var app = new ConsoleApp(assetsFileService, backupDirectory, Console.Out, Console.Error);
 
         return app.Run(args);
     }

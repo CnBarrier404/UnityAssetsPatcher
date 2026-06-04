@@ -3,7 +3,7 @@ using Xunit;
 
 namespace UnityAssetsPatcher.Tests;
 
-public sealed class AssetsToolsReaderTests
+public sealed class AssetsFileServiceReadTests
 {
     /// <summary>
     /// Verifies that the reader returns a clear error with the file path when the target assets file is missing.
@@ -12,9 +12,9 @@ public sealed class AssetsToolsReaderTests
     public void ReadAssetSummaries_WhenAssetsFileDoesNotExist_ThrowsClearError()
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        var reader = new AssetsToolsReader("AssetsRipper.tpk");
+        var service = new AssetsFileService("AssetsRipper.tpk");
 
-        var exception = Assert.Throws<FileNotFoundException>(() => reader.ReadAssetsInfo(missingAssetsFile));
+        var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssetsInfo(missingAssetsFile));
 
         Assert.Equal($"Assets file not found: {missingAssetsFile}", exception.Message);
     }
@@ -27,11 +27,11 @@ public sealed class AssetsToolsReaderTests
     {
         string existingAssetsFile = Path.GetTempFileName();
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        var reader = new AssetsToolsReader(missingTpkFile);
+        var service = new AssetsFileService(missingTpkFile);
 
         try
         {
-            var exception = Assert.Throws<FileNotFoundException>(() => reader.ReadAssetsInfo(existingAssetsFile));
+            var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssetsInfo(existingAssetsFile));
 
             Assert.Equal($"TPK file not found: {missingTpkFile}", exception.Message);
         }
@@ -40,7 +40,10 @@ public sealed class AssetsToolsReaderTests
             File.Delete(existingAssetsFile);
         }
     }
+}
 
+public sealed class AssetsFileServiceWriteTests
+{
     /// <summary>
     /// Verifies that patch writing returns a clear error with the file path when the target assets file is missing.
     /// </summary>
@@ -49,10 +52,10 @@ public sealed class AssetsToolsReaderTests
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        var reader = new AssetsToolsReader("AssetsRipper.tpk");
+        var service = new AssetsFileService("AssetsRipper.tpk");
 
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            reader.WritePatch(missingAssetsFile, outputPath, []));
+            service.WritePatch(missingAssetsFile, outputPath, []));
 
         Assert.Equal($"Assets file not found: {missingAssetsFile}", exception.Message);
     }
@@ -66,12 +69,12 @@ public sealed class AssetsToolsReaderTests
         string existingAssetsFile = Path.GetTempFileName();
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        var reader = new AssetsToolsReader(missingTpkFile);
+        var service = new AssetsFileService(missingTpkFile);
 
         try
         {
             var exception = Assert.Throws<FileNotFoundException>(() =>
-                reader.WritePatch(existingAssetsFile, outputPath, []));
+                service.WritePatch(existingAssetsFile, outputPath, []));
 
             Assert.Equal($"TPK file not found: {missingTpkFile}", exception.Message);
         }

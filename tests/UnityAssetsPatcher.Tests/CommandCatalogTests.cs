@@ -13,7 +13,7 @@ public sealed class CommandCatalogTests
     [Fact]
     public void BuildRootCommand_RegistersSupportedCommands()
     {
-        var service = new AssetsWorkflowService(new StubAssetsReader());
+        var service = new AssetsWorkflowService(new StubAssetsFileService());
         var context = new CommandContext(service, new ConsoleOutputFormatter(), "backup", TextWriter.Null,
             TextWriter.Null);
 
@@ -30,7 +30,7 @@ public sealed class CommandCatalogTests
         Assert.Contains(patch.Subcommands, command => command.Name == "apply");
     }
 
-    private sealed class StubAssetsReader : IAssetsReader
+    private sealed class StubAssetsFileService : IAssetsFileService
     {
         public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
         {
@@ -38,6 +38,11 @@ public sealed class CommandCatalogTests
         }
 
         public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+        {
+            throw new InvalidOperationException("Not used by this test.");
+        }
+
+        public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
         {
             throw new InvalidOperationException("Not used by this test.");
         }
