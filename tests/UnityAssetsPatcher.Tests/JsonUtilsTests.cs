@@ -1,6 +1,11 @@
 using System.Text.Json;
-using UnityAssetsPatcher.Utils;
+using UnityAssetsPatcher.Core.Utils;
 using Xunit;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Installing;
+using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.Tests;
 

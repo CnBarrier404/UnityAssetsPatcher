@@ -1,6 +1,7 @@
 using System.CommandLine;
+using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Cli;
-using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher;
 

@@ -11,6 +11,9 @@
         <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5"/>
     </ItemGroup>
     <ItemGroup>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher.AssetsTools\UnityAssetsPatcher.AssetsTools.csproj"/>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher.Core\UnityAssetsPatcher.Core.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher\UnityAssetsPatcher.csproj"/>
     </ItemGroup>
 </Project>

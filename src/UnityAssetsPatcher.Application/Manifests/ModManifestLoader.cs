@@ -1,6 +1,7 @@
 using System.Text.Json;
+using UnityAssetsPatcher.Application.Contracts;
 
-namespace UnityAssetsPatcher.Core;
+namespace UnityAssetsPatcher.Application.Manifests;
 
 public static class ModManifestLoader
 {

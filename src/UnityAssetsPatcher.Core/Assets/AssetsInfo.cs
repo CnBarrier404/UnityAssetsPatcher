@@ -1,4 +1,4 @@
-namespace UnityAssetsPatcher.Core;
+namespace UnityAssetsPatcher.Core.Assets;
 
 public sealed record AssetsInfo
 {

@@ -1,14 +1,20 @@
 using System.Text.Json;
 
-namespace UnityAssetsPatcher.Core;
+namespace UnityAssetsPatcher.Core.Assets;
 
-public interface IAssetsFileService
+public interface IAssetsReader
 {
     public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath);
     public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId);
+}
+
+public interface IAssetsPatchWriter
+{
     public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan);
     public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan);
 }
+
+public interface IAssetsFileService : IAssetsReader, IAssetsPatchWriter;
 
 public sealed record PatchWriteAsset(long PathId, IReadOnlyList<PatchWriteOperation> Operations);
 

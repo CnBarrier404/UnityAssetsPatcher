@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
-namespace UnityAssetsPatcher.Core;
+namespace UnityAssetsPatcher.Core.Assets;
 
 public static class AssetFieldMatcher
 {

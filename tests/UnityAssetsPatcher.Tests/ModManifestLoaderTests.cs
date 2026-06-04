@@ -1,6 +1,12 @@
 using System.IO.Compression;
 using UnityAssetsPatcher.Core;
 using Xunit;
+using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Installing;
 
 namespace UnityAssetsPatcher.Tests;
 

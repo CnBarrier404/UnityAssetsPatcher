@@ -1,6 +1,6 @@
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
-using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 

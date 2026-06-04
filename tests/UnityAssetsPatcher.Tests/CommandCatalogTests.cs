@@ -2,6 +2,13 @@ using System.CommandLine;
 using UnityAssetsPatcher.Cli;
 using UnityAssetsPatcher.Core;
 using Xunit;
+using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Installing;
+using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.Tests;
 

@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace UnityAssetsPatcher.Utils;
+namespace UnityAssetsPatcher.Core.Utils;
 
 public static class JsonUtils
 {

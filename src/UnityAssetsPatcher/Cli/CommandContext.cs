@@ -1,4 +1,4 @@
-using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Application.Workflows;
 
 namespace UnityAssetsPatcher.Cli;
 

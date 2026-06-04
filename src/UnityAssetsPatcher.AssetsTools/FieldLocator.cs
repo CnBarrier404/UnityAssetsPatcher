@@ -1,5 +1,5 @@
 using AssetsTools.NET;
-using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 

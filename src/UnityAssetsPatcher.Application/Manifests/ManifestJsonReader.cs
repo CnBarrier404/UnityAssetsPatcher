@@ -1,10 +1,10 @@
 using System.IO.Compression;
 using System.Text.Json;
-using UnityAssetsPatcher.Utils;
+using UnityAssetsPatcher.Core.Utils;
 
-namespace UnityAssetsPatcher.Core;
+namespace UnityAssetsPatcher.Application.Manifests;
 
-internal static class ManifestJsonReader
+public static class ManifestJsonReader
 {
     public static JsonElement Read(string configPath)
     {

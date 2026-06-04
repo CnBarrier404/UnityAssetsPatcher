@@ -1,5 +1,6 @@
-using UnityAssetsPatcher.Core;
-using UnityAssetsPatcher.Utils;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Core.Utils;
 
 namespace UnityAssetsPatcher.Cli;
 

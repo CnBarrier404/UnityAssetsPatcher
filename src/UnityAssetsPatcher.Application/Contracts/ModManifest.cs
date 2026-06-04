@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace UnityAssetsPatcher.Core;
+namespace UnityAssetsPatcher.Application.Contracts;
 
 public sealed record ModManifest(
     string Name,
