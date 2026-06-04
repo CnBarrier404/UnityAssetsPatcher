@@ -62,4 +62,9 @@ public static class JsonUtils
 
         File.WriteAllText(path, Serialize(value, options), Encoding.UTF8);
     }
+
+    public static string FormatElementValue(JsonElement value)
+    {
+        return value.ValueKind == JsonValueKind.String ? value.GetString() ?? string.Empty : value.GetRawText();
+    }
 }

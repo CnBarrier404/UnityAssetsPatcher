@@ -75,6 +75,30 @@ public sealed class JsonUtilsTests
     }
 
     [Fact]
+    public void FormatElementValue_WhenValueIsString_ReturnsUnquotedString()
+    {
+        JsonElement element = JsonUtils.ParseElement("\"Player\"");
+
+        string result = JsonUtils.FormatElementValue(element);
+
+        Assert.Equal("Player", result);
+    }
+
+    [Theory]
+    [InlineData("3", "3")]
+    [InlineData("true", "true")]
+    [InlineData("{\"name\":\"Player\"}", "{\"name\":\"Player\"}")]
+    [InlineData("[1,2]", "[1,2]")]
+    public void FormatElementValue_WhenValueIsNotString_ReturnsRawJson(string json, string expected)
+    {
+        JsonElement element = JsonUtils.ParseElement(json);
+
+        string result = JsonUtils.FormatElementValue(element);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
     public void ReadElementFromFile_ReadsJsonElement()
     {
         string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "config.json");

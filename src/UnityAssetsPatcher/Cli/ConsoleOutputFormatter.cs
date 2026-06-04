@@ -1,4 +1,5 @@
 using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Utils;
 
 namespace UnityAssetsPatcher.Cli;
 
@@ -40,7 +41,7 @@ public sealed class ConsoleOutputFormatter
         {
             string matchedFields = string.Join(", ",
                 match.IncludeGroup.Select(condition =>
-                    $"{condition.Key}={AssetFieldMatcher.FormatJsonValue(condition.Value)}"));
+                    $"{condition.Key}={JsonUtils.FormatElementValue(condition.Value)}"));
             output.WriteLine(
                 $"{match.Asset.PathId,12} | {match.Asset.TypeId,7} | {match.Asset.TypeName,-24} | {matchedFields}");
         }
@@ -79,12 +80,12 @@ public sealed class ConsoleOutputFormatter
                 if (!operation.WillChange)
                 {
                     output.WriteLine(
-                        $"  {operation.Path}: skipped, current value {operation.OldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}");
+                        $"  {operation.Path}: skipped, current value {operation.OldValue} does not match expected {JsonUtils.FormatElementValue(operation.From)}");
                     continue;
                 }
 
                 output.WriteLine(
-                    $"  {operation.Path}: {operation.OldValue} -> {AssetFieldMatcher.FormatJsonValue(operation.To)}");
+                    $"  {operation.Path}: {operation.OldValue} -> {JsonUtils.FormatElementValue(operation.To)}");
             }
         }
     }

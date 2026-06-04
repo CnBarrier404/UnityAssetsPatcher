@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AssetsTools.NET;
 using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Utils;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
@@ -186,6 +187,6 @@ internal static class ValueWriter
     private static InvalidOperationException CreateTypeMismatch(AssetTypeValueField field, JsonElement value)
     {
         return new InvalidOperationException(
-            $"Cannot assign {value.ValueKind} value '{AssetFieldMatcher.FormatJsonValue(value)}' to field '{field.FieldName}' of type {field.Value?.ValueType}.");
+            $"Cannot assign {value.ValueKind} value '{JsonUtils.FormatElementValue(value)}' to field '{field.FieldName}' of type {field.Value?.ValueType}.");
     }
 }

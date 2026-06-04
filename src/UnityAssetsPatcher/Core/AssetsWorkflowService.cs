@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using UnityAssetsPatcher.Utils;
 
 namespace UnityAssetsPatcher.Core;
 
@@ -488,7 +489,7 @@ public sealed class AssetsWorkflowService
                 if (field is null || arrayField is null || !AssetFieldMatcher.MatchesFieldValue(field, operation.From))
                 {
                     throw new InvalidOperationException(
-                        $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {arrayOldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+                        $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {arrayOldValue} does not match expected {JsonUtils.FormatElementValue(operation.From)}.");
                 }
 
                 return [new PatchWriteOperation(path, arrayOldValue, operation.To.Clone())];
@@ -500,7 +501,7 @@ public sealed class AssetsWorkflowService
             if (field is null || !AssetFieldMatcher.MatchesFieldValue(field, operation.From))
             {
                 throw new InvalidOperationException(
-                    $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {oldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+                    $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {oldValue} does not match expected {JsonUtils.FormatElementValue(operation.From)}.");
             }
 
             return [new PatchWriteOperation(operation.FieldPath, oldValue, operation.To)];
@@ -511,7 +512,7 @@ public sealed class AssetsWorkflowService
         if (field is null || !AssetFieldMatcher.MatchesFieldValue(field, operation.From))
         {
             throw new InvalidOperationException(
-                $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {compositeOldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+                $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {compositeOldValue} does not match expected {JsonUtils.FormatElementValue(operation.From)}.");
         }
 
         var operations = new List<PatchWriteOperation>();
@@ -537,7 +538,7 @@ public sealed class AssetsWorkflowService
             EnsureSupportedPatchValue(property.Value, childPath);
 
             string oldValue = child.Value ?? throw new InvalidOperationException(
-                $"Patch operation cannot be applied for Path ID {pathId}, field '{childPath}': current value <missing> does not match expected {AssetFieldMatcher.FormatJsonValue(GetObjectPropertyOrDefault(operation.From, property.Name))}.");
+                $"Patch operation cannot be applied for Path ID {pathId}, field '{childPath}': current value <missing> does not match expected {JsonUtils.FormatElementValue(GetObjectPropertyOrDefault(operation.From, property.Name))}.");
 
             operations.Add(new PatchWriteOperation(childPath, oldValue, property.Value.Clone()));
         }
@@ -847,7 +848,7 @@ public sealed class AssetsWorkflowService
         }
 
         return left.ValueKind == right.ValueKind &&
-               string.Equals(AssetFieldMatcher.FormatJsonValue(left), AssetFieldMatcher.FormatJsonValue(right),
+               string.Equals(JsonUtils.FormatElementValue(left), JsonUtils.FormatElementValue(right),
                    StringComparison.Ordinal);
     }
 

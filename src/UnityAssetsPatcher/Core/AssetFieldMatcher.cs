@@ -72,11 +72,6 @@ public static class AssetFieldMatcher
         };
     }
 
-    public static string FormatJsonValue(JsonElement value)
-    {
-        return value.ValueKind == JsonValueKind.String ? value.GetString() ?? string.Empty : value.GetRawText();
-    }
-
     public static bool TryGetObjectValue(JsonElement value, out JsonElement objectValue)
     {
         switch (value.ValueKind)
