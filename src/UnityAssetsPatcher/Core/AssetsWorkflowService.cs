@@ -25,16 +25,16 @@ public sealed class AssetsWorkflowService
 
     public IReadOnlyList<AssetMatch> FindAssets(FindAssetsRequest request)
     {
-        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
-        var targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
+        ModManifest manifest = ModManifestLoader.Load(request.ConfigPath);
+        var targets = GetPatchesForAssetsFile(manifest, request.AssetsFilePath);
         var matches = new List<AssetMatch>();
 
-        foreach (AssetPatchTarget target in targets)
+        foreach (ManifestPatch patch in targets)
         {
             foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(request.AssetsFilePath,
-                         target))
+                         patch))
             {
-                var includeGroup = target.IncludeGroups
+                var includeGroup = patch.IncludeGroups
                     .First(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
                 matches.Add(new AssetMatch(asset, includeGroup));
             }
@@ -45,8 +45,8 @@ public sealed class AssetsWorkflowService
 
     public PatchPreviewResult PreviewPatch(PatchPreviewRequest request)
     {
-        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
-        var targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
+        ModManifest manifest = ModManifestLoader.Load(request.ConfigPath);
+        var targets = GetPatchesForAssetsFile(manifest, request.AssetsFilePath);
 
         return CreatePatchPreviewResult(request.AssetsFilePath, targets);
     }
@@ -63,14 +63,14 @@ public sealed class AssetsWorkflowService
             throw new DirectoryNotFoundException($"Game directory not found: {request.GameDirectory}");
         }
 
-        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ZipFilePath);
+        ModManifest manifest = ModManifestLoader.Load(request.ZipFilePath);
         var targetPaths = ResolveInstallTargetPaths(
             request.GameDirectory,
-            queryConfig.Targets.Select(target => target.Target));
+            manifest.Patches.Select(patch => patch.AssetsFileName));
         var fileResults = new List<InstallPreviewFileResult>();
 
-        foreach (var targetGroup in queryConfig.Targets
-                     .GroupBy(target => target.Target, StringComparer.OrdinalIgnoreCase))
+        foreach (var targetGroup in manifest.Patches
+                     .GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase))
         {
             string assetsFilePath = targetPaths[targetGroup.Key];
             var targets = targetGroup.ToArray();
@@ -78,12 +78,12 @@ public sealed class AssetsWorkflowService
             fileResults.Add(new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview));
         }
 
-        return new InstallPreviewResult(queryConfig.Name, queryConfig.Version, fileResults);
+        return new InstallPreviewResult(manifest.Name, manifest.Version, fileResults);
     }
 
     private PatchPreviewResult CreatePatchPreviewResult(
         string assetsFilePath,
-        IReadOnlyList<AssetPatchTarget> targets)
+        IReadOnlyList<ManifestPatch> targets)
     {
         if (targets.Count == 0)
         {
@@ -97,14 +97,14 @@ public sealed class AssetsWorkflowService
 
         var assets = new List<PatchPreviewAssetResult>();
 
-        foreach (AssetPatchTarget target in targets)
+        foreach (ManifestPatch patch in targets)
         {
             foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(assetsFilePath,
-                         target))
+                         patch))
             {
                 var operationResults = new List<PatchPreviewOperationResult>();
 
-                foreach (PatchSetOperation operation in target.SetOperations ?? [])
+                foreach (ManifestSetOperation operation in patch.SetOperations ?? [])
                 {
                     operationResults.AddRange(CreatePatchPreviewOperationResults(
                         assetsFilePath,
@@ -126,8 +126,8 @@ public sealed class AssetsWorkflowService
             throw new InvalidOperationException("Assets patch writer was not configured.");
         }
 
-        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ConfigPath);
-        var targets = GetTargetsForAssetsFile(queryConfig, request.AssetsFilePath);
+        ModManifest manifest = ModManifestLoader.Load(request.ConfigPath);
+        var targets = GetPatchesForAssetsFile(manifest, request.AssetsFilePath);
 
         return ApplyPatchTargets(request.AssetsFilePath, request.OutputPath, request.BackupDirectory, targets);
     }
@@ -149,20 +149,20 @@ public sealed class AssetsWorkflowService
             throw new DirectoryNotFoundException($"Game directory not found: {request.GameDirectory}");
         }
 
-        AssetQueryConfig queryConfig = AssetQueryConfigLoader.Load(request.ZipFilePath);
+        ModManifest manifest = ModManifestLoader.Load(request.ZipFilePath);
 
-        if (!HasPatchOperations(queryConfig.Targets))
+        if (!HasPatchOperations(manifest.Patches))
         {
             throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
         }
 
         var targetPaths = ResolveInstallTargetPaths(
             request.GameDirectory,
-            queryConfig.Targets.Select(target => target.Target));
+            manifest.Patches.Select(patch => patch.AssetsFileName));
         var plans = new List<InstallFilePlan>();
 
-        foreach (var targetGroup in queryConfig.Targets
-                     .GroupBy(target => target.Target, StringComparer.OrdinalIgnoreCase))
+        foreach (var targetGroup in manifest.Patches
+                     .GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase))
         {
             string assetsFilePath = targetPaths[targetGroup.Key];
             var targets = targetGroup.ToArray();
@@ -197,14 +197,14 @@ public sealed class AssetsWorkflowService
                 result.OperationCount));
         }
 
-        return new InstallModResult(queryConfig.Name, queryConfig.Version, fileResults);
+        return new InstallModResult(manifest.Name, manifest.Version, fileResults);
     }
 
     private PatchApplyResult ApplyPatchTargets(
         string assetsFilePath,
         string? outputPathOption,
         string backupDirectory,
-        IReadOnlyList<AssetPatchTarget> targets)
+        IReadOnlyList<ManifestPatch> targets)
     {
         if (!File.Exists(assetsFilePath))
         {
@@ -273,14 +273,14 @@ public sealed class AssetsWorkflowService
             plan.Sum(asset => asset.Operations.Count));
     }
 
-    private static IReadOnlyList<AssetPatchTarget> GetTargetsForAssetsFile(
-        AssetQueryConfig queryConfig,
+    private static IReadOnlyList<ManifestPatch> GetPatchesForAssetsFile(
+        ModManifest manifest,
         string assetsFilePath)
     {
         string fileName = Path.GetFileName(assetsFilePath);
 
-        return queryConfig.Targets
-            .Where(target => string.Equals(target.Target, fileName, StringComparison.OrdinalIgnoreCase))
+        return manifest.Patches
+            .Where(patch => string.Equals(patch.AssetsFileName, fileName, StringComparison.OrdinalIgnoreCase))
             .ToArray();
     }
 
@@ -319,17 +319,17 @@ public sealed class AssetsWorkflowService
 
     private IEnumerable<(AssetsInfo Asset, AssetsFieldInfo FieldTree)> FindMatchingAssets(
         string assetsFilePath,
-        AssetPatchTarget target)
+        ManifestPatch patch)
     {
         var assets = _assetsReader.ReadAssetsInfo(assetsFilePath)
-            .Where(asset => string.Equals(asset.TypeName, target.Type, StringComparison.OrdinalIgnoreCase))
+            .Where(asset => string.Equals(asset.TypeName, patch.AssetTypeName, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
         foreach (AssetsInfo asset in assets)
         {
             AssetsFieldInfo fieldTree = _assetsReader.ReadAssetsFieldInfo(assetsFilePath, asset.PathId);
             bool matches =
-                target.IncludeGroups.Any(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
+                patch.IncludeGroups.Any(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
 
             if (matches)
             {
@@ -340,7 +340,7 @@ public sealed class AssetsWorkflowService
 
     private IReadOnlyList<PatchWriteAsset> CreatePatchWritePlan(
         string assetsFilePath,
-        IReadOnlyList<AssetPatchTarget> targets)
+        IReadOnlyList<ManifestPatch> targets)
     {
         if (!HasPatchOperations(targets))
         {
@@ -349,9 +349,9 @@ public sealed class AssetsWorkflowService
 
         var operationGroups = new Dictionary<long, List<PatchWriteOperation>>();
 
-        foreach (AssetPatchTarget target in targets)
+        foreach (ManifestPatch patch in targets)
         {
-            foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(assetsFilePath, target))
+            foreach ((AssetsInfo asset, AssetsFieldInfo fieldTree) in FindMatchingAssets(assetsFilePath, patch))
             {
                 if (!operationGroups.TryGetValue(asset.PathId, out var operations))
                 {
@@ -359,7 +359,7 @@ public sealed class AssetsWorkflowService
                     operationGroups.Add(asset.PathId, operations);
                 }
 
-                foreach (PatchSetOperation operation in target.SetOperations ?? [])
+                foreach (ManifestSetOperation operation in patch.SetOperations ?? [])
                 {
                     operations.AddRange(CreatePatchWriteOperations(
                         assetsFilePath,
@@ -375,7 +375,7 @@ public sealed class AssetsWorkflowService
             .ToArray();
     }
 
-    private static bool HasPatchOperations(IReadOnlyList<AssetPatchTarget> targets)
+    private static bool HasPatchOperations(IReadOnlyList<ManifestPatch> targets)
     {
         return targets.Count > 0 && targets.All(target => target.SetOperations is { Count: > 0 });
     }
@@ -383,10 +383,10 @@ public sealed class AssetsWorkflowService
     private IReadOnlyList<PatchPreviewOperationResult> CreatePatchPreviewOperationResults(
         string assetsFilePath,
         AssetsFieldInfo fieldTree,
-        PatchSetOperation operation)
+        ManifestSetOperation operation)
     {
-        operation = ResolvePatchSetOperation(assetsFilePath, operation);
-        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.Path);
+        operation = ResolveManifestSetOperation(assetsFilePath, operation);
+        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
 
         if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
         {
@@ -396,7 +396,7 @@ public sealed class AssetsWorkflowService
             return
             [
                 new PatchPreviewOperationResult(
-                    operation.Path,
+                    operation.FieldPath,
                     oldValue,
                     operation.From,
                     operation.To,
@@ -409,7 +409,7 @@ public sealed class AssetsWorkflowService
             return
             [
                 new PatchPreviewOperationResult(
-                    operation.Path,
+                    operation.FieldPath,
                     "<missing>",
                     operation.From,
                     operation.To,
@@ -423,7 +423,7 @@ public sealed class AssetsWorkflowService
         foreach (JsonProperty property in toObject.EnumerateObject())
         {
             AssetsFieldInfo? child = FindDirectChild(field, property.Name);
-            string childPath = $"{operation.Path}.{property.Name}";
+            string childPath = $"{operation.FieldPath}.{property.Name}";
             string oldValue = child?.Value ?? "<missing>";
 
             results.Add(new PatchPreviewOperationResult(
@@ -441,23 +441,23 @@ public sealed class AssetsWorkflowService
         string assetsFilePath,
         long pathId,
         AssetsFieldInfo fieldTree,
-        PatchSetOperation operation)
+        ManifestSetOperation operation)
     {
-        operation = ResolvePatchSetOperation(assetsFilePath, operation);
-        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.Path);
+        operation = ResolveManifestSetOperation(assetsFilePath, operation);
+        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
 
         if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
         {
-            EnsureSupportedPatchValue(operation.To, operation.Path);
+            EnsureSupportedPatchValue(operation.To, operation.FieldPath);
             string oldValue = field?.Value ?? "<missing>";
 
             if (field is null || !AssetFieldMatcher.MatchesFieldValue(field, operation.From))
             {
                 throw new InvalidOperationException(
-                    $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.Path}': current value {oldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+                    $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {oldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
             }
 
-            return [new PatchWriteOperation(operation.Path, oldValue, operation.To)];
+            return [new PatchWriteOperation(operation.FieldPath, oldValue, operation.To)];
         }
 
         string compositeOldValue = field is null ? "<missing>" : FormatObjectFieldValue(field);
@@ -465,14 +465,14 @@ public sealed class AssetsWorkflowService
         if (field is null || !AssetFieldMatcher.MatchesFieldValue(field, operation.From))
         {
             throw new InvalidOperationException(
-                $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.Path}': current value {compositeOldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+                $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {compositeOldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
         }
 
         var operations = new List<PatchWriteOperation>();
 
         foreach (JsonProperty property in toObject.EnumerateObject())
         {
-            string childPath = $"{operation.Path}.{property.Name}";
+            string childPath = $"{operation.FieldPath}.{property.Name}";
             EnsureSupportedPatchValue(property.Value, childPath);
 
             AssetsFieldInfo child = FindDirectChild(field, property.Name)
@@ -488,11 +488,11 @@ public sealed class AssetsWorkflowService
         return operations;
     }
 
-    private PatchSetOperation ResolvePatchSetOperation(string assetsFilePath, PatchSetOperation operation)
+    private ManifestSetOperation ResolveManifestSetOperation(string assetsFilePath, ManifestSetOperation operation)
     {
         JsonElement resolvedTo = ResolvePatchValue(assetsFilePath, operation.To);
 
-        return new PatchSetOperation(operation.Path, operation.From.Clone(), resolvedTo);
+        return new ManifestSetOperation(operation.FieldPath, operation.From.Clone(), resolvedTo);
     }
 
     private JsonElement ResolvePatchValue(string assetsFilePath, JsonElement value)
@@ -512,7 +512,7 @@ public sealed class AssetsWorkflowService
         var includeGroups =
             ReadPathIdResolverIncludeGroups(resolver);
 
-        var target = new AssetPatchTarget(
+        var target = new ManifestPatch(
             Path.GetFileName(assetsFilePath),
             type,
             includeGroups,

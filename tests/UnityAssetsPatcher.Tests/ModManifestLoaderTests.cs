@@ -4,10 +4,10 @@ using Xunit;
 
 namespace UnityAssetsPatcher.Tests;
 
-public sealed class AssetQueryConfigLoaderTests
+public sealed class ModManifestLoaderTests
 {
     /// <summary>
-    /// 验证 manifest 可以携带 Mod 元信息，并继续使用 patches 描述现有 patch 功能。
+    /// Verifies that a manifest can carry mod metadata while using patches for patch behavior.
     /// </summary>
     [Fact]
     public void Load_WhenManifestHasMetadataAndPatches_ReturnsMetadataAndTargets()
@@ -44,15 +44,15 @@ public sealed class AssetQueryConfigLoaderTests
 
         try
         {
-            AssetQueryConfig config = AssetQueryConfigLoader.Load(configPath);
+            ModManifest config = ModManifestLoader.Load(configPath);
 
             Assert.Equal("Camera Tweak", config.Name);
             Assert.Equal("CnBarrier", config.Author);
             Assert.Equal("1.0.0", config.Version);
             Assert.Equal("Adjusts camera settings.", config.Description);
-            AssetPatchTarget target = Assert.Single(config.Targets);
-            Assert.Equal("sharedassets0.assets", target.Target);
-            Assert.Equal("Camera", target.Type);
+            ManifestPatch patch = Assert.Single(config.Patches);
+            Assert.Equal("sharedassets0.assets", patch.AssetsFileName);
+            Assert.Equal("Camera", patch.AssetTypeName);
         }
         finally
         {
@@ -61,7 +61,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证 manifest 缺少必填 Mod 元信息时会给出明确错误。
+    /// Verifies that a manifest missing required mod metadata returns a clear error.
     /// </summary>
     [Fact]
     public void Load_WhenManifestIsMissingRequiredMetadata_ThrowsClearError()
@@ -85,7 +85,7 @@ public sealed class AssetQueryConfigLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => AssetQueryConfigLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
 
             Assert.Contains("version", exception.Message);
         }
@@ -96,7 +96,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证必填 Mod 元信息必须是非空字符串。
+    /// Verifies that required mod metadata must be non-empty strings.
     /// </summary>
     [Theory]
     [InlineData("name", "\"\"", "name")]
@@ -130,7 +130,7 @@ public sealed class AssetQueryConfigLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => AssetQueryConfigLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
 
             Assert.Contains(expectedMessage, exception.Message);
         }
@@ -141,7 +141,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证可选 description 存在时必须是字符串。
+    /// Verifies that an optional description must be a string when present.
     /// </summary>
     [Fact]
     public void Load_WhenDescriptionIsNotString_ThrowsClearError()
@@ -167,7 +167,7 @@ public sealed class AssetQueryConfigLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => AssetQueryConfigLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
 
             Assert.Contains("description", exception.Message);
         }
@@ -178,7 +178,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证 manifest 的 patch target 必须声明要自动查找的目标 assets 文件名。
+    /// Verifies that a manifest patch target must declare the assets file name to locate.
     /// </summary>
     [Fact]
     public void Load_WhenPatchTargetHasTarget_ReturnsTargetFileName()
@@ -207,12 +207,12 @@ public sealed class AssetQueryConfigLoaderTests
 
         try
         {
-            AssetQueryConfig config = AssetQueryConfigLoader.Load(configPath);
+            ModManifest config = ModManifestLoader.Load(configPath);
 
-            AssetPatchTarget target = Assert.Single(config.Targets);
-            Assert.Equal("sharedassets0.assets", target.Target);
-            PatchSetOperation operation = Assert.Single(target.SetOperations!);
-            Assert.Equal("m_CullingMask.m_Bits", operation.Path);
+            ManifestPatch patch = Assert.Single(config.Patches);
+            Assert.Equal("sharedassets0.assets", patch.AssetsFileName);
+            ManifestSetOperation operation = Assert.Single(patch.SetOperations!);
+            Assert.Equal("m_CullingMask.m_Bits", operation.FieldPath);
         }
         finally
         {
@@ -221,7 +221,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证 set[].path 不再被接受，避免和 target 文件定位语义冲突。
+    /// Verifies that set[].path is rejected to avoid conflicting with target file-location semantics.
     /// </summary>
     [Fact]
     public void Load_WhenSetUsesPath_ThrowsMigrationError()
@@ -250,7 +250,7 @@ public sealed class AssetQueryConfigLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => AssetQueryConfigLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
 
             Assert.Contains("field", exception.Message);
             Assert.Contains("path", exception.Message);
@@ -262,7 +262,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证 target 只能是文件名，不能包含目录片段。
+    /// Verifies that target must be only a file name and cannot contain directory segments.
     /// </summary>
     [Fact]
     public void Load_WhenTargetContainsDirectorySeparator_ThrowsClearError()
@@ -284,7 +284,7 @@ public sealed class AssetQueryConfigLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => AssetQueryConfigLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
 
             Assert.Contains("target", exception.Message);
             Assert.Contains("file name", exception.Message);
@@ -296,7 +296,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证 zip 中嵌套目录内的唯一 manifest.json 会被自动读取。
+    /// Verifies that the only manifest.json in a nested zip directory is read automatically.
     /// </summary>
     [Fact]
     public void Load_WhenZipHasSingleNestedManifest_ReturnsConfig()
@@ -330,10 +330,10 @@ public sealed class AssetQueryConfigLoaderTests
                     """);
             }
 
-            AssetQueryConfig config = AssetQueryConfigLoader.Load(zipPath);
+            ModManifest config = ModManifestLoader.Load(zipPath);
 
             Assert.Equal("Camera Tweak", config.Name);
-            Assert.Equal("sharedassets0.assets", Assert.Single(config.Targets).Target);
+            Assert.Equal("sharedassets0.assets", Assert.Single(config.Patches).AssetsFileName);
         }
         finally
         {
@@ -342,7 +342,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证 zip 中不能出现多个 manifest.json，避免工具自动选错。
+    /// Verifies that a zip cannot contain multiple manifest.json entries, preventing ambiguous selection.
     /// </summary>
     [Fact]
     public void Load_WhenZipHasMultipleManifests_ThrowsClearError()
@@ -357,7 +357,7 @@ public sealed class AssetQueryConfigLoaderTests
                 archive.CreateEntry("Nested/manifest.json");
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => AssetQueryConfigLoader.Load(zipPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(zipPath));
 
             Assert.Contains("exactly one manifest.json", exception.Message);
         }
@@ -368,7 +368,7 @@ public sealed class AssetQueryConfigLoaderTests
     }
 
     /// <summary>
-    /// 验证 zip 缺少 manifest.json 时给出明确错误。
+    /// Verifies that a zip missing manifest.json returns a clear error.
     /// </summary>
     [Fact]
     public void Load_WhenZipHasNoManifest_ThrowsClearError()
@@ -382,7 +382,7 @@ public sealed class AssetQueryConfigLoaderTests
                 archive.CreateEntry("readme.txt");
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => AssetQueryConfigLoader.Load(zipPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(zipPath));
 
             Assert.Contains("exactly one manifest.json", exception.Message);
         }
