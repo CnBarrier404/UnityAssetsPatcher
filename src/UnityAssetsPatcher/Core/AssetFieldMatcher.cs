@@ -52,6 +52,11 @@ public static class AssetFieldMatcher
             return MatchesObjectValue(field, objectValue);
         }
 
+        if (expectedValue.ValueKind == JsonValueKind.Array)
+        {
+            return MatchesArrayValue(field, expectedValue);
+        }
+
         return field.Value is not null && MatchesValue(field.Value, expectedValue);
     }
 
@@ -124,6 +129,57 @@ public static class AssetFieldMatcher
         }
 
         return true;
+    }
+
+    private static bool MatchesArrayValue(AssetsFieldInfo field, JsonElement expectedArray)
+    {
+        AssetsFieldInfo? arrayField = ResolveArrayField(field);
+
+        if (arrayField is null)
+        {
+            return false;
+        }
+
+        var children = GetArrayElementFields(arrayField);
+
+        if (children.Count != expectedArray.GetArrayLength())
+        {
+            return false;
+        }
+
+        int index = 0;
+
+        foreach (JsonElement expectedElement in expectedArray.EnumerateArray())
+        {
+            if (!MatchesFieldValue(children[index], expectedElement))
+            {
+                return false;
+            }
+
+            index++;
+        }
+
+        return true;
+    }
+
+    private static AssetsFieldInfo? ResolveArrayField(AssetsFieldInfo field)
+    {
+        return IsArrayField(field) ? field : field.Children.FirstOrDefault(IsArrayField);
+    }
+
+    private static bool IsArrayField(AssetsFieldInfo field)
+    {
+        return string.Equals(field.Name, "Array", StringComparison.Ordinal) ||
+               string.Equals(field.TypeName, "Array", StringComparison.Ordinal);
+    }
+
+    private static IReadOnlyList<AssetsFieldInfo> GetArrayElementFields(AssetsFieldInfo arrayField)
+    {
+        var dataChildren = arrayField.Children
+            .Where(child => string.Equals(child.Name, "data", StringComparison.Ordinal))
+            .ToArray();
+
+        return dataChildren.Length > 0 ? dataChildren : arrayField.Children;
     }
 
     private static AssetsFieldInfo? FindChildBySegment(AssetsFieldInfo field, AssetFieldPathSegment segment)

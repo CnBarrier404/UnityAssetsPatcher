@@ -516,6 +516,247 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
+    /// Verifies that patch can add a value to a Unity string array represented as an Array child.
+    /// </summary>
+    [Fact]
+    public void ApplyPatch_WhenSetAddsStringArrayItem_WritesArrayFieldOperation()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        File.WriteAllText(inputPath, "original");
+        TestManifest.Write(
+            configPath,
+            $$"""
+              {
+                "target": "{{Path.GetFileName(inputPath)}}",
+                "type": "Material",
+                "include": [
+                  {
+                    "m_Name": "TargetMaterial"
+                  }
+                ],
+                "set": [
+                  {
+                    "field": "m_ValidKeywords",
+                    "from": {
+                      "Array": [
+                        "_METALLICSPECGLOSSMAP",
+                        "_NORMALMAP"
+                      ]
+                    },
+                    "to": {
+                      "Array": [
+                        "_METALLICSPECGLOSSMAP",
+                        "_NORMALMAP",
+                        "_EMISSION"
+                      ]
+                    }
+                  }
+                ]
+              }
+              """);
+        var writer = new StubAssetsPatchWriter();
+        var service = new AssetsWorkflowService(
+            new StubAssetsReader(
+                [new AssetsInfo(9, 21, "Material", 96)],
+                new Dictionary<long, AssetsFieldInfo>
+                {
+                    [9] = new("Material", "Material", null,
+                    [
+                        new AssetsFieldInfo("m_Name", "string", "TargetMaterial", []),
+                        new AssetsFieldInfo("m_ValidKeywords", "vector", null,
+                        [
+                            new AssetsFieldInfo("Array", "Array", null,
+                            [
+                                new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
+                                new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
+                            ]),
+                        ]),
+                    ]),
+                }),
+            writer);
+
+        try
+        {
+            PatchApplyResult result =
+                service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, backupDirectory));
+
+            Assert.Equal(1, result.AssetCount);
+            Assert.Equal(1, result.OperationCount);
+            PatchWriteOperation operation = Assert.Single(Assert.Single(writer.Plan).Operations);
+            Assert.Equal("m_ValidKeywords.Array", operation.Path);
+            Assert.Equal(
+                ["_METALLICSPECGLOSSMAP", "_NORMALMAP", "_EMISSION"],
+                operation.To.EnumerateArray().Select(element => element.GetString()));
+        }
+        finally
+        {
+            File.Delete(configPath);
+            File.Delete(inputPath);
+            File.Delete(outputPath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that add appends missing values to a Unity array without requiring a full from/to replacement.
+    /// </summary>
+    [Fact]
+    public void ApplyPatch_WhenAddValueIsMissing_WritesArrayFieldOperation()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        File.WriteAllText(inputPath, "original");
+        TestManifest.Write(
+            configPath,
+            $$"""
+              {
+                "target": "{{Path.GetFileName(inputPath)}}",
+                "type": "Material",
+                "include": [
+                  {
+                    "m_Name": "Bone Parts"
+                  }
+                ],
+                "add": [
+                  {
+                    "field": "m_ValidKeywords.Array",
+                    "value": [
+                      "_EMISSION"
+                    ]
+                  }
+                ]
+              }
+              """);
+        var writer = new StubAssetsPatchWriter();
+        var service = new AssetsWorkflowService(
+            new StubAssetsReader(
+                [new AssetsInfo(10, 21, "Material", 96)],
+                new Dictionary<long, AssetsFieldInfo>
+                {
+                    [10] = new("Material", "Material", null,
+                    [
+                        new AssetsFieldInfo("m_Name", "string", "Bone Parts", []),
+                        new AssetsFieldInfo("m_ValidKeywords", "vector", null,
+                        [
+                            new AssetsFieldInfo("Array", "Array", null,
+                            [
+                                new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
+                                new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
+                            ]),
+                        ]),
+                    ]),
+                }),
+            writer);
+
+        try
+        {
+            PatchApplyResult result =
+                service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, backupDirectory));
+
+            Assert.Equal(1, result.AssetCount);
+            Assert.Equal(1, result.OperationCount);
+            PatchWriteOperation operation = Assert.Single(Assert.Single(writer.Plan).Operations);
+            Assert.Equal("m_ValidKeywords.Array", operation.Path);
+            Assert.Equal(
+                ["_METALLICSPECGLOSSMAP", "_NORMALMAP", "_EMISSION"],
+                operation.To.EnumerateArray().Select(element => element.GetString()));
+        }
+        finally
+        {
+            File.Delete(configPath);
+            File.Delete(inputPath);
+            File.Delete(outputPath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that add skips values that already exist in the target Unity array.
+    /// </summary>
+    [Fact]
+    public void ApplyPatch_WhenAddValueAlreadyExists_SkipsWithoutWriting()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        File.WriteAllText(inputPath, "original");
+        TestManifest.Write(
+            configPath,
+            $$"""
+              {
+                "target": "{{Path.GetFileName(inputPath)}}",
+                "type": "Material",
+                "include": [
+                  {
+                    "m_Name": "Bone Parts"
+                  }
+                ],
+                "add": [
+                  {
+                    "field": "m_ValidKeywords.Array",
+                    "value": [
+                      "_EMISSION"
+                    ]
+                  }
+                ]
+              }
+              """);
+        var writer = new StubAssetsPatchWriter();
+        var service = new AssetsWorkflowService(
+            new StubAssetsReader(
+                [new AssetsInfo(10, 21, "Material", 96)],
+                new Dictionary<long, AssetsFieldInfo>
+                {
+                    [10] = new("Material", "Material", null,
+                    [
+                        new AssetsFieldInfo("m_Name", "string", "Bone Parts", []),
+                        new AssetsFieldInfo("m_ValidKeywords", "vector", null,
+                        [
+                            new AssetsFieldInfo("Array", "Array", null,
+                            [
+                                new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
+                                new AssetsFieldInfo("data", "string", "_NORMALMAP", []),
+                                new AssetsFieldInfo("data", "string", "_EMISSION", []),
+                            ]),
+                        ]),
+                    ]),
+                }),
+            writer);
+
+        try
+        {
+            PatchApplyResult result =
+                service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, backupDirectory));
+
+            Assert.Equal(0, result.AssetCount);
+            Assert.Equal(0, result.OperationCount);
+            Assert.False(writer.WasCalled);
+        }
+        finally
+        {
+            File.Delete(configPath);
+            File.Delete(inputPath);
+            File.Delete(outputPath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that apply can resolve a Path ID by Texture2D name and write it to a Material texture slot m_PathID.
     /// </summary>
     [Fact]

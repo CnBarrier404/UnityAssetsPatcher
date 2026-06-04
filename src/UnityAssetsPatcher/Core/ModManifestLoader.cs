@@ -79,8 +79,9 @@ public static class ModManifestLoader
         string assetTypeName = ReadAssetTypeName(element);
         var includeGroups = ReadIncludeGroups(element);
         var setOperations = ReadOptionalSetOperations(element);
+        var addOperations = ReadOptionalAddOperations(element);
 
-        return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations);
+        return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations, addOperations);
     }
 
     private static string ReadAssetTypeName(JsonElement element)
@@ -168,6 +169,57 @@ public static class ModManifestLoader
 
         string field = fieldElement.GetString() ?? throw new InvalidOperationException("Set field cannot be empty.");
         return new ManifestSetOperation(field, fromElement.Clone(), toElement.Clone());
+    }
+
+    private static ManifestAddOperation[]? ReadOptionalAddOperations(JsonElement element)
+    {
+        if (!element.TryGetProperty("add", out JsonElement addElement))
+        {
+            return null;
+        }
+
+        if (addElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidOperationException("Manifest patch 'add' property must be an array.");
+        }
+
+        return addElement.EnumerateArray()
+            .Select(ReadManifestAddOperation)
+            .ToArray();
+    }
+
+    private static ManifestAddOperation ReadManifestAddOperation(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("Each add entry must be an object.");
+        }
+
+        if (element.TryGetProperty("path", out _))
+        {
+            throw new InvalidOperationException(
+                "Each add entry must use a string 'field' property; 'path' is not supported.");
+        }
+
+        if (!element.TryGetProperty("field", out JsonElement fieldElement) ||
+            fieldElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException("Each add entry must contain a string 'field' property.");
+        }
+
+        if (!element.TryGetProperty("value", out JsonElement valueElement))
+        {
+            throw new InvalidOperationException("Each add entry must contain a 'value' property.");
+        }
+
+        if (valueElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidOperationException("Each add entry 'value' property must be an array.");
+        }
+
+        string field = fieldElement.GetString() ?? throw new InvalidOperationException("Add field cannot be empty.");
+
+        return new ManifestAddOperation(field, valueElement.Clone());
     }
 
     private static string ReadTargetFileName(JsonElement element)

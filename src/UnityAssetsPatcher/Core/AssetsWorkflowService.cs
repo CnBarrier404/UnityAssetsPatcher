@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace UnityAssetsPatcher.Core;
@@ -92,7 +93,7 @@ public sealed class AssetsWorkflowService
 
         if (!HasPatchOperations(targets))
         {
-            throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
+            throw new InvalidOperationException("Patch config must contain a non-empty 'set' or 'add' array.");
         }
 
         var assets = new List<PatchPreviewAssetResult>();
@@ -110,6 +111,11 @@ public sealed class AssetsWorkflowService
                         assetsFilePath,
                         fieldTree,
                         operation));
+                }
+
+                foreach (ManifestAddOperation operation in patch.AddOperations ?? [])
+                {
+                    operationResults.AddRange(CreatePatchPreviewOperationResults(fieldTree, operation));
                 }
 
                 assets.Add(new PatchPreviewAssetResult(asset, operationResults));
@@ -153,7 +159,7 @@ public sealed class AssetsWorkflowService
 
         if (!HasPatchOperations(manifest.Patches))
         {
-            throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
+            throw new InvalidOperationException("Patch config must contain a non-empty 'set' or 'add' array.");
         }
 
         var targetPaths = ResolveInstallTargetPaths(
@@ -187,6 +193,11 @@ public sealed class AssetsWorkflowService
                 true,
                 request.BackupDirectory,
                 plan.Assets);
+            if (result.OperationCount == 0)
+            {
+                continue;
+            }
+
             string backupPath = result.BackupPath ??
                                 throw new InvalidOperationException("Install patch did not create a backup.");
             fileResults.Add(new InstallModFileResult(
@@ -235,7 +246,7 @@ public sealed class AssetsWorkflowService
 
         if (!HasPatchOperations(targets))
         {
-            throw new InvalidOperationException("Patch config must contain a non-empty 'set' array.");
+            throw new InvalidOperationException("Patch config must contain a non-empty 'set' or 'add' array.");
         }
 
         var plan = CreatePatchWritePlan(assetsFilePath, targets);
@@ -256,6 +267,14 @@ public sealed class AssetsWorkflowService
         IReadOnlyList<PatchWriteAsset> plan)
     {
         string? backupPath = null;
+        var changedPlan = plan
+            .Where(asset => asset.Operations.Count > 0)
+            .ToArray();
+
+        if (changedPlan.Length == 0)
+        {
+            return new PatchApplyResult(outputPath, null, 0, 0);
+        }
 
         if (overwritesInput)
         {
@@ -264,13 +283,13 @@ public sealed class AssetsWorkflowService
             File.Copy(assetsFilePath, backupPath, false);
         }
 
-        _assetsPatchWriter!.WritePatch(assetsFilePath, outputPath, plan);
+        _assetsPatchWriter!.WritePatch(assetsFilePath, outputPath, changedPlan);
 
         return new PatchApplyResult(
             outputPath,
             backupPath,
-            plan.Count,
-            plan.Sum(asset => asset.Operations.Count));
+            changedPlan.Length,
+            changedPlan.Sum(asset => asset.Operations.Count));
     }
 
     private static IReadOnlyList<ManifestPatch> GetPatchesForAssetsFile(
@@ -367,6 +386,11 @@ public sealed class AssetsWorkflowService
                         fieldTree,
                         operation));
                 }
+
+                foreach (ManifestAddOperation operation in patch.AddOperations ?? [])
+                {
+                    operations.AddRange(CreatePatchWriteOperations(asset.PathId, fieldTree, operation));
+                }
             }
         }
 
@@ -377,7 +401,13 @@ public sealed class AssetsWorkflowService
 
     private static bool HasPatchOperations(IReadOnlyList<ManifestPatch> targets)
     {
-        return targets.Count > 0 && targets.All(target => target.SetOperations is { Count: > 0 });
+        return targets.Count > 0 && targets.All(HasPatchOperations);
+    }
+
+    private static bool HasPatchOperations(ManifestPatch target)
+    {
+        return target.SetOperations is { Count: > 0 } ||
+               target.AddOperations is { Count: > 0 };
     }
 
     private IReadOnlyList<PatchPreviewOperationResult> CreatePatchPreviewOperationResults(
@@ -390,13 +420,22 @@ public sealed class AssetsWorkflowService
 
         if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
         {
+            string path = operation.FieldPath;
             string oldValue = field?.Value ?? "<missing>";
+
+            if (IsJsonArrayPatchValue(operation.To))
+            {
+                AssetsFieldInfo? arrayField = ResolveArrayField(field);
+                path = ResolveArrayFieldPath(operation.FieldPath, field, arrayField);
+                oldValue = arrayField is null ? "<missing>" : FormatArrayFieldValue(arrayField);
+            }
+
             bool matches = field is not null && AssetFieldMatcher.MatchesFieldValue(field, operation.From);
 
             return
             [
                 new PatchPreviewOperationResult(
-                    operation.FieldPath,
+                    path,
                     oldValue,
                     operation.From,
                     operation.To,
@@ -424,14 +463,17 @@ public sealed class AssetsWorkflowService
         {
             AssetsFieldInfo? child = FindDirectChild(field, property.Name);
             string childPath = $"{operation.FieldPath}.{property.Name}";
-            string oldValue = child?.Value ?? "<missing>";
+            bool isArrayPatch = IsJsonArrayPatchValue(property.Value);
+            string oldValue = isArrayPatch && child is not null
+                ? FormatArrayFieldValue(child)
+                : child?.Value ?? "<missing>";
 
             results.Add(new PatchPreviewOperationResult(
                 childPath,
                 oldValue,
                 GetObjectPropertyOrDefault(operation.From, property.Name),
                 property.Value.Clone(),
-                parentMatches && child?.Value is not null));
+                parentMatches && child is not null && (child.Value is not null || isArrayPatch)));
         }
 
         return results;
@@ -448,6 +490,22 @@ public sealed class AssetsWorkflowService
 
         if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
         {
+            if (IsJsonArrayPatchValue(operation.To))
+            {
+                EnsureSupportedPatchArrayValue(operation.To, operation.FieldPath);
+                AssetsFieldInfo? arrayField = ResolveArrayField(field);
+                string path = ResolveArrayFieldPath(operation.FieldPath, field, arrayField);
+                string arrayOldValue = arrayField is null ? "<missing>" : FormatArrayFieldValue(arrayField);
+
+                if (field is null || arrayField is null || !AssetFieldMatcher.MatchesFieldValue(field, operation.From))
+                {
+                    throw new InvalidOperationException(
+                        $"Patch operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': current value {arrayOldValue} does not match expected {AssetFieldMatcher.FormatJsonValue(operation.From)}.");
+                }
+
+                return [new PatchWriteOperation(path, arrayOldValue, operation.To.Clone())];
+            }
+
             EnsureSupportedPatchValue(operation.To, operation.FieldPath);
             string oldValue = field?.Value ?? "<missing>";
 
@@ -473,11 +531,22 @@ public sealed class AssetsWorkflowService
         foreach (JsonProperty property in toObject.EnumerateObject())
         {
             string childPath = $"{operation.FieldPath}.{property.Name}";
-            EnsureSupportedPatchValue(property.Value, childPath);
 
             AssetsFieldInfo child = FindDirectChild(field, property.Name)
                                     ?? throw new InvalidOperationException(
                                         $"Field not found for Path ID {pathId}: {childPath}");
+
+            if (IsJsonArrayPatchValue(property.Value))
+            {
+                EnsureSupportedPatchArrayValue(property.Value, childPath);
+                operations.Add(new PatchWriteOperation(
+                    childPath,
+                    FormatArrayFieldValue(child),
+                    property.Value.Clone()));
+                continue;
+            }
+
+            EnsureSupportedPatchValue(property.Value, childPath);
 
             string oldValue = child.Value ?? throw new InvalidOperationException(
                 $"Patch operation cannot be applied for Path ID {pathId}, field '{childPath}': current value <missing> does not match expected {AssetFieldMatcher.FormatJsonValue(GetObjectPropertyOrDefault(operation.From, property.Name))}.");
@@ -486,6 +555,63 @@ public sealed class AssetsWorkflowService
         }
 
         return operations;
+    }
+
+    private static IReadOnlyList<PatchPreviewOperationResult> CreatePatchPreviewOperationResults(
+        AssetsFieldInfo fieldTree,
+        ManifestAddOperation operation)
+    {
+        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
+        AssetsFieldInfo? arrayField = ResolveArrayField(field);
+        string path = ResolveArrayFieldPath(operation.FieldPath, field, arrayField);
+
+        if (arrayField is null)
+        {
+            return
+            [
+                new PatchPreviewOperationResult(
+                    path,
+                    "<missing>",
+                    operation.Value,
+                    operation.Value,
+                    false)
+            ];
+        }
+
+        EnsureSupportedPatchArrayValue(operation.Value, operation.FieldPath);
+        JsonElement to = CreateAddArrayValue(arrayField, operation.Value, out bool willChange);
+
+        return
+        [
+            new PatchPreviewOperationResult(
+                path,
+                FormatArrayFieldValue(arrayField),
+                operation.Value,
+                to,
+                willChange)
+        ];
+    }
+
+    private static IReadOnlyList<PatchWriteOperation> CreatePatchWriteOperations(
+        long pathId,
+        AssetsFieldInfo fieldTree,
+        ManifestAddOperation operation)
+    {
+        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
+        AssetsFieldInfo? arrayField = ResolveArrayField(field);
+        string path = ResolveArrayFieldPath(operation.FieldPath, field, arrayField);
+
+        if (field is null || arrayField is null)
+        {
+            throw new InvalidOperationException(
+                $"Patch add operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': field is not an array.");
+        }
+
+        EnsureSupportedPatchArrayValue(operation.Value, operation.FieldPath);
+        string oldValue = FormatArrayFieldValue(arrayField);
+        JsonElement to = CreateAddArrayValue(arrayField, operation.Value, out bool willChange);
+
+        return willChange ? [new PatchWriteOperation(path, oldValue, to)] : [];
     }
 
     private ManifestSetOperation ResolveManifestSetOperation(string assetsFilePath, ManifestSetOperation operation)
@@ -516,6 +642,7 @@ public sealed class AssetsWorkflowService
             Path.GetFileName(assetsFilePath),
             type,
             includeGroups,
+            null,
             null);
         var matches = FindMatchingAssets(assetsFilePath, target)
             .Select(match => match.Asset)
@@ -594,6 +721,52 @@ public sealed class AssetsWorkflowService
         return field.Children.FirstOrDefault(child => string.Equals(child.Name, name, StringComparison.Ordinal));
     }
 
+    private static bool IsJsonArrayPatchValue(JsonElement value)
+    {
+        return value.ValueKind == JsonValueKind.Array &&
+               !AssetFieldMatcher.TryGetObjectValue(value, out _);
+    }
+
+    private static AssetsFieldInfo? ResolveArrayField(AssetsFieldInfo? field)
+    {
+        if (field is null)
+        {
+            return null;
+        }
+
+        if (IsArrayField(field))
+        {
+            return field;
+        }
+
+        return FindDirectChild(field, "Array");
+    }
+
+    private static string ResolveArrayFieldPath(
+        string fieldPath,
+        AssetsFieldInfo? field,
+        AssetsFieldInfo? arrayField)
+    {
+        return field is not null && arrayField is not null && !ReferenceEquals(field, arrayField)
+            ? $"{fieldPath}.{arrayField.Name}"
+            : fieldPath;
+    }
+
+    private static bool IsArrayField(AssetsFieldInfo field)
+    {
+        return string.Equals(field.Name, "Array", StringComparison.Ordinal) ||
+               string.Equals(field.TypeName, "Array", StringComparison.Ordinal);
+    }
+
+    private static IReadOnlyList<AssetsFieldInfo> GetArrayElementFields(AssetsFieldInfo arrayField)
+    {
+        var dataChildren = arrayField.Children
+            .Where(child => string.Equals(child.Name, "data", StringComparison.Ordinal))
+            .ToArray();
+
+        return dataChildren.Length > 0 ? dataChildren : arrayField.Children;
+    }
+
     private static JsonElement GetObjectPropertyOrDefault(JsonElement value, string propertyName)
     {
         return AssetFieldMatcher.TryGetObjectValue(value, out JsonElement objectValue) &&
@@ -611,6 +784,156 @@ public sealed class AssetsWorkflowService
         return properties.Length == 0 ? "<missing>" : $"{{ {properties} }}";
     }
 
+    private static string FormatArrayFieldValue(AssetsFieldInfo arrayField)
+    {
+        string elements = string.Join(", ", GetArrayElementFields(arrayField).Select(FormatArrayElementValue));
+
+        return $"[{elements}]";
+    }
+
+    private static string FormatArrayElementValue(AssetsFieldInfo element)
+    {
+        if (element.Value is null)
+        {
+            return FormatObjectFieldValue(element);
+        }
+
+        return string.Equals(element.TypeName, "string", StringComparison.OrdinalIgnoreCase)
+            ? JsonSerializer.Serialize(element.Value)
+            : element.Value;
+    }
+
+    private static JsonElement CreateAddArrayValue(
+        AssetsFieldInfo arrayField,
+        JsonElement value,
+        out bool changed)
+    {
+        var currentFields = GetArrayElementFields(arrayField);
+        var elements = currentFields
+            .Select(CreateJsonElementFromArrayElementField)
+            .ToList();
+        changed = false;
+
+        foreach (JsonElement element in value.EnumerateArray())
+        {
+            if (ContainsArrayValue(currentFields, elements, element))
+            {
+                continue;
+            }
+
+            elements.Add(element.Clone());
+            changed = true;
+        }
+
+        return JsonSerializer.SerializeToElement(elements);
+    }
+
+    private static bool ContainsArrayValue(
+        IReadOnlyList<AssetsFieldInfo> currentFields,
+        IReadOnlyList<JsonElement> elements,
+        JsonElement value)
+    {
+        if (currentFields.Any(field => AssetFieldMatcher.MatchesFieldValue(field, value)))
+        {
+            return true;
+        }
+
+        return elements
+            .Skip(currentFields.Count)
+            .Any(element => JsonScalarValuesEqual(element, value));
+    }
+
+    private static bool JsonScalarValuesEqual(JsonElement left, JsonElement right)
+    {
+        if (left.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+            right.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return left.GetBoolean() == right.GetBoolean();
+        }
+
+        if (left.ValueKind == JsonValueKind.Number && right.ValueKind == JsonValueKind.Number)
+        {
+            return left.TryGetDouble(out double leftNumber) &&
+                   right.TryGetDouble(out double rightNumber) &&
+                   Math.Abs(leftNumber - rightNumber) <= 0.00001d;
+        }
+
+        return left.ValueKind == right.ValueKind &&
+               string.Equals(AssetFieldMatcher.FormatJsonValue(left), AssetFieldMatcher.FormatJsonValue(right),
+                   StringComparison.Ordinal);
+    }
+
+    private static JsonElement CreateJsonElementFromArrayElementField(AssetsFieldInfo field)
+    {
+        string value = field.Value ?? throw new InvalidOperationException(
+            $"Array field '{field.Name}' contains a non-scalar element.");
+
+        if (string.Equals(field.TypeName, "string", StringComparison.OrdinalIgnoreCase))
+        {
+            return JsonSerializer.SerializeToElement(value);
+        }
+
+        if (IsBooleanType(field.TypeName))
+        {
+            if (bool.TryParse(value, out bool boolean))
+            {
+                return JsonSerializer.SerializeToElement(boolean);
+            }
+
+            if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long booleanInteger))
+            {
+                return JsonSerializer.SerializeToElement(booleanInteger != 0);
+            }
+        }
+
+        if (IsUnsignedIntegerType(field.TypeName) &&
+            ulong.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong unsignedInteger))
+        {
+            return JsonSerializer.SerializeToElement(unsignedInteger);
+        }
+
+        if (IsSignedIntegerType(field.TypeName) &&
+            long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long signedInteger))
+        {
+            return JsonSerializer.SerializeToElement(signedInteger);
+        }
+
+        if (IsFloatingPointType(field.TypeName) &&
+            double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double floatingPoint))
+        {
+            return JsonSerializer.SerializeToElement(floatingPoint);
+        }
+
+        return JsonSerializer.SerializeToElement(value);
+    }
+
+    private static bool IsBooleanType(string typeName)
+    {
+        return string.Equals(typeName, "bool", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(typeName, "boolean", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSignedIntegerType(string typeName)
+    {
+        return typeName.Equals("int", StringComparison.OrdinalIgnoreCase) ||
+               typeName.Equals("short", StringComparison.OrdinalIgnoreCase) ||
+               typeName.Equals("long", StringComparison.OrdinalIgnoreCase) ||
+               typeName.StartsWith("int", StringComparison.OrdinalIgnoreCase) ||
+               typeName.StartsWith("sint", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsUnsignedIntegerType(string typeName)
+    {
+        return typeName.Equals("byte", StringComparison.OrdinalIgnoreCase) ||
+               typeName.StartsWith("uint", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFloatingPointType(string typeName)
+    {
+        return string.Equals(typeName, "float", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(typeName, "double", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void EnsureSupportedPatchValue(JsonElement value, string path)
     {
         if (value.ValueKind is JsonValueKind.True or JsonValueKind.False or JsonValueKind.Number
@@ -621,6 +944,17 @@ public sealed class AssetsWorkflowService
 
         throw new InvalidOperationException(
             $"Patch operation for field '{path}' uses an unsupported value type: {value.ValueKind}.");
+    }
+
+    private static void EnsureSupportedPatchArrayValue(JsonElement value, string path)
+    {
+        int index = 0;
+
+        foreach (JsonElement element in value.EnumerateArray())
+        {
+            EnsureSupportedPatchValue(element, $"{path}[{index}]");
+            index++;
+        }
     }
 
     private static string CreateBackupPath(string backupDirectory, string inputPath)

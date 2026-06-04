@@ -237,6 +237,12 @@ public sealed class AssetsToolsReader : IAssetsReader, IAssetsPatchWriter
 
     private static void ApplyJsonValue(AssetTypeValueField field, JsonElement value)
     {
+        if (IsJsonArrayPatchValue(value))
+        {
+            ApplyJsonArray(field, value);
+            return;
+        }
+
         if (field.Value is null)
         {
             throw new InvalidOperationException($"Field '{field.FieldName}' is not a scalar value.");
@@ -291,6 +297,47 @@ public sealed class AssetsToolsReader : IAssetsReader, IAssetsPatchWriter
                 throw new InvalidOperationException(
                     $"Field '{field.FieldName}' has unsupported value type: {field.Value.ValueType}.");
         }
+    }
+
+    private static bool IsJsonArrayPatchValue(JsonElement value)
+    {
+        return value.ValueKind == JsonValueKind.Array &&
+               !AssetFieldMatcher.TryGetObjectValue(value, out _);
+    }
+
+    private static void ApplyJsonArray(AssetTypeValueField field, JsonElement value)
+    {
+        if (field.Value?.ValueType != AssetValueType.Array)
+        {
+            throw new InvalidOperationException($"Field '{field.FieldName}' is not an array value.");
+        }
+
+        var values = value.EnumerateArray().ToArray();
+
+        if (field.Children.Count == 0 && values.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Cannot assign a non-empty array to field '{field.FieldName}' because it has no existing element template to clone.");
+        }
+
+        for (int index = 0; index < values.Length; index++)
+        {
+            if (index == field.Children.Count)
+            {
+                field.Children.Add(field.Children[^1].Clone());
+            }
+
+            ApplyJsonValue(field.Children[index], values[index]);
+        }
+
+        if (field.Children.Count > values.Length)
+        {
+            field.Children.RemoveRange(values.Length, field.Children.Count - values.Length);
+        }
+
+        AssetTypeArrayInfo arrayInfo = field.AsArray;
+        arrayInfo.size = values.Length;
+        field.AsArray = arrayInfo;
     }
 
     private static long GetInt64(JsonElement value, AssetTypeValueField field)
