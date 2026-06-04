@@ -33,7 +33,7 @@ public sealed class PatchValueResolver
     private long ResolvePathIdReference(string assetsFilePath, JsonElement resolver)
     {
         string type = ReadRequiredPathIdResolverString(resolver, "type");
-        var includeGroups = ReadPathIdResolverIncludeGroups(resolver);
+        var includeGroups = ReadPathIdResolverMatchGroups(resolver);
 
         var target = new ManifestPatch(
             Path.GetFileName(assetsFilePath),
@@ -86,30 +86,20 @@ public sealed class PatchValueResolver
             : value;
     }
 
-    private static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadPathIdResolverIncludeGroups(
+    private static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadPathIdResolverMatchGroups(
         JsonElement resolver)
     {
-        if (!resolver.TryGetProperty("include", out JsonElement includeElement) ||
-            includeElement.ValueKind != JsonValueKind.Array)
+        if (!resolver.TryGetProperty("match", out JsonElement matchElement) ||
+            matchElement.ValueKind != JsonValueKind.Object)
         {
-            throw new InvalidOperationException("Path ID reference must contain an 'include' array.");
+            throw new InvalidOperationException("Path ID reference must contain a 'match' object.");
         }
 
-        var includeGroups = new List<IReadOnlyDictionary<string, JsonElement>>();
+        var includeGroup = matchElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal);
 
-        foreach (JsonElement includeGroupElement in includeElement.EnumerateArray())
-        {
-            if (includeGroupElement.ValueKind != JsonValueKind.Object)
-            {
-                throw new InvalidOperationException("Each Path ID reference include entry must be an object.");
-            }
-
-            includeGroups.Add(includeGroupElement.EnumerateObject()
-                .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal));
-        }
-
-        return includeGroups.Count == 0
-            ? throw new InvalidOperationException("Path ID reference include array cannot be empty.")
-            : includeGroups;
+        return includeGroup.Count == 0
+            ? throw new InvalidOperationException("Path ID reference match object cannot be empty.")
+            : [includeGroup];
     }
 }

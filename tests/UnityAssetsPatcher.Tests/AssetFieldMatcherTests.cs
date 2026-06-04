@@ -1,11 +1,5 @@
-using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.Core.Assets;
 using Xunit;
-using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Workflows;
-using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Application.Installing;
-using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.Tests;
 

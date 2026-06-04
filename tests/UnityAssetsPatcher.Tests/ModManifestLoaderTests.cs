@@ -1,22 +1,17 @@
 using System.IO.Compression;
-using UnityAssetsPatcher.Core;
 using Xunit;
-using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Workflows;
-using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Application.Installing;
 
 namespace UnityAssetsPatcher.Tests;
 
 public sealed class ModManifestLoaderTests
 {
     /// <summary>
-    /// Verifies that a manifest can carry mod metadata while using patches for patch behavior.
+    /// Verifies that a manifest can carry mod metadata while using target groups for patch behavior.
     /// </summary>
     [Fact]
-    public void Load_WhenManifestHasMetadataAndPatches_ReturnsMetadataAndTargets()
+    public void Load_WhenManifestHasMetadataAndTargets_ReturnsMetadataAndPatches()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
         File.WriteAllText(
@@ -27,20 +22,44 @@ public sealed class ModManifestLoaderTests
               "author": "CnBarrier",
               "version": "1.0.0",
               "description": "Adjusts camera settings.",
-              "patches": [
+              "copyFiles": [
                 {
-                  "target": "sharedassets0.assets",
-                  "type": "Camera",
-                  "include": [
+                  "source": "resources/modassets.resource"
+                }
+              ],
+              "targets": [
+                {
+                  "file": "sharedassets0.assets",
+                  "patches": [
                     {
-                      "field of view": 90.0
+                      "type": "Camera",
+                      "match": {
+                        "field of view": 90.0
+                      },
+                      "set": {
+                        "field of view": {
+                          "from": 90.0,
+                          "to": 75.0
+                        }
+                      },
+                      "add": {
+                        "m_ValidKeywords.Array": ["_EMISSION"]
+                      }
                     }
-                  ],
-                  "set": [
+                  ]
+                },
+                {
+                  "file": "sharedassets4.assets",
+                  "patches": [
                     {
-                      "field": "field of view",
-                      "from": 90.0,
-                      "to": 75.0
+                      "type": "AudioClip",
+                      "match": {
+                        "m_Name": "Incense burn 1"
+                      },
+                      "replaceAsset": {
+                        "fromFile": "resources/modassets.assets",
+                        "matchField": "m_Name"
+                      }
                     }
                   ]
                 }
@@ -56,9 +75,28 @@ public sealed class ModManifestLoaderTests
             Assert.Equal("CnBarrier", config.Author);
             Assert.Equal("1.0.0", config.Version);
             Assert.Equal("Adjusts camera settings.", config.Description);
-            ManifestPatch patch = Assert.Single(config.Patches);
-            Assert.Equal("sharedassets0.assets", patch.AssetsFileName);
-            Assert.Equal("Camera", patch.AssetTypeName);
+            ManifestFile file = Assert.Single(config.Files);
+            Assert.Equal("resources/modassets.resource", file.Source);
+            Assert.Equal(2, config.Patches.Count);
+
+            ManifestPatch fieldPatch = config.Patches[0];
+            Assert.Equal("sharedassets0.assets", fieldPatch.AssetsFileName);
+            Assert.Equal("Camera", fieldPatch.AssetTypeName);
+            Assert.Equal(90.0, Assert.Single(fieldPatch.IncludeGroups).Single().Value.GetDouble());
+            ManifestSetOperation setOperation = Assert.Single(fieldPatch.SetOperations!);
+            Assert.Equal("field of view", setOperation.FieldPath);
+            Assert.Equal(90.0, setOperation.From.GetDouble());
+            Assert.Equal(75.0, setOperation.To.GetDouble());
+            ManifestAddOperation addOperation = Assert.Single(fieldPatch.AddOperations!);
+            Assert.Equal("m_ValidKeywords.Array", addOperation.FieldPath);
+            Assert.Equal("_EMISSION", addOperation.Value.EnumerateArray().Single().GetString());
+
+            ManifestPatch replacementPatch = config.Patches[1];
+            Assert.Equal("sharedassets4.assets", replacementPatch.AssetsFileName);
+            Assert.Equal("AudioClip", replacementPatch.AssetTypeName);
+            Assert.NotNull(replacementPatch.ReplaceFrom);
+            Assert.Equal("resources/modassets.assets", replacementPatch.ReplaceFrom.AssetsFilePath);
+            Assert.Equal("m_Name", replacementPatch.ReplaceFrom.MatchFieldPath);
         }
         finally
         {

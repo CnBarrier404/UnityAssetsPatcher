@@ -1,13 +1,8 @@
 using System.IO.Compression;
-using UnityAssetsPatcher.Core;
 using Xunit;
-using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Application.Installing;
-using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.Tests;
 
@@ -854,27 +849,30 @@ public sealed class AssetsWorkflowServiceTests
             configPath,
             $$"""
               {
-                "target": "{{Path.GetFileName(inputPath)}}",
-                "type": "Material",
-                "include": [
+                "targets": [
                   {
-                    "m_Name": "TargetMaterial"
-                  }
-                ],
-                "set": [
-                  {
-                    "field": "m_SavedProperties.m_TexEnvs.Array.data[first=_EmissionMap].second.m_Texture.m_PathID",
-                    "from": 0,
-                    "to": {
-                      "$pathId": {
-                        "type": "Texture2D",
-                        "include": [
-                          {
-                            "m_Name": "EmissionTexture"
+                    "file": "{{Path.GetFileName(inputPath)}}",
+                    "patches": [
+                      {
+                        "type": "Material",
+                        "match": {
+                          "m_Name": "TargetMaterial"
+                        },
+                        "set": {
+                          "m_SavedProperties.m_TexEnvs.Array.data[first=_EmissionMap].second.m_Texture.m_PathID": {
+                            "from": 0,
+                            "to": {
+                              "$pathId": {
+                                "type": "Texture2D",
+                                "match": {
+                                  "m_Name": "EmissionTexture"
+                                }
+                              }
+                            }
                           }
-                        ]
+                        }
                       }
-                    }
+                    ]
                   }
                 ]
               }
