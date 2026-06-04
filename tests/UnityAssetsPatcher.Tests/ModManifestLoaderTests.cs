@@ -221,6 +221,134 @@ public sealed class ModManifestLoaderTests
     }
 
     /// <summary>
+    /// Verifies that an object-level replacement can declare the source assets file and match field.
+    /// </summary>
+    [Fact]
+    public void Load_WhenPatchTargetHasReplaceFrom_ReturnsReplacementSource()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            """
+            {
+              "target": "sharedassets4.assets",
+              "type": "AudioClip",
+              "include": [
+                {
+                  "m_Name": "Incense burn 1"
+                }
+              ],
+              "replaceFrom": {
+                "assets": "resources/modassets.assets",
+                "match": "m_Name"
+              }
+            }
+            """);
+
+        try
+        {
+            ModManifest config = ModManifestLoader.Load(configPath);
+
+            ManifestPatch patch = Assert.Single(config.Patches);
+            Assert.NotNull(patch.ReplaceFrom);
+            Assert.Equal("resources/modassets.assets", patch.ReplaceFrom.AssetsFilePath);
+            Assert.Equal("m_Name", patch.ReplaceFrom.MatchFieldPath);
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a manifest can declare zip payload files to copy during install.
+    /// </summary>
+    [Fact]
+    public void Load_WhenManifestHasFiles_ReturnsPayloadFiles()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            """
+            {
+              "files": [
+                {
+                  "source": "resources/modassets.resource"
+                }
+              ],
+              "patches": [
+                {
+                  "target": "sharedassets4.assets",
+                  "type": "AudioClip",
+                  "include": [
+                    {
+                      "m_Name": "Incense burn 1"
+                    }
+                  ],
+                  "replaceFrom": {
+                    "assets": "resources/modassets.assets",
+                    "match": "m_Name"
+                  }
+                }
+              ]
+            }
+            """);
+
+        try
+        {
+            ModManifest config = ModManifestLoader.Load(configPath);
+
+            ManifestFile file = Assert.Single(config.Files);
+            Assert.Equal("resources/modassets.resource", file.Source);
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that payload file sources must stay inside the mod zip namespace.
+    /// </summary>
+    [Theory]
+    [InlineData("../modassets.resource")]
+    [InlineData("/modassets.resource")]
+    [InlineData("resources/../modassets.resource")]
+    public void Load_WhenFileSourceEscapesZipNamespace_ThrowsClearError(string source)
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            $$"""
+              {
+                "files": [
+                  {
+                    "source": "{{source}}"
+                  }
+                ],
+                "target": "sharedassets4.assets",
+                "type": "AudioClip",
+                "include": [
+                  {
+                    "m_Name": "Incense burn 1"
+                  }
+                ]
+              }
+              """);
+
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
+
+            Assert.Contains("source", exception.Message);
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
     /// Verifies that set[].path is rejected to avoid conflicting with target file-location semantics.
     /// </summary>
     [Fact]

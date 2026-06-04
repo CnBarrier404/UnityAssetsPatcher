@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Globalization;
 using System.Text.Json;
 using UnityAssetsPatcher.Utils;
@@ -48,7 +49,7 @@ public sealed class AssetsWorkflowService
         ModManifest manifest = ModManifestLoader.Load(request.ConfigPath);
         var targets = GetPatchesForAssetsFile(manifest, request.AssetsFilePath);
 
-        return CreatePatchPreviewResult(request.AssetsFilePath, targets);
+        return CreatePatchPreviewResult(request.AssetsFilePath, targets, request.ConfigPath);
     }
 
     public InstallPreviewResult PreviewInstallMod(InstallPreviewRequest request)
@@ -64,26 +65,45 @@ public sealed class AssetsWorkflowService
         }
 
         ModManifest manifest = ModManifestLoader.Load(request.ZipFilePath);
-        var targetPaths = ResolveInstallTargetPaths(
-            request.GameDirectory,
-            manifest.Patches.Select(patch => patch.AssetsFileName));
-        var fileResults = new List<InstallPreviewFileResult>();
+        string? replacementSourceDirectory = null;
 
-        foreach (var targetGroup in manifest.Patches
-                     .GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase))
+        try
         {
-            string assetsFilePath = targetPaths[targetGroup.Key];
-            var targets = targetGroup.ToArray();
-            PatchPreviewResult preview = CreatePatchPreviewResult(assetsFilePath, targets);
-            fileResults.Add(new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview));
-        }
+            string installConfigPath = PrepareInstallReplacementSourceAssets(request.ZipFilePath, manifest,
+                out replacementSourceDirectory);
+            var targetPaths = ResolveInstallTargetPaths(
+                request.GameDirectory,
+                manifest.Patches.Select(patch => patch.AssetsFileName));
+            var copyPlans = CreateInstallCopyFilePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
+                requireAvailableDestination: false);
+            var fileResults = new List<InstallPreviewFileResult>();
 
-        return new InstallPreviewResult(manifest.Name, manifest.Version, fileResults);
+            foreach (var targetGroup in manifest.Patches
+                         .GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase))
+            {
+                string assetsFilePath = targetPaths[targetGroup.Key];
+                var targets = targetGroup.ToArray();
+                PatchPreviewResult preview = CreatePatchPreviewResult(assetsFilePath, targets, installConfigPath);
+                fileResults.Add(new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview));
+            }
+
+            var copiedFiles = copyPlans
+                .Select(plan => new InstallCopyFilePreviewResult(plan.Source, plan.DestinationPath,
+                    !File.Exists(plan.DestinationPath)))
+                .ToArray();
+
+            return new InstallPreviewResult(manifest.Name, manifest.Version, fileResults, copiedFiles);
+        }
+        finally
+        {
+            DeleteTemporaryDirectory(replacementSourceDirectory);
+        }
     }
 
     private PatchPreviewResult CreatePatchPreviewResult(
         string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets)
+        IReadOnlyList<ManifestPatch> targets,
+        string configPath)
     {
         if (targets.Count == 0)
         {
@@ -92,7 +112,14 @@ public sealed class AssetsWorkflowService
 
         if (!HasPatchOperations(targets))
         {
-            throw new InvalidOperationException("Patch config must contain a non-empty 'set' or 'add' array.");
+            throw new InvalidOperationException(
+                "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
+        }
+
+        if (HasReplacementOperations(targets))
+        {
+            EnsureReplacementOperationsAreNotMixed(targets);
+            return CreateReplacementPreviewResult(assetsFilePath, targets, configPath);
         }
 
         var assets = new List<PatchPreviewAssetResult>();
@@ -129,7 +156,8 @@ public sealed class AssetsWorkflowService
         ModManifest manifest = ModManifestLoader.Load(request.ConfigPath);
         var targets = GetPatchesForAssetsFile(manifest, request.AssetsFilePath);
 
-        return ApplyPatchTargets(request.AssetsFilePath, request.OutputPath, request.BackupDirectory, targets);
+        return ApplyPatchTargets(request.AssetsFilePath, request.OutputPath, request.BackupDirectory, targets,
+            request.ConfigPath);
     }
 
     public InstallModResult InstallMod(InstallModRequest request)
@@ -145,66 +173,106 @@ public sealed class AssetsWorkflowService
         }
 
         ModManifest manifest = ModManifestLoader.Load(request.ZipFilePath);
+        string? replacementSourceDirectory = null;
 
-        if (!HasPatchOperations(manifest.Patches))
+        try
         {
-            throw new InvalidOperationException("Patch config must contain a non-empty 'set' or 'add' array.");
-        }
+            string installConfigPath = PrepareInstallReplacementSourceAssets(request.ZipFilePath, manifest,
+                out replacementSourceDirectory);
 
-        var targetPaths = ResolveInstallTargetPaths(
-            request.GameDirectory,
-            manifest.Patches.Select(patch => patch.AssetsFileName));
-        var plans = new List<InstallFilePlan>();
-
-        foreach (var targetGroup in manifest.Patches
-                     .GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase))
-        {
-            string assetsFilePath = targetPaths[targetGroup.Key];
-            var targets = targetGroup.ToArray();
-            var plan = CreatePatchWritePlan(assetsFilePath, targets);
-
-            if (plan.Count == 0)
+            if (!HasPatchOperations(manifest.Patches))
             {
                 throw new InvalidOperationException(
-                    $"Patch config for target '{targetGroup.Key}' did not match any assets.");
+                    "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
             }
 
-            plans.Add(new InstallFilePlan(targetGroup.Key, assetsFilePath, plan));
-        }
+            var targetPaths = ResolveInstallTargetPaths(
+                request.GameDirectory,
+                manifest.Patches.Select(patch => patch.AssetsFileName));
+            var copyPlans = CreateInstallCopyFilePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
+                requireAvailableDestination: true);
+            var plans = new List<InstallFilePlan>();
 
-        var fileResults = new List<InstallModFileResult>();
-
-        foreach (InstallFilePlan plan in plans)
-        {
-            PatchApplyResult result = WritePatchPlan(
-                plan.AssetsFilePath,
-                plan.AssetsFilePath,
-                true,
-                request.BackupDirectory,
-                plan.Assets);
-            if (result.OperationCount == 0)
+            foreach (var targetGroup in manifest.Patches
+                         .GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase))
             {
-                continue;
+                string assetsFilePath = targetPaths[targetGroup.Key];
+                var targets = targetGroup.ToArray();
+
+                if (HasReplacementOperations(targets))
+                {
+                    EnsureReplacementOperationsAreNotMixed(targets);
+                    var replacementPlan = CreateReplacementWritePlan(assetsFilePath, targets, installConfigPath);
+
+                    if (replacementPlan.Count == 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Patch config for target '{targetGroup.Key}' did not match any assets.");
+                    }
+
+                    plans.Add(new InstallFilePlan(targetGroup.Key, assetsFilePath, [], replacementPlan));
+                    continue;
+                }
+
+                var plan = CreatePatchWritePlan(assetsFilePath, targets);
+
+                if (plan.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Patch config for target '{targetGroup.Key}' did not match any assets.");
+                }
+
+                plans.Add(new InstallFilePlan(targetGroup.Key, assetsFilePath, plan, []));
             }
 
-            string backupPath = result.BackupPath ??
-                                throw new InvalidOperationException("Install patch did not create a backup.");
-            fileResults.Add(new InstallModFileResult(
-                plan.Target,
-                result.OutputPath,
-                backupPath,
-                result.AssetCount,
-                result.OperationCount));
-        }
+            var fileResults = new List<InstallModFileResult>();
 
-        return new InstallModResult(manifest.Name, manifest.Version, fileResults);
+            foreach (InstallFilePlan plan in plans)
+            {
+                PatchApplyResult result = plan.Replacements.Count > 0
+                    ? WriteReplacementPlan(
+                        plan.AssetsFilePath,
+                        plan.AssetsFilePath,
+                        true,
+                        request.BackupDirectory,
+                        plan.Replacements)
+                    : WritePatchPlan(
+                        plan.AssetsFilePath,
+                        plan.AssetsFilePath,
+                        true,
+                        request.BackupDirectory,
+                        plan.Assets);
+                if (result.OperationCount == 0)
+                {
+                    continue;
+                }
+
+                string backupPath = result.BackupPath ??
+                                    throw new InvalidOperationException("Install patch did not create a backup.");
+                fileResults.Add(new InstallModFileResult(
+                    plan.Target,
+                    result.OutputPath,
+                    backupPath,
+                    result.AssetCount,
+                    result.OperationCount));
+            }
+
+            IReadOnlyList<InstallCopiedFileResult> copiedFiles = CopyInstallFiles(request.ZipFilePath, copyPlans);
+
+            return new InstallModResult(manifest.Name, manifest.Version, fileResults, copiedFiles);
+        }
+        finally
+        {
+            DeleteTemporaryDirectory(replacementSourceDirectory);
+        }
     }
 
     private PatchApplyResult ApplyPatchTargets(
         string assetsFilePath,
         string? outputPathOption,
         string backupDirectory,
-        IReadOnlyList<ManifestPatch> targets)
+        IReadOnlyList<ManifestPatch> targets,
+        string configPath)
     {
         if (!File.Exists(assetsFilePath))
         {
@@ -235,7 +303,22 @@ public sealed class AssetsWorkflowService
 
         if (!HasPatchOperations(targets))
         {
-            throw new InvalidOperationException("Patch config must contain a non-empty 'set' or 'add' array.");
+            throw new InvalidOperationException(
+                "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
+        }
+
+        if (HasReplacementOperations(targets))
+        {
+            EnsureReplacementOperationsAreNotMixed(targets);
+            var replacementPlan = CreateReplacementWritePlan(assetsFilePath, targets, configPath);
+
+            if (replacementPlan.Count == 0)
+            {
+                throw new InvalidOperationException("Patch config did not match any assets.");
+            }
+
+            return WriteReplacementPlan(assetsFilePath, outputPath, overwritesInput, backupDirectory,
+                replacementPlan);
         }
 
         var plan = CreatePatchWritePlan(assetsFilePath, targets);
@@ -246,6 +329,27 @@ public sealed class AssetsWorkflowService
         }
 
         return WritePatchPlan(assetsFilePath, outputPath, overwritesInput, backupDirectory, plan);
+    }
+
+    private PatchApplyResult WriteReplacementPlan(
+        string assetsFilePath,
+        string outputPath,
+        bool overwritesInput,
+        string backupDirectory,
+        IReadOnlyList<AssetReplacement> plan)
+    {
+        string? backupPath = null;
+
+        if (overwritesInput)
+        {
+            Directory.CreateDirectory(backupDirectory);
+            backupPath = CreateBackupPath(backupDirectory, assetsFilePath);
+            File.Copy(assetsFilePath, backupPath, false);
+        }
+
+        _assetsFileService.WriteReplacements(assetsFilePath, outputPath, plan);
+
+        return new PatchApplyResult(outputPath, backupPath, plan.Count, plan.Count);
     }
 
     private PatchApplyResult WritePatchPlan(
@@ -325,6 +429,208 @@ public sealed class AssetsWorkflowService
         return resolvedTargets;
     }
 
+    private static IReadOnlyList<InstallCopyFilePlan> CreateInstallCopyFilePlans(
+        string zipFilePath,
+        IReadOnlyList<ManifestFile> files,
+        IEnumerable<string> targetAssetsFilePaths,
+        bool requireAvailableDestination)
+    {
+        if (files.Count == 0)
+        {
+            return [];
+        }
+
+        string targetDirectory = ResolveInstallPayloadDirectory(targetAssetsFilePaths);
+        var plans = new List<InstallCopyFilePlan>();
+
+        using ZipArchive archive = ZipFile.OpenRead(zipFilePath);
+
+        foreach (ManifestFile file in files)
+        {
+            string source = NormalizeZipEntryPath(file.Source);
+            _ = FindRequiredZipEntry(archive, source, zipFilePath);
+            string destinationPath = Path.Combine(targetDirectory, GetInstallPayloadFileName(source));
+
+            if (requireAvailableDestination && File.Exists(destinationPath))
+            {
+                throw new IOException($"Install payload file already exists: {destinationPath}");
+            }
+
+            plans.Add(new InstallCopyFilePlan(source, destinationPath));
+        }
+
+        return plans;
+    }
+
+    private static string PrepareInstallReplacementSourceAssets(
+        string zipFilePath,
+        ModManifest manifest,
+        out string? temporaryDirectory)
+    {
+        string[] relativeSources = manifest.Patches
+            .Select(patch => patch.ReplaceFrom?.AssetsFilePath)
+            .OfType<string>()
+            .Where(source => !Path.IsPathRooted(source))
+            .Select(NormalizeZipEntryPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (relativeSources.Length == 0)
+        {
+            temporaryDirectory = null;
+            return zipFilePath;
+        }
+
+        temporaryDirectory = Path.Combine(Path.GetTempPath(), $"UnityAssetsPatcher.{Guid.NewGuid():N}");
+
+        using ZipArchive archive = ZipFile.OpenRead(zipFilePath);
+
+        foreach (string source in relativeSources)
+        {
+            ZipArchiveEntry entry = FindRequiredZipEntry(archive, source, zipFilePath);
+            string destinationPath = ResolvePathUnderDirectory(temporaryDirectory, source);
+            CopyZipEntry(entry, destinationPath);
+        }
+
+        return Path.Combine(temporaryDirectory, "manifest.json");
+    }
+
+    private static string ResolvePathUnderDirectory(string rootDirectory, string relativePath)
+    {
+        string fullRootDirectory = Path.GetFullPath(rootDirectory);
+        string fullPath = Path.GetFullPath(Path.Combine(
+            fullRootDirectory,
+            relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        string rootWithSeparator = fullRootDirectory.EndsWith(Path.DirectorySeparatorChar)
+            ? fullRootDirectory
+            : fullRootDirectory + Path.DirectorySeparatorChar;
+
+        if (!fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Zip payload source cannot escape its extraction directory: {relativePath}");
+        }
+
+        return fullPath;
+    }
+
+    private static void DeleteTemporaryDirectory(string? temporaryDirectory)
+    {
+        if (temporaryDirectory is null || !Directory.Exists(temporaryDirectory))
+        {
+            return;
+        }
+
+        Directory.Delete(temporaryDirectory, recursive: true);
+    }
+
+    private static string ResolveInstallPayloadDirectory(IEnumerable<string> targetAssetsFilePaths)
+    {
+        string[] targetDirectories = targetAssetsFilePaths
+            .Select(path => Path.GetDirectoryName(Path.GetFullPath(path)) ??
+                            throw new InvalidOperationException(
+                                $"Cannot resolve directory for assets file: {path}"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return targetDirectories.Length switch
+        {
+            1 => targetDirectories[0],
+            0 => throw new InvalidOperationException("Install payload files require at least one patch target."),
+            _ => throw new InvalidOperationException(
+                "Install payload files require all patch targets to resolve to the same directory.")
+        };
+    }
+
+    private static string NormalizeZipEntryPath(string source)
+    {
+        return source.Replace('\\', '/');
+    }
+
+    private static string GetInstallPayloadFileName(string source)
+    {
+        string fileName = Path.GetFileName(source.Replace('/', Path.DirectorySeparatorChar));
+
+        return string.IsNullOrWhiteSpace(fileName)
+            ? throw new InvalidOperationException($"Install payload source must name a file: {source}")
+            : fileName;
+    }
+
+    private static ZipArchiveEntry FindRequiredZipEntry(
+        ZipArchive archive,
+        string source,
+        string zipFilePath)
+    {
+        var entries = archive.Entries
+            .Where(entry => !string.IsNullOrEmpty(entry.Name) &&
+                            string.Equals(entry.FullName, source, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        return entries.Length switch
+        {
+            1 => entries[0],
+            0 => throw new FileNotFoundException(
+                $"Zip payload file not found: {source} in {zipFilePath}",
+                source),
+            _ => throw new InvalidOperationException($"Zip payload file matched multiple entries: {source}")
+        };
+    }
+
+    private static IReadOnlyList<InstallCopiedFileResult> CopyInstallFiles(
+        string zipFilePath,
+        IReadOnlyList<InstallCopyFilePlan> plans)
+    {
+        if (plans.Count == 0)
+        {
+            return [];
+        }
+
+        var results = new List<InstallCopiedFileResult>();
+
+        using ZipArchive archive = ZipFile.OpenRead(zipFilePath);
+
+        foreach (InstallCopyFilePlan plan in plans)
+        {
+            ZipArchiveEntry entry = FindRequiredZipEntry(archive, plan.Source, zipFilePath);
+            CopyZipEntry(entry, plan.DestinationPath);
+            results.Add(new InstallCopiedFileResult(plan.Source, plan.DestinationPath));
+        }
+
+        return results;
+    }
+
+    private static void CopyZipEntry(ZipArchiveEntry entry, string destinationPath)
+    {
+        string? destinationDirectory = Path.GetDirectoryName(destinationPath);
+
+        if (!string.IsNullOrEmpty(destinationDirectory))
+        {
+            Directory.CreateDirectory(destinationDirectory);
+        }
+
+        string tempPath = Path.Combine(
+            string.IsNullOrEmpty(destinationDirectory) ? Directory.GetCurrentDirectory() : destinationDirectory,
+            $".{Path.GetFileName(destinationPath)}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            using (Stream sourceStream = entry.Open())
+            using (FileStream outputStream = File.Create(tempPath))
+            {
+                sourceStream.CopyTo(outputStream);
+            }
+
+            File.Move(tempPath, destinationPath, overwrite: false);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+
     private IEnumerable<(AssetsInfo Asset, AssetsFieldInfo FieldTree)> FindMatchingAssets(
         string assetsFilePath,
         ManifestPatch patch)
@@ -388,6 +694,144 @@ public sealed class AssetsWorkflowService
             .ToArray();
     }
 
+    private IReadOnlyList<AssetReplacement> CreateReplacementWritePlan(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> targets,
+        string configPath)
+    {
+        var replacements = new List<AssetReplacement>();
+
+        foreach (ManifestPatch patch in targets)
+        {
+            if (patch.ReplaceFrom is null)
+            {
+                continue;
+            }
+
+            string sourceAssetsFilePath =
+                ResolveReplaceFromAssetsFilePath(configPath, patch.ReplaceFrom.AssetsFilePath);
+
+            foreach (AssetReplacementMatch match in FindReplacementMatches(assetsFilePath, sourceAssetsFilePath,
+                         patch))
+            {
+                replacements.Add(new AssetReplacement(sourceAssetsFilePath, match.Source.PathId,
+                    match.Target.PathId));
+            }
+        }
+
+        return replacements;
+    }
+
+    private PatchPreviewResult CreateReplacementPreviewResult(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> targets,
+        string configPath)
+    {
+        var assets = new List<PatchPreviewAssetResult>();
+
+        foreach (ManifestPatch patch in targets)
+        {
+            if (patch.ReplaceFrom is null)
+            {
+                continue;
+            }
+
+            string sourceAssetsFilePath =
+                ResolveReplaceFromAssetsFilePath(configPath, patch.ReplaceFrom.AssetsFilePath);
+
+            foreach (AssetReplacementMatch match in FindReplacementMatches(assetsFilePath, sourceAssetsFilePath,
+                         patch))
+            {
+                var operation = new PatchPreviewOperationResult(
+                    "*",
+                    $"Path ID {match.Target.PathId}",
+                    JsonSerializer.SerializeToElement(match.MatchValue),
+                    JsonSerializer.SerializeToElement($"Path ID {match.Source.PathId} from {sourceAssetsFilePath}"),
+                    true);
+                assets.Add(new PatchPreviewAssetResult(match.Target, [operation]));
+            }
+        }
+
+        return new PatchPreviewResult(assets);
+    }
+
+    private IEnumerable<AssetReplacementMatch> FindReplacementMatches(
+        string targetAssetsFilePath,
+        string sourceAssetsFilePath,
+        ManifestPatch patch)
+    {
+        ManifestReplaceFrom replaceFrom = patch.ReplaceFrom ??
+                                          throw new InvalidOperationException(
+                                              "Replacement patch is missing replaceFrom.");
+        var seenTargetValues = new Dictionary<string, long>(StringComparer.Ordinal);
+
+        foreach ((AssetsInfo targetAsset, AssetsFieldInfo targetFieldTree) in FindMatchingAssets(targetAssetsFilePath,
+                     patch))
+        {
+            string matchValue = ReadReplacementMatchValue(targetFieldTree, replaceFrom.MatchFieldPath,
+                targetAsset.PathId, "target");
+
+            if (!seenTargetValues.TryAdd(matchValue, targetAsset.PathId))
+            {
+                throw new InvalidOperationException(
+                    $"Replacement target contains multiple '{patch.AssetTypeName}' assets with {replaceFrom.MatchFieldPath} '{matchValue}'.");
+            }
+
+            var sourceIncludeGroup = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+            {
+                [replaceFrom.MatchFieldPath] = JsonSerializer.SerializeToElement(matchValue),
+            };
+            var sourcePatch = new ManifestPatch(
+                Path.GetFileName(sourceAssetsFilePath),
+                patch.AssetTypeName,
+                [sourceIncludeGroup],
+                null,
+                null);
+            var sourceMatches = FindMatchingAssets(sourceAssetsFilePath, sourcePatch)
+                .Select(match => match.Asset)
+                .ToArray();
+
+            if (sourceMatches.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Replacement source did not contain a '{patch.AssetTypeName}' asset with {replaceFrom.MatchFieldPath} '{matchValue}'.");
+            }
+
+            if (sourceMatches.Length > 1)
+            {
+                throw new InvalidOperationException(
+                    $"Replacement source contains multiple '{patch.AssetTypeName}' assets with {replaceFrom.MatchFieldPath} '{matchValue}'.");
+            }
+
+            yield return new AssetReplacementMatch(targetAsset, sourceMatches[0], matchValue);
+        }
+    }
+
+    private static string ReadReplacementMatchValue(
+        AssetsFieldInfo fieldTree,
+        string matchFieldPath,
+        long pathId,
+        string role)
+    {
+        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, matchFieldPath);
+
+        return field?.Value ?? throw new InvalidOperationException(
+            $"Replacement {role} Path ID {pathId} does not contain scalar match field '{matchFieldPath}'.");
+    }
+
+    private static string ResolveReplaceFromAssetsFilePath(string configPath, string assetsFilePath)
+    {
+        if (Path.IsPathRooted(assetsFilePath))
+        {
+            return Path.GetFullPath(assetsFilePath);
+        }
+
+        string fullConfigPath = Path.GetFullPath(configPath);
+        string baseDirectory = Path.GetDirectoryName(fullConfigPath) ?? Directory.GetCurrentDirectory();
+
+        return Path.GetFullPath(Path.Combine(baseDirectory, assetsFilePath));
+    }
+
     private static bool HasPatchOperations(IReadOnlyList<ManifestPatch> targets)
     {
         return targets.Count > 0 && targets.All(HasPatchOperations);
@@ -395,8 +839,28 @@ public sealed class AssetsWorkflowService
 
     private static bool HasPatchOperations(ManifestPatch target)
     {
+        return HasFieldPatchOperations(target) ||
+               target.ReplaceFrom is not null;
+    }
+
+    private static bool HasFieldPatchOperations(ManifestPatch target)
+    {
         return target.SetOperations is { Count: > 0 } ||
                target.AddOperations is { Count: > 0 };
+    }
+
+    private static bool HasReplacementOperations(IReadOnlyList<ManifestPatch> targets)
+    {
+        return targets.Any(target => target.ReplaceFrom is not null);
+    }
+
+    private static void EnsureReplacementOperationsAreNotMixed(IReadOnlyList<ManifestPatch> targets)
+    {
+        if (targets.Any(HasFieldPatchOperations))
+        {
+            throw new InvalidOperationException(
+                "Manifest 'replaceFrom' operations cannot be combined with 'set' or 'add' operations for the same assets file.");
+        }
     }
 
     private IReadOnlyList<PatchPreviewOperationResult> CreatePatchPreviewOperationResults(
@@ -964,7 +1428,12 @@ public sealed class AssetsWorkflowService
     private sealed record InstallFilePlan(
         string Target,
         string AssetsFilePath,
-        IReadOnlyList<PatchWriteAsset> Assets);
+        IReadOnlyList<PatchWriteAsset> Assets,
+        IReadOnlyList<AssetReplacement> Replacements);
+
+    private sealed record InstallCopyFilePlan(string Source, string DestinationPath);
+
+    private sealed record AssetReplacementMatch(AssetsInfo Target, AssetsInfo Source, string MatchValue);
 }
 
 public sealed record InspectListRequest(string AssetsFilePath, int? Limit);
@@ -993,7 +1462,8 @@ public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int
 public sealed record InstallModResult(
     string ModName,
     string ModVersion,
-    IReadOnlyList<InstallModFileResult> Files);
+    IReadOnlyList<InstallModFileResult> Files,
+    IReadOnlyList<InstallCopiedFileResult> CopiedFiles);
 
 public sealed record InstallModFileResult(
     string Target,
@@ -1002,15 +1472,20 @@ public sealed record InstallModFileResult(
     int AssetCount,
     int OperationCount);
 
+public sealed record InstallCopiedFileResult(string Source, string DestinationPath);
+
 public sealed record InstallPreviewResult(
     string ModName,
     string ModVersion,
-    IReadOnlyList<InstallPreviewFileResult> Files);
+    IReadOnlyList<InstallPreviewFileResult> Files,
+    IReadOnlyList<InstallCopyFilePreviewResult> CopiedFiles);
 
 public sealed record InstallPreviewFileResult(
     string Target,
     string AssetsFilePath,
     PatchPreviewResult Preview);
+
+public sealed record InstallCopyFilePreviewResult(string Source, string DestinationPath, bool WillCopy);
 
 public sealed record AssetMatch(AssetsInfo Asset, IReadOnlyDictionary<string, JsonElement> IncludeGroup);
 

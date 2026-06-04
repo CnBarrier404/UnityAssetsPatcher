@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using UnityAssetsPatcher.Core;
 using Xunit;
 
@@ -625,6 +626,95 @@ public sealed class ConsoleAppTests
         }
     }
 
+    /// <summary>
+    /// Verifies that install preview prints declared payload file copy plans.
+    /// </summary>
+    [Fact]
+    public void Run_WhenInstallPreviewHasFiles_PrintsPayloadCopyPlan()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        string copiedPath = Path.Combine(targetDirectory, "modassets.resource");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "files": [
+                        {
+                          "source": "resources/modassets.resource"
+                        }
+                      ],
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "Camera",
+                          "include": [
+                            {
+                              "field of view": 90.0
+                            }
+                          ],
+                          "set": [
+                            {
+                              "field": "field of view",
+                              "from": 90.0,
+                              "to": 75.0
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            ZipArchiveEntry payloadEntry = archive.CreateEntry("resources/modassets.resource");
+            using StreamWriter payloadWriter = new(payloadEntry.Open());
+            payloadWriter.Write("payload");
+        }
+
+        var reader = new StubAssetsFileService(
+            [new AssetsInfo(50, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [50] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["install", "preview", zipPath, "--game-dir", gameDirectory]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Copied files: 1", text);
+            Assert.Contains($"resources/modassets.resource -> {copiedPath}", text);
+            Assert.Equal("original", File.ReadAllText(targetPath));
+            Assert.False(File.Exists(copiedPath));
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
     private sealed class StubAssetsFileService : IAssetsFileService
     {
         private readonly IReadOnlyList<AssetsInfo> _result;
@@ -659,6 +749,11 @@ public sealed class ConsoleAppTests
         }
 
         public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
+        {
+            File.WriteAllText(outputPath, "patched");
+        }
+
+        public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan)
         {
             File.WriteAllText(outputPath, "patched");
         }

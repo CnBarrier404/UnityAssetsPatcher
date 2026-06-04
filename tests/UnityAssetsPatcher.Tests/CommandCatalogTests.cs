@@ -46,5 +46,10 @@ public sealed class CommandCatalogTests
         {
             throw new InvalidOperationException("Not used by this test.");
         }
+
+        public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan)
+        {
+            throw new InvalidOperationException("Not used by this test.");
+        }
     }
 }

@@ -58,9 +58,16 @@ public sealed class ConsoleOutputFormatter
         output.WriteLine("DRY RUN");
         output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
         output.WriteLine($"Files: {result.Files.Count}");
+        output.WriteLine($"Copied files: {result.CopiedFiles.Count}");
         output.WriteLine($"Assets: {result.Files.Sum(file => file.Preview.Assets.Count)}");
         output.WriteLine(
             $"Operations: {result.Files.Sum(file => file.Preview.Assets.Sum(asset => asset.Operations.Count))}");
+
+        foreach (InstallCopyFilePreviewResult copiedFile in result.CopiedFiles)
+        {
+            string suffix = copiedFile.WillCopy ? string.Empty : " (skipped, destination exists)";
+            output.WriteLine($"{copiedFile.Source} -> {copiedFile.DestinationPath}{suffix}");
+        }
 
         foreach (InstallPreviewFileResult file in result.Files)
         {
@@ -109,8 +116,14 @@ public sealed class ConsoleOutputFormatter
         output.WriteLine("INSTALLED");
         output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
         output.WriteLine($"Files: {result.Files.Count}");
+        output.WriteLine($"Copied files: {result.CopiedFiles.Count}");
         output.WriteLine($"Assets: {result.Files.Sum(file => file.AssetCount)}");
         output.WriteLine($"Operations: {result.Files.Sum(file => file.OperationCount)}");
+
+        foreach (InstallCopiedFileResult copiedFile in result.CopiedFiles)
+        {
+            output.WriteLine($"{copiedFile.Source} -> {copiedFile.DestinationPath}");
+        }
 
         foreach (InstallModFileResult file in result.Files)
         {

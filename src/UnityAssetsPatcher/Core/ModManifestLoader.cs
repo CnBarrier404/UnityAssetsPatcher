@@ -17,11 +17,12 @@ public static class ModManifestLoader
         string author = ReadRequiredMetadataString(manifestElement, "author");
         string version = ReadRequiredMetadataString(manifestElement, "version");
         string? description = ReadOptionalMetadataString(manifestElement, "description");
+        var files = ReadOptionalFiles(manifestElement);
 
         // A manifest can describe multiple targets with patches, or a single target at the root.
         if (!manifestElement.TryGetProperty("patches", out JsonElement patchesElement))
         {
-            return new ModManifest(name, author, version, description, [ReadPatchTarget(manifestElement)]);
+            return new ModManifest(name, author, version, description, files, [ReadPatchTarget(manifestElement)]);
         }
 
         if (patchesElement.ValueKind != JsonValueKind.Array)
@@ -35,7 +36,7 @@ public static class ModManifestLoader
 
         return targets.Length == 0
             ? throw new InvalidOperationException("Manifest 'patches' array cannot be empty.")
-            : new ModManifest(name, author, version, description, targets);
+            : new ModManifest(name, author, version, description, files, targets);
     }
 
     private static string ReadRequiredMetadataString(JsonElement manifestElement, string propertyName)
@@ -80,8 +81,10 @@ public static class ModManifestLoader
         var includeGroups = ReadIncludeGroups(element);
         var setOperations = ReadOptionalSetOperations(element);
         var addOperations = ReadOptionalAddOperations(element);
+        var replaceFrom = ReadOptionalReplaceFrom(element);
 
-        return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations, addOperations);
+        return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations, addOperations,
+            replaceFrom);
     }
 
     private static string ReadAssetTypeName(JsonElement element)
@@ -117,6 +120,68 @@ public static class ModManifestLoader
         return includeGroups.Count == 0
             ? throw new InvalidOperationException("Manifest patch include array cannot be empty.")
             : includeGroups;
+    }
+
+    private static ManifestFile[] ReadOptionalFiles(JsonElement element)
+    {
+        if (!element.TryGetProperty("files", out JsonElement filesElement))
+        {
+            return [];
+        }
+
+        if (filesElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidOperationException("Manifest 'files' property must be an array.");
+        }
+
+        return filesElement.EnumerateArray()
+            .Select(ReadManifestFile)
+            .ToArray();
+    }
+
+    private static ManifestFile ReadManifestFile(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("Each files entry must be an object.");
+        }
+
+        if (!element.TryGetProperty("source", out JsonElement sourceElement) ||
+            sourceElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException("Each files entry must contain a string 'source' property.");
+        }
+
+        string? source = sourceElement.GetString();
+
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            throw new InvalidOperationException("Each files entry must contain a non-empty string 'source' property.");
+        }
+
+        EnsureValidZipRelativePath(source, "files source");
+
+        return new ManifestFile(source);
+    }
+
+    private static void EnsureValidZipRelativePath(string path, string propertyName)
+    {
+        string normalizedPath = path.Replace('\\', '/');
+
+        if (Path.IsPathRooted(path) || normalizedPath.StartsWith("/", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Manifest {propertyName} must be a relative zip path.");
+        }
+
+        string[] segments = normalizedPath.Split('/');
+
+        if (segments.Any(segment =>
+                string.IsNullOrWhiteSpace(segment) ||
+                segment is "." or ".."))
+        {
+            throw new InvalidOperationException(
+                $"Manifest {propertyName} must not contain empty, '.', or '..' segments.");
+        }
     }
 
     private static ManifestSetOperation[]? ReadOptionalSetOperations(JsonElement element)
@@ -220,6 +285,41 @@ public static class ModManifestLoader
         string field = fieldElement.GetString() ?? throw new InvalidOperationException("Add field cannot be empty.");
 
         return new ManifestAddOperation(field, valueElement.Clone());
+    }
+
+    private static ManifestReplaceFrom? ReadOptionalReplaceFrom(JsonElement element)
+    {
+        if (!element.TryGetProperty("replaceFrom", out JsonElement replaceFromElement))
+        {
+            return null;
+        }
+
+        if (replaceFromElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("Manifest patch 'replaceFrom' property must be an object.");
+        }
+
+        string assetsFilePath = ReadRequiredReplaceFromString(replaceFromElement, "assets");
+        string matchFieldPath = ReadRequiredReplaceFromString(replaceFromElement, "match");
+
+        return new ManifestReplaceFrom(assetsFilePath, matchFieldPath);
+    }
+
+    private static string ReadRequiredReplaceFromString(JsonElement replaceFromElement, string propertyName)
+    {
+        if (!replaceFromElement.TryGetProperty(propertyName, out JsonElement propertyElement) ||
+            propertyElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException(
+                $"Manifest patch 'replaceFrom' must contain a non-empty string '{propertyName}' property.");
+        }
+
+        string? value = propertyElement.GetString();
+
+        return string.IsNullOrWhiteSpace(value)
+            ? throw new InvalidOperationException(
+                $"Manifest patch 'replaceFrom' must contain a non-empty string '{propertyName}' property.")
+            : value;
     }
 
     private static string ReadTargetFileName(JsonElement element)

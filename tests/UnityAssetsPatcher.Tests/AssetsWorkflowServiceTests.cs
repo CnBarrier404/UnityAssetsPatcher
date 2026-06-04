@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using UnityAssetsPatcher.Core;
 using Xunit;
 
@@ -237,6 +238,95 @@ public sealed class AssetsWorkflowServiceTests
             if (Directory.Exists(backupDirectory))
             {
                 Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that replaceFrom copies full source assets into matching target assets by the configured field.
+    /// </summary>
+    [Fact]
+    public void ApplyPatch_WhenReplaceFromMatchesIncludedAudioClips_WritesReplacementPlan()
+    {
+        string tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string configPath = Path.Combine(tempDirectory, "manifest.json");
+        string inputPath = Path.Combine(tempDirectory, "sharedassets4.assets");
+        string outputPath = Path.Combine(tempDirectory, "sharedassets4.patched.assets");
+        string sourceDirectory = Path.Combine(tempDirectory, "resources");
+        string sourcePath = Path.Combine(sourceDirectory, "modassets.assets");
+        string backupDirectory = Path.Combine(tempDirectory, "backup");
+        Directory.CreateDirectory(sourceDirectory);
+        File.WriteAllText(inputPath, "original");
+        File.WriteAllText(sourcePath, "source");
+        TestManifest.Write(
+            configPath,
+            """
+            {
+              "target": "sharedassets4.assets",
+              "type": "AudioClip",
+              "include": [
+                {
+                  "m_Name": "Incense burn 1"
+                },
+                {
+                  "m_Name": "Crucifix Burn Start"
+                }
+              ],
+              "replaceFrom": {
+                "assets": "resources/modassets.assets",
+                "match": "m_Name"
+              }
+            }
+            """);
+        var assetsFileService = new StubAssetsFileService(
+            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [inputPath] =
+                [
+                    new AssetsInfo(100, 83, "AudioClip", 128),
+                    new AssetsInfo(101, 83, "AudioClip", 128),
+                    new AssetsInfo(102, 83, "AudioClip", 128),
+                ],
+                [sourcePath] =
+                [
+                    new AssetsInfo(200, 83, "AudioClip", 128),
+                    new AssetsInfo(201, 83, "AudioClip", 128),
+                ],
+            },
+            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            {
+                [(inputPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [(inputPath, 101)] = CreateAudioClipFieldTree("Crucifix Burn Start"),
+                [(inputPath, 102)] = CreateAudioClipFieldTree("Unrelated"),
+                [(sourcePath, 200)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [(sourcePath, 201)] = CreateAudioClipFieldTree("Crucifix Burn Start"),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
+
+        try
+        {
+            PatchApplyResult result =
+                service.ApplyPatch(new PatchApplyRequest(inputPath, configPath, outputPath, backupDirectory));
+
+            Assert.Equal(outputPath, result.OutputPath);
+            Assert.Null(result.BackupPath);
+            Assert.Equal(2, result.AssetCount);
+            Assert.Equal(2, result.OperationCount);
+            Assert.Equal(inputPath, assetsFileService.InputPath);
+            Assert.Equal(outputPath, assetsFileService.OutputPath);
+            Assert.Equal(
+                [
+                    new AssetReplacement(sourcePath, 200, 100),
+                    new AssetReplacement(sourcePath, 201, 101),
+                ],
+                assetsFileService.ReplacementPlan);
+            Assert.False(assetsFileService.Plan.Any());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDirectory))
+            {
+                Directory.Delete(tempDirectory, true);
             }
         }
     }
@@ -1153,6 +1243,201 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
+    /// Verifies that install copies declared zip payload files beside the resolved assets file.
+    /// </summary>
+    [Fact]
+    public void InstallMod_WhenManifestHasFiles_CopiesZipEntriesToAssetsDirectory()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string copiedPath = Path.Combine(targetDirectory, "modassets.resource");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "files": [
+                        {
+                          "source": "resources/modassets.resource"
+                        }
+                      ],
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "Camera",
+                          "include": [
+                            {
+                              "field of view": 90.0
+                            }
+                          ],
+                          "set": [
+                            {
+                              "field": "m_CullingMask.m_Bits",
+                              "from": 3211820983,
+                              "to": 931037111
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            ZipArchiveEntry payloadEntry = archive.CreateEntry("resources/modassets.resource");
+            using StreamWriter payloadWriter = new(payloadEntry.Open());
+            payloadWriter.Write("payload");
+        }
+
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    [
+                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                    ]),
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
+
+        try
+        {
+            InstallModResult result = service.InstallMod(
+                new InstallModRequest(zipPath, gameDirectory, backupDirectory));
+
+            InstallCopiedFileResult copiedFile = Assert.Single(result.CopiedFiles);
+            Assert.Equal("resources/modassets.resource", copiedFile.Source);
+            Assert.Equal(copiedPath, copiedFile.DestinationPath);
+            Assert.Equal("payload", File.ReadAllText(copiedPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that install can use replaceFrom assets stored inside the mod zip.
+    /// </summary>
+    [Fact]
+    public void InstallMod_WhenReplaceFromUsesZipEntry_ExtractsSourceAssetsAndWritesReplacementPlan()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "AudioClip",
+                          "include": [
+                            {
+                              "m_Name": "Incense burn 1"
+                            }
+                          ],
+                          "replaceFrom": {
+                            "assets": "resources/modassets.assets",
+                            "match": "m_Name"
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            ZipArchiveEntry sourceAssetsEntry = archive.CreateEntry("resources/modassets.assets");
+            using StreamWriter sourceAssetsWriter = new(sourceAssetsEntry.Open());
+            sourceAssetsWriter.Write("source assets");
+        }
+
+        var assetsFileService = new StubAssetsFileService(
+            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [targetPath] =
+                [
+                    new AssetsInfo(100, 83, "AudioClip", 128),
+                ],
+                ["modassets.assets"] =
+                [
+                    new AssetsInfo(200, 83, "AudioClip", 128),
+                ],
+            },
+            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            {
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Incense burn 1"),
+            });
+        var service = new AssetsWorkflowService(assetsFileService);
+
+        try
+        {
+            InstallModResult result = service.InstallMod(
+                new InstallModRequest(zipPath, gameDirectory, backupDirectory));
+
+            InstallModFileResult file = Assert.Single(result.Files);
+            Assert.Equal(1, file.AssetCount);
+            Assert.Equal(1, file.OperationCount);
+            AssetReplacement replacement = Assert.Single(assetsFileService.ReplacementPlan);
+            Assert.Equal(200, replacement.SourcePathId);
+            Assert.Equal(100, replacement.TargetPathId);
+            Assert.Equal("modassets.assets", Path.GetFileName(replacement.SourceAssetsFilePath));
+            Assert.Equal("patched", File.ReadAllText(targetPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that install preview locates assets files from zip manifest targets without writing files.
     /// </summary>
     [Fact]
@@ -1218,6 +1503,98 @@ public sealed class AssetsWorkflowServiceTests
             Assert.Equal("m_CullingMask.m_Bits", operation.Path);
             Assert.Equal("3211820983", operation.OldValue);
             Assert.Equal("original", File.ReadAllText(targetPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that install preview reports payload file copies without writing them.
+    /// </summary>
+    [Fact]
+    public void PreviewInstallMod_WhenManifestHasFiles_ReturnsCopyPlanWithoutWritingFiles()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        string copiedPath = Path.Combine(targetDirectory, "modassets.resource");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "files": [
+                        {
+                          "source": "resources/modassets.resource"
+                        }
+                      ],
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "Camera",
+                          "include": [
+                            {
+                              "field of view": 90.0
+                            }
+                          ],
+                          "set": [
+                            {
+                              "field": "m_CullingMask.m_Bits",
+                              "from": 3211820983,
+                              "to": 931037111
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            ZipArchiveEntry payloadEntry = archive.CreateEntry("resources/modassets.resource");
+            using StreamWriter payloadWriter = new(payloadEntry.Open());
+            payloadWriter.Write("payload");
+        }
+
+        var service = new AssetsWorkflowService(new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    [
+                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                    ]),
+                ]),
+            }));
+
+        try
+        {
+            InstallPreviewResult result = service.PreviewInstallMod(
+                new InstallPreviewRequest(zipPath, gameDirectory));
+
+            InstallCopyFilePreviewResult copiedFile = Assert.Single(result.CopiedFiles);
+            Assert.Equal("resources/modassets.resource", copiedFile.Source);
+            Assert.Equal(copiedPath, copiedFile.DestinationPath);
+            Assert.True(copiedFile.WillCopy);
+            Assert.False(File.Exists(copiedPath));
         }
         finally
         {
@@ -1303,21 +1680,52 @@ public sealed class AssetsWorkflowServiceTests
     {
         private readonly IReadOnlyList<AssetsInfo> _result;
         private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldTrees;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>> _resultsByPath;
+        private readonly IReadOnlyDictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo> _fieldTreesByPath;
 
         public StubAssetsFileService(IReadOnlyList<AssetsInfo> result,
             IReadOnlyDictionary<long, AssetsFieldInfo> fieldTrees)
         {
             _result = result;
             _fieldTrees = fieldTrees;
+            _resultsByPath = new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase);
+            _fieldTreesByPath = new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>();
+        }
+
+        public StubAssetsFileService(
+            IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>> resultsByPath,
+            IReadOnlyDictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo> fieldTreesByPath)
+        {
+            _result = [];
+            _fieldTrees = new Dictionary<long, AssetsFieldInfo>();
+            _resultsByPath = resultsByPath;
+            _fieldTreesByPath = fieldTreesByPath;
         }
 
         public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
         {
-            return _result;
+            if (_resultsByPath.TryGetValue(assetsFilePath, out IReadOnlyList<AssetsInfo>? result))
+            {
+                return result;
+            }
+
+            return _resultsByPath.TryGetValue(Path.GetFileName(assetsFilePath), out result)
+                ? result
+                : _result;
         }
 
         public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
         {
+            if (_fieldTreesByPath.TryGetValue((assetsFilePath, pathId), out AssetsFieldInfo? fieldTreeByPath))
+            {
+                return fieldTreeByPath;
+            }
+
+            if (_fieldTreesByPath.TryGetValue((Path.GetFileName(assetsFilePath), pathId), out fieldTreeByPath))
+            {
+                return fieldTreeByPath;
+            }
+
             return _fieldTrees.TryGetValue(pathId, out AssetsFieldInfo? fieldTree)
                 ? fieldTree
                 : throw new InvalidOperationException("Field tree was not configured.");
@@ -1327,6 +1735,7 @@ public sealed class AssetsWorkflowServiceTests
         public string? InputPath { get; private set; }
         public string? OutputPath { get; private set; }
         public IReadOnlyList<PatchWriteAsset> Plan { get; private set; } = [];
+        public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
 
         public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
         {
@@ -1336,6 +1745,26 @@ public sealed class AssetsWorkflowServiceTests
             Plan = plan;
             File.WriteAllText(outputPath, "patched");
         }
+
+        public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan)
+        {
+            WasCalled = true;
+            InputPath = inputPath;
+            OutputPath = outputPath;
+            ReplacementPlan = plan;
+            File.WriteAllText(outputPath, "patched");
+        }
+    }
+
+    private static AssetsFieldInfo CreateAudioClipFieldTree(string name)
+    {
+        return new AssetsFieldInfo(
+            "AudioClip",
+            "AudioClip",
+            null,
+            [
+                new AssetsFieldInfo("m_Name", "string", name, []),
+            ]);
     }
 
     private static AssetsFieldInfo CreateMaterialFieldTree(string pathId)
