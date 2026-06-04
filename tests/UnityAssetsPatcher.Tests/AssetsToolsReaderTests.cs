@@ -6,7 +6,7 @@ namespace UnityAssetsPatcher.Tests;
 public sealed class AssetsToolsReaderTests
 {
     /// <summary>
-    /// 验证目标 assets 文件不存在时，读取器会返回包含文件路径的明确错误。
+    /// Verifies that the reader returns a clear error with the file path when the target assets file is missing.
     /// </summary>
     [Fact]
     public void ReadAssetSummaries_WhenAssetsFileDoesNotExist_ThrowsClearError()
@@ -20,7 +20,7 @@ public sealed class AssetsToolsReaderTests
     }
 
     /// <summary>
-    /// 验证 TPK 类型数据库不存在时，读取器会返回包含文件路径的明确错误。
+    /// Verifies that the reader returns a clear error with the file path when the TPK type database is missing.
     /// </summary>
     [Fact]
     public void ReadAssetSummaries_WhenTpkFileDoesNotExist_ThrowsClearError()
@@ -42,7 +42,7 @@ public sealed class AssetsToolsReaderTests
     }
 
     /// <summary>
-    /// 验证写入 patch 时目标 assets 文件不存在会返回包含文件路径的明确错误。
+    /// Verifies that patch writing returns a clear error with the file path when the target assets file is missing.
     /// </summary>
     [Fact]
     public void WritePatch_WhenAssetsFileDoesNotExist_ThrowsClearError()
@@ -58,7 +58,7 @@ public sealed class AssetsToolsReaderTests
     }
 
     /// <summary>
-    /// 验证写入 patch 时 TPK 类型数据库不存在会返回包含文件路径的明确错误。
+    /// Verifies that patch writing returns a clear error with the file path when the TPK type database is missing.
     /// </summary>
     [Fact]
     public void WritePatch_WhenTpkFileDoesNotExist_ThrowsClearError()

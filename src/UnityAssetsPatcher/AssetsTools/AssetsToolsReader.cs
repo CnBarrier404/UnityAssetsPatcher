@@ -34,7 +34,7 @@ public sealed class AssetsToolsReader : IAssetsReader, IAssetsPatchWriter
             AssetsFileInstance assetsFileInstance = manager.LoadAssetsFile(assetsFilePath, true);
             AssetsFile assetsFile = assetsFileInstance.file;
 
-            // 不同 Unity 版本的序列化字段布局可能不同，必须按文件声明的版本选择类型数据库
+            // Serialized field layouts can differ between Unity versions, so load the database declared by the file.
             manager.LoadClassDatabaseFromPackage(assetsFile.Metadata.UnityVersion);
 
             return assetsFile.Metadata.AssetInfos
@@ -47,7 +47,7 @@ public sealed class AssetsToolsReader : IAssetsReader, IAssetsPatchWriter
         }
         finally
         {
-            // AssetsManager 会持有文件流；即使解析失败也必须释放，否则后续无法替换或恢复原文件
+            // AssetsManager holds file streams; always release it so later replace/restore operations can proceed.
             manager.UnloadAll(true);
         }
     }

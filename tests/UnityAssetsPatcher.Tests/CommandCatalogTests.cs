@@ -8,7 +8,7 @@ namespace UnityAssetsPatcher.Tests;
 public sealed class CommandCatalogTests
 {
     /// <summary>
-    /// 验证显式命令目录注册了当前支持的顶层命令和分组命令。
+    /// Verifies that the explicit command catalog registers the currently supported top-level and grouped commands.
     /// </summary>
     [Fact]
     public void BuildRootCommand_RegistersSupportedCommands()

@@ -6,7 +6,7 @@ namespace UnityAssetsPatcher.Tests;
 public sealed class ConsoleAppTests
 {
     /// <summary>
-    /// 验证 inspect 命令能够输出资产摘要表格并正常退出。
+    /// Verifies that inspect can print an asset summary table and exit successfully.
     /// </summary>
     [Fact]
     public void Run_WhenInspectCommandIsValid_PrintsAssetSummaryTable()
@@ -28,7 +28,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 inspect 默认限制摘要输出数量，避免大型 assets 文件刷满终端。
+    /// Verifies that inspect limits summary output by default to avoid flooding the terminal for large assets files.
     /// </summary>
     [Fact]
     public void Run_WhenInspectCommandHasManyAssets_PrintsLimitedSummaryAndTruncationHint()
@@ -52,7 +52,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 inspect --all 会输出完整摘要表。
+    /// Verifies that inspect --all prints the complete summary table.
     /// </summary>
     [Fact]
     public void Run_WhenInspectCommandUsesAll_PrintsEveryAssetSummary()
@@ -74,7 +74,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 inspect --limit 可以自定义摘要输出数量。
+    /// Verifies that inspect --limit customizes the summary output count.
     /// </summary>
     [Fact]
     public void Run_WhenInspectCommandUsesLimit_PrintsRequestedAssetSummaryCount()
@@ -97,7 +97,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 inspect list 不允许同时使用 --all 和 --limit，避免产生歧义。
+    /// Verifies that inspect list rejects using --all and --limit together to avoid ambiguity.
     /// </summary>
     [Fact]
     public void Run_WhenInspectListUsesAllAndLimit_PrintsErrorAndReturnsNonZeroExitCode()
@@ -115,7 +115,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证缺少命令行参数时，程序会输出解析错误并返回非零退出码。
+    /// Verifies that missing CLI arguments print a parse error and return a non-zero exit code.
     /// </summary>
     [Fact]
     public void Run_WhenArgumentsAreMissing_PrintsUsageAndReturnsNonZeroExitCode()
@@ -131,7 +131,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 inspect detail 模式会读取指定 Path ID，并按层级输出资产字段树。
+    /// Verifies that inspect detail reads the specified Path ID and prints the asset field tree hierarchically.
     /// </summary>
     [Fact]
     public void Run_WhenInspectVerboseCommandIsValid_PrintsSelectedAssetFieldTree()
@@ -159,7 +159,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 find --config 会按 JSON include 条件精准定位匹配资产。
+    /// Verifies that find --config locates matching assets by JSON include conditions.
     /// </summary>
     [Fact]
     public void Run_WhenFindCommandUsesConfig_PrintsOnlyAssetsMatchingAllIncludedFields()
@@ -230,7 +230,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 include 数组中的多个对象按 OR 语义匹配。
+    /// Verifies that multiple objects in the include array match with OR semantics.
     /// </summary>
     [Fact]
     public void Run_WhenFindConfigHasMultipleIncludeGroups_PrintsAssetsMatchingAnyGroup()
@@ -286,7 +286,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 patch --dry-run 会按 include 定位资产，并输出 set 字段的改动预览。
+    /// Verifies that patch --dry-run locates assets by include and prints previews for set field changes.
     /// </summary>
     [Fact]
     public void Run_WhenPatchCommandUsesDryRun_PrintsPlannedChangesWithoutWriting()
@@ -363,7 +363,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 patch --dry-run 在字段当前值不匹配 from 时会跳过该修改。
+    /// Verifies that patch --dry-run skips a change when the current field value does not match from.
     /// </summary>
     [Fact]
     public void Run_WhenPatchDryRunSetFromDoesNotMatch_PrintsSkippedChange()
@@ -417,7 +417,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 patch apply 会解析输出路径，并打印应用摘要。
+    /// Verifies that patch apply parses the output path and prints an apply summary.
     /// </summary>
     [Fact]
     public void Run_WhenPatchApplyCommandUsesOutput_PrintsApplySummary()
@@ -482,7 +482,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 install 命令会接收 zip 文件和游戏安装目录，并输出安装摘要。
+    /// Verifies that install accepts a zip file and game install directory, then prints an install summary.
     /// </summary>
     [Fact]
     public void Run_WhenInstallCommandUsesZipAndGameDir_PrintsInstallSummary()
@@ -557,7 +557,7 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// 验证 install preview 会按 zip manifest 自动定位目标文件，并输出 dry-run 结果。
+    /// Verifies that install preview locates target files from the zip manifest and prints dry-run results.
     /// </summary>
     [Fact]
     public void Run_WhenInstallPreviewUsesZipAndGameDir_PrintsDryRunSummary()

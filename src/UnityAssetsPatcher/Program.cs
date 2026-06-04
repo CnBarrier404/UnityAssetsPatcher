@@ -6,8 +6,8 @@ public static class Program
 {
     public static int Main(string[] args)
     {
-        // TPK 是随程序分发的类型数据库资源，不依赖启动时的工作目录
-        // 获取：https://github.com/AssetRipper/Tpk
+        // The TPK is a bundled type database resource and does not depend on the startup working directory.
+        // Source: https://github.com/AssetRipper/Tpk
         string tpkFilePath = Path.Combine(AppContext.BaseDirectory, "resources.tpk");
 
         var assetsTools = new AssetsToolsReader(tpkFilePath);

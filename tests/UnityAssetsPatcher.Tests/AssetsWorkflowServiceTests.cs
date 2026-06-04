@@ -6,7 +6,7 @@ namespace UnityAssetsPatcher.Tests;
 public sealed class AssetsWorkflowServiceTests
 {
     /// <summary>
-    /// 验证服务层可以直接执行 find 请求，GUI/TUI 不需要构造 CLI 参数。
+    /// Verifies that the service layer can execute find requests directly without GUI/TUI code building CLI arguments.
     /// </summary>
     [Fact]
     public void FindAssets_WhenConfigHasMultipleIncludeGroups_ReturnsAssetsMatchingAnyGroup()
@@ -55,7 +55,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证服务层 patch preview 返回结构化的 planned/skipped 结果。
+    /// Verifies that service-layer patch preview returns structured planned/skipped results.
     /// </summary>
     [Fact]
     public void PreviewPatch_WhenSetFromDoesNotMatch_ReturnsSkippedOperationResult()
@@ -104,7 +104,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证一个 patch 配置可以同时预览多个组件类型的修改。
+    /// Verifies that one patch config can preview changes for multiple component types.
     /// </summary>
     [Fact]
     public void PreviewPatch_WhenConfigHasMultiplePatchTargets_ReturnsOperationsForEachTarget()
@@ -176,7 +176,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 apply 在所有 set 操作可应用时，会调用写入器并返回输出摘要。
+    /// Verifies that apply calls the writer and returns an output summary when all set operations can change.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenAllOperationsCanChange_CallsWriterAndReturnsSummary()
@@ -244,7 +244,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 apply 可以把多个组件类型的修改合并成一次写入计划。
+    /// Verifies that apply can merge changes for multiple component types into one write plan.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenConfigHasMultiplePatchTargets_WritesAllMatchedAssets()
@@ -332,7 +332,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证多个 patch target 命中同一个资产时，会合并为同一个写入资产项，避免后一次写入覆盖前一次修改。
+    /// Verifies that multiple patch targets matching one asset merge into one write asset, avoiding overwrite loss.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenMultiplePatchTargetsMatchSameAsset_MergesOperationsForSingleWriteAsset()
@@ -420,7 +420,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 patch 可以用 UABEA 风格的单元素对象数组描述复合字段，并在写入计划中展开为子字段修改。
+    /// Verifies that patch can describe composite fields with UABEA-style single-object arrays and expand child writes.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenSetUsesCompositeObjectArray_ExpandsChildFieldOperations()
@@ -516,7 +516,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 apply 可以按 Texture2D 名字动态解析 Path ID，并写入 Material 贴图槽的 m_PathID。
+    /// Verifies that apply can resolve a Path ID by Texture2D name and write it to a Material texture slot m_PathID.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenSetToUsesPathIdResolver_WritesResolvedTexturePathId()
@@ -599,7 +599,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 apply 在 from 不匹配时严格失败，并且不会写文件。
+    /// Verifies that apply fails strictly when from does not match and does not write files.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenSetFromDoesNotMatch_ThrowsWithoutCallingWriter()
@@ -654,7 +654,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 apply 的 --output 不会覆盖已存在文件。
+    /// Verifies that apply --output does not overwrite an existing file.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenOutputPathExists_ThrowsWithoutCallingWriter()
@@ -711,7 +711,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 apply 未指定输出路径时，会先创建备份再覆盖输入文件。
+    /// Verifies that apply creates a backup before overwriting the input file when no output path is specified.
     /// </summary>
     [Fact]
     public void ApplyPatch_WhenOutputIsOmitted_CreatesTimestampedBackupAndOverwritesInput()
@@ -778,7 +778,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 explicit patch 只会使用 target 与输入文件名匹配的 patch target。
+    /// Verifies that explicit patch uses only patch targets whose target matches the input file name.
     /// </summary>
     [Fact]
     public void PreviewPatch_WhenConfigContainsDifferentTargets_UsesOnlySelectedAssetsFileTarget()
@@ -850,7 +850,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 install 会从 zip manifest 的 target 在游戏目录下自动定位 assets 文件并原地写入。
+    /// Verifies that install locates assets files from zip manifest targets under the game directory and writes in place.
     /// </summary>
     [Fact]
     public void InstallMod_WhenZipTargetMatchesSingleFile_OverwritesTargetAndReturnsSummary()
@@ -936,7 +936,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 install preview 会从 zip manifest 的 target 自动定位 assets 文件，并且不需要写入器。
+    /// Verifies that install preview locates assets files from zip manifest targets without requiring a writer.
     /// </summary>
     [Fact]
     public void PreviewInstallMod_WhenZipTargetMatchesSingleFile_ReturnsDryRunResultsWithoutWriter()
@@ -1013,7 +1013,7 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
-    /// 验证 target 文件名在游戏目录下匹配多个文件时不会写入，避免误修改。
+    /// Verifies that no write occurs when a target file name matches multiple files under the game directory.
     /// </summary>
     [Fact]
     public void InstallMod_WhenTargetMatchesMultipleFiles_ThrowsWithoutWriting()
