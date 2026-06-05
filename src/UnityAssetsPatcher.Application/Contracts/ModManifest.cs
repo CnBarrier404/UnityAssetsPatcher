@@ -18,7 +18,8 @@ public sealed record ManifestPatch(
     IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> IncludeGroups,
     IReadOnlyList<ManifestSetOperation>? SetOperations,
     IReadOnlyList<ManifestAddOperation>? AddOperations,
-    ManifestReplaceFrom? ReplaceFrom = null);
+    ManifestReplaceFrom? ReplaceFrom = null,
+    string? ComponentTypeName = null);
 
 public sealed record ManifestSetOperation(string FieldPath, JsonElement From, JsonElement To);
 

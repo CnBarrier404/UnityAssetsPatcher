@@ -179,10 +179,11 @@ public static class ModManifestLoader
         var includeGroups = ReadMatchGroups(patchElement);
         var setOperations = ReadOptionalSetOperations(patchElement);
         var addOperations = ReadOptionalAddOperations(patchElement);
-        var replaceFrom = ReadOptionalReplaceAsset(patchElement);
+        ManifestReplaceFrom? replaceFrom = ReadOptionalReplaceAsset(patchElement);
+        string? componentTypeName = ReadOptionalComponentTypeName(patchElement, assetTypeName, replaceFrom);
 
         return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations, addOperations,
-            replaceFrom);
+            replaceFrom, componentTypeName);
     }
 
     private static ManifestPatch ReadLegacyPatchTarget(JsonElement element)
@@ -197,10 +198,11 @@ public static class ModManifestLoader
         var includeGroups = ReadLegacyIncludeGroups(element);
         var setOperations = ReadLegacyOptionalSetOperations(element);
         var addOperations = ReadLegacyOptionalAddOperations(element);
-        var replaceFrom = ReadLegacyOptionalReplaceFrom(element);
+        ManifestReplaceFrom? replaceFrom = ReadLegacyOptionalReplaceFrom(element);
+        string? componentTypeName = ReadOptionalComponentTypeName(element, assetTypeName, replaceFrom);
 
         return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations, addOperations,
-            replaceFrom);
+            replaceFrom, componentTypeName);
     }
 
     private static string ReadAssetTypeName(JsonElement patchElement)
@@ -453,6 +455,44 @@ public static class ModManifestLoader
         string matchFieldPath = ReadRequiredString(replaceFromElement, "match", "Manifest patch 'replaceFrom'");
 
         return new ManifestReplaceFrom(assetsFilePath, matchFieldPath);
+    }
+
+    private static string? ReadOptionalComponentTypeName(
+        JsonElement patchElement,
+        string assetTypeName,
+        ManifestReplaceFrom? replaceFrom)
+    {
+        if (!patchElement.TryGetProperty("component", out JsonElement componentElement))
+        {
+            return null;
+        }
+
+        if (componentElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException("Manifest patch 'component' property must be a string.");
+        }
+
+        string? componentTypeName = componentElement.GetString();
+
+        if (string.IsNullOrWhiteSpace(componentTypeName))
+        {
+            throw new InvalidOperationException(
+                "Manifest patch 'component' property must be a non-empty string.");
+        }
+
+        if (!string.Equals(assetTypeName, "GameObject", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Manifest patch 'component' property can only be used when 'type' is 'GameObject'.");
+        }
+
+        if (replaceFrom is not null)
+        {
+            throw new InvalidOperationException(
+                "Manifest patch 'component' property cannot be combined with asset replacement.");
+        }
+
+        return componentTypeName;
     }
 
     private static IReadOnlyDictionary<string, JsonElement> ReadFieldValueMap(
