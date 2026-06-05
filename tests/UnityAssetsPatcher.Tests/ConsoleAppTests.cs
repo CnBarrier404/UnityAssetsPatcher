@@ -117,19 +117,28 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
-    /// Verifies that missing CLI arguments print a parse error and return a non-zero exit code.
+    /// Verifies that double-click style startup opens the interactive terminal menu.
     /// </summary>
     [Fact]
-    public void Run_WhenArgumentsAreMissing_PrintsUsageAndReturnsNonZeroExitCode()
+    public void Run_WhenArgumentsAreMissing_PrintsInteractiveMenu()
     {
+        var input = new StringReader($"4{Environment.NewLine}");
         var output = new StringWriter();
         var error = new StringWriter();
-        var app = new ConsoleApp(new StubAssetsFileService([]), output, error);
+        var app = new ConsoleApp(new StubAssetsFileService([]), input, output, error);
 
         int exitCode = app.Run([]);
 
-        Assert.NotEqual(0, exitCode);
-        Assert.NotEqual(string.Empty, error.ToString());
+        string text = output.ToString();
+        Assert.Equal(0, exitCode);
+        Assert.Contains("========================================", text);
+        Assert.Contains("        Unity Assets Patcher", text);
+        Assert.Contains("1. Install a mod", text);
+        Assert.Contains("2. Preview a mod install", text);
+        Assert.Contains("3. Inspect assets", text);
+        Assert.Contains("4. Exit", text);
+        Assert.Contains("Select an option:", text);
+        Assert.Equal(string.Empty, error.ToString());
     }
 
     /// <summary>
@@ -561,6 +570,163 @@ public sealed class ConsoleAppTests
             if (Directory.Exists(backupDirectory))
             {
                 Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the interactive menu can preview and apply a mod install after explicit confirmation.
+    /// </summary>
+    [Fact]
+    public void Run_WhenInteractiveInstallIsConfirmed_PreviewsAndInstallsMod()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsFileService(
+            [new AssetsInfo(50, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [50] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        string inputText = string.Join(Environment.NewLine,
+            "1",
+            $"\"{zipPath}\"",
+            $"\"{gameDirectory}\"",
+            "y",
+            "4") + Environment.NewLine;
+        var input = new StringReader(inputText);
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, backupDirectory, input, output, error);
+
+        try
+        {
+            int exitCode = app.Run([]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Install a mod", text);
+            Assert.Contains("Analyzing mod...", text);
+            Assert.Contains("DRY RUN", text);
+            Assert.Contains("Apply these changes? [y/N]", text);
+            Assert.Contains("INSTALLED", text);
+            Assert.Equal("patched", File.ReadAllText(targetPath));
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the interactive install flow defaults to canceling when the user does not confirm.
+    /// </summary>
+    [Fact]
+    public void Run_WhenInteractiveInstallIsNotConfirmed_DoesNotInstallMod()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var reader = new StubAssetsFileService(
+            [new AssetsInfo(50, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [50] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        string inputText = string.Join(Environment.NewLine,
+            "1",
+            zipPath,
+            gameDirectory,
+            string.Empty,
+            "4") + Environment.NewLine;
+        var input = new StringReader(inputText);
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, input, output, error);
+
+        try
+        {
+            int exitCode = app.Run([]);
+
+            string text = output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("DRY RUN", text);
+            Assert.Contains("Install canceled.", text);
+            Assert.Equal("original", File.ReadAllText(targetPath));
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
             }
         }
     }

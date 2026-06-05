@@ -8,29 +8,48 @@ namespace UnityAssetsPatcher;
 public sealed class ConsoleApp
 {
     private readonly RootCommand _rootCommand;
+    private readonly CommandContext _context;
+    private readonly TextReader _input;
     private readonly TextWriter _output;
     private readonly TextWriter _error;
 
     public ConsoleApp(IAssetsFileService assetsFileService, TextWriter output, TextWriter error)
-        : this(assetsFileService, Path.Combine(AppContext.BaseDirectory, "backup"), output, error) { }
+        : this(assetsFileService, Path.Combine(AppContext.BaseDirectory, "backup"), TextReader.Null, output, error) { }
+
+    public ConsoleApp(IAssetsFileService assetsFileService, TextReader input, TextWriter output, TextWriter error)
+        : this(assetsFileService, Path.Combine(AppContext.BaseDirectory, "backup"), input, output, error) { }
 
     public ConsoleApp(IAssetsFileService assetsFileService, string backupDirectory, TextWriter output, TextWriter error)
+        : this(assetsFileService, backupDirectory, TextReader.Null, output, error) { }
+
+    public ConsoleApp(
+        IAssetsFileService assetsFileService,
+        string backupDirectory,
+        TextReader input,
+        TextWriter output,
+        TextWriter error)
     {
+        _input = input;
         _output = output;
         _error = error;
 
-        var context = new CommandContext(
+        _context = new CommandContext(
             CreateServiceScopeFactory(assetsFileService),
             backupDirectory,
             output,
             error);
-        _rootCommand = new CommandCatalog().BuildRootCommand(context);
+        _rootCommand = new CommandCatalog().BuildRootCommand(_context);
     }
 
     public int Run(string[] args)
     {
         try
         {
+            if (args.Length == 0)
+            {
+                return new InteractiveConsoleApp(_context, _input).Run();
+            }
+
             return _rootCommand.Parse(args).Invoke(new InvocationConfiguration
             {
                 EnableDefaultExceptionHandler = false,

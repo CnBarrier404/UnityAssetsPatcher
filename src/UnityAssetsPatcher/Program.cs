@@ -12,7 +12,7 @@ public static class Program
 
         var assetsFileService = new AssetsFileService(tpkFilePath);
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
-        var app = new ConsoleApp(assetsFileService, backupDirectory, Console.Out, Console.Error);
+        var app = new ConsoleApp(assetsFileService, backupDirectory, Console.In, Console.Out, Console.Error);
 
         return app.Run(args);
     }
