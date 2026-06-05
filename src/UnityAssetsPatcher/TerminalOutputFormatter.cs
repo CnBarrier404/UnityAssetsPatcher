@@ -3,9 +3,9 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Utils;
 
-namespace UnityAssetsPatcher.Cli;
+namespace UnityAssetsPatcher;
 
-public sealed class ConsoleOutputFormatter
+public static class TerminalOutputFormatter
 {
     public static void WriteAssetSummary(TextWriter output, IReadOnlyList<AssetsInfo> assets, int? limit)
     {
@@ -26,7 +26,7 @@ public sealed class ConsoleOutputFormatter
 
         output.WriteLine();
         output.WriteLine(
-            $"Showing {limit.Value} of {assets.Count} assets. Use --all to print every row or --limit <count> to choose a different limit.");
+            $"Showing {limit.Value} of {assets.Count} assets. Use the Inspect assets page to print all rows or choose a custom limit.");
     }
 
     public static void WriteAssetFields(TextWriter output, AssetsFieldInfo fieldTree)
@@ -79,27 +79,6 @@ public sealed class ConsoleOutputFormatter
         }
     }
 
-    private static void WritePatchPreviewAssets(TextWriter output, PatchPreviewResult preview)
-    {
-        foreach (PatchPreviewAssetResult assetResult in preview.Assets)
-        {
-            output.WriteLine($"Path ID: {assetResult.Asset.PathId} ({assetResult.Asset.TypeName})");
-
-            foreach (PatchPreviewOperationResult operation in assetResult.Operations)
-            {
-                if (!operation.WillChange)
-                {
-                    output.WriteLine(
-                        $"  {operation.Path}: skipped, current value {operation.OldValue} does not match expected {JsonUtils.FormatElementValue(operation.From)}");
-                    continue;
-                }
-
-                output.WriteLine(
-                    $"  {operation.Path}: {operation.OldValue} -> {JsonUtils.FormatElementValue(operation.To)}");
-            }
-        }
-    }
-
     public static void WritePatchApply(TextWriter output, PatchApplyResult result)
     {
         output.WriteLine("APPLIED");
@@ -133,6 +112,27 @@ public sealed class ConsoleOutputFormatter
         {
             output.WriteLine($"{file.Target}: {file.AssetsFilePath}");
             output.WriteLine($"  Backup: {file.BackupPath}");
+        }
+    }
+
+    private static void WritePatchPreviewAssets(TextWriter output, PatchPreviewResult preview)
+    {
+        foreach (PatchPreviewAssetResult assetResult in preview.Assets)
+        {
+            output.WriteLine($"Path ID: {assetResult.Asset.PathId} ({assetResult.Asset.TypeName})");
+
+            foreach (PatchPreviewOperationResult operation in assetResult.Operations)
+            {
+                if (!operation.WillChange)
+                {
+                    output.WriteLine(
+                        $"  {operation.Path}: skipped, current value {operation.OldValue} does not match expected {JsonUtils.FormatElementValue(operation.From)}");
+                    continue;
+                }
+
+                output.WriteLine(
+                    $"  {operation.Path}: {operation.OldValue} -> {JsonUtils.FormatElementValue(operation.To)}");
+            }
         }
     }
 

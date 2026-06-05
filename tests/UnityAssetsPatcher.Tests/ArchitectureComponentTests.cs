@@ -19,7 +19,7 @@ public sealed class ArchitectureComponentTests
         Assert.Equal("UnityAssetsPatcher.Application", typeof(PatchAssetsWorkflow).Assembly.GetName().Name);
         Assert.Equal("UnityAssetsPatcher.Application", typeof(ModManifest).Assembly.GetName().Name);
         Assert.Equal("UnityAssetsPatcher.AssetsTools", typeof(AssetsFileService).Assembly.GetName().Name);
-        Assert.Equal("UnityAssetsPatcher", typeof(ConsoleApp).Assembly.GetName().Name);
+        Assert.Equal("UnityAssetsPatcher", typeof(TerminalApp).Assembly.GetName().Name);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class ArchitectureComponentTests
                 "UnityAssetsPatcher.AssetsTools.csproj",
                 "UnityAssetsPatcher.Core.csproj",
             ],
-            expectedPackageReferences: ["System.CommandLine"]);
+            expectedPackageReferences: []);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class ArchitectureComponentTests
     }
 
     [Fact]
-    public void CliSource_UsesAssetsWorkflowServiceFacade()
+    public void TerminalSource_UsesAssetsWorkflowServiceFacade()
     {
         string source = ReadSourceTree("src", "UnityAssetsPatcher");
 
@@ -104,7 +104,7 @@ public sealed class ArchitectureComponentTests
     }
 
     [Fact]
-    public void CliSource_DoesNotDependOnApplicationImplementationNamespaces()
+    public void TerminalSource_DoesNotDependOnApplicationImplementationNamespaces()
     {
         string source = ReadSourceTree("src", "UnityAssetsPatcher");
 
@@ -114,6 +114,17 @@ public sealed class ArchitectureComponentTests
         Assert.DoesNotContain("ModManifestLoader", source, StringComparison.Ordinal);
         Assert.DoesNotContain("PatchPlanBuilder", source, StringComparison.Ordinal);
         Assert.DoesNotContain("InstallTargetResolver", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TerminalSource_DoesNotUseCommandLineParser()
+    {
+        string source = ReadSourceTree("src", "UnityAssetsPatcher");
+
+        Assert.DoesNotContain("System.CommandLine", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("UnityAssetsPatcher.Cli", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("CommandCatalog", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("ICommandModule", source, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -4,7 +4,7 @@ namespace UnityAssetsPatcher;
 
 public static class Program
 {
-    public static int Main(string[] args)
+    public static int Main()
     {
         // The TPK is a bundled type database resource and does not depend on the startup working directory.
         // Source: https://github.com/AssetRipper/Tpk
@@ -12,8 +12,8 @@ public static class Program
 
         var assetsFileService = new AssetsFileService(tpkFilePath);
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
-        var app = new ConsoleApp(assetsFileService, backupDirectory, Console.In, Console.Out, Console.Error);
+        var app = new TerminalApp(assetsFileService, backupDirectory, Console.In, Console.Out, Console.Error);
 
-        return app.Run(args);
+        return app.Run();
     }
 }

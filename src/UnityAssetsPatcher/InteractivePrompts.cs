@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace UnityAssetsPatcher;
 
 public sealed class InteractivePrompts
@@ -35,6 +37,97 @@ public sealed class InteractivePrompts
                string.Equals(value?.Trim(), "yes", StringComparison.OrdinalIgnoreCase);
     }
 
+    public bool TryReadInt64(string label, out long value)
+    {
+        while (true)
+        {
+            _output.Write($"{label}: ");
+            string? input = _input.ReadLine();
+
+            if (input is null)
+            {
+                value = 0;
+
+                return false;
+            }
+
+            string normalized = NormalizePathInput(input);
+
+            if (IsQuit(normalized))
+            {
+                value = 0;
+
+                return false;
+            }
+
+            if (long.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+            {
+                return true;
+            }
+
+            _output.WriteLine($"{label} must be an integer.");
+        }
+    }
+
+    public bool TryReadPositiveInt(string label, out int value)
+    {
+        while (true)
+        {
+            _output.Write($"{label}: ");
+            string? input = _input.ReadLine();
+
+            if (input is null)
+            {
+                value = 0;
+
+                return false;
+            }
+
+            string normalized = NormalizePathInput(input);
+
+            if (IsQuit(normalized))
+            {
+                value = 0;
+
+                return false;
+            }
+
+            if (int.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) &&
+                value > 0)
+            {
+                return true;
+            }
+
+            _output.WriteLine($"{label} must be greater than 0.");
+        }
+    }
+
+    public bool TryReadOptionalPath(string label, out string? path)
+    {
+        _output.Write($"{label}: ");
+        string? value = _input.ReadLine();
+
+        if (value is null)
+        {
+            path = null;
+
+            return false;
+        }
+
+        string normalized = NormalizePathInput(value);
+
+        if (IsQuit(normalized))
+        {
+            path = null;
+
+            return false;
+        }
+
+        path = string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+
+        return true;
+    }
+
     private string? ReadExistingPath(string label, Func<string, bool> exists, Func<string, string> missingMessage)
     {
         while (true)
@@ -57,16 +150,16 @@ public sealed class InteractivePrompts
             if (string.IsNullOrWhiteSpace(path))
             {
                 _output.WriteLine($"{label} is required.");
+
                 continue;
             }
 
-            if (!exists(path))
+            if (exists(path))
             {
-                _output.WriteLine(missingMessage(path));
-                continue;
+                return path;
             }
 
-            return path;
+            _output.WriteLine(missingMessage(path));
         }
     }
 
