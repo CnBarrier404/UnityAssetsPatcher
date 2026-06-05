@@ -112,9 +112,9 @@ public sealed class ModManifestLoader : IModManifestLoader
         }
 
         string assetTypeName = ReadAssetTypeName(patchElement);
-        var includeGroups = ReadMatchGroups(patchElement);
-        var setOperations = ReadOptionalSetOperations(patchElement);
-        var addOperations = ReadOptionalAddOperations(patchElement);
+        var includeGroups = ManifestFieldOperationReader.ReadMatchGroups(patchElement);
+        var setOperations = ManifestFieldOperationReader.ReadSetOperations(patchElement);
+        var addOperations = ManifestFieldOperationReader.ReadAddOperations(patchElement);
         ManifestReplaceFrom? replaceFrom = ReadOptionalReplaceAsset(patchElement);
         string? componentTypeName = ReadOptionalComponentTypeName(patchElement, assetTypeName, replaceFrom);
 
@@ -127,80 +127,9 @@ public sealed class ModManifestLoader : IModManifestLoader
         return ReadRequiredString(patchElement, "type", "Manifest patch");
     }
 
-    private static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadMatchGroups(JsonElement patchElement)
-    {
-        JsonElement matchElement = JsonUtils.ReadRequiredProperty(
-            patchElement,
-            "match",
-            JsonValueKind.Object,
-            "Manifest patch");
-
-        var match = ReadFieldValueMap(matchElement, "Manifest patch match object");
-
-        return [match];
-    }
-
-    private static ManifestSetOperation[]? ReadOptionalSetOperations(JsonElement patchElement)
-    {
-        if (!JsonUtils.TryReadProperty(patchElement, "set", JsonValueKind.Object, out JsonElement setElement))
-        {
-            return null;
-        }
-
-        return setElement.EnumerateObject()
-            .Select(property => ReadManifestSetOperation(property.Name, property.Value))
-            .ToArray();
-    }
-
-    private static ManifestSetOperation ReadManifestSetOperation(string field, JsonElement element)
-    {
-        EnsureValidFieldPath(field, "set");
-
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            throw new InvalidOperationException("Each set field value must be an object.");
-        }
-
-        if (!element.TryGetProperty("from", out JsonElement fromElement))
-        {
-            throw new InvalidOperationException("Each set field value must contain a 'from' property.");
-        }
-
-        if (!element.TryGetProperty("to", out JsonElement toElement))
-        {
-            throw new InvalidOperationException("Each set field value must contain a 'to' property.");
-        }
-
-        return new ManifestSetOperation(field, fromElement.Clone(), toElement.Clone());
-    }
-
-    private static ManifestAddOperation[]? ReadOptionalAddOperations(JsonElement patchElement)
-    {
-        if (!JsonUtils.TryReadProperty(patchElement, "add", JsonValueKind.Object, out JsonElement addElement))
-        {
-            return null;
-        }
-
-        return addElement.EnumerateObject()
-            .Select(ReadManifestAddOperation)
-            .ToArray();
-    }
-
-    private static ManifestAddOperation ReadManifestAddOperation(JsonProperty property)
-    {
-        EnsureValidFieldPath(property.Name, "add");
-
-        return property.Value.ValueKind != JsonValueKind.Array
-            ? throw new InvalidOperationException("Each add field value must be an array.")
-            : new ManifestAddOperation(property.Name, property.Value.Clone());
-    }
-
     private static ManifestReplaceFrom? ReadOptionalReplaceAsset(JsonElement patchElement)
     {
-        if (!JsonUtils.TryReadProperty(
-                patchElement,
-                "replaceAsset",
-                JsonValueKind.Object,
+        if (!JsonUtils.TryReadProperty(patchElement, "replaceAsset", JsonValueKind.Object,
                 out JsonElement replaceAssetElement))
         {
             return null;
@@ -249,26 +178,6 @@ public sealed class ModManifestLoader : IModManifestLoader
         return componentTypeName;
     }
 
-    private static IReadOnlyDictionary<string, JsonElement> ReadFieldValueMap(
-        JsonElement element,
-        string propertyDescription)
-    {
-        var values = element.EnumerateObject()
-            .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal);
-
-        if (values.Count == 0)
-        {
-            throw new InvalidOperationException($"{propertyDescription} cannot be empty.");
-        }
-
-        foreach (string field in values.Keys)
-        {
-            EnsureValidFieldPath(field, propertyDescription);
-        }
-
-        return values;
-    }
-
     private static string ReadRequiredString(JsonElement element, string propertyName, string ownerDescription)
     {
         string value = JsonUtils.ReadRequiredStringProperty(element, propertyName, ownerDescription);
@@ -304,7 +213,7 @@ public sealed class ModManifestLoader : IModManifestLoader
     {
         string normalizedPath = path.Replace('\\', '/');
 
-        if (Path.IsPathRooted(path) || normalizedPath.StartsWith("/", StringComparison.Ordinal))
+        if (Path.IsPathRooted(path) || normalizedPath.StartsWith('/'))
         {
             throw new InvalidOperationException($"Manifest {propertyName} must be a relative zip path.");
         }
@@ -317,14 +226,6 @@ public sealed class ModManifestLoader : IModManifestLoader
         {
             throw new InvalidOperationException(
                 $"Manifest {propertyName} must not contain empty, '.', or '..' segments.");
-        }
-    }
-
-    private static void EnsureValidFieldPath(string field, string propertyDescription)
-    {
-        if (string.IsNullOrWhiteSpace(field))
-        {
-            throw new InvalidOperationException($"{propertyDescription} field path cannot be empty.");
         }
     }
 }
