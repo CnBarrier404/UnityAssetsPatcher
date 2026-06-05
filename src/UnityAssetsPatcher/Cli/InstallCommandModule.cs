@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.CommandLine;
 using UnityAssetsPatcher.Application.Contracts;
 
@@ -28,14 +27,12 @@ public sealed class InstallCommandModule : ICommandModule
         {
             string zipFilePath = parseResult.GetRequiredValue(zipFileArgument);
             string gameDirectory = parseResult.GetRequiredValue(gameDirectoryOption);
-            var stopwatch = Stopwatch.StartNew();
 
             return context.UseService(service =>
             {
                 InstallModResult result = service.InstallMod(
                     new InstallModRequest(zipFilePath, gameDirectory, context.BackupDirectory));
-                stopwatch.Stop();
-                ConsoleOutputFormatter.WriteInstallResult(context.Output, result, stopwatch.Elapsed);
+                ConsoleOutputFormatter.WriteInstallResult(context.Output, result);
 
                 return 0;
             });
@@ -65,14 +62,12 @@ public sealed class InstallCommandModule : ICommandModule
         {
             string zipFilePath = parseResult.GetRequiredValue(zipFileArgument);
             string gameDirectory = parseResult.GetRequiredValue(gameDirectoryOption);
-            var stopwatch = Stopwatch.StartNew();
 
             return context.UseService(service =>
             {
                 InstallPreviewResult result = service.PreviewInstallMod(
                     new InstallPreviewRequest(zipFilePath, gameDirectory));
-                stopwatch.Stop();
-                ConsoleOutputFormatter.WriteInstallPreview(context.Output, result, stopwatch.Elapsed);
+                ConsoleOutputFormatter.WriteInstallPreview(context.Output, result);
 
                 return 0;
             });

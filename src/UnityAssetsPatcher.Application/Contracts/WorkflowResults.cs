@@ -9,7 +9,8 @@ public sealed record InstallModResult(
     string ModName,
     string ModVersion,
     IReadOnlyList<InstallModFileResult> Files,
-    IReadOnlyList<InstallCopiedFileResult> CopiedFiles);
+    IReadOnlyList<InstallCopiedFileResult> CopiedFiles,
+    InstallTimingResult Timing);
 
 public sealed record InstallModFileResult(
     string Target,
@@ -24,7 +25,17 @@ public sealed record InstallPreviewResult(
     string ModName,
     string ModVersion,
     IReadOnlyList<InstallPreviewFileResult> Files,
-    IReadOnlyList<InstallCopyFilePreviewResult> CopiedFiles);
+    IReadOnlyList<InstallCopyFilePreviewResult> CopiedFiles,
+    InstallTimingResult Timing);
+
+public sealed record InstallTimingResult(
+    TimeSpan ReadPackage,
+    TimeSpan PrepareSources,
+    TimeSpan FindGameFiles,
+    TimeSpan AnalyzeChanges,
+    TimeSpan? ApplyPatches,
+    TimeSpan? CopyFiles,
+    TimeSpan Elapsed);
 
 public sealed record InstallPreviewFileResult(
     string Target,

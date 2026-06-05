@@ -55,7 +55,7 @@ public sealed class ConsoleOutputFormatter
         WritePatchPreviewAssets(output, preview);
     }
 
-    public static void WriteInstallPreview(TextWriter output, InstallPreviewResult result, TimeSpan elapsed)
+    public static void WriteInstallPreview(TextWriter output, InstallPreviewResult result)
     {
         output.WriteLine("DRY RUN");
         output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
@@ -64,7 +64,7 @@ public sealed class ConsoleOutputFormatter
         output.WriteLine($"Assets: {result.Files.Sum(file => file.Preview.Assets.Count)}");
         output.WriteLine(
             $"Operations: {result.Files.Sum(file => file.Preview.Assets.Sum(asset => asset.Operations.Count))}");
-        output.WriteLine($"Elapsed: {FormatElapsedSeconds(elapsed)} s");
+        WriteInstallTiming(output, result.Timing);
 
         foreach (InstallCopyFilePreviewResult copiedFile in result.CopiedFiles)
         {
@@ -114,7 +114,7 @@ public sealed class ConsoleOutputFormatter
         output.WriteLine($"Operations: {result.OperationCount}");
     }
 
-    public static void WriteInstallResult(TextWriter output, InstallModResult result, TimeSpan elapsed)
+    public static void WriteInstallResult(TextWriter output, InstallModResult result)
     {
         output.WriteLine("INSTALLED");
         output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
@@ -122,7 +122,7 @@ public sealed class ConsoleOutputFormatter
         output.WriteLine($"Copied files: {result.CopiedFiles.Count}");
         output.WriteLine($"Assets: {result.Files.Sum(file => file.AssetCount)}");
         output.WriteLine($"Operations: {result.Files.Sum(file => file.OperationCount)}");
-        output.WriteLine($"Elapsed: {FormatElapsedSeconds(elapsed)} s");
+        WriteInstallTiming(output, result.Timing);
 
         foreach (InstallCopiedFileResult copiedFile in result.CopiedFiles)
         {
@@ -151,5 +151,23 @@ public sealed class ConsoleOutputFormatter
     private static string FormatElapsedSeconds(TimeSpan elapsed)
     {
         return elapsed.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
+    }
+
+    private static void WriteInstallTiming(TextWriter output, InstallTimingResult timing)
+    {
+        output.WriteLine($"Read package: {FormatElapsedSeconds(timing.ReadPackage)} s");
+        output.WriteLine($"Prepare sources: {FormatElapsedSeconds(timing.PrepareSources)} s");
+        output.WriteLine($"Find game files: {FormatElapsedSeconds(timing.FindGameFiles)} s");
+        output.WriteLine($"Analyze changes: {FormatElapsedSeconds(timing.AnalyzeChanges)} s");
+        WriteTimingStage(output, "Apply patches", timing.ApplyPatches);
+        WriteTimingStage(output, "Copy files", timing.CopyFiles);
+        output.WriteLine($"Elapsed: {FormatElapsedSeconds(timing.Elapsed)} s");
+    }
+
+    private static void WriteTimingStage(TextWriter output, string label, TimeSpan? elapsed)
+    {
+        output.WriteLine(elapsed is null
+            ? $"{label}: skipped"
+            : $"{label}: {FormatElapsedSeconds(elapsed.Value)} s");
     }
 }
