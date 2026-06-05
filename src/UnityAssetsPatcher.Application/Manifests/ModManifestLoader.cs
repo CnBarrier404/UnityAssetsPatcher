@@ -18,12 +18,8 @@ public sealed class ModManifestLoader : IModManifestLoader
         string author = ReadRequiredMetadataString(manifestElement, "author");
         string version = ReadRequiredMetadataString(manifestElement, "version");
         string? description = ReadOptionalMetadataString(manifestElement, "description");
-        var files = manifestElement.TryGetProperty("copyFiles", out _)
-            ? ReadOptionalCopyFiles(manifestElement)
-            : ReadOptionalLegacyFiles(manifestElement);
-        var patches = manifestElement.TryGetProperty("targets", out _)
-            ? ReadTargets(manifestElement)
-            : ReadLegacyTargets(manifestElement);
+        var files = ReadOptionalCopyFiles(manifestElement);
+        var patches = ReadTargets(manifestElement);
 
         return new ModManifest(name, author, version, description, files, patches);
     }
@@ -52,18 +48,6 @@ public sealed class ModManifestLoader : IModManifestLoader
 
         return copyFilesElement.EnumerateArray()
             .Select(jsonElement => ReadManifestFile(jsonElement, "copyFiles"))
-            .ToArray();
-    }
-
-    private static ManifestFile[] ReadOptionalLegacyFiles(JsonElement element)
-    {
-        if (!JsonUtils.TryReadProperty(element, "files", JsonValueKind.Array, out JsonElement filesElement))
-        {
-            return [];
-        }
-
-        return filesElement.EnumerateArray()
-            .Select(fileElement => ReadManifestFile(fileElement, "files"))
             .ToArray();
     }
 
@@ -120,22 +104,6 @@ public sealed class ModManifestLoader : IModManifestLoader
             : patches;
     }
 
-    private static ManifestPatch[] ReadLegacyTargets(JsonElement manifestElement)
-    {
-        if (!JsonUtils.TryReadProperty(manifestElement, "patches", JsonValueKind.Array, out JsonElement patchesElement))
-        {
-            return [ReadLegacyPatchTarget(manifestElement)];
-        }
-
-        var targets = patchesElement.EnumerateArray()
-            .Select(ReadLegacyPatchTarget)
-            .ToArray();
-
-        return targets.Length == 0
-            ? throw new InvalidOperationException("Manifest 'patches' array cannot be empty.")
-            : targets;
-    }
-
     private static ManifestPatch ReadPatchTarget(string assetsFileName, JsonElement patchElement)
     {
         if (patchElement.ValueKind != JsonValueKind.Object)
@@ -149,25 +117,6 @@ public sealed class ModManifestLoader : IModManifestLoader
         var addOperations = ReadOptionalAddOperations(patchElement);
         ManifestReplaceFrom? replaceFrom = ReadOptionalReplaceAsset(patchElement);
         string? componentTypeName = ReadOptionalComponentTypeName(patchElement, assetTypeName, replaceFrom);
-
-        return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations, addOperations,
-            replaceFrom, componentTypeName);
-    }
-
-    private static ManifestPatch ReadLegacyPatchTarget(JsonElement element)
-    {
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            throw new InvalidOperationException("Each patch target must be an object.");
-        }
-
-        string assetsFileName = ReadLegacyTargetFileName(element);
-        string assetTypeName = ReadAssetTypeName(element);
-        var includeGroups = ReadLegacyIncludeGroups(element);
-        var setOperations = ReadLegacyOptionalSetOperations(element);
-        var addOperations = ReadLegacyOptionalAddOperations(element);
-        ManifestReplaceFrom? replaceFrom = ReadLegacyOptionalReplaceFrom(element);
-        string? componentTypeName = ReadOptionalComponentTypeName(element, assetTypeName, replaceFrom);
 
         return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations, addOperations,
             replaceFrom, componentTypeName);
@@ -191,32 +140,6 @@ public sealed class ModManifestLoader : IModManifestLoader
         return [match];
     }
 
-    private static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadLegacyIncludeGroups(JsonElement element)
-    {
-        JsonElement includeElement = JsonUtils.ReadRequiredProperty(
-            element,
-            "include",
-            JsonValueKind.Array,
-            "Manifest patch");
-
-        var includeGroups = new List<IReadOnlyDictionary<string, JsonElement>>();
-
-        foreach (JsonElement includeGroupElement in includeElement.EnumerateArray())
-        {
-            if (includeGroupElement.ValueKind != JsonValueKind.Object)
-            {
-                throw new InvalidOperationException("Each include entry must be an object.");
-            }
-
-            includeGroups.Add(includeGroupElement.EnumerateObject()
-                .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal));
-        }
-
-        return includeGroups.Count == 0
-            ? throw new InvalidOperationException("Manifest patch include array cannot be empty.")
-            : includeGroups;
-    }
-
     private static ManifestSetOperation[]? ReadOptionalSetOperations(JsonElement patchElement)
     {
         if (!JsonUtils.TryReadProperty(patchElement, "set", JsonValueKind.Object, out JsonElement setElement))
@@ -226,18 +149,6 @@ public sealed class ModManifestLoader : IModManifestLoader
 
         return setElement.EnumerateObject()
             .Select(property => ReadManifestSetOperation(property.Name, property.Value))
-            .ToArray();
-    }
-
-    private static ManifestSetOperation[]? ReadLegacyOptionalSetOperations(JsonElement element)
-    {
-        if (!JsonUtils.TryReadProperty(element, "set", JsonValueKind.Array, out JsonElement setElement))
-        {
-            return null;
-        }
-
-        return setElement.EnumerateArray()
-            .Select(ReadLegacyManifestSetOperation)
             .ToArray();
     }
 
@@ -263,36 +174,6 @@ public sealed class ModManifestLoader : IModManifestLoader
         return new ManifestSetOperation(field, fromElement.Clone(), toElement.Clone());
     }
 
-    private static ManifestSetOperation ReadLegacyManifestSetOperation(JsonElement element)
-    {
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            throw new InvalidOperationException("Each set entry must be an object.");
-        }
-
-        if (element.TryGetProperty("path", out _))
-        {
-            throw new InvalidOperationException(
-                "Each set entry must use a string 'field' property; 'path' is not supported.");
-        }
-
-        string field = JsonUtils.ReadRequiredStringProperty(element, "field", "Each set entry");
-
-        if (!element.TryGetProperty("from", out JsonElement fromElement))
-        {
-            throw new InvalidOperationException("Each set entry must contain a 'from' property.");
-        }
-
-        if (!element.TryGetProperty("to", out JsonElement toElement))
-        {
-            throw new InvalidOperationException("Each set entry must contain a 'to' property.");
-        }
-
-        EnsureValidFieldPath(field, "set");
-
-        return new ManifestSetOperation(field, fromElement.Clone(), toElement.Clone());
-    }
-
     private static ManifestAddOperation[]? ReadOptionalAddOperations(JsonElement patchElement)
     {
         if (!JsonUtils.TryReadProperty(patchElement, "add", JsonValueKind.Object, out JsonElement addElement))
@@ -305,58 +186,13 @@ public sealed class ModManifestLoader : IModManifestLoader
             .ToArray();
     }
 
-    private static ManifestAddOperation[]? ReadLegacyOptionalAddOperations(JsonElement element)
-    {
-        if (!JsonUtils.TryReadProperty(element, "add", JsonValueKind.Array, out JsonElement addElement))
-        {
-            return null;
-        }
-
-        return addElement.EnumerateArray()
-            .Select(ReadLegacyManifestAddOperation)
-            .ToArray();
-    }
-
     private static ManifestAddOperation ReadManifestAddOperation(JsonProperty property)
     {
         EnsureValidFieldPath(property.Name, "add");
 
-        if (property.Value.ValueKind != JsonValueKind.Array)
-        {
-            throw new InvalidOperationException("Each add field value must be an array.");
-        }
-
-        return new ManifestAddOperation(property.Name, property.Value.Clone());
-    }
-
-    private static ManifestAddOperation ReadLegacyManifestAddOperation(JsonElement element)
-    {
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            throw new InvalidOperationException("Each add entry must be an object.");
-        }
-
-        if (element.TryGetProperty("path", out _))
-        {
-            throw new InvalidOperationException(
-                "Each add entry must use a string 'field' property; 'path' is not supported.");
-        }
-
-        string field = JsonUtils.ReadRequiredStringProperty(element, "field", "Each add entry");
-
-        if (!element.TryGetProperty("value", out JsonElement valueElement))
-        {
-            throw new InvalidOperationException("Each add entry must contain a 'value' property.");
-        }
-
-        if (valueElement.ValueKind != JsonValueKind.Array)
-        {
-            throw new InvalidOperationException("Each add entry 'value' property must be an array.");
-        }
-
-        EnsureValidFieldPath(field, "add");
-
-        return new ManifestAddOperation(field, valueElement.Clone());
+        return property.Value.ValueKind != JsonValueKind.Array
+            ? throw new InvalidOperationException("Each add field value must be an array.")
+            : new ManifestAddOperation(property.Name, property.Value.Clone());
     }
 
     private static ManifestReplaceFrom? ReadOptionalReplaceAsset(JsonElement patchElement)
@@ -372,23 +208,6 @@ public sealed class ModManifestLoader : IModManifestLoader
 
         string assetsFilePath = ReadRequiredString(replaceAssetElement, "fromFile", "Manifest patch 'replaceAsset'");
         string matchFieldPath = ReadRequiredString(replaceAssetElement, "matchField", "Manifest patch 'replaceAsset'");
-
-        return new ManifestReplaceFrom(assetsFilePath, matchFieldPath);
-    }
-
-    private static ManifestReplaceFrom? ReadLegacyOptionalReplaceFrom(JsonElement element)
-    {
-        if (!JsonUtils.TryReadProperty(
-                element,
-                "replaceFrom",
-                JsonValueKind.Object,
-                out JsonElement replaceFromElement))
-        {
-            return null;
-        }
-
-        string assetsFilePath = ReadRequiredString(replaceFromElement, "assets", "Manifest patch 'replaceFrom'");
-        string matchFieldPath = ReadRequiredString(replaceFromElement, "match", "Manifest patch 'replaceFrom'");
 
         return new ManifestReplaceFrom(assetsFilePath, matchFieldPath);
     }
@@ -466,14 +285,6 @@ public sealed class ModManifestLoader : IModManifestLoader
         EnsureValidTargetFileName(file, "Manifest target 'file' property");
 
         return file;
-    }
-
-    private static string ReadLegacyTargetFileName(JsonElement element)
-    {
-        string target = ReadRequiredString(element, "target", "Manifest patch");
-        EnsureValidTargetFileName(target, "Manifest patch 'target' property");
-
-        return target;
     }
 
     private static void EnsureValidTargetFileName(string fileName, string propertyDescription)

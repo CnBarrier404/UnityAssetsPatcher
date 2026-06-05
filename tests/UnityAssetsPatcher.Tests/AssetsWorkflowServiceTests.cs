@@ -1363,7 +1363,7 @@ public sealed class AssetsWorkflowServiceTests
             ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
             using (StreamWriter writer = new(manifestEntry.Open()))
             {
-                writer.Write(
+                writer.Write(TestManifest.CreateJson(
                     """
                     {
                       "name": "Test Mod",
@@ -1393,7 +1393,7 @@ public sealed class AssetsWorkflowServiceTests
                         }
                       ]
                     }
-                    """);
+                    """));
             }
 
             ZipArchiveEntry payloadEntry = archive.CreateEntry("resources/modassets.resource");
@@ -1460,7 +1460,7 @@ public sealed class AssetsWorkflowServiceTests
             ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
             using (StreamWriter writer = new(manifestEntry.Open()))
             {
-                writer.Write(
+                writer.Write(TestManifest.CreateJson(
                     """
                     {
                       "name": "Test Mod",
@@ -1482,7 +1482,7 @@ public sealed class AssetsWorkflowServiceTests
                         }
                       ]
                     }
-                    """);
+                    """));
             }
 
             ZipArchiveEntry sourceAssetsEntry = archive.CreateEntry("resources/modassets.assets");
@@ -1634,7 +1634,7 @@ public sealed class AssetsWorkflowServiceTests
             ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
             using (StreamWriter writer = new(manifestEntry.Open()))
             {
-                writer.Write(
+                writer.Write(TestManifest.CreateJson(
                     """
                     {
                       "name": "Test Mod",
@@ -1664,7 +1664,7 @@ public sealed class AssetsWorkflowServiceTests
                         }
                       ]
                     }
-                    """);
+                    """));
             }
 
             ZipArchiveEntry payloadEntry = archive.CreateEntry("resources/modassets.resource");

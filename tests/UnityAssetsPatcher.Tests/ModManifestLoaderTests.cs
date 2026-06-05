@@ -222,16 +222,19 @@ public sealed class ModManifestLoaderTests
     }
 
     /// <summary>
-    /// Verifies that a manifest patch target must declare the assets file name to locate.
+    /// Verifies that the old flat target schema is no longer accepted.
     /// </summary>
     [Fact]
-    public void Load_WhenPatchTargetHasTarget_ReturnsTargetFileName()
+    public void Load_WhenManifestUsesLegacyFlatTarget_ThrowsClearError()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        TestManifest.Write(
+        File.WriteAllText(
             configPath,
             """
             {
+              "name": "Test Mod",
+              "author": "UnityAssetsPatcher.Tests",
+              "version": "1.0.0",
               "target": "sharedassets0.assets",
               "type": "Camera",
               "include": [
@@ -251,12 +254,9 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            ModManifest config = new ModManifestLoader().Load(configPath);
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
-            ManifestPatch patch = Assert.Single(config.Patches);
-            Assert.Equal("sharedassets0.assets", patch.AssetsFileName);
-            ManifestSetOperation operation = Assert.Single(patch.SetOperations!);
-            Assert.Equal("m_CullingMask.m_Bits", operation.FieldPath);
+            Assert.Contains("targets", exception.Message);
         }
         finally
         {
@@ -265,16 +265,19 @@ public sealed class ModManifestLoaderTests
     }
 
     /// <summary>
-    /// Verifies that an object-level replacement can declare the source assets file and match field.
+    /// Verifies that object-level replacement must use replaceAsset in the current schema.
     /// </summary>
     [Fact]
-    public void Load_WhenPatchTargetHasReplaceFrom_ReturnsReplacementSource()
+    public void Load_WhenManifestUsesLegacyReplaceFrom_ThrowsClearError()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        TestManifest.Write(
+        File.WriteAllText(
             configPath,
             """
             {
+              "name": "Test Mod",
+              "author": "UnityAssetsPatcher.Tests",
+              "version": "1.0.0",
               "target": "sharedassets4.assets",
               "type": "AudioClip",
               "include": [
@@ -291,12 +294,9 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            ModManifest config = new ModManifestLoader().Load(configPath);
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
-            ManifestPatch patch = Assert.Single(config.Patches);
-            Assert.NotNull(patch.ReplaceFrom);
-            Assert.Equal("resources/modassets.assets", patch.ReplaceFrom.AssetsFilePath);
-            Assert.Equal("m_Name", patch.ReplaceFrom.MatchFieldPath);
+            Assert.Contains("targets", exception.Message);
         }
         finally
         {
@@ -305,16 +305,19 @@ public sealed class ModManifestLoaderTests
     }
 
     /// <summary>
-    /// Verifies that a manifest can declare zip payload files to copy during install.
+    /// Verifies that payload declarations must use copyFiles in the current schema.
     /// </summary>
     [Fact]
-    public void Load_WhenManifestHasFiles_ReturnsPayloadFiles()
+    public void Load_WhenManifestUsesLegacyFiles_ThrowsClearError()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        TestManifest.Write(
+        File.WriteAllText(
             configPath,
             """
             {
+              "name": "Test Mod",
+              "author": "UnityAssetsPatcher.Tests",
+              "version": "1.0.0",
               "files": [
                 {
                   "source": "resources/modassets.resource"
@@ -340,10 +343,9 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            ModManifest config = new ModManifestLoader().Load(configPath);
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
-            ManifestFile file = Assert.Single(config.Files);
-            Assert.Equal("resources/modassets.resource", file.Source);
+            Assert.Contains("targets", exception.Message);
         }
         finally
         {
@@ -365,16 +367,22 @@ public sealed class ModManifestLoaderTests
             configPath,
             $$"""
               {
-                "files": [
+                "copyFiles": [
                   {
                     "source": "{{source}}"
                   }
                 ],
-                "target": "sharedassets4.assets",
-                "type": "AudioClip",
-                "include": [
+                "targets": [
                   {
-                    "m_Name": "Incense burn 1"
+                    "file": "sharedassets4.assets",
+                    "patches": [
+                      {
+                        "type": "AudioClip",
+                        "match": {
+                          "m_Name": "Incense burn 1"
+                        }
+                      }
+                    ]
                   }
                 ]
               }
@@ -393,28 +401,34 @@ public sealed class ModManifestLoaderTests
     }
 
     /// <summary>
-    /// Verifies that set[].path is rejected to avoid conflicting with target file-location semantics.
+    /// Verifies that set fields must use object property names in the current schema.
     /// </summary>
     [Fact]
-    public void Load_WhenSetUsesPath_ThrowsMigrationError()
+    public void Load_WhenManifestUsesLegacySetArray_ThrowsClearError()
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
         TestManifest.Write(
             configPath,
             """
             {
-              "target": "sharedassets0.assets",
-              "type": "Camera",
-              "include": [
+              "targets": [
                 {
-                  "field of view": 90.0
-                }
-              ],
-              "set": [
-                {
-                  "path": "field of view",
-                  "from": 90.0,
-                  "to": 75.0
+                  "file": "sharedassets0.assets",
+                  "patches": [
+                    {
+                      "type": "Camera",
+                      "match": {
+                        "field of view": 90.0
+                      },
+                      "set": [
+                        {
+                          "path": "field of view",
+                          "from": 90.0,
+                          "to": 75.0
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -424,8 +438,7 @@ public sealed class ModManifestLoaderTests
         {
             var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
-            Assert.Contains("field", exception.Message);
-            Assert.Contains("path", exception.Message);
+            Assert.Contains("set", exception.Message);
         }
         finally
         {
@@ -444,11 +457,17 @@ public sealed class ModManifestLoaderTests
             configPath,
             """
             {
-              "target": "Game_Data/sharedassets0.assets",
-              "type": "Camera",
-              "include": [
+              "targets": [
                 {
-                  "field of view": 90.0
+                  "file": "Game_Data/sharedassets0.assets",
+                  "patches": [
+                    {
+                      "type": "Camera",
+                      "match": {
+                        "field of view": 90.0
+                      }
+                    }
+                  ]
                 }
               ]
             }
@@ -487,13 +506,15 @@ public sealed class ModManifestLoaderTests
                       "name": "Camera Tweak",
                       "author": "CnBarrier",
                       "version": "1.0.0",
-                      "patches": [
+                      "targets": [
                         {
-                          "target": "sharedassets0.assets",
-                          "type": "Camera",
-                          "include": [
+                          "file": "sharedassets0.assets",
+                          "patches": [
                             {
-                              "field of view": 90.0
+                              "type": "Camera",
+                              "match": {
+                                "field of view": 90.0
+                              }
                             }
                           ]
                         }
