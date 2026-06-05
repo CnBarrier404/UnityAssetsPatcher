@@ -1,3 +1,4 @@
+using System.Globalization;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Utils;
@@ -54,7 +55,7 @@ public sealed class ConsoleOutputFormatter
         WritePatchPreviewAssets(output, preview);
     }
 
-    public static void WriteInstallPreview(TextWriter output, InstallPreviewResult result)
+    public static void WriteInstallPreview(TextWriter output, InstallPreviewResult result, TimeSpan elapsed)
     {
         output.WriteLine("DRY RUN");
         output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
@@ -63,6 +64,7 @@ public sealed class ConsoleOutputFormatter
         output.WriteLine($"Assets: {result.Files.Sum(file => file.Preview.Assets.Count)}");
         output.WriteLine(
             $"Operations: {result.Files.Sum(file => file.Preview.Assets.Sum(asset => asset.Operations.Count))}");
+        output.WriteLine($"Elapsed: {FormatElapsedSeconds(elapsed)} s");
 
         foreach (InstallCopyFilePreviewResult copiedFile in result.CopiedFiles)
         {
@@ -112,7 +114,7 @@ public sealed class ConsoleOutputFormatter
         output.WriteLine($"Operations: {result.OperationCount}");
     }
 
-    public static void WriteInstallResult(TextWriter output, InstallModResult result)
+    public static void WriteInstallResult(TextWriter output, InstallModResult result, TimeSpan elapsed)
     {
         output.WriteLine("INSTALLED");
         output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
@@ -120,6 +122,7 @@ public sealed class ConsoleOutputFormatter
         output.WriteLine($"Copied files: {result.CopiedFiles.Count}");
         output.WriteLine($"Assets: {result.Files.Sum(file => file.AssetCount)}");
         output.WriteLine($"Operations: {result.Files.Sum(file => file.OperationCount)}");
+        output.WriteLine($"Elapsed: {FormatElapsedSeconds(elapsed)} s");
 
         foreach (InstallCopiedFileResult copiedFile in result.CopiedFiles)
         {
@@ -143,5 +146,10 @@ public sealed class ConsoleOutputFormatter
         {
             WriteAssetField(output, child, depth + 1);
         }
+    }
+
+    private static string FormatElapsedSeconds(TimeSpan elapsed)
+    {
+        return elapsed.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
     }
 }

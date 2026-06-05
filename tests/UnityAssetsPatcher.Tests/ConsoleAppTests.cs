@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using Xunit;
 using UnityAssetsPatcher.Core.Assets;
 
@@ -539,6 +540,7 @@ public sealed class ConsoleAppTests
             Assert.Contains("Test Mod", text);
             Assert.Contains("Files: 1", text);
             Assert.Contains("Operations: 1", text);
+            Assert.Matches(new Regex(@"^Elapsed: \d+(\.\d{1,3})? s\r?$", RegexOptions.Multiline), text);
             Assert.Contains("sharedassets0.assets", text);
             Assert.Equal(string.Empty, error.ToString());
         }
@@ -613,6 +615,7 @@ public sealed class ConsoleAppTests
             Assert.Contains("Test Mod", text);
             Assert.Contains("sharedassets0.assets", text);
             Assert.Contains("field of view: 90.0 -> 75.0", text);
+            Assert.Matches(new Regex(@"^Elapsed: \d+(\.\d{1,3})? s\r?$", RegexOptions.Multiline), text);
             Assert.Equal("original", File.ReadAllText(targetPath));
             Assert.Equal(string.Empty, error.ToString());
         }
