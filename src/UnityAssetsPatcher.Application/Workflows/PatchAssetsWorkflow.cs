@@ -9,21 +9,24 @@ public sealed class PatchAssetsWorkflow
     private readonly PatchPlanBuilder _patchPlanBuilder;
     private readonly PatchOutputWriter _patchOutputWriter;
     private readonly Action _releaseReadResources;
+    private readonly IModManifestLoader _manifestLoader;
     private bool _readResourcesReleased;
 
     public PatchAssetsWorkflow(
         PatchPlanBuilder patchPlanBuilder,
         PatchOutputWriter patchOutputWriter,
-        Action releaseReadResources)
+        Action releaseReadResources,
+        IModManifestLoader manifestLoader)
     {
         _patchPlanBuilder = patchPlanBuilder;
         _patchOutputWriter = patchOutputWriter;
         _releaseReadResources = releaseReadResources;
+        _manifestLoader = manifestLoader;
     }
 
     public PatchPreviewResult Preview(PatchPreviewRequest request)
     {
-        ModManifest manifest = ModManifestLoader.Load(request.ConfigPath);
+        ModManifest manifest = _manifestLoader.Load(request.ConfigPath);
         var targets = PatchTargetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
 
         return PreviewTargets(request.AssetsFilePath, targets, request.ConfigPath);
@@ -31,7 +34,7 @@ public sealed class PatchAssetsWorkflow
 
     public PatchApplyResult Apply(PatchApplyRequest request)
     {
-        ModManifest manifest = ModManifestLoader.Load(request.ConfigPath);
+        ModManifest manifest = _manifestLoader.Load(request.ConfigPath);
         var targets = PatchTargetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
 
         return ApplyTargets(request.AssetsFilePath, request.OutputPath, request.BackupDirectory, targets,

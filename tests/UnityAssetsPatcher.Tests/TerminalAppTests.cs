@@ -419,5 +419,4 @@ public sealed class TerminalAppTests
     {
         return string.Join(Environment.NewLine, values) + Environment.NewLine;
     }
-
 }

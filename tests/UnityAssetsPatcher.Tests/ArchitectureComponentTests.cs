@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using UnityAssetsPatcher.AssetsTools;
 using Xunit;
 using UnityAssetsPatcher.Application.Installing;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
@@ -76,6 +77,16 @@ public sealed class ArchitectureComponentTests
     }
 
     [Fact]
+    public void ModManifestLoader_IsTheDefaultManifestLoaderImplementation()
+    {
+        Assert.True(typeof(IModManifestLoader).IsAssignableFrom(typeof(ModManifestLoader)));
+
+        string source = ReadSourceTree("src", "UnityAssetsPatcher.Application");
+
+        Assert.DoesNotContain("FileModManifestLoader", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ApplicationPatchingSource_DoesNotDependOnWorkflows()
     {
         string patchingDirectory = Path.Combine(
@@ -90,6 +101,38 @@ public sealed class ArchitectureComponentTests
 
             Assert.DoesNotContain("UnityAssetsPatcher.Application.Workflows", source, StringComparison.Ordinal);
             Assert.DoesNotContain("Workflows.", source, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void ApplicationWorkflowSource_DoesNotCallStaticManifestLoader()
+    {
+        string source = ReadSourceTree("src", "UnityAssetsPatcher.Application", "Workflows");
+
+        Assert.DoesNotContain("ModManifestLoader.Load(", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConcreteApplicationWorkflows_DoNotCreateManifestLoaderImplementation()
+    {
+        string workflowsDirectory = Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "UnityAssetsPatcher.Application",
+            "Workflows");
+        string[] workflowFiles =
+        [
+            "FindAssetsWorkflow.cs",
+            "PatchAssetsWorkflow.cs",
+            "InstallModWorkflow.cs",
+        ];
+
+        foreach (string file in workflowFiles)
+        {
+            string source = File.ReadAllText(Path.Combine(workflowsDirectory, file));
+
+            Assert.DoesNotContain("new ModManifestLoader(", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("ManifestJsonReader", source, StringComparison.Ordinal);
         }
     }
 

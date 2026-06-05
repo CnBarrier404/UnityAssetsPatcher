@@ -69,7 +69,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            ModManifest config = ModManifestLoader.Load(configPath);
+            ModManifest config = new ModManifestLoader().Load(configPath);
 
             Assert.Equal("Camera Tweak", config.Name);
             Assert.Equal("CnBarrier", config.Author);
@@ -129,7 +129,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
             Assert.Contains("version", exception.Message);
         }
@@ -174,7 +174,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
             Assert.Contains(expectedMessage, exception.Message);
         }
@@ -211,7 +211,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
             Assert.Contains("description", exception.Message);
         }
@@ -251,7 +251,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            ModManifest config = ModManifestLoader.Load(configPath);
+            ModManifest config = new ModManifestLoader().Load(configPath);
 
             ManifestPatch patch = Assert.Single(config.Patches);
             Assert.Equal("sharedassets0.assets", patch.AssetsFileName);
@@ -291,7 +291,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            ModManifest config = ModManifestLoader.Load(configPath);
+            ModManifest config = new ModManifestLoader().Load(configPath);
 
             ManifestPatch patch = Assert.Single(config.Patches);
             Assert.NotNull(patch.ReplaceFrom);
@@ -340,7 +340,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            ModManifest config = ModManifestLoader.Load(configPath);
+            ModManifest config = new ModManifestLoader().Load(configPath);
 
             ManifestFile file = Assert.Single(config.Files);
             Assert.Equal("resources/modassets.resource", file.Source);
@@ -382,7 +382,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
             Assert.Contains("source", exception.Message);
         }
@@ -422,7 +422,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
             Assert.Contains("field", exception.Message);
             Assert.Contains("path", exception.Message);
@@ -456,7 +456,7 @@ public sealed class ModManifestLoaderTests
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(configPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
 
             Assert.Contains("target", exception.Message);
             Assert.Contains("file name", exception.Message);
@@ -502,7 +502,7 @@ public sealed class ModManifestLoaderTests
                     """);
             }
 
-            ModManifest config = ModManifestLoader.Load(zipPath);
+            ModManifest config = new ModManifestLoader().Load(zipPath);
 
             Assert.Equal("Camera Tweak", config.Name);
             Assert.Equal("sharedassets0.assets", Assert.Single(config.Patches).AssetsFileName);
@@ -529,7 +529,7 @@ public sealed class ModManifestLoaderTests
                 archive.CreateEntry("Nested/manifest.json");
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(zipPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(zipPath));
 
             Assert.Contains("exactly one manifest.json", exception.Message);
         }
@@ -554,7 +554,7 @@ public sealed class ModManifestLoaderTests
                 archive.CreateEntry("readme.txt");
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => ModManifestLoader.Load(zipPath));
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(zipPath));
 
             Assert.Contains("exactly one manifest.json", exception.Message);
         }

@@ -10,11 +10,16 @@ public sealed class InstallModWorkflow
 {
     private readonly PatchAssetsWorkflow _patchAssetsWorkflow;
     private readonly InstallPayloadPlanner _payloadPlanner;
+    private readonly IModManifestLoader _manifestLoader;
 
-    public InstallModWorkflow(PatchAssetsWorkflow patchAssetsWorkflow, InstallPayloadPlanner payloadPlanner)
+    public InstallModWorkflow(
+        PatchAssetsWorkflow patchAssetsWorkflow,
+        InstallPayloadPlanner payloadPlanner,
+        IModManifestLoader manifestLoader)
     {
         _patchAssetsWorkflow = patchAssetsWorkflow;
         _payloadPlanner = payloadPlanner;
+        _manifestLoader = manifestLoader;
     }
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
@@ -22,7 +27,7 @@ public sealed class InstallModWorkflow
         var timings = new InstallTimingBuilder();
         EnsureInstallInputsExist(request.ZipFilePath, request.GameDirectory);
 
-        ModManifest manifest = timings.MeasureReadPackage(() => ModManifestLoader.Load(request.ZipFilePath));
+        ModManifest manifest = timings.MeasureReadPackage(() => _manifestLoader.Load(request.ZipFilePath));
 
         using InstallPackageWorkspace workspace =
             timings.MeasurePrepareSources(() => InstallPackageWorkspace.Prepare(request.ZipFilePath, manifest));
@@ -59,7 +64,7 @@ public sealed class InstallModWorkflow
         var timings = new InstallTimingBuilder();
         EnsureInstallInputsExist(request.ZipFilePath, request.GameDirectory);
 
-        ModManifest manifest = timings.MeasureReadPackage(() => ModManifestLoader.Load(request.ZipFilePath));
+        ModManifest manifest = timings.MeasureReadPackage(() => _manifestLoader.Load(request.ZipFilePath));
 
         using InstallPackageWorkspace workspace =
             timings.MeasurePrepareSources(() => InstallPackageWorkspace.Prepare(request.ZipFilePath, manifest));

@@ -1,6 +1,7 @@
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installing;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 
 namespace UnityAssetsPatcher.Application.Workflows;
@@ -13,9 +14,15 @@ public sealed class AssetsWorkflowService
     private readonly InstallModWorkflow _installModWorkflow;
 
     public AssetsWorkflowService(IAssetsFileService assetsFileService)
-        : this(assetsFileService, assetsFileService) { }
+        : this(assetsFileService, assetsFileService, new ModManifestLoader()) { }
 
     public AssetsWorkflowService(IAssetsReader assetsReader, IAssetsPatchWriter assetsPatchWriter)
+        : this(assetsReader, assetsPatchWriter, new ModManifestLoader()) { }
+
+    public AssetsWorkflowService(
+        IAssetsReader assetsReader,
+        IAssetsPatchWriter assetsPatchWriter,
+        IModManifestLoader manifestLoader)
     {
         var assetQueryService = new AssetQueryService(assetsReader);
         var valueResolver = new PatchValueResolver(assetQueryService);
@@ -24,12 +31,19 @@ public sealed class AssetsWorkflowService
         var patchPlanBuilder = new PatchPlanBuilder(fieldPatchPlanBuilder, replacementPlanBuilder);
         var patchOutputWriter = new PatchOutputWriter(assetsPatchWriter);
         Action releaseReadResources = assetsReader is IDisposable disposable ? disposable.Dispose : static () => { };
-        var patchAssetsWorkflow = new PatchAssetsWorkflow(patchPlanBuilder, patchOutputWriter, releaseReadResources);
+        var patchAssetsWorkflow = new PatchAssetsWorkflow(
+            patchPlanBuilder,
+            patchOutputWriter,
+            releaseReadResources,
+            manifestLoader);
 
         _inspectAssetsWorkflow = new InspectAssetsWorkflow(assetsReader);
-        _findAssetsWorkflow = new FindAssetsWorkflow(assetQueryService);
+        _findAssetsWorkflow = new FindAssetsWorkflow(assetQueryService, manifestLoader);
         _patchAssetsWorkflow = patchAssetsWorkflow;
-        _installModWorkflow = new InstallModWorkflow(patchAssetsWorkflow, new InstallPayloadPlanner());
+        _installModWorkflow = new InstallModWorkflow(
+            patchAssetsWorkflow,
+            new InstallPayloadPlanner(),
+            manifestLoader);
     }
 
     public IReadOnlyList<AssetsInfo> InspectList(InspectListRequest request)

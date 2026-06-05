@@ -128,5 +128,119 @@ public sealed class JsonUtilsTests
         }
     }
 
+    [Fact]
+    public void ReadRequiredProperty_WhenPropertyHasExpectedKind_ReturnsProperty()
+    {
+        JsonElement element = JsonUtils.ParseElement(
+            """
+            {
+              "items": []
+            }
+            """);
+
+        JsonElement property = JsonUtils.ReadRequiredProperty(
+            element,
+            "items",
+            JsonValueKind.Array,
+            "Sample");
+
+        Assert.Equal(JsonValueKind.Array, property.ValueKind);
+    }
+
+    [Fact]
+    public void ReadRequiredProperty_WhenPropertyIsMissing_ThrowsClearError()
+    {
+        JsonElement element = JsonUtils.ParseElement("{}");
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            JsonUtils.ReadRequiredProperty(element, "items", JsonValueKind.Array, "Sample"));
+
+        Assert.Equal("Sample must contain an array 'items' property.", exception.Message);
+    }
+
+    [Fact]
+    public void ReadRequiredProperty_WhenPropertyHasWrongKind_ThrowsClearError()
+    {
+        JsonElement element = JsonUtils.ParseElement(
+            """
+            {
+              "items": {}
+            }
+            """);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            JsonUtils.ReadRequiredProperty(element, "items", JsonValueKind.Array, "Sample"));
+
+        Assert.Equal("Sample must contain an array 'items' property.", exception.Message);
+    }
+
+    [Fact]
+    public void TryReadProperty_WhenPropertyIsMissing_ReturnsFalse()
+    {
+        JsonElement element = JsonUtils.ParseElement("{}");
+
+        bool found = JsonUtils.TryReadProperty(element, "items", JsonValueKind.Array, out JsonElement property);
+
+        Assert.False(found);
+        Assert.Equal(default, property);
+    }
+
+    [Fact]
+    public void TryReadProperty_WhenPropertyHasWrongKind_ThrowsClearError()
+    {
+        JsonElement element = JsonUtils.ParseElement(
+            """
+            {
+              "items": {}
+            }
+            """);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            JsonUtils.TryReadProperty(element, "items", JsonValueKind.Array, out _));
+
+        Assert.Equal("Property 'items' must be an array.", exception.Message);
+    }
+
+    [Fact]
+    public void ReadRequiredStringProperty_WhenPropertyIsString_ReturnsValue()
+    {
+        JsonElement element = JsonUtils.ParseElement(
+            """
+            {
+              "name": "Player"
+            }
+            """);
+
+        string value = JsonUtils.ReadRequiredStringProperty(element, "name", "Sample");
+
+        Assert.Equal("Player", value);
+    }
+
+    [Fact]
+    public void ReadOptionalStringProperty_WhenPropertyIsMissing_ReturnsNull()
+    {
+        JsonElement element = JsonUtils.ParseElement("{}");
+
+        string? value = JsonUtils.ReadOptionalStringProperty(element, "description", "Sample");
+
+        Assert.Null(value);
+    }
+
+    [Fact]
+    public void ReadOptionalStringProperty_WhenPropertyHasWrongKind_ThrowsClearError()
+    {
+        JsonElement element = JsonUtils.ParseElement(
+            """
+            {
+              "description": 42
+            }
+            """);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            JsonUtils.ReadOptionalStringProperty(element, "description", "Sample"));
+
+        Assert.Equal("Sample 'description' property must be a string.", exception.Message);
+    }
+
     private sealed record SampleConfig(string Name, int RetryCount);
 }

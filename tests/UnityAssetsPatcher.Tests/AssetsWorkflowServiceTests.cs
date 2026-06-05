@@ -1,5 +1,7 @@
+using System.Text.Json;
 using System.IO.Compression;
 using Xunit;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
@@ -55,6 +57,100 @@ public sealed class AssetsWorkflowServiceTests
         {
             File.Delete(configPath);
         }
+    }
+
+    /// <summary>
+    /// Verifies that workflows can receive a parsed manifest from an injected loader instead of reading the config path directly.
+    /// </summary>
+    [Fact]
+    public void FindAssets_WhenManifestLoaderIsInjected_UsesLoaderInsteadOfReadingConfigPath()
+    {
+        const string configPath = "missing-manifest.json";
+        var manifestLoader = new RecordingManifestLoader(new ModManifest(
+            "Injected Manifest",
+            "UnityAssetsPatcher.Tests",
+            "1.0.0",
+            null,
+            [],
+            [
+                new ManifestPatch(
+                    "resources.assets",
+                    "Camera",
+                    [
+                        new Dictionary<string, JsonElement>
+                        {
+                            ["m_Name"] = JsonSerializer.SerializeToElement("Main Camera"),
+                        },
+                    ],
+                    null,
+                    null),
+            ]));
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(10, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new("Camera", "Camera", null, [new AssetsFieldInfo("m_Name", "string", "Main Camera", [])]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService, assetsFileService, manifestLoader);
+
+        var matches = service.FindAssets(new FindAssetsRequest("resources.assets", configPath));
+
+        AssetMatch match = Assert.Single(matches);
+        Assert.Equal(10, match.Asset.PathId);
+        Assert.Equal(configPath, manifestLoader.ConfigPath);
+    }
+
+    /// <summary>
+    /// Verifies that patch preview can receive a parsed manifest from an injected loader instead of reading the config path directly.
+    /// </summary>
+    [Fact]
+    public void PreviewPatch_WhenManifestLoaderIsInjected_UsesLoaderInsteadOfReadingConfigPath()
+    {
+        const string configPath = "missing-manifest.json";
+        var manifestLoader = new RecordingManifestLoader(new ModManifest(
+            "Injected Manifest",
+            "UnityAssetsPatcher.Tests",
+            "1.0.0",
+            null,
+            [],
+            [
+                new ManifestPatch(
+                    "resources.assets",
+                    "Camera",
+                    [
+                        new Dictionary<string, JsonElement>
+                        {
+                            ["m_Name"] = JsonSerializer.SerializeToElement("Main Camera"),
+                        },
+                    ],
+                    [
+                        new ManifestSetOperation(
+                            "field of view",
+                            JsonSerializer.SerializeToElement(90.0),
+                            JsonSerializer.SerializeToElement(75.0)),
+                    ],
+                    null),
+            ]));
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(10, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "Main Camera", []),
+                    new AssetsFieldInfo("field of view", "float", "90.0", []),
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService, assetsFileService, manifestLoader);
+
+        PatchPreviewResult preview = service.PreviewPatch(new PatchPreviewRequest("resources.assets", configPath));
+
+        PatchPreviewAssetResult asset = Assert.Single(preview.Assets);
+        Assert.Equal(10, asset.Asset.PathId);
+        PatchPreviewOperationResult operation = Assert.Single(asset.Operations);
+        Assert.Equal("field of view", operation.Path);
+        Assert.True(operation.WillChange);
+        Assert.Equal(configPath, manifestLoader.ConfigPath);
     }
 
     /// <summary>
@@ -1731,5 +1827,24 @@ public sealed class AssetsWorkflowServiceTests
                     ]),
                 ]),
             ]);
+    }
+
+    private sealed class RecordingManifestLoader : IModManifestLoader
+    {
+        private readonly ModManifest _manifest;
+
+        public RecordingManifestLoader(ModManifest manifest)
+        {
+            _manifest = manifest;
+        }
+
+        public string? ConfigPath { get; private set; }
+
+        public ModManifest Load(string configPath)
+        {
+            ConfigPath = configPath;
+
+            return _manifest;
+        }
     }
 }
