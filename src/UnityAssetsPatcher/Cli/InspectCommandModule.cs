@@ -62,10 +62,14 @@ public sealed class InspectCommandModule : ICommandModule
             int? effectiveLimit = all ? null : hasLimit ? limit : MaxShowAssetsLimit;
             string assetsFilePath = parseResult.GetRequiredValue(assetsFileArgument);
             var request = new InspectListRequest(assetsFilePath, effectiveLimit);
-            var assets = context.Service.InspectList(request);
-            ConsoleOutputFormatter.WriteAssetSummary(context.Output, assets, request.Limit);
 
-            return 0;
+            return context.UseService(service =>
+            {
+                var assets = service.InspectList(request);
+                ConsoleOutputFormatter.WriteAssetSummary(context.Output, assets, request.Limit);
+
+                return 0;
+            });
         });
 
         return command;
@@ -91,10 +95,14 @@ public sealed class InspectCommandModule : ICommandModule
         {
             string assetsFilePath = parseResult.GetRequiredValue(assetsFileArgument);
             long pathId = parseResult.GetRequiredValue(pathIdArgument);
-            AssetsFieldInfo fieldTree = context.Service.InspectFields(new InspectFieldsRequest(assetsFilePath, pathId));
-            ConsoleOutputFormatter.WriteAssetFields(context.Output, fieldTree);
 
-            return 0;
+            return context.UseService(service =>
+            {
+                AssetsFieldInfo fieldTree = service.InspectFields(new InspectFieldsRequest(assetsFilePath, pathId));
+                ConsoleOutputFormatter.WriteAssetFields(context.Output, fieldTree);
+
+                return 0;
+            });
         });
 
         return command;

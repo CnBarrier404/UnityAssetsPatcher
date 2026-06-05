@@ -15,7 +15,7 @@ public sealed class CommandCatalogTests
     public void BuildRootCommand_RegistersSupportedCommands()
     {
         var service = new AssetsWorkflowService(new StubAssetsFileService());
-        var context = new CommandContext(service, new ConsoleOutputFormatter(), "backup", TextWriter.Null,
+        var context = new CommandContext(service, "backup", TextWriter.Null,
             TextWriter.Null);
 
         RootCommand root = new CommandCatalog().BuildRootCommand(context);

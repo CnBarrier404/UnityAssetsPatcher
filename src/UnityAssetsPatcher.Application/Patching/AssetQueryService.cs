@@ -41,7 +41,7 @@ public sealed class AssetQueryService
         foreach (AssetsInfo asset in assets)
         {
             AssetsFieldInfo fieldTree = _assetsReader.ReadAssetsFieldInfo(assetsFilePath, asset.PathId);
-            IReadOnlyDictionary<string, JsonElement>? includeGroup =
+            var includeGroup =
                 patch.IncludeGroups.FirstOrDefault(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
 
             if (includeGroup is not null)

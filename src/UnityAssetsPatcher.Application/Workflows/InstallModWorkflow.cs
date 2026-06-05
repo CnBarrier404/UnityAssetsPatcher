@@ -23,28 +23,31 @@ public sealed class InstallModWorkflow
         ModManifest manifest = ModManifestLoader.Load(request.ZipFilePath);
 
         using InstallPackageWorkspace workspace = InstallPackageWorkspace.Prepare(request.ZipFilePath, manifest);
-        var targetPaths = InstallTargetResolver.Resolve(
-            request.GameDirectory,
-            manifest.Patches.Select(patch => patch.AssetsFileName));
-        var copyPlans = _payloadPlanner.CreatePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
-            requireAvailableDestination: false);
-        var fileResults = new List<InstallPreviewFileResult>();
-
-        foreach (var targetGroup in manifest.Patches
-                     .GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase))
+        try
         {
-            string assetsFilePath = targetPaths[targetGroup.Key];
-            var targets = targetGroup.ToArray();
-            PatchPreviewResult preview = _patchAssetsWorkflow.PreviewTargets(assetsFilePath, targets,
-                workspace.ConfigPath);
-            fileResults.Add(new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview));
-        }
+            var targetPaths = InstallTargetResolver.Resolve(
+                request.GameDirectory,
+                manifest.Patches.Select(patch => patch.AssetsFileName));
+            var copyPlans = _payloadPlanner.CreatePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
+                requireAvailableDestination: false);
+            var fileResults =
+                (from targetGroup in
+                        manifest.Patches.GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase)
+                    let assetsFilePath = targetPaths[targetGroup.Key]
+                    let targets = targetGroup.ToArray()
+                    let preview = _patchAssetsWorkflow.PreviewTargets(assetsFilePath, targets, workspace.ConfigPath)
+                    select new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview)).ToList();
 
-        return new InstallPreviewResult(
-            manifest.Name,
-            manifest.Version,
-            fileResults,
-            _payloadPlanner.CreatePreviewResults(copyPlans));
+            return new InstallPreviewResult(
+                manifest.Name,
+                manifest.Version,
+                fileResults,
+                _payloadPlanner.CreatePreviewResults(copyPlans));
+        }
+        finally
+        {
+            _patchAssetsWorkflow.ReleaseReadResources();
+        }
     }
 
     public InstallModResult Install(InstallModRequest request)
@@ -54,59 +57,45 @@ public sealed class InstallModWorkflow
         ModManifest manifest = ModManifestLoader.Load(request.ZipFilePath);
 
         using InstallPackageWorkspace workspace = InstallPackageWorkspace.Prepare(request.ZipFilePath, manifest);
-
-        if (!PatchOperationRules.HasPatchOperations(manifest.Patches))
+        try
         {
-            throw new InvalidOperationException(
-                "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
-        }
-
-        var targetPaths = InstallTargetResolver.Resolve(
-            request.GameDirectory,
-            manifest.Patches.Select(patch => patch.AssetsFileName));
-        var copyPlans = _payloadPlanner.CreatePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
-            requireAvailableDestination: true);
-        var plans = new List<InstallFilePlan>();
-
-        foreach (var targetGroup in manifest.Patches
-                     .GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase))
-        {
-            string assetsFilePath = targetPaths[targetGroup.Key];
-            var targets = targetGroup.ToArray();
-            PatchFileWritePlan patchPlan = _patchAssetsWorkflow.CreateWritePlan(assetsFilePath, targets,
-                workspace.ConfigPath);
-
-            plans.Add(new InstallFilePlan(targetGroup.Key, assetsFilePath, patchPlan));
-        }
-
-        var fileResults = new List<InstallModFileResult>();
-
-        foreach (InstallFilePlan plan in plans)
-        {
-            PatchApplyResult result = _patchAssetsWorkflow.WritePlanInPlace(
-                plan.AssetsFilePath,
-                request.BackupDirectory,
-                plan.PatchPlan);
-
-            if (result.OperationCount == 0)
+            if (!PatchOperationRules.HasPatchOperations(manifest.Patches))
             {
-                continue;
+                throw new InvalidOperationException(
+                    "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
             }
 
-            string backupPath = result.BackupPath ??
-                                throw new InvalidOperationException("Install patch did not create a backup.");
-            fileResults.Add(new InstallModFileResult(
-                plan.Target,
-                result.OutputPath,
-                backupPath,
-                result.AssetCount,
-                result.OperationCount));
+            var targetPaths = InstallTargetResolver.Resolve(
+                request.GameDirectory,
+                manifest.Patches.Select(patch => patch.AssetsFileName));
+            var copyPlans = _payloadPlanner.CreatePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
+                requireAvailableDestination: true);
+            var plans =
+                (from targetGroup in
+                        manifest.Patches.GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase)
+                    let assetsFilePath = targetPaths[targetGroup.Key]
+                    let targets = targetGroup.ToArray()
+                    let patchPlan = _patchAssetsWorkflow.CreateWritePlan(assetsFilePath, targets, workspace.ConfigPath)
+                    select new InstallFilePlan(targetGroup.Key, assetsFilePath, patchPlan)).ToList();
+
+            var fileResults = (from plan in plans
+                let result =
+                    _patchAssetsWorkflow.WritePlanInPlace(plan.AssetsFilePath, request.BackupDirectory, plan.PatchPlan)
+                where result.OperationCount != 0
+                let backupPath =
+                    result.BackupPath ?? throw new InvalidOperationException("Install patch did not create a backup.")
+                select new InstallModFileResult(plan.Target, result.OutputPath, backupPath, result.AssetCount,
+                    result.OperationCount)).ToList();
+
+            var copiedFiles =
+                _payloadPlanner.CopyFiles(request.ZipFilePath, copyPlans);
+
+            return new InstallModResult(manifest.Name, manifest.Version, fileResults, copiedFiles);
         }
-
-        IReadOnlyList<InstallCopiedFileResult> copiedFiles =
-            _payloadPlanner.CopyFiles(request.ZipFilePath, copyPlans);
-
-        return new InstallModResult(manifest.Name, manifest.Version, fileResults, copiedFiles);
+        finally
+        {
+            _patchAssetsWorkflow.ReleaseReadResources();
+        }
     }
 
     private static void EnsureInstallInputsExist(string zipFilePath, string gameDirectory)

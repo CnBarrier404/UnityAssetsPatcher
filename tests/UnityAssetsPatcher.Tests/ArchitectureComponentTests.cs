@@ -59,7 +59,7 @@ public sealed class ArchitectureComponentTests
             "UnityAssetsPatcher.Application.Manifests",
             "UnityAssetsPatcher.Application.Patching",
         ];
-        Type[] implementationTypes = typeof(AssetsWorkflowService).Assembly.GetTypes()
+        var implementationTypes = typeof(AssetsWorkflowService).Assembly.GetTypes()
             .Where(type =>
                 !type.IsNested &&
                 (type.Namespace is "UnityAssetsPatcher.Application.Workflows" &&
@@ -130,7 +130,7 @@ public sealed class ArchitectureComponentTests
                 new ManifestPatch("resources.assets", "Camera", [], null, null),
             ]);
 
-        IReadOnlyList<ManifestPatch> targets =
+        var targets =
             PatchTargetSelector.ForAssetsFile(manifest, @"C:\Game\SHAREDASSETS0.ASSETS");
 
         ManifestPatch target = Assert.Single(targets);

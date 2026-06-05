@@ -19,9 +19,11 @@ public sealed class ConsoleApp
         _output = output;
         _error = error;
 
-        var service = new AssetsWorkflowService(assetsFileService);
-        var formatter = new ConsoleOutputFormatter();
-        var context = new CommandContext(service, formatter, backupDirectory, output, error);
+        var context = new CommandContext(
+            CreateServiceScopeFactory(assetsFileService),
+            backupDirectory,
+            output,
+            error);
         _rootCommand = new CommandCatalog().BuildRootCommand(context);
     }
 
@@ -42,5 +44,21 @@ public sealed class ConsoleApp
 
             return 1;
         }
+    }
+
+    private static Func<AssetsWorkflowServiceScope> CreateServiceScopeFactory(IAssetsFileService assetsFileService)
+    {
+        if (assetsFileService is not IAssetsReadScopeFactory readScopeFactory)
+        {
+            return () => new AssetsWorkflowServiceScope(new AssetsWorkflowService(assetsFileService), null);
+        }
+
+        return () =>
+        {
+            IAssetsReadScope readScope = readScopeFactory.CreateReadScope();
+            var service = new AssetsWorkflowService(readScope, assetsFileService);
+
+            return new AssetsWorkflowServiceScope(service, readScope);
+        };
     }
 }

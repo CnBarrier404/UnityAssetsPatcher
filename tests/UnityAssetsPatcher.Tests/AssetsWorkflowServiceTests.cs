@@ -1709,7 +1709,7 @@ public sealed class AssetsWorkflowServiceTests
 
         public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
         {
-            if (_resultsByPath.TryGetValue(assetsFilePath, out IReadOnlyList<AssetsInfo>? result))
+            if (_resultsByPath.TryGetValue(assetsFilePath, out var result))
             {
                 return result;
             }

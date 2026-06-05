@@ -28,13 +28,17 @@ public sealed class InstallCommandModule : ICommandModule
         {
             string zipFilePath = parseResult.GetRequiredValue(zipFileArgument);
             string gameDirectory = parseResult.GetRequiredValue(gameDirectoryOption);
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            InstallModResult result = context.Service.InstallMod(
-                new InstallModRequest(zipFilePath, gameDirectory, context.BackupDirectory));
-            stopwatch.Stop();
-            ConsoleOutputFormatter.WriteInstallResult(context.Output, result, stopwatch.Elapsed);
+            var stopwatch = Stopwatch.StartNew();
 
-            return 0;
+            return context.UseService(service =>
+            {
+                InstallModResult result = service.InstallMod(
+                    new InstallModRequest(zipFilePath, gameDirectory, context.BackupDirectory));
+                stopwatch.Stop();
+                ConsoleOutputFormatter.WriteInstallResult(context.Output, result, stopwatch.Elapsed);
+
+                return 0;
+            });
         });
 
         return command;
@@ -61,13 +65,17 @@ public sealed class InstallCommandModule : ICommandModule
         {
             string zipFilePath = parseResult.GetRequiredValue(zipFileArgument);
             string gameDirectory = parseResult.GetRequiredValue(gameDirectoryOption);
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            InstallPreviewResult result = context.Service.PreviewInstallMod(
-                new InstallPreviewRequest(zipFilePath, gameDirectory));
-            stopwatch.Stop();
-            ConsoleOutputFormatter.WriteInstallPreview(context.Output, result, stopwatch.Elapsed);
+            var stopwatch = Stopwatch.StartNew();
 
-            return 0;
+            return context.UseService(service =>
+            {
+                InstallPreviewResult result = service.PreviewInstallMod(
+                    new InstallPreviewRequest(zipFilePath, gameDirectory));
+                stopwatch.Stop();
+                ConsoleOutputFormatter.WriteInstallPreview(context.Output, result, stopwatch.Elapsed);
+
+                return 0;
+            });
         });
 
         return command;

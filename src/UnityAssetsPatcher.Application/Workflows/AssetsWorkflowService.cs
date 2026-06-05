@@ -23,7 +23,8 @@ public sealed class AssetsWorkflowService
         var replacementPlanBuilder = new ReplacementPlanBuilder(assetQueryService);
         var patchPlanBuilder = new PatchPlanBuilder(fieldPatchPlanBuilder, replacementPlanBuilder);
         var patchOutputWriter = new PatchOutputWriter(assetsPatchWriter);
-        var patchAssetsWorkflow = new PatchAssetsWorkflow(patchPlanBuilder, patchOutputWriter);
+        Action releaseReadResources = assetsReader is IDisposable disposable ? disposable.Dispose : static () => { };
+        var patchAssetsWorkflow = new PatchAssetsWorkflow(patchPlanBuilder, patchOutputWriter, releaseReadResources);
 
         _inspectAssetsWorkflow = new InspectAssetsWorkflow(assetsReader);
         _findAssetsWorkflow = new FindAssetsWorkflow(assetQueryService);

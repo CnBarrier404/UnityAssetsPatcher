@@ -8,11 +8,17 @@ public sealed class PatchAssetsWorkflow
 {
     private readonly PatchPlanBuilder _patchPlanBuilder;
     private readonly PatchOutputWriter _patchOutputWriter;
+    private readonly Action _releaseReadResources;
+    private bool _readResourcesReleased;
 
-    public PatchAssetsWorkflow(PatchPlanBuilder patchPlanBuilder, PatchOutputWriter patchOutputWriter)
+    public PatchAssetsWorkflow(
+        PatchPlanBuilder patchPlanBuilder,
+        PatchOutputWriter patchOutputWriter,
+        Action releaseReadResources)
     {
         _patchPlanBuilder = patchPlanBuilder;
         _patchOutputWriter = patchOutputWriter;
+        _releaseReadResources = releaseReadResources;
     }
 
     public PatchPreviewResult Preview(PatchPreviewRequest request)
@@ -61,7 +67,7 @@ public sealed class PatchAssetsWorkflow
         return plan;
     }
 
-    public PatchApplyResult ApplyTargets(
+    private PatchApplyResult ApplyTargets(
         string assetsFilePath,
         string? outputPath,
         string backupDirectory,
@@ -69,6 +75,8 @@ public sealed class PatchAssetsWorkflow
         string configPath)
     {
         PatchFileWritePlan plan = CreateWritePlan(assetsFilePath, targets, configPath);
+
+        ReleaseReadResources();
 
         return _patchOutputWriter.Write(assetsFilePath, outputPath, backupDirectory, plan);
     }
@@ -78,6 +86,19 @@ public sealed class PatchAssetsWorkflow
         string backupDirectory,
         PatchFileWritePlan plan)
     {
+        ReleaseReadResources();
+
         return _patchOutputWriter.Write(assetsFilePath, null, backupDirectory, plan);
+    }
+
+    public void ReleaseReadResources()
+    {
+        if (_readResourcesReleased)
+        {
+            return;
+        }
+
+        _readResourcesReleased = true;
+        _releaseReadResources();
     }
 }

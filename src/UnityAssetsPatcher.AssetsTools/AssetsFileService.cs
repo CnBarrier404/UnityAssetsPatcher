@@ -1,39 +1,39 @@
 using AssetsTools.NET;
-using AssetsTools.NET.Extra;
 using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileService : IAssetsFileService
+public sealed class AssetsFileService : IAssetsFileService, IAssetsReadScopeFactory
 {
     private readonly string _tpkFilePath;
+    private readonly IAssetsFileSessionFactory _sessionFactory;
 
     public AssetsFileService(string tpkFilePath)
+        : this(tpkFilePath, new AssetsFileSessionFactory(tpkFilePath)) { }
+
+    private AssetsFileService(string tpkFilePath, IAssetsFileSessionFactory sessionFactory)
     {
         _tpkFilePath = tpkFilePath;
+        _sessionFactory = sessionFactory;
+    }
+
+    public IAssetsReadScope CreateReadScope()
+    {
+        return new ScopedAssetsReader(_sessionFactory);
     }
 
     public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
     {
-        using AssetsFileSession session = AssetsFileSession.Open(assetsFilePath, _tpkFilePath);
+        using IAssetsFileReadSession session = _sessionFactory.Open(assetsFilePath);
 
-        return session.AssetsFile.Metadata.AssetInfos
-            .Select(info => new AssetsInfo(
-                info.PathId,
-                info.TypeId,
-                GetTypeName(info.TypeId),
-                info.ByteSize))
-            .ToArray();
+        return session.ReadAssetsInfo();
     }
 
     public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
     {
-        using AssetsFileSession session = AssetsFileSession.Open(assetsFilePath, _tpkFilePath);
-        AssetTypeValueField field = session.Manager.GetBaseField(session.AssetsFileInstance, pathId);
+        using IAssetsFileReadSession session = _sessionFactory.Open(assetsFilePath);
 
-        return field.IsDummy
-            ? throw new InvalidOperationException($"Asset not found or cannot be read: {pathId}")
-            : FieldTreeMapper.Map(field);
+        return session.ReadAssetsFieldInfo(pathId);
     }
 
     public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
@@ -109,11 +109,6 @@ public sealed class AssetsFileService : IAssetsFileService
                 File.Delete(tempPath);
             }
         }
-    }
-
-    private static string GetTypeName(int typeId)
-    {
-        return Enum.IsDefined(typeof(AssetClassID), typeId) ? ((AssetClassID)typeId).ToString() : "Unknown";
     }
 
     private static string CreateTempPath(string outputPath, string? outputDirectory)

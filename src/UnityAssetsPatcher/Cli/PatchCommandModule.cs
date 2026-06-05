@@ -37,11 +37,15 @@ public sealed class PatchCommandModule : ICommandModule
         {
             string assetsFilePath = parseResult.GetRequiredValue(assetsFileArgument);
             string configPath = parseResult.GetRequiredValue(configOption);
-            PatchPreviewResult preview =
-                context.Service.PreviewPatch(new PatchPreviewRequest(assetsFilePath, configPath));
-            ConsoleOutputFormatter.WritePatchPreview(context.Output, preview);
 
-            return 0;
+            return context.UseService(service =>
+            {
+                PatchPreviewResult preview =
+                    service.PreviewPatch(new PatchPreviewRequest(assetsFilePath, configPath));
+                ConsoleOutputFormatter.WritePatchPreview(context.Output, preview);
+
+                return 0;
+            });
         });
 
         return command;
@@ -74,11 +78,15 @@ public sealed class PatchCommandModule : ICommandModule
             string assetsFilePath = parseResult.GetRequiredValue(assetsFileArgument);
             string configPath = parseResult.GetRequiredValue(configOption);
             string? outputPath = parseResult.GetValue(outputOption);
-            PatchApplyResult result = context.Service.ApplyPatch(
-                new PatchApplyRequest(assetsFilePath, configPath, outputPath, context.BackupDirectory));
-            ConsoleOutputFormatter.WritePatchApply(context.Output, result);
 
-            return 0;
+            return context.UseService(service =>
+            {
+                PatchApplyResult result = service.ApplyPatch(
+                    new PatchApplyRequest(assetsFilePath, configPath, outputPath, context.BackupDirectory));
+                ConsoleOutputFormatter.WritePatchApply(context.Output, result);
+
+                return 0;
+            });
         });
 
         return command;

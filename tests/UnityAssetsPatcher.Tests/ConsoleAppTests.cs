@@ -630,6 +630,202 @@ public sealed class ConsoleAppTests
     }
 
     /// <summary>
+    /// Verifies that install preview uses a short-lived read scope when the assets service provides one.
+    /// </summary>
+    [Fact]
+    public void Run_WhenInstallPreviewCanCreateReadScope_UsesScopedReader()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var reader = new ScopedReaderAssetsFileService();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["install", "preview", zipPath, "--game-dir", gameDirectory]);
+
+            Assert.Equal(0, exitCode);
+            Assert.Equal(1, reader.CreatedReadScopeCount);
+            Assert.Contains("Path ID: 50", output.ToString());
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that install preview releases replacement source assets before deleting the extracted zip workspace.
+    /// </summary>
+    [Fact]
+    public void Run_WhenInstallPreviewUsesZipReplacementSource_DisposesScopedReaderBeforeDeletingWorkspace()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "AudioClip",
+                          "include": [
+                            {
+                              "m_Name": "Incense burn 1"
+                            }
+                          ],
+                          "replaceFrom": {
+                            "assets": "resources/modassets.assets",
+                            "match": "m_Name"
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            ZipArchiveEntry sourceAssetsEntry = archive.CreateEntry("resources/modassets.assets");
+            using StreamWriter sourceWriter = new(sourceAssetsEntry.Open());
+            sourceWriter.Write("source assets");
+        }
+
+        var reader = new LockingReplacementAssetsFileService();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["install", "preview", zipPath, "--game-dir", gameDirectory]);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("DRY RUN", output.ToString());
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that install releases the scoped reader before writing patched files in place.
+    /// </summary>
+    [Fact]
+    public void Run_WhenInstallCanCreateReadScope_DisposesScopedReaderBeforeWriting()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var reader = new ScopedReaderAssetsFileService();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new ConsoleApp(reader, backupDirectory, output, error);
+
+        try
+        {
+            int exitCode = app.Run(["install", zipPath, "--game-dir", gameDirectory]);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("INSTALLED", output.ToString());
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that install preview prints declared payload file copy plans.
     /// </summary>
     [Fact]
@@ -759,6 +955,126 @@ public sealed class ConsoleAppTests
         public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan)
         {
             File.WriteAllText(outputPath, "patched");
+        }
+    }
+
+    private sealed class ScopedReaderAssetsFileService : IAssetsFileService, IAssetsReadScopeFactory
+    {
+        private ScopedReader? _lastScope;
+
+        public int CreatedReadScopeCount { get; private set; }
+
+        public IAssetsReadScope CreateReadScope()
+        {
+            CreatedReadScopeCount++;
+            _lastScope = new ScopedReader();
+            return _lastScope;
+        }
+
+        public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
+        {
+            throw new InvalidOperationException("Unscoped reader should not be used.");
+        }
+
+        public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+        {
+            throw new InvalidOperationException("Unscoped reader should not be used.");
+        }
+
+        public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
+        {
+            if (_lastScope is { IsDisposed: false })
+            {
+                throw new InvalidOperationException("Scoped reader must be disposed before writing.");
+            }
+
+            File.WriteAllText(outputPath, "patched");
+        }
+
+        public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan)
+        {
+            File.WriteAllText(outputPath, "patched");
+        }
+
+        private sealed class ScopedReader : IAssetsReadScope
+        {
+            public bool IsDisposed { get; private set; }
+
+            public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
+            {
+                return [new AssetsInfo(50, 20, "Camera", 128)];
+            }
+
+            public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+            {
+                return new AssetsFieldInfo("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("field of view", "float", "90.0", []),
+                ]);
+            }
+
+            public void Dispose()
+            {
+                IsDisposed = true;
+            }
+        }
+    }
+
+    private sealed class LockingReplacementAssetsFileService : IAssetsFileService, IAssetsReadScopeFactory
+    {
+        public IAssetsReadScope CreateReadScope()
+        {
+            return new LockingReplacementReadScope();
+        }
+
+        public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
+        {
+            throw new InvalidOperationException("Unscoped reader should not be used.");
+        }
+
+        public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+        {
+            throw new InvalidOperationException("Unscoped reader should not be used.");
+        }
+
+        public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
+        {
+            File.WriteAllText(outputPath, "patched");
+        }
+
+        public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan)
+        {
+            File.WriteAllText(outputPath, "patched");
+        }
+
+        private sealed class LockingReplacementReadScope : IAssetsReadScope
+        {
+            private FileStream? _sourceLock;
+
+            public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
+            {
+                if (string.Equals(Path.GetFileName(assetsFilePath), "modassets.assets",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    _sourceLock ??= File.Open(assetsFilePath, FileMode.Open, FileAccess.Read, FileShare.None);
+                    return [new AssetsInfo(200, 83, "AudioClip", 128)];
+                }
+
+                return [new AssetsInfo(100, 83, "AudioClip", 128)];
+            }
+
+            public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+            {
+                return new AssetsFieldInfo("AudioClip", "AudioClip", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "Incense burn 1", []),
+                ]);
+            }
+
+            public void Dispose()
+            {
+                _sourceLock?.Dispose();
+            }
         }
     }
 }

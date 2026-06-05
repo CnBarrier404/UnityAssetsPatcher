@@ -26,11 +26,14 @@ public sealed class FindCommandModule : ICommandModule
         {
             string assetsFilePath = parseResult.GetRequiredValue(assetsFileArgument);
             string configPath = parseResult.GetRequiredValue(configOption);
-            var matches =
-                context.Service.FindAssets(new FindAssetsRequest(assetsFilePath, configPath));
-            ConsoleOutputFormatter.WriteFindResults(context.Output, matches);
 
-            return 0;
+            return context.UseService(service =>
+            {
+                var matches = service.FindAssets(new FindAssetsRequest(assetsFilePath, configPath));
+                ConsoleOutputFormatter.WriteFindResults(context.Output, matches);
+
+                return 0;
+            });
         });
 
         return command;

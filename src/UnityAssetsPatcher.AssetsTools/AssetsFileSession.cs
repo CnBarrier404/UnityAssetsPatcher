@@ -1,9 +1,10 @@
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-internal sealed class AssetsFileSession : IDisposable
+internal sealed class AssetsFileSession : IAssetsFileReadSession
 {
     private AssetsFileSession(AssetsManager manager, AssetsFileInstance assetsFileInstance)
     {
@@ -16,6 +17,26 @@ internal sealed class AssetsFileSession : IDisposable
     public AssetsFileInstance AssetsFileInstance { get; }
 
     public AssetsFile AssetsFile => AssetsFileInstance.file;
+
+    public IReadOnlyList<AssetsInfo> ReadAssetsInfo()
+    {
+        return AssetsFile.Metadata.AssetInfos
+            .Select(info => new AssetsInfo(
+                info.PathId,
+                info.TypeId,
+                GetTypeName(info.TypeId),
+                info.ByteSize))
+            .ToArray();
+    }
+
+    public AssetsFieldInfo ReadAssetsFieldInfo(long pathId)
+    {
+        AssetTypeValueField field = Manager.GetBaseField(AssetsFileInstance, pathId);
+
+        return field.IsDummy
+            ? throw new InvalidOperationException($"Asset not found or cannot be read: {pathId}")
+            : FieldTreeMapper.Map(field);
+    }
 
     public static AssetsFileSession Open(string assetsFilePath, string tpkFilePath)
     {
@@ -50,5 +71,10 @@ internal sealed class AssetsFileSession : IDisposable
     public void Dispose()
     {
         Manager.UnloadAll(true);
+    }
+
+    private static string GetTypeName(int typeId)
+    {
+        return Enum.IsDefined(typeof(AssetClassID), typeId) ? ((AssetClassID)typeId).ToString() : "Unknown";
     }
 }
