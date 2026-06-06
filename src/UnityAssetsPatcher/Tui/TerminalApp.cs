@@ -8,7 +8,6 @@ public sealed class TerminalApp
 {
     private readonly TerminalAppContext _context;
     private readonly InteractivePrompts _prompts;
-    private readonly IReadOnlyList<TerminalPage> _pages;
     private readonly MainMenuTerminalPage _mainMenuPage;
 
     public TerminalApp(IAssetsFileService assetsFileService, IAnsiConsole console)
@@ -29,15 +28,14 @@ public sealed class TerminalApp
             console,
             error);
         _prompts = new InteractivePrompts(console);
-        _pages =
+        IReadOnlyList<TerminalPage> pages =
         [
             new InstallTerminalPage(_context, _prompts),
             new InspectTerminalPage(_context, _prompts),
             new FindTerminalPage(_context, _prompts),
-            new PatchTerminalPage(_context, _prompts),
             new SettingsTerminalPage(_context),
         ];
-        _mainMenuPage = new MainMenuTerminalPage(_context, _prompts, _pages);
+        _mainMenuPage = new MainMenuTerminalPage(_context, _prompts, pages);
     }
 
     public int Run()

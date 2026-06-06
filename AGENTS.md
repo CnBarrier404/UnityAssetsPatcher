@@ -4,7 +4,7 @@ This file applies to the entire repository.
 
 ## Project Overview
 
-UnityAssetsPatcher is a .NET 10 interactive command-line tool for inspecting, finding, patching, and installing Unity assets file mods. It is not a Unity project; do not use Unity Editor workflows for normal development.
+UnityAssetsPatcher is a .NET 10 interactive command-line tool for inspecting, finding, and installing Unity assets file mods. It is not a Unity project; do not use Unity Editor workflows for normal development.
 
 The solution contains:
 
@@ -30,7 +30,6 @@ The app is currently interactive. The main menu exposes:
 - Preview a mod install.
 - Inspect assets.
 - Find assets.
-- Patch assets.
 
 ## Architecture Notes
 

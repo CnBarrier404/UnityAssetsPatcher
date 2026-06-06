@@ -32,12 +32,12 @@ public sealed class TerminalAppTests
         Assert.DoesNotContain("Apply install", text);
         Assert.Contains("Inspect assets", text);
         Assert.Contains("Find assets", text);
-        Assert.Contains("Patch assets", text);
+        Assert.DoesNotContain("Patch assets", text);
         Assert.Contains("Settings", text);
         Assert.Contains("Analyze a mod package and install after confirmation.", text);
         Assert.Contains("List assets or inspect a selected asset field tree.", text);
         Assert.Contains("Search assets using manifest include rules.", text);
-        Assert.Contains("Preview or apply direct assets field patches.", text);
+        Assert.DoesNotContain("Preview or apply direct assets field patches.", text);
         Assert.Contains("Adjust output detail for this session.", text);
         Assert.DoesNotContain("Exit", text);
         Assert.Contains("Shortcuts: ↑/↓ to choose | Esc to cancel | Ctrl + C to exit", text);
@@ -98,9 +98,9 @@ public sealed class TerminalAppTests
         Assert.DoesNotContain("Preview a mod install", text);
         Assert.DoesNotContain("Preview install", text);
         Assert.DoesNotContain("Apply install", text);
-        Assert.Contains("5. Settings", text);
+        Assert.Contains("4. Settings", text);
         Assert.Contains("Analyze a mod package and install after confirmation.", text);
-        Assert.DoesNotContain("6. Exit", text);
+        Assert.DoesNotContain("5. Exit", text);
     }
 
     [Fact]
@@ -195,24 +195,6 @@ public sealed class TerminalAppTests
         string text = console.Output;
         Assert.True(exitCode == 0, console.Output);
         Assert.Contains("Inspect assets", text);
-        Assert.DoesNotContain("Assets file path", text);
-        Assert.DoesNotContain("Back", text);
-    }
-
-    [Fact]
-    public void Run_WhenPatchSubMenuReceivesEscape_ReturnsToMainMenu()
-    {
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.PatchAssets);
-        console.Input.PushKey(ConsoleKey.Escape);
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
-
-        int exitCode = app.Run();
-
-        string text = console.Output;
-        Assert.True(exitCode == 0, console.Output);
-        Assert.Contains("Patch assets", text);
         Assert.DoesNotContain("Assets file path", text);
         Assert.DoesNotContain("Back", text);
     }
@@ -318,121 +300,6 @@ public sealed class TerminalAppTests
         finally
         {
             File.Delete(assetsPath);
-            File.Delete(configPath);
-        }
-    }
-
-    [Fact]
-    public void Run_WhenPatchPreviewPageUsesManifest_PrintsPlannedChangesWithoutWriting()
-    {
-        string assetsPath = CreateTempFile(".assets");
-        string configPath = CreateCameraPatchManifest(
-            Path.GetFileName(assetsPath),
-            """
-            "include": [
-              {
-                "field of view": 90.0
-              }
-            ],
-            "set": [
-              {
-                "field": "field of view",
-                "from": 90.0,
-                "to": 75.0
-              }
-            ]
-            """);
-        var reader = new StubAssetsFileService(
-            [new AssetsInfo(30, 20, "Camera", 128)],
-            new Dictionary<long, AssetsFieldInfo>
-            {
-                [30] = CameraFieldTree("90.0"),
-            });
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.PatchAssets);
-        SelectSubMenuOption(console, 0);
-        console.Input.PushTextWithEnter(assetsPath);
-        console.Input.PushTextWithEnter(configPath);
-        ReturnToMainMenu(console);
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(reader, console);
-
-        try
-        {
-            int exitCode = app.Run();
-
-            string text = console.Output;
-            Assert.True(exitCode == 0, console.Output);
-            Assert.Contains("Patch assets", text);
-            Assert.Contains("DRY RUN", text);
-            Assert.Contains("Path ID 30", text);
-            Assert.Contains("field of view", text);
-            Assert.Contains("90.0 -> 75.0", text);
-            Assert.Equal("original", File.ReadAllText(assetsPath));
-        }
-        finally
-        {
-            File.Delete(assetsPath);
-            File.Delete(configPath);
-        }
-    }
-
-    [Fact]
-    public void Run_WhenPatchApplyPageIsConfirmed_PrintsApplySummary()
-    {
-        string assetsPath = CreateTempFile(".assets");
-        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.patched.assets");
-        string configPath = CreateCameraPatchManifest(
-            Path.GetFileName(assetsPath),
-            """
-            "include": [
-              {
-                "field of view": 90.0
-              }
-            ],
-            "set": [
-              {
-                "field": "field of view",
-                "from": 90.0,
-                "to": 75.0
-              }
-            ]
-            """);
-        var reader = new StubAssetsFileService(
-            [new AssetsInfo(40, 20, "Camera", 128)],
-            new Dictionary<long, AssetsFieldInfo>
-            {
-                [40] = CameraFieldTree("90.0"),
-            });
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.PatchAssets);
-        SelectSubMenuOption(console, 1);
-        console.Input.PushTextWithEnter(assetsPath);
-        console.Input.PushTextWithEnter(configPath);
-        console.Input.PushTextWithEnter(outputPath);
-        console.Input.PushTextWithEnter("y");
-        ReturnToMainMenu(console);
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(reader, console);
-
-        try
-        {
-            int exitCode = app.Run();
-
-            string text = console.Output;
-            Assert.True(exitCode == 0, console.Output);
-            Assert.Contains("DRY RUN", text);
-            Assert.Contains("Apply these changes?", text);
-            Assert.Contains("Apply these changes? y/N", text);
-            Assert.DoesNotContain("[y/N] [y/n]", text);
-            Assert.Contains("APPLIED", text);
-            Assert.Contains(outputPath, text);
-            Assert.Equal("patched", File.ReadAllText(outputPath));
-        }
-        finally
-        {
-            File.Delete(assetsPath);
-            File.Delete(outputPath);
             File.Delete(configPath);
         }
     }
@@ -716,7 +583,6 @@ public sealed class TerminalAppTests
         InstallMod,
         InspectAssets,
         FindAssets,
-        PatchAssets,
         Settings,
         Exit,
     }
