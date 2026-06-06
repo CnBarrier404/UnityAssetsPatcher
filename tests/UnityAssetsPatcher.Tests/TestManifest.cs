@@ -47,6 +47,8 @@ internal static class TestManifest
     {
         var manifest = new JsonObject();
 
+        CopyIfPresent(fragment, manifest, "game");
+
         if (fragment.TryGetPropertyValue("copyFiles", out JsonNode? copyFiles))
         {
             manifest["copyFiles"] = copyFiles?.DeepClone();

@@ -75,6 +75,7 @@ public sealed class ModManifestLoaderTests
             Assert.Equal("CnBarrier", config.Author);
             Assert.Equal("1.0.0", config.Version);
             Assert.Equal("Adjusts camera settings.", config.Description);
+            Assert.Null(config.Game);
             ManifestFile file = Assert.Single(config.Files);
             Assert.Equal("resources/modassets.resource", file.Source);
             Assert.Equal(2, config.Patches.Count);
@@ -97,6 +98,88 @@ public sealed class ModManifestLoaderTests
             Assert.NotNull(replacementPatch.ReplaceFrom);
             Assert.Equal("resources/modassets.assets", replacementPatch.ReplaceFrom.AssetsFilePath);
             Assert.Equal("m_Name", replacementPatch.ReplaceFrom.MatchFieldPath);
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a manifest can declare the target game as a simple top-level string.
+    /// </summary>
+    [Fact]
+    public void Load_WhenManifestHasGame_ReturnsGame()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            """
+            {
+              "game": "Phasmophobia",
+              "targets": [
+                {
+                  "file": "sharedassets0.assets",
+                  "patches": [
+                    {
+                      "type": "Camera",
+                      "match": {
+                        "field of view": 90.0
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        try
+        {
+            ModManifest config = new ModManifestLoader().Load(configPath);
+
+            Assert.Equal("Phasmophobia", config.Game);
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the optional game property must be a non-empty string when present.
+    /// </summary>
+    [Theory]
+    [InlineData("\"\"")]
+    [InlineData("42")]
+    public void Load_WhenGameIsEmptyOrWrongType_ThrowsClearError(string gameValue)
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            $$"""
+              {
+                "game": {{gameValue}},
+                "targets": [
+                  {
+                    "file": "sharedassets0.assets",
+                    "patches": [
+                      {
+                        "type": "Camera",
+                        "match": {
+                          "field of view": 90.0
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+              """);
+
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
+
+            Assert.Contains("game", exception.Message);
         }
         finally
         {

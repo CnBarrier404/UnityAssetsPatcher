@@ -7,6 +7,7 @@ public sealed record ModManifest(
     string Author,
     string Version,
     string? Description,
+    string? Game,
     IReadOnlyList<ManifestFile> Files,
     IReadOnlyList<ManifestPatch> Patches);
 

@@ -11,30 +11,35 @@ public sealed class InstallModWorkflow
     private readonly PatchAssetsWorkflow _patchAssetsWorkflow;
     private readonly InstallPayloadPlanner _payloadPlanner;
     private readonly IModManifestLoader _manifestLoader;
+    private readonly GameDirectoryResolver _gameDirectoryResolver;
 
     public InstallModWorkflow(
         PatchAssetsWorkflow patchAssetsWorkflow,
         InstallPayloadPlanner payloadPlanner,
-        IModManifestLoader manifestLoader)
+        IModManifestLoader manifestLoader,
+        GameDirectoryResolver gameDirectoryResolver)
     {
         _patchAssetsWorkflow = patchAssetsWorkflow;
         _payloadPlanner = payloadPlanner;
         _manifestLoader = manifestLoader;
+        _gameDirectoryResolver = gameDirectoryResolver;
     }
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
     {
         var timings = new InstallTimingBuilder();
-        EnsureInstallInputsExist(request.ZipFilePath, request.GameDirectory);
+        EnsureZipFileExists(request.ZipFilePath);
 
         ModManifest manifest = timings.MeasureReadPackage(() => _manifestLoader.Load(request.ZipFilePath));
+        string gameDirectory = ResolveGameDirectory(request.GameDirectory, manifest);
 
         using InstallPackageWorkspace workspace =
             timings.MeasurePrepareSources(() => InstallPackageWorkspace.Prepare(request.ZipFilePath, manifest));
+        string configPath = workspace.ConfigPath;
         try
         {
             var targetPaths = timings.MeasureFindGameFiles(() => InstallTargetResolver.Resolve(
-                request.GameDirectory,
+                gameDirectory,
                 manifest.Patches.Select(patch => patch.AssetsFileName)));
             var copyPlans = _payloadPlanner.CreatePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
                 requireAvailableDestination: false);
@@ -43,7 +48,7 @@ public sealed class InstallModWorkflow
                         manifest.Patches.GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase)
                     let assetsFilePath = targetPaths[targetGroup.Key]
                     let targets = targetGroup.ToArray()
-                    let preview = _patchAssetsWorkflow.PreviewTargets(assetsFilePath, targets, workspace.ConfigPath)
+                    let preview = _patchAssetsWorkflow.PreviewTargets(assetsFilePath, targets, configPath)
                     select new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview)).ToList());
 
             return new InstallPreviewResult(
@@ -62,12 +67,15 @@ public sealed class InstallModWorkflow
     public InstallModResult Install(InstallModRequest request)
     {
         var timings = new InstallTimingBuilder();
-        EnsureInstallInputsExist(request.ZipFilePath, request.GameDirectory);
+        EnsureZipFileExists(request.ZipFilePath);
 
         ModManifest manifest = timings.MeasureReadPackage(() => _manifestLoader.Load(request.ZipFilePath));
+        string gameDirectory = ResolveGameDirectory(request.GameDirectory, manifest);
 
         using InstallPackageWorkspace workspace =
             timings.MeasurePrepareSources(() => InstallPackageWorkspace.Prepare(request.ZipFilePath, manifest));
+        string configPath = workspace.ConfigPath;
+
         try
         {
             if (!PatchOperationRules.HasPatchOperations(manifest.Patches))
@@ -77,7 +85,7 @@ public sealed class InstallModWorkflow
             }
 
             var targetPaths = timings.MeasureFindGameFiles(() => InstallTargetResolver.Resolve(
-                request.GameDirectory,
+                gameDirectory,
                 manifest.Patches.Select(patch => patch.AssetsFileName)));
             var copyPlans = _payloadPlanner.CreatePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
                 requireAvailableDestination: true);
@@ -86,7 +94,7 @@ public sealed class InstallModWorkflow
                         manifest.Patches.GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase)
                     let assetsFilePath = targetPaths[targetGroup.Key]
                     let targets = targetGroup.ToArray()
-                    let patchPlan = _patchAssetsWorkflow.CreateWritePlan(assetsFilePath, targets, workspace.ConfigPath)
+                    let patchPlan = _patchAssetsWorkflow.CreateWritePlan(assetsFilePath, targets, configPath)
                     select new InstallFilePlan(targetGroup.Key, assetsFilePath, patchPlan)).ToList());
 
             var fileResults = timings.MeasureApplyPatches(() =>
@@ -112,17 +120,35 @@ public sealed class InstallModWorkflow
         }
     }
 
-    private static void EnsureInstallInputsExist(string zipFilePath, string gameDirectory)
+    private static void EnsureZipFileExists(string zipFilePath)
     {
         if (!File.Exists(zipFilePath))
         {
             throw new FileNotFoundException($"Mod zip file not found: {zipFilePath}", zipFilePath);
         }
+    }
 
-        if (!Directory.Exists(gameDirectory))
+    private string ResolveGameDirectory(string? gameDirectory, ModManifest manifest)
+    {
+        if (!string.IsNullOrWhiteSpace(gameDirectory))
         {
-            throw new DirectoryNotFoundException($"Game directory not found: {gameDirectory}");
+            string fullGameDirectory = Path.GetFullPath(gameDirectory);
+
+            return Directory.Exists(fullGameDirectory)
+                ? fullGameDirectory
+                : throw new DirectoryNotFoundException($"Game directory not found: {fullGameDirectory}");
         }
+
+        if (string.IsNullOrWhiteSpace(manifest.Game))
+        {
+            throw new DirectoryNotFoundException(
+                "Game directory was not provided and manifest does not contain a 'game' property.");
+        }
+
+        string? resolvedDirectory = _gameDirectoryResolver.Resolve(manifest.Game);
+
+        return resolvedDirectory ?? throw new DirectoryNotFoundException(
+            $"Game directory could not be resolved for manifest game: {manifest.Game}");
     }
 
     private sealed record InstallFilePlan(

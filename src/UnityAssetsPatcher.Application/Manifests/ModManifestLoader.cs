@@ -18,10 +18,11 @@ public sealed class ModManifestLoader : IModManifestLoader
         string author = ReadRequiredMetadataString(manifestElement, "author");
         string version = ReadRequiredMetadataString(manifestElement, "version");
         string? description = ReadOptionalMetadataString(manifestElement, "description");
+        string? game = ReadOptionalNonEmptyMetadataString(manifestElement, "game");
         var files = ReadOptionalCopyFiles(manifestElement);
         var patches = ReadTargets(manifestElement);
 
-        return new ModManifest(name, author, version, description, files, patches);
+        return new ModManifest(name, author, version, description, game, files, patches);
     }
 
     private static string ReadRequiredMetadataString(JsonElement manifestElement, string propertyName)
@@ -37,6 +38,18 @@ public sealed class ModManifestLoader : IModManifestLoader
     private static string? ReadOptionalMetadataString(JsonElement manifestElement, string propertyName)
     {
         return JsonUtils.ReadOptionalStringProperty(manifestElement, propertyName, "Manifest");
+    }
+
+    private static string? ReadOptionalNonEmptyMetadataString(JsonElement manifestElement, string propertyName)
+    {
+        string? value = ReadOptionalMetadataString(manifestElement, propertyName);
+
+        return value is null
+            ? null
+            : string.IsNullOrWhiteSpace(value)
+                ? throw new InvalidOperationException(
+                    $"Manifest '{propertyName}' property must be a non-empty string when present.")
+                : value;
     }
 
     private static ManifestFile[] ReadOptionalCopyFiles(JsonElement element)

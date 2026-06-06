@@ -5,6 +5,7 @@ using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Installing;
 
 namespace UnityAssetsPatcher.Tests;
 
@@ -71,6 +72,7 @@ public sealed class AssetsWorkflowServiceTests
             "UnityAssetsPatcher.Tests",
             "1.0.0",
             null,
+            null,
             [],
             [
                 new ManifestPatch(
@@ -111,6 +113,7 @@ public sealed class AssetsWorkflowServiceTests
             "Injected Manifest",
             "UnityAssetsPatcher.Tests",
             "1.0.0",
+            null,
             null,
             [],
             [
@@ -1612,6 +1615,126 @@ public sealed class AssetsWorkflowServiceTests
             {
                 Directory.Delete(gameDirectory, true);
             }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that install preview can resolve the game directory from the manifest game field when no directory is provided.
+    /// </summary>
+    [Fact]
+    public void PreviewInstallMod_WhenManifestHasGameAndNoDirectory_UsesResolvedGameDirectory()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string steamDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "Steam");
+        string steamAppsDirectory = Path.Combine(steamDirectory, "steamapps");
+        string gameDirectory = Path.Combine(steamAppsDirectory, "common", "Phasmophobia");
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+        File.WriteAllText(
+            Path.Combine(steamAppsDirectory, "appmanifest_739630.acf"),
+            """
+            "AppState"
+            {
+                "name" "Phasmophobia"
+                "installdir" "Phasmophobia"
+            }
+            """);
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "game": "Phasmophobia",
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "m_CullingMask.m_Bits",
+                      "from": 3211820983,
+                      "to": 931037111
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var service = new AssetsWorkflowService(
+            new StubAssetsFileService(
+                [new AssetsInfo(4, 20, "Camera", 128)],
+                new Dictionary<long, AssetsFieldInfo>
+                {
+                    [4] = new("Camera", "Camera", null,
+                    [
+                        new AssetsFieldInfo("field of view", "float", "90.0", []),
+                        new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                        [
+                            new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                        ]),
+                    ]),
+                }),
+            new GameDirectoryResolver([steamDirectory]));
+
+        try
+        {
+            InstallPreviewResult result = service.PreviewInstallMod(
+                new InstallPreviewRequest(zipPath, null));
+
+            InstallPreviewFileResult file = Assert.Single(result.Files);
+            Assert.Equal(targetPath, file.AssetsFilePath);
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            Directory.Delete(Path.GetDirectoryName(steamDirectory)!, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that install preview gives a clear error when neither manual directory nor manifest game can resolve a directory.
+    /// </summary>
+    [Fact]
+    public void PreviewInstallMod_WhenNoDirectoryAndNoResolvedGame_ThrowsClearError()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "game": "Missing Game",
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "match": {
+                    "field of view": 90.0
+                  }
+                }
+              ]
+            }
+            """);
+        var service = new AssetsWorkflowService(
+            new StubAssetsFileService([]),
+            new GameDirectoryResolver([]));
+
+        try
+        {
+            var exception = Assert.Throws<DirectoryNotFoundException>(() =>
+                service.PreviewInstallMod(new InstallPreviewRequest(zipPath, null)));
+
+            Assert.Contains("Game directory could not be resolved", exception.Message);
+            Assert.Contains("Missing Game", exception.Message);
+        }
+        finally
+        {
+            File.Delete(zipPath);
         }
     }
 

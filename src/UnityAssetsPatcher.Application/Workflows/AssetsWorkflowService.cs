@@ -19,10 +19,20 @@ public sealed class AssetsWorkflowService
     public AssetsWorkflowService(IAssetsReader assetsReader, IAssetsPatchWriter assetsPatchWriter)
         : this(assetsReader, assetsPatchWriter, new ModManifestLoader()) { }
 
+    public AssetsWorkflowService(IAssetsFileService assetsFileService, GameDirectoryResolver gameDirectoryResolver)
+        : this(assetsFileService, assetsFileService, new ModManifestLoader(), gameDirectoryResolver) { }
+
     public AssetsWorkflowService(
         IAssetsReader assetsReader,
         IAssetsPatchWriter assetsPatchWriter,
         IModManifestLoader manifestLoader)
+        : this(assetsReader, assetsPatchWriter, manifestLoader, new GameDirectoryResolver()) { }
+
+    public AssetsWorkflowService(
+        IAssetsReader assetsReader,
+        IAssetsPatchWriter assetsPatchWriter,
+        IModManifestLoader manifestLoader,
+        GameDirectoryResolver gameDirectoryResolver)
     {
         var assetQueryService = new AssetQueryService(assetsReader);
         var valueResolver = new PatchValueResolver(assetQueryService);
@@ -43,7 +53,8 @@ public sealed class AssetsWorkflowService
         _installModWorkflow = new InstallModWorkflow(
             patchAssetsWorkflow,
             new InstallPayloadPlanner(),
-            manifestLoader);
+            manifestLoader,
+            gameDirectoryResolver);
     }
 
     public IReadOnlyList<AssetsInfo> InspectList(InspectListRequest request)

@@ -16,7 +16,7 @@ public sealed record PatchApplyRequest(
 
 public sealed record InstallModRequest(
     string ZipFilePath,
-    string GameDirectory,
+    string? GameDirectory,
     string BackupDirectory);
 
-public sealed record InstallPreviewRequest(string ZipFilePath, string GameDirectory);
+public sealed record InstallPreviewRequest(string ZipFilePath, string? GameDirectory);

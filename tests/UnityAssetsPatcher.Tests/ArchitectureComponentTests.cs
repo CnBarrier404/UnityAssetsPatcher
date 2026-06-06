@@ -46,6 +46,7 @@ public sealed class ArchitectureComponentTests
             "UnityAssetsPatcher.Tests",
             "1.0.0",
             null,
+            null,
             [],
             [
                 new ManifestPatch("sharedassets0.assets", "Camera", [], null, null),
@@ -81,6 +82,112 @@ public sealed class ArchitectureComponentTests
         {
             Directory.Delete(gameDirectory, recursive: true);
         }
+    }
+
+    [Fact]
+    public void GameDirectoryResolver_WhenSteamAppManifestNameMatchesGame_ReturnsInstallDirectory()
+    {
+        string steamDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "Steam");
+        string libraryDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "SteamLibrary");
+        string steamAppsDirectory = Path.Combine(steamDirectory, "steamapps");
+        string librarySteamAppsDirectory = Path.Combine(libraryDirectory, "steamapps");
+        string gameDirectory = Path.Combine(librarySteamAppsDirectory, "common", "Phasmophobia");
+        Directory.CreateDirectory(steamAppsDirectory);
+        Directory.CreateDirectory(librarySteamAppsDirectory);
+        Directory.CreateDirectory(gameDirectory);
+        File.WriteAllText(
+            Path.Combine(steamAppsDirectory, "libraryfolders.vdf"),
+            $$"""
+              "libraryfolders"
+              {
+                  "0"
+                  {
+                      "path" "{{EscapeVdfPath(steamDirectory)}}"
+                  }
+                  "1"
+                  {
+                      "path" "{{EscapeVdfPath(libraryDirectory)}}"
+                  }
+              }
+              """);
+        File.WriteAllText(
+            Path.Combine(librarySteamAppsDirectory, "appmanifest_739630.acf"),
+            """
+            "AppState"
+            {
+                "appid" "739630"
+                "name" "Phasmophobia"
+                "installdir" "Phasmophobia"
+            }
+            """);
+
+        try
+        {
+            var resolver = new GameDirectoryResolver([steamDirectory]);
+
+            string? result = resolver.Resolve("phasmophobia");
+
+            Assert.Equal(gameDirectory, result);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(steamDirectory)!, recursive: true);
+            Directory.Delete(Path.GetDirectoryName(libraryDirectory)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GameDirectoryResolver_WhenSteamGameMatchesMultipleManifests_ReturnsNull()
+    {
+        string steamDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "Steam");
+        string steamAppsDirectory = Path.Combine(steamDirectory, "steamapps");
+        Directory.CreateDirectory(Path.Combine(steamAppsDirectory, "common", "Phasmophobia"));
+        Directory.CreateDirectory(Path.Combine(steamAppsDirectory, "common", "Phasmophobia Demo"));
+        File.WriteAllText(
+            Path.Combine(steamAppsDirectory, "appmanifest_1.acf"),
+            """
+            "AppState"
+            {
+                "name" "Phasmophobia"
+                "installdir" "Phasmophobia"
+            }
+            """);
+        File.WriteAllText(
+            Path.Combine(steamAppsDirectory, "appmanifest_2.acf"),
+            """
+            "AppState"
+            {
+                "name" "Phasmophobia"
+                "installdir" "Phasmophobia Demo"
+            }
+            """);
+
+        try
+        {
+            var resolver = new GameDirectoryResolver([steamDirectory]);
+
+            string? result = resolver.Resolve("Phasmophobia");
+
+            Assert.Null(result);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(steamDirectory)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GameDirectoryResolver_DefaultSteamRootsIncludeSteamDirectoryDirectlyUnderDrive()
+    {
+        string driveRoot = Path.GetPathRoot(Path.GetTempPath()) ??
+                           throw new InvalidOperationException("Temp path must have a drive root.");
+
+        string[] roots = GameDirectoryResolver.CreateDefaultSteamRoots([driveRoot]);
+
+        Assert.Contains(
+            Path.Combine(driveRoot, "Steam"),
+            roots,
+            StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -157,5 +264,10 @@ public sealed class ArchitectureComponentTests
         }
 
         throw new InvalidOperationException("Repository root was not found.");
+    }
+
+    private static string EscapeVdfPath(string path)
+    {
+        return path.Replace(@"\", @"\\", StringComparison.Ordinal);
     }
 }

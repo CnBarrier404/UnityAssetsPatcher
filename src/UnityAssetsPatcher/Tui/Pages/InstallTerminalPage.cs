@@ -25,25 +25,31 @@ internal sealed class InstallTerminalPage : TerminalPage
             return false;
         }
 
-        string? gameDirectory = _prompts.ReadExistingDirectoryPath("Game directory");
-
-        if (gameDirectory is null)
-        {
-            return false;
-        }
-
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
         TerminalOutputFormatter.WriteInfo(Context.Console, "Analyzing mod...");
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
 
-        Context.UseService(service =>
-        {
-            InstallPreviewResult preview =
-                service.PreviewInstallMod(new InstallPreviewRequest(zipFilePath, gameDirectory));
-            TerminalOutputFormatter.WriteInstallPreview(Context.Console, preview, Context.Settings);
+        string? gameDirectory = null;
+        InstallPreviewResult? preview = TryPreviewInstall(zipFilePath, gameDirectory);
 
-            return 0;
-        });
+        if (preview is null)
+        {
+            gameDirectory = _prompts.ReadExistingDirectoryPath("Game directory");
+
+            if (gameDirectory is null)
+            {
+                return false;
+            }
+
+            preview = TryPreviewInstall(zipFilePath, gameDirectory);
+        }
+
+        if (preview is null)
+        {
+            return true;
+        }
+
+        TerminalOutputFormatter.WriteInstallPreview(Context.Console, preview, Context.Settings);
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
 
@@ -65,5 +71,27 @@ internal sealed class InstallTerminalPage : TerminalPage
         });
 
         return true;
+    }
+
+    private InstallPreviewResult? TryPreviewInstall(string zipFilePath, string? gameDirectory)
+    {
+        InstallPreviewResult? preview = null;
+
+        try
+        {
+            Context.UseService(service =>
+            {
+                preview = service.PreviewInstallMod(new InstallPreviewRequest(zipFilePath, gameDirectory));
+
+                return 0;
+            });
+        }
+        catch (DirectoryNotFoundException exception) when (gameDirectory is null)
+        {
+            TerminalOutputFormatter.WriteInfo(Context.Console, exception.Message);
+            TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        }
+
+        return preview;
     }
 }
