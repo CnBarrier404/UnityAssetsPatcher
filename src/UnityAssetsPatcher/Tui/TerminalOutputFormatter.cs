@@ -1,4 +1,5 @@
 using System.Globalization;
+using Spectre.Console;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Utils;
@@ -7,145 +8,495 @@ namespace UnityAssetsPatcher.Tui;
 
 public static class TerminalOutputFormatter
 {
-    public static void WriteAssetSummary(TextWriter output, IReadOnlyList<AssetsInfo> assets, int? limit)
-    {
-        var assetsToPrint = limit is null ? assets : assets.Take(limit.Value);
+    private const string ApplicationTitle = "Unity Assets Patcher";
+    private const int SettingsOptionColumnWidth = 34;
 
-        output.WriteLine($"{"Path ID",12} | {"Type ID",7} | {"Type Name",-24} | {"Byte Size",10}");
-        output.WriteLine(new string('-', 64));
+    public static void WriteApplicationHeader(IAnsiConsole console, string? footerHint = null, bool clear = true)
+    {
+        if (SupportsClear(console))
+        {
+            if (clear)
+            {
+                console.Clear(home: true);
+            }
+            else
+            {
+                console.Cursor.SetPosition(0, 0);
+            }
+
+            WriteBottomFooterHint(console, footerHint);
+            console.Cursor.SetPosition(0, 0);
+        }
+
+        WriteApplicationTitle(console);
+        WriteBlankLine(console);
+    }
+
+    public static void WriteApplicationTitle(IAnsiConsole console)
+    {
+        var panel = new Panel(new Markup($"[bold blue]{Escape(ApplicationTitle)}[/]"))
+        {
+            Border = BoxBorder.Rounded,
+            UseSafeBorder = true,
+            BorderStyle = new Style(Color.Blue),
+            Expand = false,
+            Padding = new Padding(1, 0),
+        };
+
+        console.Write(panel);
+    }
+
+    public static void WritePageHeader(
+        IAnsiConsole console,
+        string title,
+        string? subtitle = null,
+        string? footerHint = null,
+        bool clear = true)
+    {
+        WriteApplicationHeader(console, footerHint, clear);
+        console.MarkupLine($"[bold blue]{Markup.Escape(title)}[/]");
+
+        if (!string.IsNullOrWhiteSpace(subtitle))
+        {
+            console.MarkupLine($"[grey]{Markup.Escape(subtitle)}[/]");
+        }
+
+        WriteBlankLine(console);
+
+        if (!SupportsClear(console) && !string.IsNullOrWhiteSpace(footerHint))
+        {
+            WriteFooterHint(console, footerHint);
+            WriteBlankLine(console);
+        }
+    }
+
+    public static void WriteBlankLine(IAnsiConsole console)
+    {
+        console.Write(new Text(Environment.NewLine));
+    }
+
+    public static void WriteInfo(IAnsiConsole console, string message)
+    {
+        console.MarkupLine($"[grey]{Markup.Escape(message)}[/]");
+    }
+
+    public static void WriteFooterHint(IAnsiConsole console, string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        WriteBlankLine(console);
+        WriteInfo(console, message);
+    }
+
+    public static void WriteBottomFooterHint(IAnsiConsole console, string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        if (!SupportsClear(console))
+        {
+            WriteFooterHint(console, message);
+            return;
+        }
+
+        int height = console.Profile.Height;
+
+        if (height <= 0)
+        {
+            WriteFooterHint(console, message);
+            return;
+        }
+
+        console.Cursor.SetPosition(0, height - 1);
+        console.Markup($"[grey]{Escape(FitToWidth(message, console.Profile.Width))}[/]");
+    }
+
+    public static void WriteError(IAnsiConsole console, string message)
+    {
+        console.MarkupLine($"[red]{Markup.Escape(message)}[/]");
+    }
+
+    internal static void WriteMainMenu(
+        IAnsiConsole console,
+        IReadOnlyList<TerminalPage> pages,
+        int selectedIndex)
+    {
+        const int labelColumnWidth = 18;
+
+        for (int i = 0; i < pages.Count; i++)
+        {
+            TerminalPage page = pages[i];
+            string indicator = i == selectedIndex ? ">" : " ";
+            string label = page.Title.PadRight(labelColumnWidth);
+
+            if (i == selectedIndex)
+            {
+                console.MarkupLine($"[cyan]{Escape($"{indicator} {label}")}[/] [cyan]{Escape(page.Description)}[/]");
+            }
+            else
+            {
+                console.MarkupLine($"{Escape($"{indicator} {label}")} [grey]{Escape(page.Description)}[/]");
+            }
+
+            if (i < pages.Count - 1)
+            {
+                WriteBlankLine(console);
+            }
+        }
+    }
+
+    public static void WriteAssetSummary(IAnsiConsole console, IReadOnlyList<AssetsInfo> assets, int? limit)
+    {
+        Table table = CreateTable();
+        table.AddColumn(new TableColumn("Path ID").RightAligned());
+        table.AddColumn(new TableColumn("Type ID").RightAligned());
+        table.AddColumn("Type Name");
+        table.AddColumn(new TableColumn("Byte Size").RightAligned());
+
+        var assetsToPrint = limit is null ? assets : assets.Take(limit.Value);
 
         foreach (AssetsInfo asset in assetsToPrint)
         {
-            output.WriteLine($"{asset.PathId,12} | {asset.TypeId,7} | {asset.TypeName,-24} | {asset.ByteSize,10}");
+            table.AddRow(
+                asset.PathId.ToString(CultureInfo.InvariantCulture),
+                asset.TypeId.ToString(CultureInfo.InvariantCulture),
+                Escape(asset.TypeName),
+                asset.ByteSize.ToString(CultureInfo.InvariantCulture));
         }
+
+        console.Write(table);
 
         if (limit is null || assets.Count <= limit.Value)
         {
             return;
         }
 
-        output.WriteLine();
-        output.WriteLine(
+        WriteBlankLine(console);
+        WriteInfo(
+            console,
             $"Showing {limit.Value} of {assets.Count} assets. Use the Inspect assets page to print all rows or choose a custom limit.");
     }
 
-    public static void WriteAssetFields(TextWriter output, AssetsFieldInfo fieldTree)
+    public static void WriteAssetFields(IAnsiConsole console, AssetsFieldInfo fieldTree)
     {
-        WriteAssetField(output, fieldTree, 0);
+        WriteAssetField(console, fieldTree, 0);
     }
 
-    public static void WriteFindResults(TextWriter output, IReadOnlyList<AssetMatch> matches)
+    public static void WriteFindResults(IAnsiConsole console, IReadOnlyList<AssetMatch> matches)
     {
-        output.WriteLine($"{"Path ID",12} | {"Type ID",7} | {"Type Name",-24} | Matched Fields");
-        output.WriteLine(new string('-', 86));
+        Table table = CreateTable();
+        table.AddColumn(new TableColumn("Path ID").RightAligned());
+        table.AddColumn(new TableColumn("Type ID").RightAligned());
+        table.AddColumn("Type Name");
+        table.AddColumn("Matched Fields");
 
         foreach (AssetMatch match in matches)
         {
             string matchedFields = string.Join(", ",
                 match.IncludeGroup.Select(condition =>
                     $"{condition.Key}={JsonUtils.FormatElementValue(condition.Value)}"));
-            output.WriteLine(
-                $"{match.Asset.PathId,12} | {match.Asset.TypeId,7} | {match.Asset.TypeName,-24} | {matchedFields}");
+            table.AddRow(
+                match.Asset.PathId.ToString(CultureInfo.InvariantCulture),
+                match.Asset.TypeId.ToString(CultureInfo.InvariantCulture),
+                Escape(match.Asset.TypeName),
+                Escape(matchedFields));
         }
+
+        console.Write(table);
     }
 
-    public static void WritePatchPreview(TextWriter output, PatchPreviewResult preview)
+    public static void WritePatchPreview(IAnsiConsole console, PatchPreviewResult preview)
     {
-        output.WriteLine("DRY RUN");
-        WritePatchPreviewAssets(output, preview);
+        WriteStatus(console, "DRY RUN", "yellow");
+        WritePatchPreviewAssets(console, preview);
     }
 
-    public static void WriteInstallPreview(TextWriter output, InstallPreviewResult result)
+    public static void WriteInstallPreview(
+        IAnsiConsole console,
+        InstallPreviewResult result,
+        TerminalSettings? settings = null)
     {
-        output.WriteLine("DRY RUN");
-        output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
-        output.WriteLine($"Files: {result.Files.Count}");
-        output.WriteLine($"Copied files: {result.CopiedFiles.Count}");
-        output.WriteLine($"Assets: {result.Files.Sum(file => file.Preview.Assets.Count)}");
-        output.WriteLine(
-            $"Operations: {result.Files.Sum(file => file.Preview.Assets.Sum(asset => asset.Operations.Count))}");
-        WriteInstallTiming(output, result.Timing);
+        settings ??= new TerminalSettings();
 
-        foreach (InstallCopyFilePreviewResult copiedFile in result.CopiedFiles)
+        WriteStatus(console, "DRY RUN", "yellow");
+
+        int assetCount = result.Files.Sum(file => file.Preview.Assets.Count);
+        int operationCount = CountPreviewOperations(result);
+        int changingOperationCount = CountChangingPreviewOperations(result);
+
+        WriteSummaryRows(
+            console,
+            ("Mod", result.ModName),
+            ("Version", result.ModVersion),
+            ("Targets", result.Files.Count.ToString(CultureInfo.InvariantCulture)),
+            ("Payload files", result.CopiedFiles.Count.ToString(CultureInfo.InvariantCulture)),
+            ("Assets", assetCount.ToString(CultureInfo.InvariantCulture)),
+            ("Operations", FormatOperationCounts(changingOperationCount, operationCount - changingOperationCount)),
+            ("Elapsed", $"{FormatElapsedSeconds(result.Timing.Elapsed)} s"));
+
+        WriteInstallPreviewTargets(console, result.Files);
+        WriteInstallPreviewPayloads(console, result.CopiedFiles);
+
+        if (settings.VerboseLogging)
         {
-            string suffix = copiedFile.WillCopy ? string.Empty : " (skipped, destination exists)";
-            output.WriteLine($"{copiedFile.Source} -> {copiedFile.DestinationPath}{suffix}");
+            WriteInstallPreviewDetails(console, result.Files);
         }
 
-        foreach (InstallPreviewFileResult file in result.Files)
+        if (settings.InstallTimingDetails)
         {
-            output.WriteLine($"{file.Target}: {file.AssetsFilePath}");
-            WritePatchPreviewAssets(output, file.Preview);
+            WriteInstallTiming(console, result.Timing);
         }
     }
 
-    public static void WritePatchApply(TextWriter output, PatchApplyResult result)
+    public static void WritePatchApply(IAnsiConsole console, PatchApplyResult result)
     {
-        output.WriteLine("APPLIED");
-        output.WriteLine($"Output: {result.OutputPath}");
-
-        if (result.BackupPath is not null)
-        {
-            output.WriteLine($"Backup: {result.BackupPath}");
-        }
-
-        output.WriteLine($"Assets: {result.AssetCount}");
-        output.WriteLine($"Operations: {result.OperationCount}");
+        WriteStatus(console, "APPLIED", "green");
+        WriteSummaryRows(
+            console,
+            ("Output", result.OutputPath),
+            ("Backup", result.BackupPath ?? "not created"),
+            ("Assets", result.AssetCount.ToString(CultureInfo.InvariantCulture)),
+            ("Operations", result.OperationCount.ToString(CultureInfo.InvariantCulture)));
     }
 
-    public static void WriteInstallResult(TextWriter output, InstallModResult result)
+    public static void WriteInstallResult(
+        IAnsiConsole console,
+        InstallModResult result,
+        TerminalSettings? settings = null)
     {
-        output.WriteLine("INSTALLED");
-        output.WriteLine($"Mod: {result.ModName} {result.ModVersion}");
-        output.WriteLine($"Files: {result.Files.Count}");
-        output.WriteLine($"Copied files: {result.CopiedFiles.Count}");
-        output.WriteLine($"Assets: {result.Files.Sum(file => file.AssetCount)}");
-        output.WriteLine($"Operations: {result.Files.Sum(file => file.OperationCount)}");
-        WriteInstallTiming(output, result.Timing);
+        settings ??= new TerminalSettings();
 
-        foreach (InstallCopiedFileResult copiedFile in result.CopiedFiles)
-        {
-            output.WriteLine($"{copiedFile.Source} -> {copiedFile.DestinationPath}");
-        }
+        WriteStatus(console, "INSTALLED", "green");
+        WriteSummaryRows(
+            console,
+            ("Mod", result.ModName),
+            ("Version", result.ModVersion),
+            ("Patched files", result.Files.Count.ToString(CultureInfo.InvariantCulture)),
+            ("Copied files", result.CopiedFiles.Count.ToString(CultureInfo.InvariantCulture)),
+            ("Assets", result.Files.Sum(file => file.AssetCount).ToString(CultureInfo.InvariantCulture)),
+            ("Operations", result.Files.Sum(file => file.OperationCount).ToString(CultureInfo.InvariantCulture)),
+            ("Elapsed", $"{FormatElapsedSeconds(result.Timing.Elapsed)} s"));
 
-        foreach (InstallModFileResult file in result.Files)
+        WriteInstallResultTargets(console, result.Files);
+        WriteInstallResultPayloads(console, result.CopiedFiles);
+
+        if (settings.InstallTimingDetails)
         {
-            output.WriteLine($"{file.Target}: {file.AssetsFilePath}");
-            output.WriteLine($"  Backup: {file.BackupPath}");
+            WriteInstallTiming(console, result.Timing);
         }
     }
 
-    private static void WritePatchPreviewAssets(TextWriter output, PatchPreviewResult preview)
+    internal static void WriteSettings(
+        IAnsiConsole console,
+        IReadOnlyList<TerminalSettingDisplay> settings,
+        int selectedIndex)
+    {
+        for (int i = 0; i < settings.Count; i++)
+        {
+            TerminalSettingDisplay setting = settings[i];
+            string indicator = i == selectedIndex ? ">" : " ";
+            string checkbox = setting.Enabled ? "[x]" : "[ ]";
+            string option = $"{indicator} {checkbox} {setting.Name}".PadRight(SettingsOptionColumnWidth);
+
+            if (i == selectedIndex)
+            {
+                console.MarkupLine($"[cyan]{Escape(option)}[/] [cyan]{Escape(setting.Description)}[/]");
+            }
+            else
+            {
+                console.MarkupLine($"{Escape(option)} [grey]{Escape(setting.Description)}[/]");
+            }
+        }
+    }
+
+    private static void WriteInstallPreviewTargets(
+        IAnsiConsole console,
+        IReadOnlyList<InstallPreviewFileResult> files)
+    {
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        WriteBlankLine(console);
+        console.MarkupLine("[blue]Targets[/]");
+
+        foreach (InstallPreviewFileResult file in files)
+        {
+            int assetCount = file.Preview.Assets.Count;
+            int operationCount = file.Preview.Assets.Sum(asset => asset.Operations.Count);
+            int changingOperationCount = file.Preview.Assets.Sum(asset =>
+                asset.Operations.Count(operation => operation.WillChange));
+
+            console.MarkupLine(
+                $"- {Escape(file.Target)}: {FormatCount(assetCount, "asset")}, {FormatOperationCounts(changingOperationCount, operationCount - changingOperationCount)}");
+            console.MarkupLine($"  [grey]{Escape(file.AssetsFilePath)}[/]");
+        }
+    }
+
+    private static void WriteInstallPreviewPayloads(
+        IAnsiConsole console,
+        IReadOnlyList<InstallCopyFilePreviewResult> copiedFiles)
+    {
+        if (copiedFiles.Count == 0)
+        {
+            return;
+        }
+
+        WriteBlankLine(console);
+        console.MarkupLine("[blue]Payload files[/]");
+
+        foreach (InstallCopyFilePreviewResult copiedFile in copiedFiles)
+        {
+            string status = copiedFile.WillCopy ? "will copy" : "skipped, destination exists";
+            console.MarkupLine(
+                $"- {Escape(Path.GetFileName(copiedFile.Source))}: {Escape(status)}");
+        }
+    }
+
+    private static void WriteInstallPreviewDetails(
+        IAnsiConsole console,
+        IReadOnlyList<InstallPreviewFileResult> files)
+    {
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        WriteBlankLine(console);
+        console.MarkupLine("[blue]Details[/]");
+
+        foreach (InstallPreviewFileResult file in files)
+        {
+            WriteBlankLine(console);
+            console.MarkupLine($"[blue]Target[/] {Escape(file.Target)}");
+            WritePatchPreviewAssets(console, file.Preview);
+        }
+    }
+
+    private static void WriteInstallResultTargets(
+        IAnsiConsole console,
+        IReadOnlyList<InstallModFileResult> files)
+    {
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        WriteBlankLine(console);
+        console.MarkupLine("[blue]Patched files[/]");
+
+        foreach (InstallModFileResult file in files)
+        {
+            console.MarkupLine(
+                $"- {Escape(file.Target)}: {FormatCount(file.AssetCount, "asset")}, {FormatCount(file.OperationCount, "operation")}");
+            console.MarkupLine($"  [grey]Backup[/] {Escape(file.BackupPath)}");
+        }
+    }
+
+    private static void WriteInstallResultPayloads(
+        IAnsiConsole console,
+        IReadOnlyList<InstallCopiedFileResult> copiedFiles)
+    {
+        if (copiedFiles.Count == 0)
+        {
+            return;
+        }
+
+        WriteBlankLine(console);
+        console.MarkupLine("[blue]Copied files[/]");
+
+        foreach (InstallCopiedFileResult copiedFile in copiedFiles)
+        {
+            console.MarkupLine($"- {Escape(Path.GetFileName(copiedFile.DestinationPath))}");
+        }
+    }
+
+    private static void WritePatchPreviewAssets(IAnsiConsole console, PatchPreviewResult preview)
     {
         foreach (PatchPreviewAssetResult assetResult in preview.Assets)
         {
-            output.WriteLine($"Path ID: {assetResult.Asset.PathId} ({assetResult.Asset.TypeName})");
+            WriteBlankLine(console);
+            console.MarkupLine(
+                $"[grey]Path ID {assetResult.Asset.PathId.ToString(CultureInfo.InvariantCulture)} ({Escape(assetResult.Asset.TypeName)})[/]");
 
             foreach (PatchPreviewOperationResult operation in assetResult.Operations)
             {
                 if (!operation.WillChange)
                 {
-                    output.WriteLine(
-                        $"  {operation.Path}: skipped, current value {operation.OldValue} does not match expected {JsonUtils.FormatElementValue(operation.From)}");
+                    console.MarkupLine(
+                        $"  {Escape(operation.Path)}: skipped, current value {Escape(operation.OldValue)} does not match expected {Escape(JsonUtils.FormatElementValue(operation.From))}");
                     continue;
                 }
 
-                output.WriteLine(
-                    $"  {operation.Path}: {operation.OldValue} -> {JsonUtils.FormatElementValue(operation.To)}");
+                console.MarkupLine(
+                    $"  {Escape(operation.Path)}: {Escape(operation.OldValue)} [grey]->[/] {Escape(JsonUtils.FormatElementValue(operation.To))}");
             }
         }
     }
 
-    private static void WriteAssetField(TextWriter output, AssetsFieldInfo field, int depth)
+    private static void WriteAssetField(IAnsiConsole console, AssetsFieldInfo field, int depth)
     {
         string indentation = new(' ', depth * 2);
         string value = field.Value is null ? string.Empty : $": {field.Value}";
-        output.WriteLine($"{indentation}{field.Name} ({field.TypeName}){value}");
+        console.MarkupLine($"{indentation}{Escape(field.Name)} ({Escape(field.TypeName)}){Escape(value)}");
 
         foreach (AssetsFieldInfo child in field.Children)
         {
-            WriteAssetField(output, child, depth + 1);
+            WriteAssetField(console, child, depth + 1);
         }
+    }
+
+    private static Table CreateTable()
+    {
+        return new Table()
+            .Border(TableBorder.Ascii)
+            .BorderColor(Color.Grey);
+    }
+
+    private static void WriteStatus(IAnsiConsole console, string label, string color)
+    {
+        console.MarkupLine($"[bold {color}]{Markup.Escape(label)}[/]");
+    }
+
+    private static void WriteSummaryRows(IAnsiConsole console, params (string Label, string Value)[] rows)
+    {
+        foreach ((string label, string value) in rows)
+        {
+            console.MarkupLine($"[grey]{Escape(label),-14}[/] {Escape(value)}");
+        }
+    }
+
+    private static int CountPreviewOperations(InstallPreviewResult result)
+    {
+        return result.Files.Sum(file => file.Preview.Assets.Sum(asset => asset.Operations.Count));
+    }
+
+    private static int CountChangingPreviewOperations(InstallPreviewResult result)
+    {
+        return result.Files.Sum(file => file.Preview.Assets.Sum(asset =>
+            asset.Operations.Count(operation => operation.WillChange)));
+    }
+
+    private static string FormatOperationCounts(int changingCount, int skippedCount)
+    {
+        string changing = FormatCount(changingCount, "operation");
+
+        return skippedCount == 0
+            ? changing
+            : $"{changing} changing, {FormatCount(skippedCount, "operation")} skipped";
+    }
+
+    private static string FormatCount(int count, string singular)
+    {
+        string noun = count == 1 ? singular : $"{singular}s";
+
+        return $"{count.ToString(CultureInfo.InvariantCulture)} {noun}";
     }
 
     private static string FormatElapsedSeconds(TimeSpan elapsed)
@@ -153,21 +504,47 @@ public static class TerminalOutputFormatter
         return elapsed.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
-    private static void WriteInstallTiming(TextWriter output, InstallTimingResult timing)
+    private static void WriteInstallTiming(IAnsiConsole console, InstallTimingResult timing)
     {
-        output.WriteLine($"Read package: {FormatElapsedSeconds(timing.ReadPackage)} s");
-        output.WriteLine($"Prepare sources: {FormatElapsedSeconds(timing.PrepareSources)} s");
-        output.WriteLine($"Find game files: {FormatElapsedSeconds(timing.FindGameFiles)} s");
-        output.WriteLine($"Analyze changes: {FormatElapsedSeconds(timing.AnalyzeChanges)} s");
-        WriteTimingStage(output, "Apply patches", timing.ApplyPatches);
-        WriteTimingStage(output, "Copy files", timing.CopyFiles);
-        output.WriteLine($"Elapsed: {FormatElapsedSeconds(timing.Elapsed)} s");
+        WriteBlankLine(console);
+        console.MarkupLine("[blue]Timing[/]");
+        WriteSummaryRows(
+            console,
+            ("Read package", $"{FormatElapsedSeconds(timing.ReadPackage)} s"),
+            ("Prepare sources", $"{FormatElapsedSeconds(timing.PrepareSources)} s"),
+            ("Find game files", $"{FormatElapsedSeconds(timing.FindGameFiles)} s"),
+            ("Analyze changes", $"{FormatElapsedSeconds(timing.AnalyzeChanges)} s"),
+            ("Apply patches", FormatTimingStage(timing.ApplyPatches)),
+            ("Copy files", FormatTimingStage(timing.CopyFiles)));
     }
 
-    private static void WriteTimingStage(TextWriter output, string label, TimeSpan? elapsed)
+    private static string FormatTimingStage(TimeSpan? elapsed)
     {
-        output.WriteLine(elapsed is null
-            ? $"{label}: skipped"
-            : $"{label}: {FormatElapsedSeconds(elapsed.Value)} s");
+        return elapsed is null ? "skipped" : $"{FormatElapsedSeconds(elapsed.Value)} s";
+    }
+
+    private static string Escape(string value)
+    {
+        return Markup.Escape(value);
+    }
+
+    private static string FitToWidth(string value, int width)
+    {
+        if (width <= 0)
+        {
+            return value;
+        }
+
+        return value.Length <= width
+            ? value.PadRight(width)
+            : value[..width];
+    }
+
+    private static bool SupportsClear(IAnsiConsole console)
+    {
+        object capabilities = console.Profile.Capabilities;
+        bool? supportsAnsi = capabilities.GetType().GetProperty("Ansi")?.GetValue(capabilities) as bool?;
+
+        return supportsAnsi is null || supportsAnsi.Value;
     }
 }

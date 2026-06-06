@@ -17,6 +17,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Spectre.Console" Version="0.56.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
         <ProjectReference Include="..\UnityAssetsPatcher.AssetsTools\UnityAssetsPatcher.AssetsTools.csproj"/>
         <ProjectReference Include="..\UnityAssetsPatcher.Core\UnityAssetsPatcher.Core.csproj"/>

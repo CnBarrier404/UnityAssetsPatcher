@@ -35,7 +35,7 @@ internal sealed class ScopedAssetsReader : IAssetsReadScope
     {
         string fullPath = Path.GetFullPath(assetsFilePath);
 
-        if (!_fieldTrees.TryGetValue(fullPath, out Dictionary<long, AssetsFieldInfo>? assetsFileFields))
+        if (!_fieldTrees.TryGetValue(fullPath, out var assetsFileFields))
         {
             assetsFileFields = [];
             _fieldTrees.Add(fullPath, assetsFileFields);

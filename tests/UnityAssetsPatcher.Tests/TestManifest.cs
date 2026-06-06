@@ -26,8 +26,8 @@ internal static class TestManifest
 
     public static string CreateJson(string patchJson)
     {
-        var fragment = JsonNode.Parse(patchJson)?.AsObject() ??
-                       throw new InvalidOperationException("Test manifest fragment must be a JSON object.");
+        JsonObject fragment = JsonNode.Parse(patchJson)?.AsObject() ??
+                              throw new InvalidOperationException("Test manifest fragment must be a JSON object.");
         var manifest = new JsonObject
         {
             ["name"] = "Test Mod",
@@ -135,8 +135,8 @@ internal static class TestManifest
 
             if (patch.TryGetPropertyValue("replaceFrom", out JsonNode? replaceFromNode))
             {
-                var replaceFrom = replaceFromNode?.AsObject() ??
-                                  throw new InvalidOperationException("Test replaceFrom must be an object.");
+                JsonObject replaceFrom = replaceFromNode?.AsObject() ??
+                                         throw new InvalidOperationException("Test replaceFrom must be an object.");
                 current["replaceAsset"] = new JsonObject
                 {
                     ["fromFile"] = replaceFrom["assets"]?.DeepClone(),
@@ -163,8 +163,8 @@ internal static class TestManifest
 
         foreach (JsonNode? operationNode in setArray)
         {
-            var operation = operationNode?.AsObject() ??
-                            throw new InvalidOperationException("Test set operation must be an object.");
+            JsonObject operation = operationNode?.AsObject() ??
+                                   throw new InvalidOperationException("Test set operation must be an object.");
             string field = operation["field"]?.GetValue<string>() ??
                            throw new InvalidOperationException("Test set operation must contain field.");
             set[field] = new JsonObject
@@ -188,8 +188,8 @@ internal static class TestManifest
 
         foreach (JsonNode? operationNode in addArray)
         {
-            var operation = operationNode?.AsObject() ??
-                            throw new InvalidOperationException("Test add operation must be an object.");
+            JsonObject operation = operationNode?.AsObject() ??
+                                   throw new InvalidOperationException("Test add operation must be an object.");
             string field = operation["field"]?.GetValue<string>() ??
                            throw new InvalidOperationException("Test add operation must contain field.");
             add[field] = operation["value"]?.DeepClone();

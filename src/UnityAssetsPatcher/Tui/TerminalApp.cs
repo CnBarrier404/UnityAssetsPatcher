@@ -1,5 +1,6 @@
-using UnityAssetsPatcher.Application.Workflows;
+using Spectre.Console;
 using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Tui.Pages;
 
 namespace UnityAssetsPatcher.Tui;
 
@@ -7,31 +8,36 @@ public sealed class TerminalApp
 {
     private readonly TerminalAppContext _context;
     private readonly InteractivePrompts _prompts;
-    private readonly InstallTerminalPage _installPage;
-    private readonly InspectTerminalPage _inspectPage;
-    private readonly FindTerminalPage _findPage;
-    private readonly PatchTerminalPage _patchPage;
+    private readonly IReadOnlyList<TerminalPage> _pages;
+    private readonly MainMenuTerminalPage _mainMenuPage;
 
-    public TerminalApp(IAssetsFileService assetsFileService, TextReader input, TextWriter output, TextWriter error)
-        : this(assetsFileService, Path.Combine(AppContext.BaseDirectory, "backup"), input, output, error) { }
+    public TerminalApp(IAssetsFileService assetsFileService, IAnsiConsole console)
+        : this(assetsFileService, Path.Combine(AppContext.BaseDirectory, "backup"), console) { }
+
+    public TerminalApp(IAssetsFileService assetsFileService, string backupDirectory, IAnsiConsole console)
+        : this(assetsFileService, backupDirectory, console, console) { }
 
     public TerminalApp(
         IAssetsFileService assetsFileService,
         string backupDirectory,
-        TextReader input,
-        TextWriter output,
-        TextWriter error)
+        IAnsiConsole console,
+        IAnsiConsole error)
     {
         _context = new TerminalAppContext(
-            CreateServiceScopeFactory(assetsFileService),
+            new TerminalWorkflowSessionFactory(assetsFileService),
             backupDirectory,
-            output,
+            console,
             error);
-        _prompts = new InteractivePrompts(input, output);
-        _installPage = new InstallTerminalPage(_context, _prompts);
-        _inspectPage = new InspectTerminalPage(_context, _prompts);
-        _findPage = new FindTerminalPage(_context, _prompts);
-        _patchPage = new PatchTerminalPage(_context, _prompts);
+        _prompts = new InteractivePrompts(console);
+        _pages =
+        [
+            new InstallTerminalPage(_context, _prompts),
+            new InspectTerminalPage(_context, _prompts),
+            new FindTerminalPage(_context, _prompts),
+            new PatchTerminalPage(_context, _prompts),
+            new SettingsTerminalPage(_context),
+        ];
+        _mainMenuPage = new MainMenuTerminalPage(_context, _prompts, _pages);
     }
 
     public int Run()
@@ -40,138 +46,46 @@ public sealed class TerminalApp
         {
             while (true)
             {
-                WriteMainMenu();
+                TerminalPage? page = _mainMenuPage.ReadSelection();
 
-                string? choice = _prompts.ReadRawLine();
-
-                if (choice is null)
+                if (page is null)
                 {
                     return 0;
                 }
 
-                switch (choice.Trim().ToLowerInvariant())
+                bool waitBeforeReturningToMenu = RunMenuAction(page.Run);
+
+                if (!waitBeforeReturningToMenu)
                 {
-                    case "1":
-                        RunMenuAction(() => _installPage.Run(apply: true));
-                        break;
-                    case "2":
-                        RunMenuAction(() => _installPage.Run(apply: false));
-                        break;
-                    case "3":
-                        RunMenuAction(_inspectPage.Run);
-                        break;
-                    case "4":
-                        RunMenuAction(_findPage.Run);
-                        break;
-                    case "5":
-                        RunMenuAction(_patchPage.Run);
-                        break;
-                    case "6":
-                        return 0;
-                    default:
-                        _context.Output.WriteLine("Invalid option. Enter 1, 2, 3, 4, 5, or 6.");
-                        break;
+                    continue;
                 }
 
-                _context.Output.WriteLine();
+                _context.Layout.ShowReturnHint();
+                _prompts.WaitForKey();
             }
         }
         catch (Exception exception)
         {
-            _context.Error.WriteLine(exception.Message);
+            TerminalOutputFormatter.WriteError(_context.Error, exception.Message);
 
             return 1;
         }
+        finally
+        {
+            _context.Console.Cursor.Show(true);
+        }
     }
 
-    private void WriteMainMenu()
-    {
-        _context.Output.WriteLine("========================================");
-        _context.Output.WriteLine("        Unity Assets Patcher");
-        _context.Output.WriteLine("========================================");
-        _context.Output.WriteLine();
-        _context.Output.WriteLine("1. Install a mod");
-        _context.Output.WriteLine("2. Preview a mod install");
-        _context.Output.WriteLine("3. Inspect assets");
-        _context.Output.WriteLine("4. Find assets");
-        _context.Output.WriteLine("5. Patch assets");
-        _context.Output.WriteLine("6. Exit");
-        _context.Output.WriteLine();
-        _context.Output.Write("Select an option: ");
-    }
-
-    private void RunMenuAction(Action action)
+    private bool RunMenuAction(Func<bool> action)
     {
         try
         {
-            action();
+            return action();
         }
         catch (Exception exception)
         {
-            _context.Error.WriteLine(exception.Message);
+            TerminalOutputFormatter.WriteError(_context.Error, exception.Message);
+            return true;
         }
-    }
-
-    private static Func<TerminalAssetsWorkflowServiceScope> CreateServiceScopeFactory(
-        IAssetsFileService assetsFileService)
-    {
-        if (assetsFileService is not IAssetsReadScopeFactory readScopeFactory)
-        {
-            return () => new TerminalAssetsWorkflowServiceScope(new AssetsWorkflowService(assetsFileService), null);
-        }
-
-        return () =>
-        {
-            IAssetsReadScope readScope = readScopeFactory.CreateReadScope();
-            var service = new AssetsWorkflowService(readScope, assetsFileService);
-
-            return new TerminalAssetsWorkflowServiceScope(service, readScope);
-        };
-    }
-}
-
-internal sealed class TerminalAppContext
-{
-    private readonly Func<TerminalAssetsWorkflowServiceScope> _serviceScopeFactory;
-
-    public TerminalAppContext(
-        Func<TerminalAssetsWorkflowServiceScope> serviceScopeFactory,
-        string backupDirectory,
-        TextWriter output,
-        TextWriter error)
-    {
-        _serviceScopeFactory = serviceScopeFactory;
-        BackupDirectory = backupDirectory;
-        Output = output;
-        Error = error;
-    }
-
-    public string BackupDirectory { get; }
-    public TextWriter Output { get; }
-    public TextWriter Error { get; }
-
-    public void UseService(Func<AssetsWorkflowService, int> action)
-    {
-        using TerminalAssetsWorkflowServiceScope scope = _serviceScopeFactory();
-
-        action(scope.Service);
-    }
-}
-
-internal sealed class TerminalAssetsWorkflowServiceScope : IDisposable
-{
-    private readonly IDisposable? _disposable;
-
-    public TerminalAssetsWorkflowServiceScope(AssetsWorkflowService service, IDisposable? disposable)
-    {
-        Service = service;
-        _disposable = disposable;
-    }
-
-    public AssetsWorkflowService Service { get; }
-
-    public void Dispose()
-    {
-        _disposable?.Dispose();
     }
 }

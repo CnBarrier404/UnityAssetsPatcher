@@ -49,7 +49,7 @@ public sealed class ArchitectureComponentTests
                 "UnityAssetsPatcher.AssetsTools.csproj",
                 "UnityAssetsPatcher.Core.csproj",
             ],
-            expectedPackageReferences: []);
+            expectedPackageReferences: ["Spectre.Console"]);
     }
 
     [Fact]
@@ -186,10 +186,51 @@ public sealed class ArchitectureComponentTests
         Assert.Contains("class InspectTerminalPage", terminalSource, StringComparison.Ordinal);
         Assert.Contains("class FindTerminalPage", terminalSource, StringComparison.Ordinal);
         Assert.Contains("class PatchTerminalPage", terminalSource, StringComparison.Ordinal);
+        Assert.Contains("class SettingsTerminalPage", terminalSource, StringComparison.Ordinal);
         Assert.DoesNotContain("RunInstall(", terminalAppSource, StringComparison.Ordinal);
         Assert.DoesNotContain("RunInspect(", terminalAppSource, StringComparison.Ordinal);
         Assert.DoesNotContain("RunFind(", terminalAppSource, StringComparison.Ordinal);
         Assert.DoesNotContain("RunPatch(", terminalAppSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TerminalApp_UsesTerminalPageCollectionForMainMenuDispatch()
+    {
+        string terminalAppSource = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "UnityAssetsPatcher",
+            "Tui",
+            "TerminalApp.cs"));
+
+        Assert.Contains("IReadOnlyList<TerminalPage>", terminalAppSource, StringComparison.Ordinal);
+        Assert.Contains("new InstallTerminalPage", terminalAppSource, StringComparison.Ordinal);
+        Assert.Contains("new InspectTerminalPage", terminalAppSource, StringComparison.Ordinal);
+        Assert.Contains("new FindTerminalPage", terminalAppSource, StringComparison.Ordinal);
+        Assert.Contains("new PatchTerminalPage", terminalAppSource, StringComparison.Ordinal);
+        Assert.Contains("new SettingsTerminalPage", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("TerminalPageFactory", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("choice switch", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("WriteMainHeader", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("WriteMainMenu", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("TerminalOutputFormatter.WriteMainMenu", terminalAppSource, StringComparison.Ordinal);
+        Assert.Contains("MainMenuTerminalPage", terminalAppSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TerminalApp_DoesNotCreateWorkflowServiceScopes()
+    {
+        string terminalAppSource = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "UnityAssetsPatcher",
+            "Tui",
+            "TerminalApp.cs"));
+
+        Assert.DoesNotContain("AssetsWorkflowService", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("IAssetsReadScopeFactory", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateServiceScopeFactory", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("TerminalAssetsWorkflowServiceScope", terminalAppSource, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -198,24 +239,114 @@ public sealed class ArchitectureComponentTests
         string root = FindRepositoryRoot();
         string projectDirectory = Path.Combine(root, "src", "UnityAssetsPatcher");
         string tuiDirectory = Path.Combine(projectDirectory, "Tui");
-        string[] tuiFiles =
+        string pagesDirectory = Path.Combine(tuiDirectory, "Pages");
+        string[] tuiRootFiles =
         [
             "TerminalApp.cs",
+            "MainMenuTerminalPage.cs",
+            "InteractivePrompts.cs",
+            "TerminalPageLayout.cs",
+            "TerminalOutputFormatter.cs",
+        ];
+        string[] pageFiles =
+        [
             "InstallTerminalPage.cs",
             "InspectTerminalPage.cs",
             "FindTerminalPage.cs",
             "PatchTerminalPage.cs",
-            "InteractivePrompts.cs",
-            "TerminalOutputFormatter.cs",
+            "SettingsTerminalPage.cs",
         ];
 
-        foreach (string file in tuiFiles)
+        foreach (string file in tuiRootFiles)
         {
             string path = Path.Combine(tuiDirectory, file);
 
             Assert.True(File.Exists(path), $"{file} should live under the Tui folder.");
             Assert.Contains("namespace UnityAssetsPatcher.Tui;", File.ReadAllText(path), StringComparison.Ordinal);
             Assert.False(File.Exists(Path.Combine(projectDirectory, file)), $"{file} should not live at project root.");
+        }
+
+        foreach (string file in pageFiles)
+        {
+            string path = Path.Combine(pagesDirectory, file);
+
+            Assert.True(File.Exists(path), $"{file} should live under the Tui/Pages folder.");
+            Assert.Contains("namespace UnityAssetsPatcher.Tui.Pages;", File.ReadAllText(path), StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(tuiDirectory, file)), $"{file} should not live at the Tui root.");
+        }
+    }
+
+    [Fact]
+    public void TerminalPages_UseSharedPageLayoutForPageFrames()
+    {
+        string tuiDirectory = Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "UnityAssetsPatcher",
+            "Tui");
+        string pagesDirectory = Path.Combine(tuiDirectory, "Pages");
+        string terminalPageSource = File.ReadAllText(Path.Combine(tuiDirectory, "TerminalPage.cs"));
+        string[] files =
+        [
+            "InstallTerminalPage.cs",
+            "InspectTerminalPage.cs",
+            "FindTerminalPage.cs",
+            "PatchTerminalPage.cs",
+            "SettingsTerminalPage.cs",
+        ];
+
+        Assert.Contains("Layout.ShowPage", terminalPageSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("WritePageHeader", terminalPageSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("WriteApplicationHeader", terminalPageSource, StringComparison.Ordinal);
+
+        foreach (string file in files)
+        {
+            string source = File.ReadAllText(Path.Combine(pagesDirectory, file));
+
+            Assert.Contains("NewPage(", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Layout.ShowPage", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("WritePageHeader", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("WriteApplicationHeader", source, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void TerminalPages_DefineMetadataAndUseSharedNewPageHelper()
+    {
+        string tuiDirectory = Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "UnityAssetsPatcher",
+            "Tui");
+        string pagesDirectory = Path.Combine(tuiDirectory, "Pages");
+        string terminalPageSource = File.ReadAllText(Path.Combine(tuiDirectory, "TerminalPage.cs"));
+        string[] pageFiles =
+        [
+            "InstallTerminalPage.cs",
+            "InspectTerminalPage.cs",
+            "FindTerminalPage.cs",
+            "PatchTerminalPage.cs",
+            "SettingsTerminalPage.cs",
+        ];
+
+        Assert.Contains("abstract class TerminalPage", terminalPageSource, StringComparison.Ordinal);
+        Assert.Contains("protected void NewPage", terminalPageSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("TerminalMenuItem", terminalPageSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("MenuItem", terminalPageSource, StringComparison.Ordinal);
+        Assert.Contains("public abstract string Title", terminalPageSource, StringComparison.Ordinal);
+        Assert.Contains("public abstract string Description", terminalPageSource, StringComparison.Ordinal);
+
+        foreach (string file in pageFiles)
+        {
+            string source = File.ReadAllText(Path.Combine(pagesDirectory, file));
+
+            Assert.Contains(": TerminalPage", source, StringComparison.Ordinal);
+            Assert.Contains("public override string Title", source, StringComparison.Ordinal);
+            Assert.Contains("public override string Description", source, StringComparison.Ordinal);
+            Assert.Contains("NewPage(", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("TerminalMenuItem", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("MenuItem", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Layout.ShowPage", source, StringComparison.Ordinal);
         }
     }
 
@@ -310,11 +441,11 @@ public sealed class ArchitectureComponentTests
         IReadOnlyList<string> expectedPackageReferences)
     {
         XDocument document = XDocument.Load(projectPath);
-        var projectReferences = document.Descendants("ProjectReference")
+        string?[] projectReferences = document.Descendants("ProjectReference")
             .Select(element => Path.GetFileName(element.Attribute("Include")?.Value))
             .OrderBy(value => value, StringComparer.Ordinal)
             .ToArray();
-        var packageReferences = document.Descendants("PackageReference")
+        string?[] packageReferences = document.Descendants("PackageReference")
             .Select(element => element.Attribute("Include")?.Value)
             .OrderBy(value => value, StringComparer.Ordinal)
             .ToArray();
