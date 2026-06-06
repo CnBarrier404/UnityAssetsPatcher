@@ -71,10 +71,16 @@ jobs:
         run: |
           $artifactName = "${{ steps.release.outputs.artifact_name }}"
           $zipPath = "artifacts/$artifactName.zip"
+          $publishPath = "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}"
+          $packageFiles = @(Get-ChildItem -Path $publishPath -File | Where-Object { $_.Extension -ne ".pdb" })
+
+          if ($packageFiles.Count -eq 0) {
+            throw "No publish files found to package."
+          }
 
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
           Compress-Archive `
-            -Path "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}/*" `
+            -Path $packageFiles.FullName `
             -DestinationPath $zipPath `
             -Force
 
