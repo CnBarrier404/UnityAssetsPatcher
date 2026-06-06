@@ -3,7 +3,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Utils;
 
-namespace UnityAssetsPatcher;
+namespace UnityAssetsPatcher.Tui;
 
 public static class TerminalOutputFormatter
 {

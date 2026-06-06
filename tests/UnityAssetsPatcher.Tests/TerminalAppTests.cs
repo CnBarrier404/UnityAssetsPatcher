@@ -1,5 +1,6 @@
 using Xunit;
 using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Tui;
 
 namespace UnityAssetsPatcher.Tests;
 
@@ -25,6 +26,42 @@ public sealed class TerminalAppTests
         Assert.Contains("5. Patch assets", text);
         Assert.Contains("6. Exit", text);
         Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_WhenMainMenuReceivesHiddenExitAlias_PrintsInvalidOption()
+    {
+        var input = new StringReader(Lines("q", "6"));
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var app = new TerminalApp(new StubAssetsFileService([]), input, output, error);
+
+        int exitCode = app.Run();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Invalid option. Enter 1, 2, 3, 4, 5, or 6.", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void ReadExistingFilePath_WhenValueIsQ_TreatsInputAsAPath()
+    {
+        string assetsPath = CreateTempFile(".assets");
+        var input = new StringReader(Lines("q", assetsPath));
+        var output = new StringWriter();
+        var prompts = new InteractivePrompts(input, output);
+
+        try
+        {
+            string? path = prompts.ReadExistingFilePath("Assets file path");
+
+            Assert.Equal(assetsPath, path);
+            Assert.Contains("File not found: q", output.ToString());
+        }
+        finally
+        {
+            File.Delete(assetsPath);
+        }
     }
 
     [Fact]

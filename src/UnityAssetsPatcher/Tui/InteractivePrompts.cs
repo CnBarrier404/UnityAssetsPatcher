@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace UnityAssetsPatcher;
+namespace UnityAssetsPatcher.Tui;
 
 public sealed class InteractivePrompts
 {
@@ -53,13 +53,6 @@ public sealed class InteractivePrompts
 
             string normalized = NormalizePathInput(input);
 
-            if (IsQuit(normalized))
-            {
-                value = 0;
-
-                return false;
-            }
-
             if (long.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
             {
                 return true;
@@ -85,13 +78,6 @@ public sealed class InteractivePrompts
 
             string normalized = NormalizePathInput(input);
 
-            if (IsQuit(normalized))
-            {
-                value = 0;
-
-                return false;
-            }
-
             if (int.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) &&
                 value > 0)
             {
@@ -116,13 +102,6 @@ public sealed class InteractivePrompts
 
         string normalized = NormalizePathInput(value);
 
-        if (IsQuit(normalized))
-        {
-            path = null;
-
-            return false;
-        }
-
         path = string.IsNullOrWhiteSpace(normalized) ? null : normalized;
 
         return true;
@@ -142,11 +121,6 @@ public sealed class InteractivePrompts
 
             string path = NormalizePathInput(value);
 
-            if (IsQuit(path))
-            {
-                return null;
-            }
-
             if (string.IsNullOrWhiteSpace(path))
             {
                 _output.WriteLine($"{label} is required.");
@@ -161,13 +135,6 @@ public sealed class InteractivePrompts
 
             _output.WriteLine(missingMessage(path));
         }
-    }
-
-    private static bool IsQuit(string value)
-    {
-        return string.Equals(value, "q", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(value, "quit", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(value, "exit", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizePathInput(string value)

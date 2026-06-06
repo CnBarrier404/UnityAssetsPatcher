@@ -8,6 +8,7 @@ using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Tui;
 
 namespace UnityAssetsPatcher.Tests;
 
@@ -168,6 +169,54 @@ public sealed class ArchitectureComponentTests
         Assert.DoesNotContain("UnityAssetsPatcher.Cli", source, StringComparison.Ordinal);
         Assert.DoesNotContain("CommandCatalog", source, StringComparison.Ordinal);
         Assert.DoesNotContain("ICommandModule", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TerminalSource_SplitsInteractivePagesIntoDedicatedTypes()
+    {
+        string terminalAppSource = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "UnityAssetsPatcher",
+            "Tui",
+            "TerminalApp.cs"));
+        string terminalSource = ReadSourceTree("src", "UnityAssetsPatcher");
+
+        Assert.Contains("class InstallTerminalPage", terminalSource, StringComparison.Ordinal);
+        Assert.Contains("class InspectTerminalPage", terminalSource, StringComparison.Ordinal);
+        Assert.Contains("class FindTerminalPage", terminalSource, StringComparison.Ordinal);
+        Assert.Contains("class PatchTerminalPage", terminalSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("RunInstall(", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("RunInspect(", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("RunFind(", terminalAppSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("RunPatch(", terminalAppSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TerminalSource_LivesUnderDedicatedTuiFolderAndNamespace()
+    {
+        string root = FindRepositoryRoot();
+        string projectDirectory = Path.Combine(root, "src", "UnityAssetsPatcher");
+        string tuiDirectory = Path.Combine(projectDirectory, "Tui");
+        string[] tuiFiles =
+        [
+            "TerminalApp.cs",
+            "InstallTerminalPage.cs",
+            "InspectTerminalPage.cs",
+            "FindTerminalPage.cs",
+            "PatchTerminalPage.cs",
+            "InteractivePrompts.cs",
+            "TerminalOutputFormatter.cs",
+        ];
+
+        foreach (string file in tuiFiles)
+        {
+            string path = Path.Combine(tuiDirectory, file);
+
+            Assert.True(File.Exists(path), $"{file} should live under the Tui folder.");
+            Assert.Contains("namespace UnityAssetsPatcher.Tui;", File.ReadAllText(path), StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(projectDirectory, file)), $"{file} should not live at project root.");
+        }
     }
 
     [Fact]
