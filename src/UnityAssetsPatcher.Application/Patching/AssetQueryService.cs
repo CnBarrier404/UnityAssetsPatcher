@@ -18,34 +18,37 @@ public sealed class AssetQueryService
         string assetsFilePath,
         IReadOnlyList<ManifestPatch> targets)
     {
-        var matches = new List<AssetMatch>();
+        AssetQueryContext context = CreateContext(assetsFilePath);
 
-        foreach (ManifestPatch patch in targets)
-        {
-            foreach (AssetQueryMatch match in FindMatches(assetsFilePath, patch))
-            {
-                matches.Add(new AssetMatch(match.Asset, match.IncludeGroup));
-            }
-        }
-
-        return matches;
+        return (from patch in targets
+            from match in FindMatches(context, patch)
+            select new AssetMatch(match.Asset, match.IncludeGroup)).ToList();
     }
 
     public IEnumerable<AssetQueryMatch> FindMatches(
         string assetsFilePath,
         ManifestPatch patch)
     {
-        var assets = _assetsReader.ReadAssetsInfo(assetsFilePath).ToArray();
+        return FindMatches(CreateContext(assetsFilePath), patch);
+    }
+
+    internal AssetQueryContext CreateContext(string assetsFilePath)
+    {
+        return new AssetQueryContext(_assetsReader, assetsFilePath);
+    }
+
+    internal IEnumerable<AssetQueryMatch> FindMatches(
+        AssetQueryContext context,
+        ManifestPatch patch)
+    {
         var assetsByPathId = patch.ComponentTypeName is null
             ? null
-            : assets.ToDictionary(asset => asset.PathId);
-        var ownerAssets = assets
-            .Where(asset => string.Equals(asset.TypeName, patch.AssetTypeName, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+            : context.AssetsByPathId;
+        var ownerAssets = context.GetAssetsByType(patch.AssetTypeName);
 
         foreach (AssetsInfo asset in ownerAssets)
         {
-            AssetsFieldInfo fieldTree = _assetsReader.ReadAssetsFieldInfo(assetsFilePath, asset.PathId);
+            AssetsFieldInfo fieldTree = context.ReadAssetsFieldInfo(asset.PathId);
             var includeGroup =
                 patch.IncludeGroups.FirstOrDefault(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
 
@@ -56,17 +59,17 @@ public sealed class AssetQueryService
 
             var ownerMatch = new AssetQueryMatch(asset, fieldTree, includeGroup);
 
-            if (patch.ComponentTypeName is not string componentTypeName)
+            if (patch.ComponentTypeName is not { } componentTypeName)
             {
                 yield return ownerMatch;
                 continue;
             }
 
-            IReadOnlyDictionary<long, AssetsInfo> componentAssetsByPathId = assetsByPathId ??
-                                                                            throw new InvalidOperationException(
-                                                                                "Component target index was not initialized.");
+            var componentAssetsByPathId = assetsByPathId ??
+                                          throw new InvalidOperationException(
+                                              "Component target index was not initialized.");
             foreach (AssetQueryMatch componentMatch in FindComponentMatches(
-                         assetsFilePath,
+                         context,
                          ownerMatch,
                          componentTypeName,
                          componentAssetsByPathId))
@@ -76,14 +79,14 @@ public sealed class AssetQueryService
         }
     }
 
-    private IEnumerable<AssetQueryMatch> FindComponentMatches(
-        string assetsFilePath,
+    private static IEnumerable<AssetQueryMatch> FindComponentMatches(
+        AssetQueryContext context,
         AssetQueryMatch ownerMatch,
         string componentTypeName,
         IReadOnlyDictionary<long, AssetsInfo> assetsByPathId)
     {
         var componentAssets = ReadComponentPathIds(ownerMatch.FieldTree)
-            .Select(pathId => assetsByPathId.TryGetValue(pathId, out AssetsInfo? asset) ? asset : null)
+            .Select(assetsByPathId.GetValueOrDefault)
             .OfType<AssetsInfo>()
             .Where(asset => string.Equals(asset.TypeName, componentTypeName, StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -97,7 +100,7 @@ public sealed class AssetQueryService
         foreach (AssetsInfo componentAsset in componentAssets)
         {
             AssetsFieldInfo componentFieldTree =
-                _assetsReader.ReadAssetsFieldInfo(assetsFilePath, componentAsset.PathId);
+                context.ReadAssetsFieldInfo(componentAsset.PathId);
             yield return new AssetQueryMatch(componentAsset, componentFieldTree, ownerMatch.IncludeGroup);
         }
     }
@@ -135,3 +138,46 @@ public sealed record AssetQueryMatch(
     AssetsInfo Asset,
     AssetsFieldInfo FieldTree,
     IReadOnlyDictionary<string, JsonElement> IncludeGroup);
+
+internal sealed class AssetQueryContext
+{
+    public IReadOnlyDictionary<long, AssetsInfo> AssetsByPathId => _assetsByPathId.Value;
+
+    private IReadOnlyList<AssetsInfo> Assets { get; }
+
+    private readonly IAssetsReader _assetsReader;
+    private readonly string _assetsFilePath;
+    private readonly Lazy<IReadOnlyDictionary<long, AssetsInfo>> _assetsByPathId;
+
+    private readonly Dictionary<string, IReadOnlyList<AssetsInfo>>
+        _assetsByType = new(StringComparer.OrdinalIgnoreCase);
+
+    public AssetQueryContext(IAssetsReader assetsReader, string assetsFilePath)
+    {
+        _assetsReader = assetsReader;
+        _assetsFilePath = assetsFilePath;
+        Assets = assetsReader.ReadAssetsInfo(assetsFilePath).ToArray();
+        _assetsByPathId =
+            new Lazy<IReadOnlyDictionary<long, AssetsInfo>>(() => Assets.ToDictionary(asset => asset.PathId));
+    }
+
+    public IReadOnlyList<AssetsInfo> GetAssetsByType(string assetTypeName)
+    {
+        if (_assetsByType.TryGetValue(assetTypeName, out var assets))
+        {
+            return assets;
+        }
+
+        assets = Assets
+            .Where(asset => string.Equals(asset.TypeName, assetTypeName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        _assetsByType.Add(assetTypeName, assets);
+
+        return assets;
+    }
+
+    public AssetsFieldInfo ReadAssetsFieldInfo(long pathId)
+    {
+        return _assetsReader.ReadAssetsFieldInfo(_assetsFilePath, pathId);
+    }
+}

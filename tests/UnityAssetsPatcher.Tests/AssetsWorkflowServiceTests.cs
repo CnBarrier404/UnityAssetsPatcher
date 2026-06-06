@@ -102,6 +102,60 @@ public sealed class AssetsWorkflowServiceTests
         Assert.Equal(configPath, manifestLoader.ConfigPath);
     }
 
+    [Fact]
+    public void FindAssets_WhenMultipleTargetsUseSameAssetsFile_ReadsAssetsInfoOnce()
+    {
+        const string configPath = "missing-manifest.json";
+        var manifestLoader = new RecordingManifestLoader(new ModManifest(
+            "Injected Manifest",
+            "UnityAssetsPatcher.Tests",
+            "1.0.0",
+            null,
+            null,
+            [],
+            [
+                new ManifestPatch(
+                    "resources.assets",
+                    "Camera",
+                    [
+                        new Dictionary<string, JsonElement>
+                        {
+                            ["m_Name"] = JsonSerializer.SerializeToElement("Main Camera"),
+                        },
+                    ],
+                    null,
+                    null),
+                new ManifestPatch(
+                    "resources.assets",
+                    "Camera",
+                    [
+                        new Dictionary<string, JsonElement>
+                        {
+                            ["m_Name"] = JsonSerializer.SerializeToElement("Secondary Camera"),
+                        },
+                    ],
+                    null,
+                    null),
+            ]));
+        var assetsFileService = new StubAssetsFileService(
+            [
+                new AssetsInfo(10, 20, "Camera", 128),
+                new AssetsInfo(11, 20, "Camera", 128),
+                new AssetsInfo(12, 1, "GameObject", 128),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new("Camera", "Camera", null, [new AssetsFieldInfo("m_Name", "string", "Main Camera", [])]),
+                [11] = new("Camera", "Camera", null, [new AssetsFieldInfo("m_Name", "string", "Secondary Camera", [])]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService, assetsFileService, manifestLoader);
+
+        var matches = service.FindAssets(new FindAssetsRequest("resources.assets", configPath));
+
+        Assert.Equal([10L, 11L], matches.Select(match => match.Asset.PathId));
+        Assert.Equal(1, assetsFileService.ReadAssetsInfoCallCount);
+    }
+
     /// <summary>
     /// Verifies that patch preview can receive a parsed manifest from an injected loader instead of reading the config path directly.
     /// </summary>
@@ -154,6 +208,77 @@ public sealed class AssetsWorkflowServiceTests
         Assert.Equal("field of view", operation.Path);
         Assert.True(operation.WillChange);
         Assert.Equal(configPath, manifestLoader.ConfigPath);
+    }
+
+    [Fact]
+    public void PreviewPatch_WhenMultipleTargetsUseSameAssetsFile_ReadsAssetsInfoOnce()
+    {
+        const string configPath = "missing-manifest.json";
+        var manifestLoader = new RecordingManifestLoader(new ModManifest(
+            "Injected Manifest",
+            "UnityAssetsPatcher.Tests",
+            "1.0.0",
+            null,
+            null,
+            [],
+            [
+                new ManifestPatch(
+                    "resources.assets",
+                    "Camera",
+                    [
+                        new Dictionary<string, JsonElement>
+                        {
+                            ["m_Name"] = JsonSerializer.SerializeToElement("Main Camera"),
+                        },
+                    ],
+                    [
+                        new ManifestSetOperation(
+                            "field of view",
+                            JsonSerializer.SerializeToElement(45),
+                            JsonSerializer.SerializeToElement(60)),
+                    ],
+                    null),
+                new ManifestPatch(
+                    "resources.assets",
+                    "Camera",
+                    [
+                        new Dictionary<string, JsonElement>
+                        {
+                            ["m_Name"] = JsonSerializer.SerializeToElement("Secondary Camera"),
+                        },
+                    ],
+                    [
+                        new ManifestSetOperation(
+                            "field of view",
+                            JsonSerializer.SerializeToElement(30),
+                            JsonSerializer.SerializeToElement(75)),
+                    ],
+                    null),
+            ]));
+        var assetsFileService = new StubAssetsFileService(
+            [
+                new AssetsInfo(10, 20, "Camera", 128),
+                new AssetsInfo(11, 20, "Camera", 128),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "Main Camera", []),
+                    new AssetsFieldInfo("field of view", "float", "45", []),
+                ]),
+                [11] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "Secondary Camera", []),
+                    new AssetsFieldInfo("field of view", "float", "30", []),
+                ]),
+            });
+        var service = new AssetsWorkflowService(assetsFileService, assetsFileService, manifestLoader);
+
+        PatchPreviewResult preview = service.PreviewPatch(new PatchPreviewRequest("resources.assets", configPath));
+
+        Assert.Equal([10L, 11L], preview.Assets.Select(asset => asset.Asset.PathId));
+        Assert.Equal(1, assetsFileService.ReadAssetsInfoCallCount);
     }
 
     /// <summary>

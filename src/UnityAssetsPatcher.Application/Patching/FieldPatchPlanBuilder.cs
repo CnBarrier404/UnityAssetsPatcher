@@ -19,10 +19,11 @@ public sealed class FieldPatchPlanBuilder
     public PatchPreviewResult CreatePreview(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
     {
         var assets = new List<PatchPreviewAssetResult>();
+        AssetQueryContext queryContext = _assetQueryService.CreateContext(assetsFilePath);
 
         foreach (ManifestPatch patch in targets)
         {
-            foreach (AssetQueryMatch match in _assetQueryService.FindMatches(assetsFilePath, patch))
+            foreach (AssetQueryMatch match in _assetQueryService.FindMatches(queryContext, patch))
             {
                 var operationResults = new List<PatchPreviewOperationResult>();
 
@@ -56,10 +57,11 @@ public sealed class FieldPatchPlanBuilder
         }
 
         var operationGroups = new Dictionary<long, List<PatchWriteOperation>>();
+        AssetQueryContext queryContext = _assetQueryService.CreateContext(assetsFilePath);
 
         foreach (ManifestPatch patch in targets)
         {
-            foreach (AssetQueryMatch match in _assetQueryService.FindMatches(assetsFilePath, patch))
+            foreach (AssetQueryMatch match in _assetQueryService.FindMatches(queryContext, patch))
             {
                 if (!operationGroups.TryGetValue(match.Asset.PathId, out var operations))
                 {
