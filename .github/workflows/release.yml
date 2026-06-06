@@ -1,0 +1,212 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  SOLUTION_PATH: UnityAssetsPatcher.sln
+  PROJECT_PATH: src/UnityAssetsPatcher/UnityAssetsPatcher.csproj
+  RUNTIME_IDENTIFIER: win-x64
+
+jobs:
+  release:
+    name: Build and upload Windows release
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Resolve release metadata
+        id: release
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+
+          if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?)$') {
+            throw "Release tags must look like v1.2.3 or v1.2.3-beta.1. Actual tag: $tag"
+          }
+
+          $version = $Matches.version
+          $artifactName = "UnityAssetsPatcher-$tag-${{ env.RUNTIME_IDENTIFIER }}"
+          $isPrerelease = $version.Contains("-").ToString().ToLowerInvariant()
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
+          "is_prerelease=$isPrerelease" >> $env:GITHUB_OUTPUT
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Run tests
+        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+
+      - name: Publish executable
+        shell: pwsh
+        run: |
+          dotnet publish $env:PROJECT_PATH `
+            --configuration Release `
+            --runtime $env:RUNTIME_IDENTIFIER `
+            --self-contained true `
+            --output "artifacts/publish/$env:RUNTIME_IDENTIFIER" `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=${{ steps.release.outputs.version }} `
+            -p:InformationalVersion=${{ github.ref_name }}
+
+      - name: Package release asset
+        id: package
+        shell: pwsh
+        run: |
+          $artifactName = "${{ steps.release.outputs.artifact_name }}"
+          $zipPath = "artifacts/$artifactName.zip"
+
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Compress-Archive `
+            -Path "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}/*" `
+            -DestinationPath $zipPath `
+            -Force
+
+          "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
+
+      - name: Prepare release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = "${{ steps.release.outputs.version }}"
+          $notesPath = "artifacts/release-notes.md"
+          $fallbackNotes = "Automated release for $tag."
+
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+
+          $changelogPath = @("docs/changelog.md", "docs/CHANGELOG.md") |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+
+          if (-not $changelogPath) {
+            $fallbackNotes | Set-Content -Path $notesPath -Encoding utf8
+            "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          $lines = Get-Content -Path $changelogPath
+          $headingPattern = '^\s*##\s+\[?(?<heading>v?\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.-]+)?)\]?(?:\s|$)'
+          $nextHeadingPattern = '^\s*##\s+'
+          $startIndex = $null
+
+          for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match $headingPattern) {
+              $heading = $Matches.heading
+
+              if ($heading -eq $tag -or $heading -eq $version) {
+                $startIndex = $i
+                break
+              }
+            }
+          }
+
+          if ($null -eq $startIndex) {
+            $fallbackNotes | Set-Content -Path $notesPath -Encoding utf8
+            "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          $endIndex = $lines.Count
+
+          for ($i = $startIndex + 1; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match $nextHeadingPattern) {
+              $endIndex = $i
+              break
+            }
+          }
+
+          $sectionLines = @()
+
+          if ($endIndex -gt ($startIndex + 1)) {
+            $sectionLines = $lines[($startIndex + 1)..($endIndex - 1)]
+          }
+
+          $releaseNotes = ($sectionLines -join [Environment]::NewLine).Trim()
+
+          if ([string]::IsNullOrWhiteSpace($releaseNotes)) {
+            $releaseNotes = $fallbackNotes
+          }
+
+          $releaseNotes | Set-Content -Path $notesPath -Encoding utf8
+          "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $zipPath = "${{ steps.package.outputs.zip_path }}"
+          $notesPath = "${{ steps.notes.outputs.notes_path }}"
+          $isPrerelease = [System.Convert]::ToBoolean("${{ steps.release.outputs.is_prerelease }}")
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+
+          if ($LASTEXITCODE -eq 0) {
+            $editArgs = @(
+              "release",
+              "edit",
+              $tag,
+              "--repo",
+              $env:GITHUB_REPOSITORY,
+              "--title",
+              $tag,
+              "--notes-file",
+              $notesPath
+            )
+
+            if ($isPrerelease) {
+              $editArgs += "--prerelease"
+            }
+
+            gh @editArgs
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to update GitHub Release $tag."
+            }
+
+            gh release upload $tag $zipPath --repo $env:GITHUB_REPOSITORY --clobber
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to upload release asset to $tag."
+            }
+
+            exit 0
+          }
+
+          $createArgs = @(
+            "release",
+            "create",
+            $tag,
+            $zipPath,
+            "--repo",
+            $env:GITHUB_REPOSITORY,
+            "--title",
+            $tag,
+            "--notes-file",
+            $notesPath
+          )
+
+          if ($isPrerelease) {
+            $createArgs += "--prerelease"
+          }
+
+          gh @createArgs
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create GitHub Release $tag."
+          }
