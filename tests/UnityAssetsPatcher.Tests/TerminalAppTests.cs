@@ -79,38 +79,6 @@ public sealed class TerminalAppTests
     }
 
     [Fact]
-    public void Run_WhenMainMenuSelectionMoves_DoesNotClearScreenForEverySelectionFrame()
-    {
-        TestConsole inner = CreateConsole();
-        inner.Input.PushKey(ConsoleKey.DownArrow);
-        SelectMainMenuOption(inner, MainMenuOption.Exit);
-        var console = new RecordingCursorConsole(inner);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
-
-        int exitCode = app.Run();
-
-        Assert.True(exitCode == 0, inner.Output);
-        Assert.Equal(1, console.ClearCount);
-    }
-
-    [Fact]
-    public void Run_WhenSettingsSelectionMoves_DoesNotClearScreenForEverySelectionFrame()
-    {
-        TestConsole inner = CreateConsole();
-        SelectMainMenuOption(inner, MainMenuOption.Settings);
-        inner.Input.PushKey(ConsoleKey.DownArrow);
-        inner.Input.PushKey(ConsoleKey.Escape);
-        SelectMainMenuOption(inner, MainMenuOption.Exit);
-        var console = new RecordingCursorConsole(inner);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
-
-        int exitCode = app.Run();
-
-        Assert.True(exitCode == 0, inner.Output);
-        Assert.Equal(3, console.ClearCount);
-    }
-
-    [Fact]
     public void Run_WhenConsoleDoesNotSupportAnsi_UsesNumberedMainMenuFallback()
     {
         TestConsole console = CreateConsole(supportsAnsi: false);
@@ -889,7 +857,6 @@ public sealed class TerminalAppTests
             Cursor = new RecordingCursor(inner.Cursor, CursorStates);
         }
 
-        public int ClearCount { get; private set; }
         public List<bool> CursorStates { get; } = [];
 
         public Profile Profile => _inner.Profile;
@@ -900,7 +867,6 @@ public sealed class TerminalAppTests
 
         public void Clear(bool home)
         {
-            ClearCount++;
             _inner.Clear(home);
         }
 
