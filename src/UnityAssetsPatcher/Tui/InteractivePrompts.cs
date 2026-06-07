@@ -15,15 +15,8 @@ public sealed class InteractivePrompts
 
     internal int? ReadMainMenuChoice(
         IReadOnlyList<TerminalPage> choices,
-        Action<int, bool> render,
-        Action renderHeader)
+        Action<int, bool> render)
     {
-        if (!SupportsSelectionPrompt())
-        {
-            renderHeader();
-            return ReadNumberedMainMenuChoice(choices);
-        }
-
         int selectedIndex = 0;
         bool clear = true;
 
@@ -61,11 +54,6 @@ public sealed class InteractivePrompts
 
     public string ReadSubMenuChoice(string title, IReadOnlyList<string> choices, string cancelChoice)
     {
-        if (!SupportsSelectionPrompt())
-        {
-            return ReadNumberedMenuChoice(title, choices, cancelChoice);
-        }
-
         var prompt = CreateSelectionPrompt(title, choices)
             .AddCancelResult(cancelChoice);
 
@@ -87,102 +75,6 @@ public sealed class InteractivePrompts
         }
 
         return prompt;
-    }
-
-    private string ReadNumberedMenuChoice(
-        string title,
-        IReadOnlyList<string> choices,
-        string? cancelChoice = null)
-    {
-        if (!string.IsNullOrWhiteSpace(title))
-        {
-            WriteLine(title);
-        }
-
-        for (int i = 0; i < choices.Count; i++)
-        {
-            WriteLine($"{i + 1}. {choices[i]}");
-        }
-
-        while (true)
-        {
-            string? rawInput = ReadText($"Select an option [1-{choices.Count}]");
-
-            if (rawInput is null)
-            {
-                if (cancelChoice is not null)
-                {
-                    return cancelChoice;
-                }
-
-                WriteError($"Invalid option. Choose a number from 1 to {choices.Count}.");
-                continue;
-            }
-
-            string input = NormalizePathInput(rawInput);
-
-            if (int.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out int index) &&
-                index >= 1 &&
-                index <= choices.Count)
-            {
-                return choices[index - 1];
-            }
-
-            WriteError($"Invalid option. Choose a number from 1 to {choices.Count}.");
-        }
-    }
-
-    private int? ReadNumberedMainMenuChoice(IReadOnlyList<TerminalPage> choices)
-    {
-        for (int i = 0; i < choices.Count; i++)
-        {
-            TerminalPage page = choices[i];
-            WriteLine($"{i + 1}. {page.Title}");
-            WriteLine($"   {page.Description}");
-            WriteLine(string.Empty);
-        }
-
-        while (true)
-        {
-            string? rawInput = ReadText($"Select an option [1-{choices.Count}]");
-
-            if (rawInput is null)
-            {
-                return null;
-            }
-
-            string input = NormalizePathInput(rawInput);
-
-            if (int.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out int index) &&
-                index >= 1 &&
-                index <= choices.Count)
-            {
-                return index - 1;
-            }
-
-            WriteError($"Invalid option. Choose a number from 1 to {choices.Count}.");
-        }
-    }
-
-    private bool SupportsSelectionPrompt()
-    {
-        bool? supportsAnsi = GetBooleanCapability("Ansi");
-
-        if (supportsAnsi is not null)
-        {
-            return supportsAnsi.Value;
-        }
-
-        bool? isLegacy = GetBooleanCapability("Legacy");
-
-        return isLegacy is null || !isLegacy.Value;
-    }
-
-    private bool? GetBooleanCapability(string name)
-    {
-        object capabilities = _console.Profile.Capabilities;
-
-        return capabilities.GetType().GetProperty(name)?.GetValue(capabilities) as bool?;
     }
 
     public string? ReadExistingFilePath(string label)
@@ -399,40 +291,17 @@ public sealed class InteractivePrompts
 
     private void WriteInputLabel(string label)
     {
-        if (SupportsSelectionPrompt())
-        {
-            _console.Markup($"[blue]{Markup.Escape(label)}[/]: ");
-            return;
-        }
-
-        _console.Write(new Text($"{label}: "));
+        _console.Markup($"[blue]{Markup.Escape(label)}[/]: ");
     }
 
     private void WriteConfirmationLabel(string prompt)
     {
-        if (SupportsSelectionPrompt())
-        {
-            _console.Markup($"[blue]{Markup.Escape(prompt)}[/] [grey]y/N[/]: ");
-            return;
-        }
-
-        _console.Write(new Text($"{prompt} y/N: "));
+        _console.Markup($"[blue]{Markup.Escape(prompt)}[/] [grey]y/N[/]: ");
     }
 
     private void WriteError(string message)
     {
-        if (SupportsSelectionPrompt())
-        {
-            _console.MarkupLine($"[red]{Markup.Escape(message)}[/]");
-            return;
-        }
-
-        WriteLine(message);
-    }
-
-    private void WriteLine(string message)
-    {
-        _console.Write(new Text(message + Environment.NewLine));
+        _console.MarkupLine($"[red]{Markup.Escape(message)}[/]");
     }
 
     private static string NormalizePathInput(string value)

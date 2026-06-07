@@ -20,6 +20,6 @@ internal abstract class TerminalPage
             title ?? Title,
             description ?? Description,
             shortcutHint: shortcutHint ?? TerminalPageLayout.ShortcutHint,
-            clear: clear);
+            clear);
     }
 }

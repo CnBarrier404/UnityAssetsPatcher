@@ -50,8 +50,8 @@ internal sealed class SettingsTerminalPage : TerminalPage
         NewPage(
             Title,
             "Configure output detail for this session.",
-            shortcutHint: "Shortcuts: Up/Down choose | Space toggle | Esc return",
-            clear: clear);
+            "Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit",
+            clear);
         TerminalOutputFormatter.WriteSettings(Context.Console, GetSettings(), selectedIndex);
     }
 

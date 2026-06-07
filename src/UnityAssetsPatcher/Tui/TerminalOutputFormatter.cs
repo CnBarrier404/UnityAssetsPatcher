@@ -28,12 +28,6 @@ public static class TerminalOutputFormatter
         }
 
         WriteBlankLine(console);
-
-        if (!SupportsClear(console) && !string.IsNullOrWhiteSpace(footerHint))
-        {
-            WriteFooterHint(console, footerHint);
-            WriteBlankLine(console);
-        }
     }
 
     public static void WriteBlankLine(IAnsiConsole console)
@@ -64,12 +58,6 @@ public static class TerminalOutputFormatter
             return;
         }
 
-        if (!SupportsClear(console))
-        {
-            WriteFooterHint(console, message);
-            return;
-        }
-
         int height = console.Profile.Height;
 
         if (height <= 0)
@@ -78,7 +66,7 @@ public static class TerminalOutputFormatter
             return;
         }
 
-        console.Cursor.SetPosition(0, height - 1);
+        console.Cursor.SetPosition(1, height);
         console.Markup($"[grey]{Escape(FitToWidth(message, console.Profile.Width))}[/]");
     }
 
@@ -272,21 +260,17 @@ public static class TerminalOutputFormatter
 
     private static void WriteApplicationHeader(IAnsiConsole console, string? footerHint = null, bool clear = true)
     {
-        if (SupportsClear(console))
+        if (clear)
         {
-            if (clear)
-            {
-                console.Clear(home: true);
-            }
-            else
-            {
-                console.Cursor.SetPosition(0, 0);
-            }
-
-            WriteBottomFooterHint(console, footerHint);
-            console.Cursor.SetPosition(0, 0);
+            console.Clear(home: true);
+        }
+        else
+        {
+            console.Cursor.SetPosition(1, 1);
         }
 
+        WriteBottomFooterHint(console, footerHint);
+        console.Cursor.SetPosition(1, 1);
         WriteApplicationTitle(console);
         WriteBlankLine(console);
     }
@@ -583,13 +567,5 @@ public static class TerminalOutputFormatter
         }
 
         console.MarkupLine("[grey]│[/]");
-    }
-
-    private static bool SupportsClear(IAnsiConsole console)
-    {
-        object capabilities = console.Profile.Capabilities;
-        bool? supportsAnsi = capabilities.GetType().GetProperty("Ansi")?.GetValue(capabilities) as bool?;
-
-        return supportsAnsi is null || supportsAnsi.Value;
     }
 }

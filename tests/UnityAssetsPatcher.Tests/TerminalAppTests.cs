@@ -44,6 +44,18 @@ public sealed class TerminalAppTests
     }
 
     [Fact]
+    public void WritePageHeader_PositionsFooterOnBottomLineAndReturnsToTop()
+    {
+        TestConsole inner = CreateConsole().Height(24);
+        var console = new RecordingCursorConsole(inner);
+
+        TerminalOutputFormatter.WritePageHeader(console, "Main menu", footerHint: "Shortcuts");
+
+        Assert.Contains((1, 24), console.CursorPositions);
+        Assert.Equal((1, 1), console.CursorPositions[^1]);
+    }
+
+    [Fact]
     public void ReadExistingFilePath_WhenValueIsQ_TreatsInputAsAPath()
     {
         string assetsPath = CreateTempFile(".assets");
@@ -631,10 +643,11 @@ public sealed class TerminalAppTests
         public RecordingCursorConsole(TestConsole inner)
         {
             _inner = inner;
-            Cursor = new RecordingCursor(inner.Cursor, CursorStates);
+            Cursor = new RecordingCursor(inner.Cursor, CursorStates, CursorPositions);
         }
 
         public List<bool> CursorStates { get; } = [];
+        public List<(int Column, int Line)> CursorPositions { get; } = [];
 
         public Profile Profile => _inner.Profile;
         public IAnsiConsoleCursor Cursor { get; }
@@ -662,11 +675,16 @@ public sealed class TerminalAppTests
     {
         private readonly IAnsiConsoleCursor _inner;
         private readonly List<bool> _states;
+        private readonly List<(int Column, int Line)> _positions;
 
-        public RecordingCursor(IAnsiConsoleCursor inner, List<bool> states)
+        public RecordingCursor(
+            IAnsiConsoleCursor inner,
+            List<bool> states,
+            List<(int Column, int Line)> positions)
         {
             _inner = inner;
             _states = states;
+            _positions = positions;
         }
 
         public void Show(bool show)
@@ -677,6 +695,7 @@ public sealed class TerminalAppTests
 
         public void SetPosition(int column, int line)
         {
+            _positions.Add((column, line));
             _inner.SetPosition(column, line);
         }
 

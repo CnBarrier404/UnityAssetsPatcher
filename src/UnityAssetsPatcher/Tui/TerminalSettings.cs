@@ -6,7 +6,4 @@ public sealed class TerminalSettings
     public bool InstallTimingDetails { get; set; }
 }
 
-internal sealed record TerminalSettingDisplay(
-    string Name,
-    string Description,
-    bool Enabled);
+internal sealed record TerminalSettingDisplay(string Name, string Description, bool Enabled);

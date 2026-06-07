@@ -18,14 +18,9 @@ internal sealed class MainMenuTerminalPage
 
     public TerminalPage? ReadSelection()
     {
-        int? selectedIndex = _prompts.ReadMainMenuChoice(_pages, WriteMainMenu, WriteMainHeader);
+        int? selectedIndex = _prompts.ReadMainMenuChoice(_pages, WriteMainMenu);
 
         return selectedIndex is null ? null : _pages[selectedIndex.Value];
-    }
-
-    private void WriteMainHeader()
-    {
-        _context.Layout.ShowPage("Main menu");
     }
 
     private void WriteMainMenu(int selectedIndex, bool clear)
