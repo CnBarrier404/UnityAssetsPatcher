@@ -11,7 +11,7 @@ public static class AssetFieldMatcher
     {
         foreach ((string path, JsonElement expectedValue) in includeGroup)
         {
-            AssetsFieldInfo? field = FindField(fieldTree, path);
+            AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, path);
 
             if (field is null || !MatchesFieldValue(field, expectedValue))
             {
@@ -20,30 +20,6 @@ public static class AssetFieldMatcher
         }
 
         return true;
-    }
-
-    public static AssetsFieldInfo? FindField(AssetsFieldInfo fieldTree, string path)
-    {
-        var segments = AssetFieldPath.Parse(path);
-
-        if (segments is [{ HasSelector: false }])
-        {
-            return FindDescendantByName(fieldTree, segments[0].Name);
-        }
-
-        AssetsFieldInfo? current = fieldTree;
-
-        foreach (AssetFieldPathSegment segment in segments)
-        {
-            current = FindChildBySegment(current, segment);
-
-            if (current is null)
-            {
-                return null;
-            }
-        }
-
-        return current;
     }
 
     public static bool MatchesFieldValue(AssetsFieldInfo field, JsonElement expectedValue)
@@ -71,19 +47,6 @@ public static class AssetFieldMatcher
             JsonValueKind.String => string.Equals(actualValue, expectedValue.GetString(), StringComparison.Ordinal),
             _ => false,
         };
-    }
-
-    private static AssetsFieldInfo? FindDescendantByName(AssetsFieldInfo field, string name)
-    {
-        if (string.Equals(field.Name, name, StringComparison.Ordinal))
-        {
-            return field;
-        }
-
-        return field.Children
-            .Select(child => FindDescendantByName(child, name))
-            .OfType<AssetsFieldInfo>()
-            .FirstOrDefault();
     }
 
     private static bool MatchesObjectValue(AssetsFieldInfo field, JsonElement expectedObject)
@@ -131,26 +94,6 @@ public static class AssetFieldMatcher
         }
 
         return true;
-    }
-
-    private static AssetsFieldInfo? FindChildBySegment(AssetsFieldInfo field, AssetFieldPathSegment segment)
-    {
-        return field.Children.FirstOrDefault(child =>
-            string.Equals(child.Name, segment.Name, StringComparison.Ordinal) &&
-            MatchesSelector(child, segment));
-    }
-
-    private static bool MatchesSelector(AssetsFieldInfo field, AssetFieldPathSegment segment)
-    {
-        if (!segment.HasSelector)
-        {
-            return true;
-        }
-
-        AssetsFieldInfo? selectorField = field.Children.FirstOrDefault(child =>
-            string.Equals(child.Name, segment.SelectorFieldName, StringComparison.Ordinal));
-
-        return string.Equals(selectorField?.Value, segment.SelectorValue, StringComparison.Ordinal);
     }
 
     private static bool MatchesNumber(string actualValue, JsonElement expectedValue)

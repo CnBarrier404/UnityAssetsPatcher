@@ -2,6 +2,16 @@ namespace UnityAssetsPatcher.Core.Assets;
 
 public static class AssetFieldNavigator
 {
+    public static AssetsFieldInfo? FindField(AssetsFieldInfo fieldTree, string path)
+    {
+        return AssetFieldPathNavigator.Find(
+            fieldTree,
+            path,
+            static field => field.Name,
+            static field => field.Children,
+            static field => field.Value);
+    }
+
     public static AssetsFieldInfo? FindDirectChild(AssetsFieldInfo field, string name)
     {
         return field.Children.FirstOrDefault(child => string.Equals(child.Name, name, StringComparison.Ordinal));

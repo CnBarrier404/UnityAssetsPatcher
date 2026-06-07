@@ -107,7 +107,7 @@ public sealed class AssetQueryService
 
     private static IReadOnlyList<long> ReadComponentPathIds(AssetsFieldInfo gameObjectFieldTree)
     {
-        AssetsFieldInfo? componentField = AssetFieldMatcher.FindField(gameObjectFieldTree, "m_Component");
+        AssetsFieldInfo? componentField = AssetFieldNavigator.FindField(gameObjectFieldTree, "m_Component");
         AssetsFieldInfo? arrayField = AssetFieldNavigator.ResolveArrayField(componentField);
 
         if (arrayField is null)
@@ -125,8 +125,8 @@ public sealed class AssetQueryService
     private static long? TryReadComponentPathId(AssetsFieldInfo componentReferenceField)
     {
         AssetsFieldInfo? pathIdField =
-            AssetFieldMatcher.FindField(componentReferenceField, "component.m_PathID") ??
-            AssetFieldMatcher.FindField(componentReferenceField, "m_PathID");
+            AssetFieldNavigator.FindField(componentReferenceField, "component.m_PathID") ??
+            AssetFieldNavigator.FindField(componentReferenceField, "m_PathID");
 
         return long.TryParse(pathIdField?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long pathId)
             ? pathId

@@ -10,7 +10,7 @@ public sealed class AssetFieldMatcherTests
     {
         AssetsFieldInfo fieldTree = CreateMaterialFieldTree(pathId: "8842");
 
-        AssetsFieldInfo? field = AssetFieldMatcher.FindField(
+        AssetsFieldInfo? field = AssetFieldNavigator.FindField(
             fieldTree,
             "m_SavedProperties.m_TexEnvs.Array.data[first=_EmissionMap].second.m_Texture.m_PathID");
 

@@ -132,7 +132,7 @@ public sealed class ReplacementPlanBuilder
         long pathId,
         string role)
     {
-        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, matchFieldPath);
+        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, matchFieldPath);
 
         return field?.Value ?? throw new InvalidOperationException(
             $"Replacement {role} Path ID {pathId} does not contain scalar match field '{matchFieldPath}'.");

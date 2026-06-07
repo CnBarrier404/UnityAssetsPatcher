@@ -96,7 +96,7 @@ public sealed class FieldPatchPlanBuilder
         ManifestSetOperation operation)
     {
         operation = _valueResolver.ResolveSetOperation(assetsFilePath, operation);
-        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
+        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, operation.FieldPath);
 
         if (!JsonUtils.TryGetObjectValue(operation.To, out JsonElement toObject))
         {
@@ -168,7 +168,7 @@ public sealed class FieldPatchPlanBuilder
         ManifestSetOperation operation)
     {
         operation = _valueResolver.ResolveSetOperation(assetsFilePath, operation);
-        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
+        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, operation.FieldPath);
 
         if (!JsonUtils.TryGetObjectValue(operation.To, out JsonElement toObject))
         {
@@ -245,7 +245,7 @@ public sealed class FieldPatchPlanBuilder
         AssetsFieldInfo fieldTree,
         ManifestAddOperation operation)
     {
-        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
+        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, operation.FieldPath);
         AssetsFieldInfo? arrayField = PatchFieldValueFormatter.ResolveArrayField(field);
         string path = PatchFieldValueFormatter.ResolveArrayFieldPath(operation.FieldPath, field, arrayField);
 
@@ -281,7 +281,7 @@ public sealed class FieldPatchPlanBuilder
         AssetsFieldInfo fieldTree,
         ManifestAddOperation operation)
     {
-        AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
+        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, operation.FieldPath);
         AssetsFieldInfo? arrayField = PatchFieldValueFormatter.ResolveArrayField(field);
         string path = PatchFieldValueFormatter.ResolveArrayFieldPath(operation.FieldPath, field, arrayField);
 
