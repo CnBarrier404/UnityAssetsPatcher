@@ -429,7 +429,7 @@ public sealed class TerminalAppTests
             Assert.True(exitCode == 0, console.Output);
             Assert.Contains("Settings", text);
             Assert.Contains("[x] Verbose Logging", text);
-            Assert.Contains("Shortcuts: Up/Down choose | Space toggle | Esc return", text);
+            Assert.Contains("Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit", text);
             Assert.DoesNotContain("Enter or Esc", text);
             Assert.DoesNotContain("Detailed install output", text);
             Assert.Contains(
@@ -496,7 +496,7 @@ public sealed class TerminalAppTests
             Assert.True(exitCode == 0, console.Output);
             Assert.Contains("Settings", text);
             Assert.Contains("[x] Install timing details", text);
-            Assert.Contains("Shortcuts: Up/Down choose | Space toggle | Esc return", text);
+            Assert.Contains("Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit", text);
             Assert.DoesNotContain("Enter or Esc", text);
             Assert.Contains(
                 "Show per-stage package, search, analysis, patch, and copy timings.",
