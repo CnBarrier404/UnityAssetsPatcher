@@ -9,42 +9,8 @@ namespace UnityAssetsPatcher.Tui;
 public static class TerminalOutputFormatter
 {
     private const string ApplicationTitle = "Unity Assets Patcher";
+    private const int ApplicationTitleHorizontalPadding = 2;
     private const int SettingsOptionColumnWidth = 34;
-
-    public static void WriteApplicationHeader(IAnsiConsole console, string? footerHint = null, bool clear = true)
-    {
-        if (SupportsClear(console))
-        {
-            if (clear)
-            {
-                console.Clear(home: true);
-            }
-            else
-            {
-                console.Cursor.SetPosition(0, 0);
-            }
-
-            WriteBottomFooterHint(console, footerHint);
-            console.Cursor.SetPosition(0, 0);
-        }
-
-        WriteApplicationTitle(console);
-        WriteBlankLine(console);
-    }
-
-    public static void WriteApplicationTitle(IAnsiConsole console)
-    {
-        var panel = new Panel(new Markup($"[bold blue]{Escape(ApplicationTitle)}[/]"))
-        {
-            Border = BoxBorder.Rounded,
-            UseSafeBorder = true,
-            BorderStyle = new Style(Color.Blue),
-            Expand = false,
-            Padding = new Padding(1, 0),
-        };
-
-        console.Write(panel);
-    }
 
     public static void WritePageHeader(
         IAnsiConsole console,
@@ -80,7 +46,7 @@ public static class TerminalOutputFormatter
         console.MarkupLine($"[grey]{Markup.Escape(message)}[/]");
     }
 
-    public static void WriteFooterHint(IAnsiConsole console, string message)
+    private static void WriteFooterHint(IAnsiConsole console, string message)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -119,35 +85,6 @@ public static class TerminalOutputFormatter
     public static void WriteError(IAnsiConsole console, string message)
     {
         console.MarkupLine($"[red]{Markup.Escape(message)}[/]");
-    }
-
-    internal static void WriteMainMenu(
-        IAnsiConsole console,
-        IReadOnlyList<TerminalPage> pages,
-        int selectedIndex)
-    {
-        const int labelColumnWidth = 18;
-
-        for (int i = 0; i < pages.Count; i++)
-        {
-            TerminalPage page = pages[i];
-            string indicator = i == selectedIndex ? ">" : " ";
-            string label = page.Title.PadRight(labelColumnWidth);
-
-            if (i == selectedIndex)
-            {
-                console.MarkupLine($"[cyan]{Escape($"{indicator} {label}")}[/] [cyan]{Escape(page.Description)}[/]");
-            }
-            else
-            {
-                console.MarkupLine($"{Escape($"{indicator} {label}")} [grey]{Escape(page.Description)}[/]");
-            }
-
-            if (i < pages.Count - 1)
-            {
-                WriteBlankLine(console);
-            }
-        }
     }
 
     public static void WriteAssetSummary(IAnsiConsole console, IReadOnlyList<AssetsInfo> assets, int? limit)
@@ -291,6 +228,30 @@ public static class TerminalOutputFormatter
         }
     }
 
+    internal static void WriteMainMenu(
+        IAnsiConsole console,
+        IReadOnlyList<TerminalPage> pages,
+        int selectedIndex)
+    {
+        const int labelColumnWidth = 18;
+
+        for (int i = 0; i < pages.Count; i++)
+        {
+            TerminalPage page = pages[i];
+            string indicator = i == selectedIndex ? ">" : " ";
+            string label = page.Title.PadRight(labelColumnWidth);
+
+            console.MarkupLine(i == selectedIndex
+                ? $"[cyan]{Escape($"{indicator} {label}")}[/] [cyan]{Escape(page.Description)}[/]"
+                : $"{Escape($"{indicator} {label}")} [grey]{Escape(page.Description)}[/]");
+
+            if (i < pages.Count - 1)
+            {
+                WriteBlankLine(console);
+            }
+        }
+    }
+
     internal static void WriteSettings(
         IAnsiConsole console,
         IReadOnlyList<TerminalSettingDisplay> settings,
@@ -303,15 +264,46 @@ public static class TerminalOutputFormatter
             string checkbox = setting.Enabled ? "[x]" : "[ ]";
             string option = $"{indicator} {checkbox} {setting.Name}".PadRight(SettingsOptionColumnWidth);
 
-            if (i == selectedIndex)
+            console.MarkupLine(i == selectedIndex
+                ? $"[cyan]{Escape(option)}[/] [cyan]{Escape(setting.Description)}[/]"
+                : $"{Escape(option)} [grey]{Escape(setting.Description)}[/]");
+        }
+    }
+
+    private static void WriteApplicationHeader(IAnsiConsole console, string? footerHint = null, bool clear = true)
+    {
+        if (SupportsClear(console))
+        {
+            if (clear)
             {
-                console.MarkupLine($"[cyan]{Escape(option)}[/] [cyan]{Escape(setting.Description)}[/]");
+                console.Clear(home: true);
             }
             else
             {
-                console.MarkupLine($"{Escape(option)} [grey]{Escape(setting.Description)}[/]");
+                console.Cursor.SetPosition(0, 0);
             }
+
+            WriteBottomFooterHint(console, footerHint);
+            console.Cursor.SetPosition(0, 0);
         }
+
+        WriteApplicationTitle(console);
+        WriteBlankLine(console);
+    }
+
+    private static void WriteApplicationTitle(IAnsiConsole console)
+    {
+        WriteApplicationTitle(console, BuildInfo.DisplayVersion);
+    }
+
+    private static void WriteApplicationTitle(IAnsiConsole console, string displayVersion)
+    {
+        string title = $"{ApplicationTitle} ({displayVersion})";
+        int boxWidth = title.Length + (ApplicationTitleHorizontalPadding * 2) + 2;
+
+        WriteTitleBoxLine(console, "╭", "─", "╮", boxWidth);
+        WriteTitleContentLine(console, title, greyStartIndex: ApplicationTitle.Length + 1);
+        WriteTitleBoxLine(console, "╰", "─", "╯", boxWidth);
     }
 
     private static void WriteInstallPreviewTargets(
@@ -538,6 +530,59 @@ public static class TerminalOutputFormatter
         return value.Length <= width
             ? value.PadRight(width)
             : value[..width];
+    }
+
+    private static void WriteTitleBoxLine(
+        IAnsiConsole console,
+        string left,
+        string horizontal,
+        string right,
+        int width)
+    {
+        console.MarkupLine(
+            $"[grey]{Escape(left + string.Concat(Enumerable.Repeat(horizontal, width - 2)) + right)}[/]");
+    }
+
+    private static void WriteTitleContentLine(
+        IAnsiConsole console,
+        string content,
+        int? greyStartIndex = null,
+        int? boldStartIndex = null)
+    {
+        string paddedContent =
+            $"{new string(' ', ApplicationTitleHorizontalPadding)}{content}{new string(' ', ApplicationTitleHorizontalPadding)}";
+
+        console.Markup("[grey]│[/]");
+
+        if (greyStartIndex is null)
+        {
+            console.Markup(Escape(paddedContent));
+        }
+        else
+        {
+            int greyIndex = Math.Clamp(greyStartIndex.Value + ApplicationTitleHorizontalPadding, 0,
+                paddedContent.Length);
+            string normal = paddedContent[..greyIndex];
+            string grey = paddedContent[greyIndex..];
+
+            console.Markup(Escape(normal));
+
+            if (boldStartIndex is null)
+            {
+                console.Markup($"[grey]{Escape(grey)}[/]");
+            }
+            else
+            {
+                int boldIndex = Math.Clamp(boldStartIndex.Value, greyIndex, paddedContent.Length);
+                string label = paddedContent[greyIndex..boldIndex];
+                string value = paddedContent[boldIndex..];
+
+                console.Markup($"[grey]{Escape(label)}[/]");
+                console.Markup($"[bold]{Escape(value)}[/]");
+            }
+        }
+
+        console.MarkupLine("[grey]│[/]");
     }
 
     private static bool SupportsClear(IAnsiConsole console)
