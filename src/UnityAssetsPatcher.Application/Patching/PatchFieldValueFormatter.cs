@@ -9,7 +9,7 @@ public static class PatchFieldValueFormatter
 {
     public static AssetsFieldInfo? FindDirectChild(AssetsFieldInfo field, string name)
     {
-        return field.Children.FirstOrDefault(child => string.Equals(child.Name, name, StringComparison.Ordinal));
+        return AssetFieldNavigator.FindDirectChild(field, name);
     }
 
     public static bool IsJsonArrayPatchValue(JsonElement value)
@@ -20,17 +20,7 @@ public static class PatchFieldValueFormatter
 
     public static AssetsFieldInfo? ResolveArrayField(AssetsFieldInfo? field)
     {
-        if (field is null)
-        {
-            return null;
-        }
-
-        if (IsArrayField(field))
-        {
-            return field;
-        }
-
-        return FindDirectChild(field, "Array");
+        return AssetFieldNavigator.ResolveArrayField(field);
     }
 
     public static string ResolveArrayFieldPath(
@@ -45,11 +35,7 @@ public static class PatchFieldValueFormatter
 
     public static IReadOnlyList<AssetsFieldInfo> GetArrayElementFields(AssetsFieldInfo arrayField)
     {
-        var dataChildren = arrayField.Children
-            .Where(child => string.Equals(child.Name, "data", StringComparison.Ordinal))
-            .ToArray();
-
-        return dataChildren.Length > 0 ? dataChildren : arrayField.Children;
+        return AssetFieldNavigator.GetArrayElementFields(arrayField);
     }
 
     public static JsonElement GetObjectPropertyOrDefault(JsonElement value, string propertyName)
@@ -87,13 +73,9 @@ public static class PatchFieldValueFormatter
             .ToList();
         changed = false;
 
-        foreach (JsonElement element in value.EnumerateArray())
+        foreach (JsonElement element in value.EnumerateArray()
+                     .Where(element => !ContainsArrayValue(currentFields, elements, element)))
         {
-            if (ContainsArrayValue(currentFields, elements, element))
-            {
-                continue;
-            }
-
             elements.Add(element.Clone());
             changed = true;
         }
@@ -122,12 +104,6 @@ public static class PatchFieldValueFormatter
             EnsureSupportedPatchValue(element, $"{path}[{index}]");
             index++;
         }
-    }
-
-    private static bool IsArrayField(AssetsFieldInfo field)
-    {
-        return string.Equals(field.Name, "Array", StringComparison.Ordinal) ||
-               string.Equals(field.TypeName, "Array", StringComparison.Ordinal);
     }
 
     private static string FormatArrayElementValue(AssetsFieldInfo element)

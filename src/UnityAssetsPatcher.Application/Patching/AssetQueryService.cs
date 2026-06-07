@@ -108,14 +108,14 @@ public sealed class AssetQueryService
     private static IReadOnlyList<long> ReadComponentPathIds(AssetsFieldInfo gameObjectFieldTree)
     {
         AssetsFieldInfo? componentField = AssetFieldMatcher.FindField(gameObjectFieldTree, "m_Component");
-        AssetsFieldInfo? arrayField = PatchFieldValueFormatter.ResolveArrayField(componentField);
+        AssetsFieldInfo? arrayField = AssetFieldNavigator.ResolveArrayField(componentField);
 
         if (arrayField is null)
         {
             return [];
         }
 
-        return PatchFieldValueFormatter.GetArrayElementFields(arrayField)
+        return AssetFieldNavigator.GetArrayElementFields(arrayField)
             .Select(TryReadComponentPathId)
             .OfType<long>()
             .Where(pathId => pathId != 0)

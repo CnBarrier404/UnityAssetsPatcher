@@ -128,14 +128,14 @@ public static class AssetFieldMatcher
 
     private static bool MatchesArrayValue(AssetsFieldInfo field, JsonElement expectedArray)
     {
-        AssetsFieldInfo? arrayField = ResolveArrayField(field);
+        AssetsFieldInfo? arrayField = AssetFieldNavigator.ResolveArrayField(field);
 
         if (arrayField is null)
         {
             return false;
         }
 
-        var children = GetArrayElementFields(arrayField);
+        var children = AssetFieldNavigator.GetArrayElementFields(arrayField);
 
         if (children.Count != expectedArray.GetArrayLength())
         {
@@ -155,26 +155,6 @@ public static class AssetFieldMatcher
         }
 
         return true;
-    }
-
-    private static AssetsFieldInfo? ResolveArrayField(AssetsFieldInfo field)
-    {
-        return IsArrayField(field) ? field : field.Children.FirstOrDefault(IsArrayField);
-    }
-
-    private static bool IsArrayField(AssetsFieldInfo field)
-    {
-        return string.Equals(field.Name, "Array", StringComparison.Ordinal) ||
-               string.Equals(field.TypeName, "Array", StringComparison.Ordinal);
-    }
-
-    private static IReadOnlyList<AssetsFieldInfo> GetArrayElementFields(AssetsFieldInfo arrayField)
-    {
-        var dataChildren = arrayField.Children
-            .Where(child => string.Equals(child.Name, "data", StringComparison.Ordinal))
-            .ToArray();
-
-        return dataChildren.Length > 0 ? dataChildren : arrayField.Children;
     }
 
     private static AssetsFieldInfo? FindChildBySegment(AssetsFieldInfo field, AssetFieldPathSegment segment)
