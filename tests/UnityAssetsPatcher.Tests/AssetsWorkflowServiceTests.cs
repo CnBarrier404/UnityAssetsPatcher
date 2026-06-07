@@ -911,6 +911,69 @@ public sealed class AssetsWorkflowServiceTests
     }
 
     /// <summary>
+    /// Verifies that add preview still reports an array operation when the value already exists and no write is needed.
+    /// </summary>
+    [Fact]
+    public void PreviewPatch_WhenAddValueAlreadyExists_ReturnsSkippedArrayOperation()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            """
+            {
+              "target": "resources.assets",
+              "type": "Material",
+              "include": [
+                {
+                  "m_Name": "Bone Parts"
+                }
+              ],
+              "add": [
+                {
+                  "field": "m_ValidKeywords.Array",
+                  "value": [
+                    "_EMISSION"
+                  ]
+                }
+              ]
+            }
+            """);
+        var service = new AssetsWorkflowService(new StubAssetsFileService(
+            [new AssetsInfo(10, 21, "Material", 96)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new("Material", "Material", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "Bone Parts", []),
+                    new AssetsFieldInfo("m_ValidKeywords", "vector", null,
+                    [
+                        new AssetsFieldInfo("Array", "Array", null,
+                        [
+                            new AssetsFieldInfo("data", "string", "_METALLICSPECGLOSSMAP", []),
+                            new AssetsFieldInfo("data", "string", "_EMISSION", []),
+                        ]),
+                    ]),
+                ]),
+            }));
+
+        try
+        {
+            PatchPreviewResult preview = service.PreviewPatch(new PatchPreviewRequest("resources.assets", configPath));
+
+            PatchPreviewOperationResult operation = Assert.Single(Assert.Single(preview.Assets).Operations);
+            Assert.False(operation.WillChange);
+            Assert.Equal("m_ValidKeywords.Array", operation.Path);
+            Assert.Equal("[\"_METALLICSPECGLOSSMAP\", \"_EMISSION\"]", operation.OldValue);
+            Assert.Equal(["_METALLICSPECGLOSSMAP", "_EMISSION"],
+                operation.To.EnumerateArray().Select(element => element.GetString()));
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
     /// Verifies that add appends missing values to a Unity array without requiring a full from/to replacement.
     /// </summary>
     [Fact]
