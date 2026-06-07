@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
-using UnityAssetsPatcher.Core.Utils;
+using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 

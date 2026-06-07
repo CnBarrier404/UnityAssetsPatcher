@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using UnityAssetsPatcher.Core.Assets;
-using UnityAssetsPatcher.Core.Utils;
+using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
@@ -98,7 +98,7 @@ public static class PatchFieldValueFormatter
             changed = true;
         }
 
-        return JsonSerializer.SerializeToElement(elements);
+        return JsonElementFactory.Array(elements);
     }
 
     public static void EnsureSupportedPatchValue(JsonElement value, string path)
@@ -138,7 +138,7 @@ public static class PatchFieldValueFormatter
         }
 
         return string.Equals(element.TypeName, "string", StringComparison.OrdinalIgnoreCase)
-            ? JsonSerializer.Serialize(element.Value)
+            ? JsonElementFactory.String(element.Value).GetRawText()
             : element.Value;
     }
 
@@ -184,41 +184,41 @@ public static class PatchFieldValueFormatter
 
         if (string.Equals(field.TypeName, "string", StringComparison.OrdinalIgnoreCase))
         {
-            return JsonSerializer.SerializeToElement(value);
+            return JsonElementFactory.String(value);
         }
 
         if (IsBooleanType(field.TypeName))
         {
             if (bool.TryParse(value, out bool boolean))
             {
-                return JsonSerializer.SerializeToElement(boolean);
+                return JsonElementFactory.Boolean(boolean);
             }
 
             if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long booleanInteger))
             {
-                return JsonSerializer.SerializeToElement(booleanInteger != 0);
+                return JsonElementFactory.Boolean(booleanInteger != 0);
             }
         }
 
         if (IsUnsignedIntegerType(field.TypeName) &&
             ulong.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong unsignedInteger))
         {
-            return JsonSerializer.SerializeToElement(unsignedInteger);
+            return JsonElementFactory.Number(unsignedInteger);
         }
 
         if (IsSignedIntegerType(field.TypeName) &&
             long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long signedInteger))
         {
-            return JsonSerializer.SerializeToElement(signedInteger);
+            return JsonElementFactory.Number(signedInteger);
         }
 
         if (IsFloatingPointType(field.TypeName) &&
             double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double floatingPoint))
         {
-            return JsonSerializer.SerializeToElement(floatingPoint);
+            return JsonElementFactory.Number(floatingPoint);
         }
 
-        return JsonSerializer.SerializeToElement(value);
+        return JsonElementFactory.String(value);
     }
 
     private static bool IsBooleanType(string typeName)

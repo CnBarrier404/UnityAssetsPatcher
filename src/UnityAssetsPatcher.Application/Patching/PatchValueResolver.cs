@@ -1,5 +1,6 @@
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
@@ -27,7 +28,7 @@ public sealed class PatchValueResolver
         }
 
         long pathId = ResolvePathIdReference(assetsFilePath, resolver);
-        return JsonSerializer.SerializeToElement(pathId);
+        return JsonElementFactory.Number(pathId);
     }
 
     private long ResolvePathIdReference(string assetsFilePath, JsonElement resolver)

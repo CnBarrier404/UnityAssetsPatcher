@@ -1,6 +1,7 @@
 using System.Text.Json;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
@@ -64,8 +65,8 @@ public sealed class ReplacementPlanBuilder
                 var operation = new PatchPreviewOperationResult(
                     "*",
                     $"Path ID {match.Target.PathId}",
-                    JsonSerializer.SerializeToElement(match.MatchValue),
-                    JsonSerializer.SerializeToElement($"Path ID {match.Source.PathId} from {sourceAssetsFilePath}"),
+                    JsonElementFactory.String(match.MatchValue),
+                    JsonElementFactory.String($"Path ID {match.Source.PathId} from {sourceAssetsFilePath}"),
                     true);
                 assets.Add(new PatchPreviewAssetResult(match.Target, [operation]));
             }
@@ -97,7 +98,7 @@ public sealed class ReplacementPlanBuilder
 
             var sourceIncludeGroup = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
             {
-                [replaceFrom.MatchFieldPath] = JsonSerializer.SerializeToElement(matchValue),
+                [replaceFrom.MatchFieldPath] = JsonElementFactory.String(matchValue),
             };
             var sourcePatch = new ManifestPatch(
                 Path.GetFileName(sourceAssetsFilePath),

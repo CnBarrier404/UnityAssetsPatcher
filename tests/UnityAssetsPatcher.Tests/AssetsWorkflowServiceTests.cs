@@ -6,6 +6,7 @@ using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installing;
+using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Tests;
 
@@ -81,7 +82,7 @@ public sealed class AssetsWorkflowServiceTests
                     [
                         new Dictionary<string, JsonElement>
                         {
-                            ["m_Name"] = JsonSerializer.SerializeToElement("Main Camera"),
+                            ["m_Name"] = JsonElementFactory.String("Main Camera"),
                         },
                     ],
                     null,
@@ -120,7 +121,7 @@ public sealed class AssetsWorkflowServiceTests
                     [
                         new Dictionary<string, JsonElement>
                         {
-                            ["m_Name"] = JsonSerializer.SerializeToElement("Main Camera"),
+                            ["m_Name"] = JsonElementFactory.String("Main Camera"),
                         },
                     ],
                     null,
@@ -131,7 +132,7 @@ public sealed class AssetsWorkflowServiceTests
                     [
                         new Dictionary<string, JsonElement>
                         {
-                            ["m_Name"] = JsonSerializer.SerializeToElement("Secondary Camera"),
+                            ["m_Name"] = JsonElementFactory.String("Secondary Camera"),
                         },
                     ],
                     null,
@@ -177,14 +178,14 @@ public sealed class AssetsWorkflowServiceTests
                     [
                         new Dictionary<string, JsonElement>
                         {
-                            ["m_Name"] = JsonSerializer.SerializeToElement("Main Camera"),
+                            ["m_Name"] = JsonElementFactory.String("Main Camera"),
                         },
                     ],
                     [
                         new ManifestSetOperation(
                             "field of view",
-                            JsonSerializer.SerializeToElement(90.0),
-                            JsonSerializer.SerializeToElement(75.0)),
+                            JsonElementFactory.Number(90.0),
+                            JsonElementFactory.Number(75.0)),
                     ],
                     null),
             ]));
@@ -228,14 +229,14 @@ public sealed class AssetsWorkflowServiceTests
                     [
                         new Dictionary<string, JsonElement>
                         {
-                            ["m_Name"] = JsonSerializer.SerializeToElement("Main Camera"),
+                            ["m_Name"] = JsonElementFactory.String("Main Camera"),
                         },
                     ],
                     [
                         new ManifestSetOperation(
                             "field of view",
-                            JsonSerializer.SerializeToElement(45),
-                            JsonSerializer.SerializeToElement(60)),
+                            JsonElementFactory.Number(45L),
+                            JsonElementFactory.Number(60L)),
                     ],
                     null),
                 new ManifestPatch(
@@ -244,14 +245,14 @@ public sealed class AssetsWorkflowServiceTests
                     [
                         new Dictionary<string, JsonElement>
                         {
-                            ["m_Name"] = JsonSerializer.SerializeToElement("Secondary Camera"),
+                            ["m_Name"] = JsonElementFactory.String("Secondary Camera"),
                         },
                     ],
                     [
                         new ManifestSetOperation(
                             "field of view",
-                            JsonSerializer.SerializeToElement(30),
-                            JsonSerializer.SerializeToElement(75)),
+                            JsonElementFactory.Number(30L),
+                            JsonElementFactory.Number(75L)),
                     ],
                     null),
             ]));

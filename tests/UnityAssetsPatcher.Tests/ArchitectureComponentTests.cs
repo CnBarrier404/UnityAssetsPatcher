@@ -1,9 +1,9 @@
-using System.Text.Json;
 using System.Xml.Linq;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installing;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Core.Json;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests;
@@ -206,7 +206,7 @@ public sealed class ArchitectureComponentTests
                     Path.GetTempPath(),
                     [
                         new PatchWriteAsset(1,
-                            [new PatchWriteOperation("m_Name", "old", JsonSerializer.SerializeToElement("new"))])
+                            [new PatchWriteOperation("m_Name", "old", JsonElementFactory.String("new"))])
                     ]));
 
             Assert.Equal("--output cannot point to the input assets file.", exception.Message);
