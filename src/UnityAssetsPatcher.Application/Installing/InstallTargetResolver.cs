@@ -7,29 +7,58 @@ public static class InstallTargetResolver
         IEnumerable<string> targets)
     {
         string fullGameDirectory = Path.GetFullPath(gameDirectory);
+
+        return Resolve(
+            fullGameDirectory,
+            targets,
+            Directory.EnumerateFiles(fullGameDirectory, "*", SearchOption.AllDirectories));
+    }
+
+    public static IReadOnlyDictionary<string, string> Resolve(
+        string gameDirectory,
+        IEnumerable<string> targets,
+        IEnumerable<string> files)
+    {
+        string fullGameDirectory = Path.GetFullPath(gameDirectory);
+        string[] distinctTargets = targets
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         var resolvedTargets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var targetNames = distinctTargets.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var matchesByTarget = distinctTargets.ToDictionary(
+            target => target,
+            _ => new List<string>(),
+            StringComparer.OrdinalIgnoreCase);
 
-        foreach (string target in targets.Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (string file in files)
         {
-            string[] matches = Directory.EnumerateFiles(fullGameDirectory, "*", SearchOption.AllDirectories)
-                .Where(file => string.Equals(Path.GetFileName(file), target, StringComparison.OrdinalIgnoreCase))
-                .Select(Path.GetFullPath)
-                .ToArray();
+            string fileName = Path.GetFileName(file);
 
-            if (matches.Length == 0)
+            if (!targetNames.Contains(fileName))
             {
-                throw new FileNotFoundException(
-                    $"Target '{target}' was not found under game directory: {fullGameDirectory}",
-                    target);
+                continue;
             }
 
-            if (matches.Length > 1)
-            {
-                throw new InvalidOperationException(
-                    $"Target '{target}' matched multiple files under game directory: {fullGameDirectory}");
-            }
+            matchesByTarget[fileName].Add(Path.GetFullPath(file));
+        }
 
-            resolvedTargets.Add(target, matches[0]);
+        foreach (string target in distinctTargets)
+        {
+            var matches = matchesByTarget[target];
+
+            switch (matches.Count)
+            {
+                case 0:
+                    throw new FileNotFoundException(
+                        $"Target '{target}' was not found under game directory: {fullGameDirectory}",
+                        target);
+                case > 1:
+                    throw new InvalidOperationException(
+                        $"Target '{target}' matched multiple files under game directory: {fullGameDirectory}");
+                default:
+                    resolvedTargets.Add(target, matches[0]);
+                    break;
+            }
         }
 
         return resolvedTargets;

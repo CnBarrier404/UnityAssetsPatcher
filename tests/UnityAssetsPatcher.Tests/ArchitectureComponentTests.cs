@@ -85,6 +85,38 @@ public sealed class ArchitectureComponentTests
     }
 
     [Fact]
+    public void InstallTargetResolver_WhenMultipleTargetsAreProvided_EnumeratesFilesOnce()
+    {
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string dataDirectory = Path.Combine(gameDirectory, "Game_Data");
+        Directory.CreateDirectory(dataDirectory);
+        string resourcesPath = Path.Combine(dataDirectory, "resources.assets");
+        string sharedAssetsPath = Path.Combine(dataDirectory, "sharedassets0.assets");
+        var files = new CountingEnumerable<string>(
+        [
+            resourcesPath,
+            sharedAssetsPath,
+            Path.Combine(dataDirectory, "globalgamemanagers"),
+        ]);
+
+        try
+        {
+            var result = InstallTargetResolver.Resolve(
+                gameDirectory,
+                ["resources.assets", "sharedassets0.assets"],
+                files);
+
+            Assert.Equal(1, files.EnumerationCount);
+            Assert.Equal(Path.GetFullPath(resourcesPath), result["resources.assets"]);
+            Assert.Equal(Path.GetFullPath(sharedAssetsPath), result["sharedassets0.assets"]);
+        }
+        finally
+        {
+            Directory.Delete(gameDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void GameDirectoryResolver_WhenSteamAppManifestNameMatchesGame_ReturnsInstallDirectory()
     {
         string steamDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "Steam");
@@ -269,5 +301,28 @@ public sealed class ArchitectureComponentTests
     private static string EscapeVdfPath(string path)
     {
         return path.Replace(@"\", @"\\", StringComparison.Ordinal);
+    }
+
+    private sealed class CountingEnumerable<T> : IEnumerable<T>
+    {
+        private readonly IEnumerable<T> _inner;
+
+        public CountingEnumerable(IEnumerable<T> inner)
+        {
+            _inner = inner;
+        }
+
+        public int EnumerationCount { get; private set; }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            EnumerationCount++;
+            return _inner.GetEnumerator();
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
 }
