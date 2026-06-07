@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Core.Assets;
 
@@ -47,7 +48,7 @@ public static class AssetFieldMatcher
 
     public static bool MatchesFieldValue(AssetsFieldInfo field, JsonElement expectedValue)
     {
-        if (TryGetObjectValue(expectedValue, out JsonElement objectValue))
+        if (JsonUtils.TryGetObjectValue(expectedValue, out JsonElement objectValue))
         {
             return MatchesObjectValue(field, objectValue);
         }
@@ -70,31 +71,6 @@ public static class AssetFieldMatcher
             JsonValueKind.String => string.Equals(actualValue, expectedValue.GetString(), StringComparison.Ordinal),
             _ => false,
         };
-    }
-
-    public static bool TryGetObjectValue(JsonElement value, out JsonElement objectValue)
-    {
-        switch (value.ValueKind)
-        {
-            case JsonValueKind.Object:
-                objectValue = value;
-                return true;
-            case JsonValueKind.Array when value.GetArrayLength() == 1:
-            {
-                JsonElement firstElement = value.EnumerateArray().Single();
-
-                if (firstElement.ValueKind == JsonValueKind.Object)
-                {
-                    objectValue = firstElement;
-                    return true;
-                }
-
-                break;
-            }
-        }
-
-        objectValue = default;
-        return false;
     }
 
     private static AssetsFieldInfo? FindDescendantByName(AssetsFieldInfo field, string name)

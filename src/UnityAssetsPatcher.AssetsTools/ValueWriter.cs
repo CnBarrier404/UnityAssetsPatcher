@@ -1,6 +1,5 @@
 using System.Text.Json;
 using AssetsTools.NET;
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.AssetsTools;
@@ -58,7 +57,7 @@ internal static class ValueWriter
     private static bool IsJsonArrayPatchValue(JsonElement value)
     {
         return value.ValueKind == JsonValueKind.Array &&
-               !AssetFieldMatcher.TryGetObjectValue(value, out _);
+               !JsonUtils.TryGetObjectValue(value, out _);
     }
 
     private static void WriteJsonArray(AssetTypeValueField field, JsonElement value)

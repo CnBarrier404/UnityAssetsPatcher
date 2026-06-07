@@ -15,7 +15,7 @@ public static class PatchFieldValueFormatter
     public static bool IsJsonArrayPatchValue(JsonElement value)
     {
         return value.ValueKind == JsonValueKind.Array &&
-               !AssetFieldMatcher.TryGetObjectValue(value, out _);
+               !JsonUtils.TryGetObjectValue(value, out _);
     }
 
     public static AssetsFieldInfo? ResolveArrayField(AssetsFieldInfo? field)
@@ -40,7 +40,7 @@ public static class PatchFieldValueFormatter
 
     public static JsonElement GetObjectPropertyOrDefault(JsonElement value, string propertyName)
     {
-        return AssetFieldMatcher.TryGetObjectValue(value, out JsonElement objectValue) &&
+        return JsonUtils.TryGetObjectValue(value, out JsonElement objectValue) &&
                objectValue.TryGetProperty(propertyName, out JsonElement propertyValue)
             ? propertyValue.Clone()
             : value;

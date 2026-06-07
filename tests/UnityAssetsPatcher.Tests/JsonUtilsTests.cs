@@ -46,6 +46,35 @@ public sealed class JsonUtilsTests
         Assert.Equal(expected, result);
     }
 
+    [Theory]
+    [InlineData("{\"name\":\"Player\"}")]
+    [InlineData("[{\"name\":\"Player\"}]")]
+    public void TryGetObjectValue_WhenValueIsObjectOrSingleObjectArray_ReturnsObject(string json)
+    {
+        JsonElement element = JsonUtils.ParseElement(json);
+
+        bool result = JsonUtils.TryGetObjectValue(element, out JsonElement objectValue);
+
+        Assert.True(result);
+        Assert.Equal(JsonValueKind.Object, objectValue.ValueKind);
+        Assert.Equal("Player", objectValue.GetProperty("name").GetString());
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("[\"Player\"]")]
+    [InlineData("[{\"name\":\"Player\"},{\"name\":\"Camera\"}]")]
+    [InlineData("\"Player\"")]
+    public void TryGetObjectValue_WhenValueIsNotObjectShape_ReturnsFalse(string json)
+    {
+        JsonElement element = JsonUtils.ParseElement(json);
+
+        bool result = JsonUtils.TryGetObjectValue(element, out JsonElement objectValue);
+
+        Assert.False(result);
+        Assert.Equal(default, objectValue);
+    }
+
     [Fact]
     public void ReadElementFromFile_ReadsJsonElement()
     {

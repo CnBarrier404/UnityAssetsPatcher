@@ -98,7 +98,7 @@ public sealed class FieldPatchPlanBuilder
         operation = _valueResolver.ResolveSetOperation(assetsFilePath, operation);
         AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
 
-        if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
+        if (!JsonUtils.TryGetObjectValue(operation.To, out JsonElement toObject))
         {
             string path = operation.FieldPath;
             string oldValue = field?.Value ?? "<missing>";
@@ -170,7 +170,7 @@ public sealed class FieldPatchPlanBuilder
         operation = _valueResolver.ResolveSetOperation(assetsFilePath, operation);
         AssetsFieldInfo? field = AssetFieldMatcher.FindField(fieldTree, operation.FieldPath);
 
-        if (!AssetFieldMatcher.TryGetObjectValue(operation.To, out JsonElement toObject))
+        if (!JsonUtils.TryGetObjectValue(operation.To, out JsonElement toObject))
         {
             if (PatchFieldValueFormatter.IsJsonArrayPatchValue(operation.To))
             {

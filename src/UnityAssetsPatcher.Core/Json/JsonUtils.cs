@@ -63,6 +63,46 @@ public static class JsonUtils
     }
 
     /// <summary>
+    /// Treats a JSON object, or a single-element array containing an object, as an object value.
+    /// </summary>
+    /// <param name="value">The value to inspect.</param>
+    /// <param name="objectValue">The object value when the method returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> when <paramref name="value"/> has an object shape; otherwise <see langword="false"/>.</returns>
+    public static bool TryGetObjectValue(JsonElement value, out JsonElement objectValue)
+    {
+        switch (value.ValueKind)
+        {
+            case JsonValueKind.Object:
+                objectValue = value;
+                return true;
+            case JsonValueKind.Array when value.GetArrayLength() == 1:
+            {
+                JsonElement firstElement = value.EnumerateArray().Single();
+
+                if (firstElement.ValueKind == JsonValueKind.Object)
+                {
+                    objectValue = firstElement;
+                    return true;
+                }
+
+                break;
+            }
+            case JsonValueKind.Undefined:
+            case JsonValueKind.String:
+            case JsonValueKind.Number:
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+            case JsonValueKind.Null:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        objectValue = default;
+        return false;
+    }
+
+    /// <summary>
     /// Reads a required property and verifies that it has the expected JSON value kind.
     /// </summary>
     /// <param name="element">The object element that should contain the property.</param>
