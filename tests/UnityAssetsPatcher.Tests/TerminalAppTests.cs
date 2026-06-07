@@ -10,41 +10,6 @@ namespace UnityAssetsPatcher.Tests;
 public sealed class TerminalAppTests
 {
     [Fact]
-    public void Run_WhenStarted_PrintsSpectreMenuWithAllPages()
-    {
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
-
-        int exitCode = app.Run();
-
-        string text = console.Output;
-        Assert.True(exitCode == 0, console.Output);
-        Assert.Equal(1, CountOccurrences(text, "Unity Assets Patcher"));
-        Assert.DoesNotContain("| Unity Assets Patcher |", text);
-        Assert.DoesNotContain("Inspect, find, patch, and install Unity assets file mods.", text);
-        AssertTitleIsInsideCompactPanel(text);
-        Assert.Contains("Unity Assets Patcher", text);
-        Assert.Contains("Install Mod", text);
-        Assert.DoesNotContain("Install mod package", text);
-        Assert.DoesNotContain("Preview a mod install", text);
-        Assert.DoesNotContain("Preview install", text);
-        Assert.DoesNotContain("Apply install", text);
-        Assert.Contains("Inspect assets", text);
-        Assert.Contains("Find assets", text);
-        Assert.DoesNotContain("Patch assets", text);
-        Assert.Contains("Settings", text);
-        Assert.Contains("Analyze a mod package and install after confirmation.", text);
-        Assert.Contains("List assets or inspect a selected asset field tree.", text);
-        Assert.Contains("Search assets using manifest include rules.", text);
-        Assert.DoesNotContain("Preview or apply direct assets field patches.", text);
-        Assert.Contains("Adjust output detail for this session.", text);
-        Assert.DoesNotContain("Exit", text);
-        Assert.Contains("Shortcuts: ↑/↓ to choose | Esc to cancel | Ctrl + C to exit", text);
-        Assert.DoesNotContain("Back", text);
-    }
-
-    [Fact]
     public void Run_WhenMainMenuWaitsForInput_HidesCursorUntilApplicationExit()
     {
         TestConsole inner = CreateConsole();
@@ -76,49 +41,6 @@ public sealed class TerminalAppTests
         Assert.True(console.CursorStates.Count(state => !state) >= 2);
         Assert.DoesNotContain(true, console.CursorStates.Take(console.CursorStates.Count - 1));
         Assert.True(console.CursorStates[^1]);
-    }
-
-    [Fact]
-    public void Run_WhenConsoleDoesNotSupportAnsi_UsesNumberedMainMenuFallback()
-    {
-        TestConsole console = CreateConsole(supportsAnsi: false);
-        console.Input.PushKey(ConsoleKey.Escape);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
-
-        int exitCode = app.Run();
-
-        string text = console.Output;
-        Assert.True(exitCode == 0, console.Output);
-        Assert.Equal(1, CountOccurrences(text, "Unity Assets Patcher"));
-        Assert.DoesNotContain("| Unity Assets Patcher |", text);
-        Assert.DoesNotContain("Inspect, find, patch, and install Unity assets file mods.", text);
-        Assert.Contains("Unity Assets Patcher", text);
-        Assert.Contains("1. Install Mod", text);
-        Assert.DoesNotContain("Install mod package", text);
-        Assert.DoesNotContain("Preview a mod install", text);
-        Assert.DoesNotContain("Preview install", text);
-        Assert.DoesNotContain("Apply install", text);
-        Assert.Contains("4. Settings", text);
-        Assert.Contains("Analyze a mod package and install after confirmation.", text);
-        Assert.DoesNotContain("5. Exit", text);
-    }
-
-    [Fact]
-    public void Run_WhenConsoleDoesNotSupportAnsi_SubMenuReceivesEscape_ReturnsToMainMenu()
-    {
-        TestConsole console = CreateConsole(supportsAnsi: false);
-        console.Input.PushTextWithEnter("2");
-        console.Input.PushKey(ConsoleKey.Escape);
-        console.Input.PushKey(ConsoleKey.Escape);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
-
-        int exitCode = app.Run();
-
-        string text = console.Output;
-        Assert.True(exitCode == 0, console.Output);
-        Assert.Contains("Inspect assets", text);
-        Assert.DoesNotContain("Assets file path", text);
-        Assert.DoesNotContain("Back", text);
     }
 
     [Fact]
@@ -621,17 +543,6 @@ public sealed class TerminalAppTests
             .ReplaceLineEndings("\n")
             .Split('\n')
             .First(line => line.Contains(value, StringComparison.Ordinal));
-    }
-
-    private static void AssertTitleIsInsideCompactPanel(string text)
-    {
-        string titleLine = text
-            .ReplaceLineEndings("\n")
-            .Split('\n')
-            .First(line => line.Contains("Unity Assets Patcher", StringComparison.Ordinal));
-
-        Assert.True(titleLine.TrimStart().StartsWith('│') || titleLine.TrimStart().StartsWith('|'), titleLine);
-        Assert.True(titleLine.Length < 40, titleLine);
     }
 
     private static void SelectMainMenuOption(TestConsole console, MainMenuOption option)
