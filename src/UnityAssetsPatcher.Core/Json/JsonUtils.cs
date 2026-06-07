@@ -87,6 +87,7 @@ public static class JsonUtils
 
                 break;
             }
+            case JsonValueKind.Array:
             case JsonValueKind.Undefined:
             case JsonValueKind.String:
             case JsonValueKind.Number:
