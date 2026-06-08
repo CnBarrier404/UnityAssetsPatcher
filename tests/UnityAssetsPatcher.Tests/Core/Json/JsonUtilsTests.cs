@@ -2,7 +2,7 @@ using System.Text.Json;
 using UnityAssetsPatcher.Core.Json;
 using Xunit;
 
-namespace UnityAssetsPatcher.Tests;
+namespace UnityAssetsPatcher.Tests.Core.Json;
 
 public sealed class JsonUtilsTests
 {

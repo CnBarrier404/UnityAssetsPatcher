@@ -1,7 +1,7 @@
 using UnityAssetsPatcher.Core.Assets;
 using Xunit;
 
-namespace UnityAssetsPatcher.Tests;
+namespace UnityAssetsPatcher.Tests.Core.Assets;
 
 public sealed class AssetFieldNavigatorTests
 {

@@ -15,7 +15,7 @@ public sealed class TerminalAppTests
         TestConsole inner = CreateConsole();
         SelectMainMenuOption(inner, MainMenuOption.Exit);
         var console = new RecordingCursorConsole(inner);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
+        var app = CreateApp(new StubAssetsFileService([]), console);
 
         int exitCode = app.Run();
 
@@ -86,7 +86,7 @@ public sealed class TerminalAppTests
         inner.Input.PushKey(ConsoleKey.Escape);
         SelectMainMenuOption(inner, MainMenuOption.Exit);
         var console = new RecordingCursorConsole(inner);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
+        var app = CreateApp(new StubAssetsFileService([]), console);
 
         int exitCode = app.Run();
 
@@ -137,7 +137,7 @@ public sealed class TerminalAppTests
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushKey(ConsoleKey.Escape);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(new StubAssetsFileService([]), console);
+        var app = CreateApp(new StubAssetsFileService([]), console);
 
         int exitCode = app.Run();
 
@@ -185,7 +185,7 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter("n");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(CreateCameraReader(), console);
+        var app = CreateApp(CreateCameraReader(), console);
 
         try
         {
@@ -254,7 +254,7 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter("y");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(CreateCameraReader(), backupDirectory, console);
+        var app = CreateApp(CreateCameraReader(), backupDirectory, console);
 
         try
         {
@@ -329,7 +329,7 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter("n");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(CreateCameraReader(), console);
+        var app = CreateApp(CreateCameraReader(), console);
 
         try
         {
@@ -396,7 +396,7 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter("n");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = new TerminalApp(CreateCameraReader(), console);
+        var app = CreateApp(CreateCameraReader(), console);
 
         try
         {
@@ -431,16 +431,16 @@ public sealed class TerminalAppTests
 
     private sealed class RecordingAssetsReaderFactory
     {
-        private readonly IAssetsReader _assetsReader;
+        private readonly IAssetsFileReader _assetsReader;
 
-        public RecordingAssetsReaderFactory(IAssetsReader assetsReader)
+        public RecordingAssetsReaderFactory(IAssetsFileReader assetsReader)
         {
             _assetsReader = assetsReader;
         }
 
         public int CreateReaderCount { get; private set; }
 
-        public IAssetsReader CreateReader()
+        public IAssetsFileReader CreateReader()
         {
             CreateReaderCount++;
             return _assetsReader;
@@ -507,6 +507,19 @@ public sealed class TerminalAppTests
     private static void ReturnToMainMenu(TestConsole console)
     {
         console.Input.PushKey(ConsoleKey.Enter);
+    }
+
+    private static TerminalApp CreateApp(StubAssetsFileService assetsFileService, IAnsiConsole console)
+    {
+        return new TerminalApp(assetsFileService, assetsFileService, console);
+    }
+
+    private static TerminalApp CreateApp(
+        StubAssetsFileService assetsFileService,
+        string backupDirectory,
+        IAnsiConsole console)
+    {
+        return new TerminalApp(assetsFileService, assetsFileService, backupDirectory, console);
     }
 
     private static StubAssetsFileService CreateCameraReader()

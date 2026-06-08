@@ -5,7 +5,7 @@ namespace UnityAssetsPatcher.Application.Patching;
 internal static class FieldPatchWriteOperationMapper
 {
     public static void AddTo(
-        ICollection<PatchWriteOperation> operations,
+        ICollection<FieldPatchOperation> operations,
         FieldPatchOperationPlan operation)
     {
         if (operation.ValidateBeforeFailure)
@@ -25,7 +25,7 @@ internal static class FieldPatchWriteOperationMapper
 
         if (operation.WriteRequired)
         {
-            operations.Add(new PatchWriteOperation(operation.Path, operation.OldValue, operation.To.Clone()));
+            operations.Add(new FieldPatchOperation(operation.Path, operation.To.Clone()));
         }
     }
 

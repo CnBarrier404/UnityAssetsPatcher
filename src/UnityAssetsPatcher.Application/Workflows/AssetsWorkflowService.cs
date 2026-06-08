@@ -10,24 +10,24 @@ public sealed class AssetsWorkflowService
 {
     private readonly InstallModWorkflow _installModWorkflow;
 
-    public AssetsWorkflowService(IAssetsFileService assetsFileService)
-        : this(assetsFileService, assetsFileService, new ModManifestLoader()) { }
-
-    public AssetsWorkflowService(IAssetsReader assetsReader, IAssetsPatchWriter assetsPatchWriter)
+    public AssetsWorkflowService(IAssetsFileReader assetsReader, IAssetsFileWriter assetsPatchWriter)
         : this(assetsReader, assetsPatchWriter, new ModManifestLoader()) { }
 
-    public AssetsWorkflowService(IAssetsFileService assetsFileService, GameDirectoryResolver gameDirectoryResolver)
-        : this(assetsFileService, assetsFileService, new ModManifestLoader(), gameDirectoryResolver) { }
+    public AssetsWorkflowService(
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        GameDirectoryResolver gameDirectoryResolver)
+        : this(assetsReader, assetsPatchWriter, new ModManifestLoader(), gameDirectoryResolver) { }
 
     public AssetsWorkflowService(
-        IAssetsReader assetsReader,
-        IAssetsPatchWriter assetsPatchWriter,
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsPatchWriter,
         IModManifestLoader manifestLoader)
         : this(assetsReader, assetsPatchWriter, manifestLoader, new GameDirectoryResolver()) { }
 
     public AssetsWorkflowService(
-        IAssetsReader assetsReader,
-        IAssetsPatchWriter assetsPatchWriter,
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsPatchWriter,
         IModManifestLoader manifestLoader,
         GameDirectoryResolver gameDirectoryResolver)
     {

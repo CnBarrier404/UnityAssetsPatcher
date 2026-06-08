@@ -2,7 +2,7 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Tests;
 
-internal sealed class StubAssetsFileService : IAssetsFileService
+internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWriter
 {
     private readonly IReadOnlyList<AssetsInfo> _result;
     private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldTrees;
@@ -37,7 +37,7 @@ internal sealed class StubAssetsFileService : IAssetsFileService
     public string? OutputPath { get; private set; }
     public long? ReceivedPathId { get; private set; }
     public int ReadAssetsInfoCallCount { get; private set; }
-    public IReadOnlyList<PatchWriteAsset> Plan { get; private set; } = [];
+    public IReadOnlyList<AssetFieldPatch> Plan { get; private set; } = [];
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
 
     private int ReadAssetsFieldInfoCallCount { get; set; }
@@ -72,7 +72,7 @@ internal sealed class StubAssetsFileService : IAssetsFileService
             : throw new InvalidOperationException("Field tree was not configured.");
     }
 
-    public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
+    public void WritePatch(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
     {
         WasCalled = true;
         InputPath = inputPath;

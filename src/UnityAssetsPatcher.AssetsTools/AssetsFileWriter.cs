@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileWriter : IAssetsPatchWriter
+public sealed class AssetsFileWriter : IAssetsFileWriter
 {
     private readonly string _tpkFilePath;
 
@@ -13,7 +13,7 @@ public sealed class AssetsFileWriter : IAssetsPatchWriter
         _tpkFilePath = tpkFilePath;
     }
 
-    public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
+    public void WritePatch(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
     {
         WriteAssetsFile(inputPath, outputPath, session => ApplyPatchPlan(session, plan));
     }
@@ -87,9 +87,9 @@ public sealed class AssetsFileWriter : IAssetsPatchWriter
         }
     }
 
-    private static void ApplyPatchPlan(AssetsFileSession session, IReadOnlyList<PatchWriteAsset> plan)
+    private static void ApplyPatchPlan(AssetsFileSession session, IReadOnlyList<AssetFieldPatch> plan)
     {
-        foreach (PatchWriteAsset asset in plan)
+        foreach (AssetFieldPatch asset in plan)
         {
             AssetTypeValueField baseField = session.Manager.GetBaseField(session.AssetsFileInstance, asset.PathId);
 
@@ -100,7 +100,7 @@ public sealed class AssetsFileWriter : IAssetsPatchWriter
 
             AssetTypeValueField mutableField = baseField.Clone();
 
-            foreach (PatchWriteOperation operation in asset.Operations)
+            foreach (FieldPatchOperation operation in asset.Operations)
             {
                 AssetTypeValueField targetField = AssetsFieldLocator.Find(mutableField, operation.Path)
                                                   ?? throw new InvalidOperationException(

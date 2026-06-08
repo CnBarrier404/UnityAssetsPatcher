@@ -2,7 +2,7 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileService : IAssetsPatchWriter
+public sealed class AssetsFileService : IAssetsFileWriter
 {
     private readonly AssetsFileWriter _writer;
 
@@ -11,7 +11,7 @@ public sealed class AssetsFileService : IAssetsPatchWriter
         _writer = new AssetsFileWriter(tpkFilePath);
     }
 
-    public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
+    public void WritePatch(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
     {
         _writer.WritePatch(inputPath, outputPath, plan);
     }

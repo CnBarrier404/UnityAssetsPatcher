@@ -237,8 +237,8 @@ public sealed class ArchitectureComponentTests
                     inputPath,
                     Path.GetTempPath(),
                     [
-                        new PatchWriteAsset(1,
-                            [new PatchWriteOperation("m_Name", "old", JsonElementFactory.String("new"))])
+                        new AssetFieldPatch(1,
+                            [new FieldPatchOperation("m_Name", JsonElementFactory.String("new"))])
                     ]));
 
             Assert.Equal("--output cannot point to the input assets file.", exception.Message);
@@ -249,9 +249,9 @@ public sealed class ArchitectureComponentTests
         }
     }
 
-    private sealed class RecordingAssetsFileService : IAssetsPatchWriter
+    private sealed class RecordingAssetsFileService : IAssetsFileWriter
     {
-        public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
+        public void WritePatch(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
         {
             throw new InvalidOperationException("Writer should not be called.");
         }

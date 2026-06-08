@@ -10,20 +10,26 @@ public sealed class TerminalApp
     private readonly InteractivePrompts _prompts;
     private readonly MainMenuTerminalPage _mainMenuPage;
 
-    public TerminalApp(IAssetsFileService assetsFileService, IAnsiConsole console)
+    public TerminalApp(
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        IAnsiConsole console)
         : this(
-            () => assetsFileService,
-            assetsFileService,
+            () => assetsReader,
+            assetsPatchWriter,
             Path.Combine(AppContext.BaseDirectory, "backup"),
             console) { }
 
-    public TerminalApp(IAssetsFileService assetsFileService, string backupDirectory, IAnsiConsole console)
-        : this(() => assetsFileService, assetsFileService, backupDirectory, console,
-            console) { }
+    public TerminalApp(
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        string backupDirectory,
+        IAnsiConsole console)
+        : this(() => assetsReader, assetsPatchWriter, backupDirectory, console, console) { }
 
     public TerminalApp(
-        Func<IAssetsReader> createAssetsReader,
-        IAssetsPatchWriter assetsPatchWriter,
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter,
         IAnsiConsole console)
         : this(
             createAssetsReader,
@@ -32,8 +38,8 @@ public sealed class TerminalApp
             console) { }
 
     public TerminalApp(
-        Func<IAssetsReader> createAssetsReader,
-        IAssetsPatchWriter assetsPatchWriter,
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter,
         string backupDirectory,
         IAnsiConsole console,
         IAnsiConsole error)
@@ -53,8 +59,8 @@ public sealed class TerminalApp
     }
 
     private TerminalApp(
-        Func<IAssetsReader> createAssetsReader,
-        IAssetsPatchWriter assetsPatchWriter,
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter,
         string backupDirectory,
         IAnsiConsole console)
         : this(createAssetsReader, assetsPatchWriter, backupDirectory, console, console) { }

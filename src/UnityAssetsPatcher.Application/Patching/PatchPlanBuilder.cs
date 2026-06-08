@@ -66,14 +66,14 @@ public sealed class PatchPlanBuilder
 
 public sealed record PatchFileWritePlan(
     PatchFileWritePlanKind Kind,
-    IReadOnlyList<PatchWriteAsset> Assets,
+    IReadOnlyList<AssetFieldPatch> Assets,
     IReadOnlyList<AssetReplacement> Replacements)
 {
     public bool HasMatchedAssets => Kind == PatchFileWritePlanKind.Replacement
         ? Replacements.Count > 0
         : Assets.Count > 0;
 
-    public static PatchFileWritePlan ForFieldPatch(IReadOnlyList<PatchWriteAsset> assets)
+    public static PatchFileWritePlan ForFieldPatch(IReadOnlyList<AssetFieldPatch> assets)
     {
         return new PatchFileWritePlan(PatchFileWritePlanKind.FieldPatch, assets, []);
     }

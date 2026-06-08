@@ -30,7 +30,7 @@ public sealed class FieldPatchPlanBuilder
             .ToArray());
     }
 
-    public IReadOnlyList<PatchWriteAsset> CreateWritePlan(
+    public IReadOnlyList<AssetFieldPatch> CreateWritePlan(
         string assetsFilePath,
         IReadOnlyList<ManifestPatch> targets)
     {
@@ -39,7 +39,7 @@ public sealed class FieldPatchPlanBuilder
             return [];
         }
 
-        var operationGroups = new Dictionary<long, List<PatchWriteOperation>>();
+        var operationGroups = new Dictionary<long, List<FieldPatchOperation>>();
 
         foreach (FieldPatchAssetPlan assetPlan in CreateAssetPlans(assetsFilePath, targets))
         {
@@ -56,7 +56,7 @@ public sealed class FieldPatchPlanBuilder
         }
 
         return operationGroups
-            .Select(group => new PatchWriteAsset(group.Key, group.Value))
+            .Select(group => new AssetFieldPatch(group.Key, group.Value))
             .ToArray();
     }
 

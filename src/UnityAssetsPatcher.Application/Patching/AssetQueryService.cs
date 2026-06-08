@@ -7,9 +7,9 @@ namespace UnityAssetsPatcher.Application.Patching;
 
 public sealed class AssetQueryService
 {
-    private readonly IAssetsReader _assetsReader;
+    private readonly IAssetsFileReader _assetsReader;
 
-    public AssetQueryService(IAssetsReader assetsReader)
+    public AssetQueryService(IAssetsFileReader assetsReader)
     {
         _assetsReader = assetsReader;
     }
@@ -134,14 +134,14 @@ internal sealed class AssetQueryContext
 
     private IReadOnlyList<AssetsInfo> Assets { get; }
 
-    private readonly IAssetsReader _assetsReader;
+    private readonly IAssetsFileReader _assetsReader;
     private readonly string _assetsFilePath;
     private readonly Lazy<IReadOnlyDictionary<long, AssetsInfo>> _assetsByPathId;
 
     private readonly Dictionary<string, IReadOnlyList<AssetsInfo>>
         _assetsByType = new(StringComparer.OrdinalIgnoreCase);
 
-    public AssetQueryContext(IAssetsReader assetsReader, string assetsFilePath)
+    public AssetQueryContext(IAssetsFileReader assetsReader, string assetsFilePath)
     {
         _assetsReader = assetsReader;
         _assetsFilePath = assetsFilePath;

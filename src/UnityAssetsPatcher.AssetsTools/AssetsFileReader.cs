@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileReader : IAssetsReader, IDisposable
+public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 {
     private readonly string _tpkFilePath;
     private readonly Dictionary<string, AssetsFileSession> _sessions = new(StringComparer.OrdinalIgnoreCase);

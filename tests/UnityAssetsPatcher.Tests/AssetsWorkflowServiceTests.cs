@@ -62,7 +62,7 @@ public sealed class AssetsWorkflowServiceTests
                     ]),
                 ]),
             });
-        var service = new AssetsWorkflowService(assetsFileService);
+        var service = CreateService(assetsFileService);
 
         try
         {
@@ -167,7 +167,7 @@ public sealed class AssetsWorkflowServiceTests
                     ]),
                 ]),
             });
-        var service = new AssetsWorkflowService(assetsFileService);
+        var service = CreateService(assetsFileService);
 
         try
         {
@@ -260,7 +260,7 @@ public sealed class AssetsWorkflowServiceTests
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
                 [("modassets.assets", 200)] = CreateAudioClipFieldTree("Incense burn 1"),
             });
-        var service = new AssetsWorkflowService(assetsFileService);
+        var service = CreateService(assetsFileService);
 
         try
         {
@@ -327,7 +327,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = new AssetsWorkflowService(new StubAssetsFileService(
+        var service = CreateService(new StubAssetsFileService(
             [new AssetsInfo(4, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -416,7 +416,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = new AssetsWorkflowService(
+        var service = CreateService(
             new StubAssetsFileService(
                 [new AssetsInfo(4, 20, "Camera", 128)],
                 new Dictionary<long, AssetsFieldInfo>
@@ -470,7 +470,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = new AssetsWorkflowService(
+        var service = CreateService(
             new StubAssetsFileService([]),
             new GameDirectoryResolver([]));
 
@@ -545,7 +545,7 @@ public sealed class AssetsWorkflowServiceTests
             payloadWriter.Write("payload");
         }
 
-        var service = new AssetsWorkflowService(new StubAssetsFileService(
+        var service = CreateService(new StubAssetsFileService(
             [new AssetsInfo(4, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -625,7 +625,7 @@ public sealed class AssetsWorkflowServiceTests
             {
                 [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
             });
-        var service = new AssetsWorkflowService(assetsFileService);
+        var service = CreateService(assetsFileService);
 
         try
         {
@@ -659,5 +659,17 @@ public sealed class AssetsWorkflowServiceTests
             [
                 new AssetsFieldInfo("m_Name", "string", name, []),
             ]);
+    }
+
+    private static AssetsWorkflowService CreateService(StubAssetsFileService assetsFileService)
+    {
+        return new AssetsWorkflowService(assetsFileService, assetsFileService);
+    }
+
+    private static AssetsWorkflowService CreateService(
+        StubAssetsFileService assetsFileService,
+        GameDirectoryResolver gameDirectoryResolver)
+    {
+        return new AssetsWorkflowService(assetsFileService, assetsFileService, gameDirectoryResolver);
     }
 }
