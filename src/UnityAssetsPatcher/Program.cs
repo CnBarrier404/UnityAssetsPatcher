@@ -12,7 +12,7 @@ public static class Program
         // Source: https://github.com/AssetRipper/Tpk
         string tpkFilePath = Path.Combine(AppContext.BaseDirectory, "resources.tpk");
 
-        var assetsFileService = new AssetsFileService(tpkFilePath);
+        var assetsFileWriter = new AssetsFileWriter(tpkFilePath);
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
 
         IAnsiConsole errorConsole = AnsiConsole.Create(new AnsiConsoleSettings
@@ -22,7 +22,7 @@ public static class Program
 
         var app = new TerminalApp(
             () => new AssetsFileReader(tpkFilePath),
-            assetsFileService,
+            assetsFileWriter,
             backupDirectory,
             AnsiConsole.Console,
             errorConsole);

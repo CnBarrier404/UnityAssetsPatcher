@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-internal static class ValueWriter
+internal static class AssetsFieldWriter
 {
     private static readonly Dictionary<AssetValueType, Action<AssetTypeValueField, JsonElement>> ScalarWriters = new()
     {

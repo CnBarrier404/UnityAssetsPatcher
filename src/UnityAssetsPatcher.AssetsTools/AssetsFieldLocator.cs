@@ -3,7 +3,7 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-internal static class FieldLocator
+internal static class AssetsFieldLocator
 {
     public static AssetTypeValueField? Find(AssetTypeValueField field, string path)
     {

@@ -3,7 +3,7 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-internal static class FieldTreeMapper
+internal static class AssetsFieldInfoMapper
 {
     public static AssetsFieldInfo Map(AssetTypeValueField field)
     {

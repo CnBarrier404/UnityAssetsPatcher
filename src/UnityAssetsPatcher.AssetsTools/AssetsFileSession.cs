@@ -6,17 +6,15 @@ namespace UnityAssetsPatcher.AssetsTools;
 
 internal sealed class AssetsFileSession : IDisposable
 {
+    public AssetsManager Manager { get; }
+    public AssetsFileInstance AssetsFileInstance { get; }
+    public AssetsFile AssetsFile => AssetsFileInstance.file;
+
     private AssetsFileSession(AssetsManager manager, AssetsFileInstance assetsFileInstance)
     {
         Manager = manager;
         AssetsFileInstance = assetsFileInstance;
     }
-
-    public AssetsManager Manager { get; }
-
-    public AssetsFileInstance AssetsFileInstance { get; }
-
-    public AssetsFile AssetsFile => AssetsFileInstance.file;
 
     public IReadOnlyList<AssetsInfo> ReadAssetsInfo()
     {
@@ -35,7 +33,7 @@ internal sealed class AssetsFileSession : IDisposable
 
         return field.IsDummy
             ? throw new InvalidOperationException($"Asset not found or cannot be read: {pathId}")
-            : FieldTreeMapper.Map(field);
+            : AssetsFieldInfoMapper.Map(field);
     }
 
     public static AssetsFileSession Open(string assetsFilePath, string tpkFilePath)

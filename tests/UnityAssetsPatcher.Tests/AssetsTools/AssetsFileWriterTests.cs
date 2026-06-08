@@ -4,7 +4,7 @@ using Xunit;
 
 namespace UnityAssetsPatcher.Tests.AssetsTools;
 
-public sealed class AssetsFileServiceTests
+public sealed class AssetsFileWriterTests
 {
     /// <summary>
     /// Verifies that patch writing returns a clear error with the file path when the target assets file is missing.
@@ -14,10 +14,10 @@ public sealed class AssetsFileServiceTests
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        var service = new AssetsFileService("AssetsRipper.tpk");
+        var writer = new AssetsFileWriter("AssetsRipper.tpk");
 
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            service.WritePatch(missingAssetsFile, outputPath, []));
+            writer.WritePatch(missingAssetsFile, outputPath, []));
 
         Assert.Equal($"Assets file not found: {missingAssetsFile}", exception.Message);
     }
@@ -31,12 +31,12 @@ public sealed class AssetsFileServiceTests
         string existingAssetsFile = Path.GetTempFileName();
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        var service = new AssetsFileService(missingTpkFile);
+        var writer = new AssetsFileWriter(missingTpkFile);
 
         try
         {
             var exception = Assert.Throws<FileNotFoundException>(() =>
-                service.WritePatch(existingAssetsFile, outputPath, []));
+                writer.WritePatch(existingAssetsFile, outputPath, []));
 
             Assert.Equal($"TPK file not found: {missingTpkFile}", exception.Message);
         }
@@ -55,10 +55,10 @@ public sealed class AssetsFileServiceTests
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        var service = new AssetsFileService("AssetsRipper.tpk");
+        var writer = new AssetsFileWriter("AssetsRipper.tpk");
 
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            service.WriteReplacements(missingAssetsFile, outputPath, []));
+            writer.WriteReplacements(missingAssetsFile, outputPath, []));
 
         Assert.Equal($"Assets file not found: {missingAssetsFile}", exception.Message);
     }
@@ -73,12 +73,12 @@ public sealed class AssetsFileServiceTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingSourceAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        var service = new AssetsFileService(missingTpkFile);
+        var writer = new AssetsFileWriter(missingTpkFile);
 
         try
         {
             var exception = Assert.Throws<FileNotFoundException>(() =>
-                service.WriteReplacements(existingAssetsFile, outputPath,
+                writer.WriteReplacements(existingAssetsFile, outputPath,
                 [
                     new AssetReplacement(missingSourceAssetsFile, 1, 2),
                 ]));
