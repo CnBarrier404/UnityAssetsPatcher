@@ -1,4 +1,3 @@
-using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Contracts;
 
@@ -9,36 +8,16 @@ public sealed class PatchAssetsWorkflow
     private readonly PatchPlanBuilder _patchPlanBuilder;
     private readonly PatchOutputWriter _patchOutputWriter;
     private readonly Action _releaseReadResources;
-    private readonly IModManifestLoader _manifestLoader;
     private bool _readResourcesReleased;
 
     public PatchAssetsWorkflow(
         PatchPlanBuilder patchPlanBuilder,
         PatchOutputWriter patchOutputWriter,
-        Action releaseReadResources,
-        IModManifestLoader manifestLoader)
+        Action releaseReadResources)
     {
         _patchPlanBuilder = patchPlanBuilder;
         _patchOutputWriter = patchOutputWriter;
         _releaseReadResources = releaseReadResources;
-        _manifestLoader = manifestLoader;
-    }
-
-    public PatchPreviewResult Preview(PatchPreviewRequest request)
-    {
-        ModManifest manifest = _manifestLoader.Load(request.ConfigPath);
-        var targets = PatchTargetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
-
-        return PreviewTargets(request.AssetsFilePath, targets, request.ConfigPath);
-    }
-
-    public PatchApplyResult Apply(PatchApplyRequest request)
-    {
-        ModManifest manifest = _manifestLoader.Load(request.ConfigPath);
-        var targets = PatchTargetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
-
-        return ApplyTargets(request.AssetsFilePath, request.OutputPath, request.BackupDirectory, targets,
-            request.ConfigPath);
     }
 
     public PatchPreviewResult PreviewTargets(
@@ -68,20 +47,6 @@ public sealed class PatchAssetsWorkflow
         }
 
         return plan;
-    }
-
-    private PatchApplyResult ApplyTargets(
-        string assetsFilePath,
-        string? outputPath,
-        string backupDirectory,
-        IReadOnlyList<ManifestPatch> targets,
-        string configPath)
-    {
-        PatchFileWritePlan plan = CreateWritePlan(assetsFilePath, targets, configPath);
-
-        ReleaseReadResources();
-
-        return _patchOutputWriter.Write(assetsFilePath, outputPath, backupDirectory, plan);
     }
 
     public PatchApplyResult WritePlanInPlace(

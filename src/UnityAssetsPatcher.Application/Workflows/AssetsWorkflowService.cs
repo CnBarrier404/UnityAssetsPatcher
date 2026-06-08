@@ -8,9 +8,6 @@ namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class AssetsWorkflowService
 {
-    private readonly InspectAssetsWorkflow _inspectAssetsWorkflow;
-    private readonly FindAssetsWorkflow _findAssetsWorkflow;
-    private readonly PatchAssetsWorkflow _patchAssetsWorkflow;
     private readonly InstallModWorkflow _installModWorkflow;
 
     public AssetsWorkflowService(IAssetsFileService assetsFileService)
@@ -44,42 +41,13 @@ public sealed class AssetsWorkflowService
         var patchAssetsWorkflow = new PatchAssetsWorkflow(
             patchPlanBuilder,
             patchOutputWriter,
-            releaseReadResources,
-            manifestLoader);
+            releaseReadResources);
 
-        _inspectAssetsWorkflow = new InspectAssetsWorkflow(assetsReader);
-        _findAssetsWorkflow = new FindAssetsWorkflow(assetQueryService, manifestLoader);
-        _patchAssetsWorkflow = patchAssetsWorkflow;
         _installModWorkflow = new InstallModWorkflow(
             patchAssetsWorkflow,
             new InstallPayloadPlanner(),
             manifestLoader,
             gameDirectoryResolver);
-    }
-
-    public IReadOnlyList<AssetsInfo> InspectList(InspectListRequest request)
-    {
-        return _inspectAssetsWorkflow.List(request);
-    }
-
-    public AssetsFieldInfo InspectFields(InspectFieldsRequest request)
-    {
-        return _inspectAssetsWorkflow.Fields(request);
-    }
-
-    public IReadOnlyList<AssetMatch> FindAssets(FindAssetsRequest request)
-    {
-        return _findAssetsWorkflow.Find(request);
-    }
-
-    public PatchPreviewResult PreviewPatch(PatchPreviewRequest request)
-    {
-        return _patchAssetsWorkflow.Preview(request);
-    }
-
-    public PatchApplyResult ApplyPatch(PatchApplyRequest request)
-    {
-        return _patchAssetsWorkflow.Apply(request);
     }
 
     public InstallPreviewResult PreviewInstallMod(InstallPreviewRequest request)

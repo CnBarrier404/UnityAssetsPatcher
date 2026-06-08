@@ -14,17 +14,6 @@ public sealed class AssetQueryService
         _assetsReader = assetsReader;
     }
 
-    public IReadOnlyList<AssetMatch> FindAssetMatches(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets)
-    {
-        AssetQueryContext context = CreateContext(assetsFilePath);
-
-        return (from patch in targets
-            from match in FindMatches(context, patch)
-            select new AssetMatch(match.Asset, match.IncludeGroup)).ToList();
-    }
-
     public IEnumerable<AssetQueryMatch> FindMatches(
         string assetsFilePath,
         ManifestPatch patch)
