@@ -6,13 +6,13 @@ internal sealed class TerminalWorkflowSession : IDisposable
 {
     private readonly IDisposable? _disposable;
 
-    public TerminalWorkflowSession(AssetsWorkflowService service, IDisposable? disposable)
+    public TerminalWorkflowSession(InstallModWorkflow installModWorkflow, IDisposable? disposable)
     {
-        Service = service;
+        InstallModWorkflow = installModWorkflow;
         _disposable = disposable;
     }
 
-    public AssetsWorkflowService Service { get; }
+    public InstallModWorkflow InstallModWorkflow { get; }
 
     public void Dispose()
     {

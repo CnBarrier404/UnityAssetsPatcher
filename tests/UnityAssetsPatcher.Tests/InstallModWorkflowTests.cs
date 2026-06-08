@@ -10,13 +10,13 @@ using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Tests;
 
-public sealed class AssetsWorkflowServiceTests
+public sealed class InstallModWorkflowTests
 {
     /// <summary>
     /// Verifies that install locates assets files from zip manifest targets under the game directory and writes in place.
     /// </summary>
     [Fact]
-    public void InstallMod_WhenZipTargetMatchesSingleFile_OverwritesTargetAndReturnsSummary()
+    public void Install_WhenZipTargetMatchesSingleFile_OverwritesTargetAndReturnsSummary()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -62,11 +62,11 @@ public sealed class AssetsWorkflowServiceTests
                     ]),
                 ]),
             });
-        var service = CreateService(assetsFileService);
+        var workflow = CreateWorkflow(assetsFileService);
 
         try
         {
-            InstallModResult result = service.InstallMod(
+            InstallModResult result = workflow.Install(
                 new InstallModRequest(zipPath, gameDirectory, backupDirectory));
 
             Assert.Equal("Test Mod", result.ModName);
@@ -100,7 +100,7 @@ public sealed class AssetsWorkflowServiceTests
     /// Verifies that install copies declared zip payload files beside the resolved assets file.
     /// </summary>
     [Fact]
-    public void InstallMod_WhenManifestHasFiles_CopiesZipEntriesToAssetsDirectory()
+    public void Install_WhenManifestHasFiles_CopiesZipEntriesToAssetsDirectory()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -167,11 +167,11 @@ public sealed class AssetsWorkflowServiceTests
                     ]),
                 ]),
             });
-        var service = CreateService(assetsFileService);
+        var workflow = CreateWorkflow(assetsFileService);
 
         try
         {
-            InstallModResult result = service.InstallMod(
+            InstallModResult result = workflow.Install(
                 new InstallModRequest(zipPath, gameDirectory, backupDirectory));
 
             InstallCopiedFileResult copiedFile = Assert.Single(result.CopiedFiles);
@@ -198,7 +198,7 @@ public sealed class AssetsWorkflowServiceTests
     /// Verifies that install can use replaceFrom assets stored inside the mod zip.
     /// </summary>
     [Fact]
-    public void InstallMod_WhenReplaceFromUsesZipEntry_ExtractsSourceAssetsAndWritesReplacementPlan()
+    public void Install_WhenReplaceFromUsesZipEntry_ExtractsSourceAssetsAndWritesReplacementPlan()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -260,11 +260,11 @@ public sealed class AssetsWorkflowServiceTests
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
                 [("modassets.assets", 200)] = CreateAudioClipFieldTree("Incense burn 1"),
             });
-        var service = CreateService(assetsFileService);
+        var workflow = CreateWorkflow(assetsFileService);
 
         try
         {
-            InstallModResult result = service.InstallMod(
+            InstallModResult result = workflow.Install(
                 new InstallModRequest(zipPath, gameDirectory, backupDirectory));
 
             InstallModFileResult file = Assert.Single(result.Files);
@@ -295,7 +295,7 @@ public sealed class AssetsWorkflowServiceTests
     /// Verifies that install preview locates assets files from zip manifest targets without writing files.
     /// </summary>
     [Fact]
-    public void PreviewInstallMod_WhenZipTargetMatchesSingleFile_ReturnsDryRunResultsWithoutWriter()
+    public void Preview_WhenZipTargetMatchesSingleFile_ReturnsDryRunResultsWithoutWriter()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -327,7 +327,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = CreateService(new StubAssetsFileService(
+        var workflow = CreateWorkflow(new StubAssetsFileService(
             [new AssetsInfo(4, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -343,7 +343,7 @@ public sealed class AssetsWorkflowServiceTests
 
         try
         {
-            InstallPreviewResult result = service.PreviewInstallMod(
+            InstallPreviewResult result = workflow.Preview(
                 new InstallPreviewRequest(zipPath, gameDirectory));
 
             Assert.Equal("Test Mod", result.ModName);
@@ -372,7 +372,7 @@ public sealed class AssetsWorkflowServiceTests
     /// Verifies that install preview can resolve the game directory from the manifest game field when no directory is provided.
     /// </summary>
     [Fact]
-    public void PreviewInstallMod_WhenManifestHasGameAndNoDirectory_UsesResolvedGameDirectory()
+    public void Preview_WhenManifestHasGameAndNoDirectory_UsesResolvedGameDirectory()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string steamDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "Steam");
@@ -416,7 +416,7 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = CreateService(
+        var workflow = CreateWorkflow(
             new StubAssetsFileService(
                 [new AssetsInfo(4, 20, "Camera", 128)],
                 new Dictionary<long, AssetsFieldInfo>
@@ -434,7 +434,7 @@ public sealed class AssetsWorkflowServiceTests
 
         try
         {
-            InstallPreviewResult result = service.PreviewInstallMod(
+            InstallPreviewResult result = workflow.Preview(
                 new InstallPreviewRequest(zipPath, null));
 
             InstallPreviewFileResult file = Assert.Single(result.Files);
@@ -451,7 +451,7 @@ public sealed class AssetsWorkflowServiceTests
     /// Verifies that install preview gives a clear error when neither manual directory nor manifest game can resolve a directory.
     /// </summary>
     [Fact]
-    public void PreviewInstallMod_WhenNoDirectoryAndNoResolvedGame_ThrowsClearError()
+    public void Preview_WhenNoDirectoryAndNoResolvedGame_ThrowsClearError()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         TestManifest.WriteZip(
@@ -470,14 +470,14 @@ public sealed class AssetsWorkflowServiceTests
               ]
             }
             """);
-        var service = CreateService(
+        var workflow = CreateWorkflow(
             new StubAssetsFileService([]),
             new GameDirectoryResolver([]));
 
         try
         {
             var exception = Assert.Throws<DirectoryNotFoundException>(() =>
-                service.PreviewInstallMod(new InstallPreviewRequest(zipPath, null)));
+                workflow.Preview(new InstallPreviewRequest(zipPath, null)));
 
             Assert.Contains("Game directory could not be resolved", exception.Message);
             Assert.Contains("Missing Game", exception.Message);
@@ -492,7 +492,7 @@ public sealed class AssetsWorkflowServiceTests
     /// Verifies that install preview reports payload file copies without writing them.
     /// </summary>
     [Fact]
-    public void PreviewInstallMod_WhenManifestHasFiles_ReturnsCopyPlanWithoutWritingFiles()
+    public void Preview_WhenManifestHasFiles_ReturnsCopyPlanWithoutWritingFiles()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -545,7 +545,7 @@ public sealed class AssetsWorkflowServiceTests
             payloadWriter.Write("payload");
         }
 
-        var service = CreateService(new StubAssetsFileService(
+        var workflow = CreateWorkflow(new StubAssetsFileService(
             [new AssetsInfo(4, 20, "Camera", 128)],
             new Dictionary<long, AssetsFieldInfo>
             {
@@ -561,7 +561,7 @@ public sealed class AssetsWorkflowServiceTests
 
         try
         {
-            InstallPreviewResult result = service.PreviewInstallMod(
+            InstallPreviewResult result = workflow.Preview(
                 new InstallPreviewRequest(zipPath, gameDirectory));
 
             InstallCopyFilePreviewResult copiedFile = Assert.Single(result.CopiedFiles);
@@ -584,7 +584,7 @@ public sealed class AssetsWorkflowServiceTests
     /// Verifies that no write occurs when a target file name matches multiple files under the game directory.
     /// </summary>
     [Fact]
-    public void InstallMod_WhenTargetMatchesMultipleFiles_ThrowsWithoutWriting()
+    public void Install_WhenTargetMatchesMultipleFiles_ThrowsWithoutWriting()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -625,12 +625,12 @@ public sealed class AssetsWorkflowServiceTests
             {
                 [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
             });
-        var service = CreateService(assetsFileService);
+        var workflow = CreateWorkflow(assetsFileService);
 
         try
         {
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                service.InstallMod(new InstallModRequest(zipPath, gameDirectory, backupDirectory)));
+                workflow.Install(new InstallModRequest(zipPath, gameDirectory, backupDirectory)));
 
             Assert.Contains("matched multiple files", exception.Message);
             Assert.False(assetsFileService.WasCalled);
@@ -661,15 +661,18 @@ public sealed class AssetsWorkflowServiceTests
             ]);
     }
 
-    private static AssetsWorkflowService CreateService(StubAssetsFileService assetsFileService)
+    private static InstallModWorkflow CreateWorkflow(StubAssetsFileService assetsFileService)
     {
-        return new AssetsWorkflowService(assetsFileService, assetsFileService);
+        return new WorkflowFactory(assetsFileService).CreateInstallModWorkflow(assetsFileService);
     }
 
-    private static AssetsWorkflowService CreateService(
+    private static InstallModWorkflow CreateWorkflow(
         StubAssetsFileService assetsFileService,
         GameDirectoryResolver gameDirectoryResolver)
     {
-        return new AssetsWorkflowService(assetsFileService, assetsFileService, gameDirectoryResolver);
+        return new WorkflowFactory(
+            assetsFileService,
+            new ModManifestLoader(),
+            gameDirectoryResolver).CreateInstallModWorkflow(assetsFileService);
     }
 }

@@ -27,10 +27,10 @@ internal sealed class TerminalAppContext
         Settings = new TerminalSettings();
     }
 
-    public void UseService(Func<AssetsWorkflowService, int> action)
+    public void UseInstallWorkflow(Func<InstallModWorkflow, int> action)
     {
         using TerminalWorkflowSession session = _workflowSessionFactory.CreateSession();
 
-        action.Invoke(session.Service);
+        action.Invoke(session.InstallModWorkflow);
     }
 }

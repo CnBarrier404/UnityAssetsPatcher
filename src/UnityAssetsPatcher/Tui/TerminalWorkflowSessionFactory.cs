@@ -6,21 +6,21 @@ namespace UnityAssetsPatcher.Tui;
 internal sealed class TerminalWorkflowSessionFactory : ITerminalWorkflowSessionFactory
 {
     private readonly Func<IAssetsFileReader> _createAssetsReader;
-    private readonly IAssetsFileWriter _assetsPatchWriter;
+    private readonly WorkflowFactory _workflowFactory;
 
     public TerminalWorkflowSessionFactory(
         Func<IAssetsFileReader> createAssetsReader,
         IAssetsFileWriter assetsPatchWriter)
     {
         _createAssetsReader = createAssetsReader;
-        _assetsPatchWriter = assetsPatchWriter;
+        _workflowFactory = new WorkflowFactory(assetsPatchWriter);
     }
 
     public TerminalWorkflowSession CreateSession()
     {
         IAssetsFileReader assetsReader = _createAssetsReader();
-        var service = new AssetsWorkflowService(assetsReader, _assetsPatchWriter);
+        InstallModWorkflow installModWorkflow = _workflowFactory.CreateInstallModWorkflow(assetsReader);
 
-        return new TerminalWorkflowSession(service, assetsReader as IDisposable);
+        return new TerminalWorkflowSession(installModWorkflow, assetsReader as IDisposable);
     }
 }

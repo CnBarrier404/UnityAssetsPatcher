@@ -61,9 +61,9 @@ internal sealed class InstallTerminalPage : TerminalPage
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        Context.UseService(service =>
+        Context.UseInstallWorkflow(workflow =>
         {
-            InstallModResult result = service.InstallMod(
+            InstallModResult result = workflow.Install(
                 new InstallModRequest(zipFilePath, gameDirectory, Context.BackupDirectory));
             TerminalOutputFormatter.WriteInstallResult(Context.Console, result, Context.Settings);
 
@@ -79,9 +79,9 @@ internal sealed class InstallTerminalPage : TerminalPage
 
         try
         {
-            Context.UseService(service =>
+            Context.UseInstallWorkflow(workflow =>
             {
-                preview = service.PreviewInstallMod(new InstallPreviewRequest(zipFilePath, gameDirectory));
+                preview = workflow.Preview(new InstallPreviewRequest(zipFilePath, gameDirectory));
 
                 return 0;
             });
