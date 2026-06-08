@@ -45,7 +45,6 @@ public sealed class AssetsWorkflowService
 
         _installModWorkflow = new InstallModWorkflow(
             patchAssetsWorkflow,
-            new InstallPayloadPlanner(),
             manifestLoader,
             gameDirectoryResolver);
     }

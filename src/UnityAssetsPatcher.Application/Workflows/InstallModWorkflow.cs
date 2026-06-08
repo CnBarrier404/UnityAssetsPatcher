@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using UnityAssetsPatcher.Application.Installing;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
@@ -9,18 +8,15 @@ namespace UnityAssetsPatcher.Application.Workflows;
 public sealed class InstallModWorkflow
 {
     private readonly PatchAssetsWorkflow _patchAssetsWorkflow;
-    private readonly InstallPayloadPlanner _payloadPlanner;
     private readonly IModManifestLoader _manifestLoader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
 
     public InstallModWorkflow(
         PatchAssetsWorkflow patchAssetsWorkflow,
-        InstallPayloadPlanner payloadPlanner,
         IModManifestLoader manifestLoader,
         GameDirectoryResolver gameDirectoryResolver)
     {
         _patchAssetsWorkflow = patchAssetsWorkflow;
-        _payloadPlanner = payloadPlanner;
         _manifestLoader = manifestLoader;
         _gameDirectoryResolver = gameDirectoryResolver;
     }
@@ -28,34 +24,25 @@ public sealed class InstallModWorkflow
     public InstallPreviewResult Preview(InstallPreviewRequest request)
     {
         var timings = new InstallTimingBuilder();
-        EnsureZipFileExists(request.ZipFilePath);
+        using PreparedInstallSource source = new InstallSourcePreparer(_manifestLoader, _gameDirectoryResolver)
+            .Prepare(request.ZipFilePath, request.GameDirectory, timings);
 
-        ModManifest manifest = timings.MeasureReadPackage(() => _manifestLoader.Load(request.ZipFilePath));
-        string gameDirectory = ResolveGameDirectory(request.GameDirectory, manifest);
-
-        using InstallPackageWorkspace workspace =
-            timings.MeasurePrepareSources(() => InstallPackageWorkspace.Prepare(request.ZipFilePath, manifest));
-        string configPath = workspace.ConfigPath;
         try
         {
-            var targetPaths = timings.MeasureFindGameFiles(() => InstallTargetResolver.Resolve(
-                gameDirectory,
-                manifest.Patches.Select(patch => patch.AssetsFileName)));
-            var copyPlans = _payloadPlanner.CreatePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
+            var targets = new InstallTargetPlanBuilder()
+                .CreateTargets(source.GameDirectory, source.Manifest, timings);
+            var payloadPlanner = new InstallPayloadPlanner();
+            var copyPlans = payloadPlanner.CreatePlans(source.ZipFilePath, source.Manifest.Files,
+                targets.Select(target => target.AssetsFilePath),
                 requireAvailableDestination: false);
-            var fileResults = timings.MeasureAnalyzeChanges(() =>
-                (from targetGroup in
-                        manifest.Patches.GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase)
-                    let assetsFilePath = targetPaths[targetGroup.Key]
-                    let targets = targetGroup.ToArray()
-                    let preview = _patchAssetsWorkflow.PreviewTargets(assetsFilePath, targets, configPath)
-                    select new InstallPreviewFileResult(targetGroup.Key, assetsFilePath, preview)).ToList());
+            var fileResults = new InstallPatchPlanBuilder(_patchAssetsWorkflow)
+                .CreatePreviews(source, targets, timings);
 
             return new InstallPreviewResult(
-                manifest.Name,
-                manifest.Version,
+                source.Manifest.Name,
+                source.Manifest.Version,
                 fileResults,
-                _payloadPlanner.CreatePreviewResults(copyPlans),
+                payloadPlanner.CreatePreviewResults(copyPlans),
                 timings.BuildPreview());
         }
         finally
@@ -67,171 +54,36 @@ public sealed class InstallModWorkflow
     public InstallModResult Install(InstallModRequest request)
     {
         var timings = new InstallTimingBuilder();
-        EnsureZipFileExists(request.ZipFilePath);
-
-        ModManifest manifest = timings.MeasureReadPackage(() => _manifestLoader.Load(request.ZipFilePath));
-        string gameDirectory = ResolveGameDirectory(request.GameDirectory, manifest);
-
-        using InstallPackageWorkspace workspace =
-            timings.MeasurePrepareSources(() => InstallPackageWorkspace.Prepare(request.ZipFilePath, manifest));
-        string configPath = workspace.ConfigPath;
+        using PreparedInstallSource source = new InstallSourcePreparer(_manifestLoader, _gameDirectoryResolver)
+            .Prepare(request.ZipFilePath, request.GameDirectory, timings);
 
         try
         {
-            if (!PatchOperationRules.HasPatchOperations(manifest.Patches))
+            if (!PatchOperationRules.HasPatchOperations(source.Manifest.Patches))
             {
                 throw new InvalidOperationException(
                     "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
             }
 
-            var targetPaths = timings.MeasureFindGameFiles(() => InstallTargetResolver.Resolve(
-                gameDirectory,
-                manifest.Patches.Select(patch => patch.AssetsFileName)));
-            var copyPlans = _payloadPlanner.CreatePlans(request.ZipFilePath, manifest.Files, targetPaths.Values,
+            var targets = new InstallTargetPlanBuilder()
+                .CreateTargets(source.GameDirectory, source.Manifest, timings);
+            var payloadPlanner = new InstallPayloadPlanner();
+            var copyPlans = payloadPlanner.CreatePlans(source.ZipFilePath, source.Manifest.Files,
+                targets.Select(target => target.AssetsFilePath),
                 requireAvailableDestination: true);
-            var plans = timings.MeasureAnalyzeChanges(() =>
-                (from targetGroup in
-                        manifest.Patches.GroupBy(patch => patch.AssetsFileName, StringComparer.OrdinalIgnoreCase)
-                    let assetsFilePath = targetPaths[targetGroup.Key]
-                    let targets = targetGroup.ToArray()
-                    let patchPlan = _patchAssetsWorkflow.CreateWritePlan(assetsFilePath, targets, configPath)
-                    select new InstallFilePlan(targetGroup.Key, assetsFilePath, patchPlan)).ToList());
+            var plans = new InstallPatchPlanBuilder(_patchAssetsWorkflow)
+                .CreateWritePlans(source, targets, timings);
+            var fileResults = new InstallPlanApplier(_patchAssetsWorkflow)
+                .ApplyPatches(plans, request.BackupDirectory, timings);
+            string zipFilePath = source.ZipFilePath;
+            var copiedFiles = timings.MeasureCopyFiles(() => payloadPlanner.CopyFiles(zipFilePath, copyPlans));
 
-            var fileResults = timings.MeasureApplyPatches(() =>
-                (from plan in plans
-                    let result =
-                        _patchAssetsWorkflow.WritePlanInPlace(plan.AssetsFilePath, request.BackupDirectory,
-                            plan.PatchPlan)
-                    where result.OperationCount != 0
-                    let backupPath =
-                        result.BackupPath ??
-                        throw new InvalidOperationException("Install patch did not create a backup.")
-                    select new InstallModFileResult(plan.Target, result.OutputPath, backupPath, result.AssetCount,
-                        result.OperationCount)).ToList());
-
-            var copiedFiles = timings.MeasureCopyFiles(() => _payloadPlanner.CopyFiles(request.ZipFilePath, copyPlans));
-
-            return new InstallModResult(manifest.Name, manifest.Version, fileResults, copiedFiles,
+            return new InstallModResult(source.Manifest.Name, source.Manifest.Version, fileResults, copiedFiles,
                 timings.BuildInstall());
         }
         finally
         {
             _patchAssetsWorkflow.ReleaseReadResources();
-        }
-    }
-
-    private static void EnsureZipFileExists(string zipFilePath)
-    {
-        if (!File.Exists(zipFilePath))
-        {
-            throw new FileNotFoundException($"Mod zip file not found: {zipFilePath}", zipFilePath);
-        }
-    }
-
-    private string ResolveGameDirectory(string? gameDirectory, ModManifest manifest)
-    {
-        if (!string.IsNullOrWhiteSpace(gameDirectory))
-        {
-            string fullGameDirectory = Path.GetFullPath(gameDirectory);
-
-            return Directory.Exists(fullGameDirectory)
-                ? fullGameDirectory
-                : throw new DirectoryNotFoundException($"Game directory not found: {fullGameDirectory}");
-        }
-
-        if (string.IsNullOrWhiteSpace(manifest.Game))
-        {
-            throw new DirectoryNotFoundException(
-                "Game directory was not provided and manifest does not contain a 'game' property.");
-        }
-
-        string? resolvedDirectory = _gameDirectoryResolver.Resolve(manifest.Game);
-
-        return resolvedDirectory ?? throw new DirectoryNotFoundException(
-            $"Game directory could not be resolved for manifest game: {manifest.Game}");
-    }
-
-    private sealed record InstallFilePlan(
-        string Target,
-        string AssetsFilePath,
-        PatchFileWritePlan PatchPlan);
-
-    private sealed class InstallTimingBuilder
-    {
-        private readonly Stopwatch _elapsed = Stopwatch.StartNew();
-
-        private TimeSpan _readPackage;
-        private TimeSpan _prepareSources;
-        private TimeSpan _findGameFiles;
-        private TimeSpan _analyzeChanges;
-        private TimeSpan? _applyPatches;
-        private TimeSpan? _copyFiles;
-
-        public T MeasureReadPackage<T>(Func<T> action)
-        {
-            return Measure(action, elapsed => _readPackage = elapsed);
-        }
-
-        public T MeasurePrepareSources<T>(Func<T> action)
-        {
-            return Measure(action, elapsed => _prepareSources = elapsed);
-        }
-
-        public T MeasureFindGameFiles<T>(Func<T> action)
-        {
-            return Measure(action, elapsed => _findGameFiles = elapsed);
-        }
-
-        public T MeasureAnalyzeChanges<T>(Func<T> action)
-        {
-            return Measure(action, elapsed => _analyzeChanges = elapsed);
-        }
-
-        public T MeasureApplyPatches<T>(Func<T> action)
-        {
-            return Measure(action, elapsed => _applyPatches = elapsed);
-        }
-
-        public T MeasureCopyFiles<T>(Func<T> action)
-        {
-            return Measure(action, elapsed => _copyFiles = elapsed);
-        }
-
-        public InstallTimingResult BuildPreview()
-        {
-            return Build();
-        }
-
-        public InstallTimingResult BuildInstall()
-        {
-            return Build();
-        }
-
-        private InstallTimingResult Build()
-        {
-            return new InstallTimingResult(
-                _readPackage,
-                _prepareSources,
-                _findGameFiles,
-                _analyzeChanges,
-                _applyPatches,
-                _copyFiles,
-                _elapsed.Elapsed);
-        }
-
-        private static T Measure<T>(Func<T> action, Action<TimeSpan> setElapsed)
-        {
-            var stopwatch = Stopwatch.StartNew();
-
-            try
-            {
-                return action();
-            }
-            finally
-            {
-                stopwatch.Stop();
-                setElapsed(stopwatch.Elapsed);
-            }
         }
     }
 }
