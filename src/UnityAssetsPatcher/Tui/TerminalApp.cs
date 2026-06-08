@@ -11,19 +11,35 @@ public sealed class TerminalApp
     private readonly MainMenuTerminalPage _mainMenuPage;
 
     public TerminalApp(IAssetsFileService assetsFileService, IAnsiConsole console)
-        : this(assetsFileService, Path.Combine(AppContext.BaseDirectory, "backup"), console) { }
+        : this(
+            () => assetsFileService,
+            assetsFileService,
+            Path.Combine(AppContext.BaseDirectory, "backup"),
+            console) { }
 
     public TerminalApp(IAssetsFileService assetsFileService, string backupDirectory, IAnsiConsole console)
-        : this(assetsFileService, backupDirectory, console, console) { }
+        : this(() => assetsFileService, assetsFileService, backupDirectory, console,
+            console) { }
 
     public TerminalApp(
-        IAssetsFileService assetsFileService,
+        Func<IAssetsReader> createAssetsReader,
+        IAssetsPatchWriter assetsPatchWriter,
+        IAnsiConsole console)
+        : this(
+            createAssetsReader,
+            assetsPatchWriter,
+            Path.Combine(AppContext.BaseDirectory, "backup"),
+            console) { }
+
+    public TerminalApp(
+        Func<IAssetsReader> createAssetsReader,
+        IAssetsPatchWriter assetsPatchWriter,
         string backupDirectory,
         IAnsiConsole console,
         IAnsiConsole error)
     {
         _context = new TerminalAppContext(
-            new TerminalWorkflowSessionFactory(assetsFileService),
+            new TerminalWorkflowSessionFactory(createAssetsReader, assetsPatchWriter),
             backupDirectory,
             console,
             error);
@@ -35,6 +51,13 @@ public sealed class TerminalApp
         ];
         _mainMenuPage = new MainMenuTerminalPage(_context, _prompts, pages);
     }
+
+    private TerminalApp(
+        Func<IAssetsReader> createAssetsReader,
+        IAssetsPatchWriter assetsPatchWriter,
+        string backupDirectory,
+        IAnsiConsole console)
+        : this(createAssetsReader, assetsPatchWriter, backupDirectory, console, console) { }
 
     public int Run()
     {

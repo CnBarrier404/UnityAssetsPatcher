@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-internal sealed class AssetsFileSession : IAssetsFileReadSession
+internal sealed class AssetsFileSession : IDisposable
 {
     private AssetsFileSession(AssetsManager manager, AssetsFileInstance assetsFileInstance)
     {
@@ -64,6 +64,7 @@ internal sealed class AssetsFileSession : IAssetsFileReadSession
         catch
         {
             manager.UnloadAll(true);
+
             throw;
         }
     }

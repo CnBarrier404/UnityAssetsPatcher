@@ -26,6 +26,59 @@ public sealed class TerminalAppTests
     }
 
     [Fact]
+    public void Run_UsesExplicitAssetsReaderFactoryForWorkflowSessions()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = CreateGameDirectory("sharedassets0.assets");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InstallMod);
+        console.Input.PushTextWithEnter(zipPath);
+        console.Input.PushTextWithEnter(gameDirectory);
+        console.Input.PushTextWithEnter("n");
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        var assetsReaderFactory = new RecordingAssetsReaderFactory(CreateCameraReader());
+        var app = new TerminalApp(assetsReaderFactory.CreateReader, new StubAssetsFileService([]), console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            Assert.Equal(0, exitCode);
+            Assert.Equal(2, assetsReaderFactory.CreateReaderCount);
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            Directory.Delete(gameDirectory, true);
+        }
+    }
+
+    [Fact]
     public void Run_WhenSettingsPageWaitsForInput_DoesNotShowCursorBetweenNavigationPages()
     {
         TestConsole inner = CreateConsole();
@@ -374,6 +427,24 @@ public sealed class TerminalAppTests
         InstallMod,
         Settings,
         Exit,
+    }
+
+    private sealed class RecordingAssetsReaderFactory
+    {
+        private readonly IAssetsReader _assetsReader;
+
+        public RecordingAssetsReaderFactory(IAssetsReader assetsReader)
+        {
+            _assetsReader = assetsReader;
+        }
+
+        public int CreateReaderCount { get; private set; }
+
+        public IAssetsReader CreateReader()
+        {
+            CreateReaderCount++;
+            return _assetsReader;
+        }
     }
 
     private static TestConsole CreateConsole(bool supportsAnsi = true)

@@ -20,7 +20,12 @@ public static class Program
             Out = new AnsiConsoleOutput(Console.Error),
         });
 
-        var app = new TerminalApp(assetsFileService, backupDirectory, AnsiConsole.Console, errorConsole);
+        var app = new TerminalApp(
+            () => new AssetsFileReader(tpkFilePath),
+            assetsFileService,
+            backupDirectory,
+            AnsiConsole.Console,
+            errorConsole);
 
         return app.Run();
     }

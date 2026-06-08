@@ -3,84 +3,28 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileService : IAssetsFileService, IAssetsReadScopeFactory
+public sealed class AssetsFileService : IAssetsPatchWriter
 {
     private readonly string _tpkFilePath;
-    private readonly IAssetsFileSessionFactory _sessionFactory;
 
     public AssetsFileService(string tpkFilePath)
-        : this(tpkFilePath, new AssetsFileSessionFactory(tpkFilePath)) { }
-
-    private AssetsFileService(string tpkFilePath, IAssetsFileSessionFactory sessionFactory)
     {
         _tpkFilePath = tpkFilePath;
-        _sessionFactory = sessionFactory;
-    }
-
-    public IAssetsReadScope CreateReadScope()
-    {
-        return new ScopedAssetsReader(_sessionFactory);
-    }
-
-    public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
-    {
-        using IAssetsFileReadSession session = _sessionFactory.Open(assetsFilePath);
-
-        return session.ReadAssetsInfo();
-    }
-
-    public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
-    {
-        using IAssetsFileReadSession session = _sessionFactory.Open(assetsFilePath);
-
-        return session.ReadAssetsFieldInfo(pathId);
     }
 
     public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan)
     {
-        string? outputDirectory = Path.GetDirectoryName(outputPath);
-        string tempPath = CreateTempPath(outputPath, outputDirectory);
-
-        try
-        {
-            using (AssetsFileSession session = AssetsFileSession.Open(inputPath, _tpkFilePath))
-            {
-                if (!string.IsNullOrEmpty(outputDirectory))
-                {
-                    Directory.CreateDirectory(outputDirectory);
-                }
-
-                ApplyPatchPlan(session, plan);
-
-                using FileStream outputStream = File.Create(tempPath);
-                var writer = new AssetsFileWriter(outputStream);
-                session.AssetsFile.Write(writer);
-            }
-
-            File.Move(tempPath, outputPath, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
-        }
+        WriteAssetsFile(inputPath, outputPath, session => ApplyPatchPlan(session, plan));
     }
 
     public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan)
     {
-        foreach (string sourceAssetsFilePath in plan
-                     .Select(replacement => replacement.SourceAssetsFilePath)
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            if (!File.Exists(sourceAssetsFilePath))
-            {
-                throw new FileNotFoundException($"Assets file not found: {sourceAssetsFilePath}",
-                    sourceAssetsFilePath);
-            }
-        }
+        ValidateReplacementSources(plan);
+        WriteAssetsFile(inputPath, outputPath, session => ApplyReplacementPlan(session, plan));
+    }
 
+    private void WriteAssetsFile(string inputPath, string outputPath, Action<AssetsFileSession> applyChanges)
+    {
         string? outputDirectory = Path.GetDirectoryName(outputPath);
         string tempPath = CreateTempPath(outputPath, outputDirectory);
 
@@ -93,21 +37,15 @@ public sealed class AssetsFileService : IAssetsFileService, IAssetsReadScopeFact
                     Directory.CreateDirectory(outputDirectory);
                 }
 
-                ApplyReplacementPlan(session, plan);
-
-                using FileStream outputStream = File.Create(tempPath);
-                var writer = new AssetsFileWriter(outputStream);
-                session.AssetsFile.Write(writer);
+                applyChanges(session);
+                WriteSessionToFile(session, tempPath);
             }
 
             File.Move(tempPath, outputPath, overwrite: true);
         }
         finally
         {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
+            DeleteIfExists(tempPath);
         }
     }
 
@@ -116,6 +54,36 @@ public sealed class AssetsFileService : IAssetsFileService, IAssetsReadScopeFact
         return Path.Combine(
             string.IsNullOrEmpty(outputDirectory) ? Directory.GetCurrentDirectory() : outputDirectory,
             $".{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
+    }
+
+    private static void ValidateReplacementSources(IReadOnlyList<AssetReplacement> plan)
+    {
+        foreach (string sourceAssetsFilePath in plan
+                     .Select(replacement => replacement.SourceAssetsFilePath)
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!File.Exists(sourceAssetsFilePath))
+            {
+                throw new FileNotFoundException(
+                    $"Assets file not found: {sourceAssetsFilePath}",
+                    sourceAssetsFilePath);
+            }
+        }
+    }
+
+    private static void WriteSessionToFile(AssetsFileSession session, string outputPath)
+    {
+        using FileStream outputStream = File.Create(outputPath);
+        var writer = new AssetsFileWriter(outputStream);
+        session.AssetsFile.Write(writer);
+    }
+
+    private static void DeleteIfExists(string path)
+    {
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
     }
 
     private static void ApplyPatchPlan(AssetsFileSession session, IReadOnlyList<PatchWriteAsset> plan)

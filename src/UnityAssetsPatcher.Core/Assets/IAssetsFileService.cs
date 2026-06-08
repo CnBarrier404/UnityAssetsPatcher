@@ -8,13 +8,6 @@ public interface IAssetsReader
     public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId);
 }
 
-public interface IAssetsReadScope : IAssetsReader, IDisposable;
-
-public interface IAssetsReadScopeFactory
-{
-    public IAssetsReadScope CreateReadScope();
-}
-
 public interface IAssetsPatchWriter
 {
     public void WritePatch(string inputPath, string outputPath, IReadOnlyList<PatchWriteAsset> plan);
