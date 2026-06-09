@@ -4,15 +4,16 @@ namespace UnityAssetsPatcher.Tui.Pages;
 
 internal sealed class FindTerminalPage : TerminalPage
 {
-    public override string Title => "Find assets";
-    public override string Description => "Search assets using manifest include rules.";
-
     private readonly InteractivePrompts _prompts;
 
     public FindTerminalPage(TerminalAppContext context, InteractivePrompts prompts) : base(context)
     {
         _prompts = prompts;
     }
+
+    public override string Title => "Find assets";
+
+    public override string Description => "Search assets using manifest include rules.";
 
     public override bool Run()
     {
@@ -33,9 +34,9 @@ internal sealed class FindTerminalPage : TerminalPage
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        Context.UseService(service =>
+        Context.UseFindWorkflow(workflow =>
         {
-            var matches = service.FindAssets(new FindAssetsRequest(assetsFilePath, configPath));
+            var matches = workflow.Find(new FindAssetsRequest(assetsFilePath, configPath));
             TerminalOutputFormatter.WriteFindResults(Context.Console, matches);
 
             return 0;

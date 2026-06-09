@@ -1,13 +1,13 @@
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
 public sealed class PatchOutputWriter
 {
-    private readonly IAssetsPatchWriter _assetsPatchWriter;
+    private readonly IAssetsFileWriter _assetsPatchWriter;
 
-    public PatchOutputWriter(IAssetsPatchWriter assetsPatchWriter)
+    public PatchOutputWriter(IAssetsFileWriter assetsPatchWriter)
     {
         _assetsPatchWriter = assetsPatchWriter;
     }
@@ -27,7 +27,7 @@ public sealed class PatchOutputWriter
         string assetsFilePath,
         string? outputPathOption,
         string backupDirectory,
-        IReadOnlyList<PatchWriteAsset> plan)
+        IReadOnlyList<AssetFieldPatch> plan)
     {
         WriteTarget target = ResolveWriteTarget(assetsFilePath, outputPathOption);
         var changedPlan = plan

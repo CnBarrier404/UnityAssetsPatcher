@@ -1,5 +1,5 @@
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
@@ -49,6 +49,27 @@ public sealed class PatchPlanBuilder
         return PatchFileWritePlan.ForFieldPatch(_fieldPatchPlanBuilder.CreateWritePlan(assetsFilePath, targets));
     }
 
+    public PatchFileWritePlan CreateRequiredWritePlan(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> targets,
+        string configPath)
+    {
+        if (targets.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Patch config did not contain a target for assets file: {Path.GetFileName(assetsFilePath)}");
+        }
+
+        PatchFileWritePlan plan = CreateWritePlan(assetsFilePath, targets, configPath);
+
+        if (!plan.HasMatchedAssets)
+        {
+            throw new InvalidOperationException("Patch config did not match any assets.");
+        }
+
+        return plan;
+    }
+
     private static void EnsurePatchTargetsCanBePlanned(IReadOnlyList<ManifestPatch> targets)
     {
         if (!PatchOperationRules.HasPatchOperations(targets))
@@ -66,14 +87,14 @@ public sealed class PatchPlanBuilder
 
 public sealed record PatchFileWritePlan(
     PatchFileWritePlanKind Kind,
-    IReadOnlyList<PatchWriteAsset> Assets,
+    IReadOnlyList<AssetFieldPatch> Assets,
     IReadOnlyList<AssetReplacement> Replacements)
 {
     public bool HasMatchedAssets => Kind == PatchFileWritePlanKind.Replacement
         ? Replacements.Count > 0
         : Assets.Count > 0;
 
-    public static PatchFileWritePlan ForFieldPatch(IReadOnlyList<PatchWriteAsset> assets)
+    public static PatchFileWritePlan ForFieldPatch(IReadOnlyList<AssetFieldPatch> assets)
     {
         return new PatchFileWritePlan(PatchFileWritePlanKind.FieldPatch, assets, []);
     }

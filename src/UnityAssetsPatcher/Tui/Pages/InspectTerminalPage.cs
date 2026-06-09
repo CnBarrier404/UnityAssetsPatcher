@@ -5,9 +5,6 @@ namespace UnityAssetsPatcher.Tui.Pages;
 
 internal sealed class InspectTerminalPage : TerminalPage
 {
-    public override string Title => "Inspect assets";
-    public override string Description => "List assets or inspect a selected asset field tree.";
-
     private const int DefaultAssetSummaryLimit = 100;
     private const string DefaultAssetSummaryLimitChoice = "First 100";
     private const string ListAssets = "List assets";
@@ -35,23 +32,21 @@ internal sealed class InspectTerminalPage : TerminalPage
         _prompts = prompts;
     }
 
+    public override string Title => "Inspect assets";
+
+    public override string Description => "List assets or inspect a selected asset field tree.";
+
     public override bool Run()
     {
-        while (true)
-        {
-            NewPage(Title, "List assets or inspect the field tree for a selected Path ID.");
-            string choice = _prompts.ReadSubMenuChoice(string.Empty, InspectMenuChoices, Cancel);
+        NewPage(Title, "List assets or inspect the field tree for a selected Path ID.");
+        string choice = _prompts.ReadSubMenuChoice(string.Empty, InspectMenuChoices, Cancel);
 
-            switch (choice)
-            {
-                case ListAssets:
-                    return RunList();
-                case ShowAssetFields:
-                    return RunFields();
-                case Cancel:
-                    return false;
-            }
-        }
+        return choice switch
+        {
+            ListAssets => RunList(),
+            ShowAssetFields => RunFields(),
+            _ => false,
+        };
     }
 
     private bool RunList()
@@ -66,10 +61,33 @@ internal sealed class InspectTerminalPage : TerminalPage
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        Context.UseService(service =>
+        Context.UseInspectWorkflow(workflow =>
         {
-            var assets = service.InspectList(new InspectListRequest(assetsFilePath, limit));
+            var assets = workflow.List(new InspectListRequest(assetsFilePath, limit));
             TerminalOutputFormatter.WriteAssetSummary(Context.Console, assets, limit);
+
+            return 0;
+        });
+
+        return true;
+    }
+
+    private bool RunFields()
+    {
+        NewPage("Show asset fields", "Print the field tree for one selected Path ID.");
+
+        string? assetsFilePath = _prompts.ReadExistingFilePath("Assets file path");
+
+        if (assetsFilePath is null || !_prompts.TryReadInt64("Path ID", out long pathId))
+        {
+            return false;
+        }
+
+        TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        Context.UseInspectWorkflow(workflow =>
+        {
+            AssetsFieldInfo fieldTree = workflow.Fields(new InspectFieldsRequest(assetsFilePath, pathId));
+            TerminalOutputFormatter.WriteAssetFields(Context.Console, fieldTree);
 
             return 0;
         });
@@ -106,28 +124,5 @@ internal sealed class InspectTerminalPage : TerminalPage
                     return false;
             }
         }
-    }
-
-    private bool RunFields()
-    {
-        NewPage("Show asset fields", "Print the field tree for one selected Path ID.");
-
-        string? assetsFilePath = _prompts.ReadExistingFilePath("Assets file path");
-
-        if (assetsFilePath is null || !_prompts.TryReadInt64("Path ID", out long pathId))
-        {
-            return false;
-        }
-
-        TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        Context.UseService(service =>
-        {
-            AssetsFieldInfo fieldTree = service.InspectFields(new InspectFieldsRequest(assetsFilePath, pathId));
-            TerminalOutputFormatter.WriteAssetFields(Context.Console, fieldTree);
-
-            return 0;
-        });
-
-        return true;
     }
 }

@@ -1,6 +1,7 @@
-using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Modules;
+using UnityAssetsPatcher.Application.Patching;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -8,93 +9,67 @@ public sealed class PatchAssetsWorkflow
 {
     private readonly PatchPlanBuilder _patchPlanBuilder;
     private readonly PatchOutputWriter _patchOutputWriter;
-    private readonly Action _releaseReadResources;
     private readonly IModManifestLoader _manifestLoader;
+    private readonly ManifestTargetSelector _targetSelector;
+    private readonly Action _releaseReadResources;
     private bool _readResourcesReleased;
 
     public PatchAssetsWorkflow(
         PatchPlanBuilder patchPlanBuilder,
         PatchOutputWriter patchOutputWriter,
-        Action releaseReadResources,
-        IModManifestLoader manifestLoader)
+        IModManifestLoader manifestLoader,
+        ManifestTargetSelector targetSelector,
+        Action? releaseReadResources = null)
     {
         _patchPlanBuilder = patchPlanBuilder;
         _patchOutputWriter = patchOutputWriter;
-        _releaseReadResources = releaseReadResources;
         _manifestLoader = manifestLoader;
+        _targetSelector = targetSelector;
+        _releaseReadResources = releaseReadResources ?? (() => { });
     }
 
     public PatchPreviewResult Preview(PatchPreviewRequest request)
     {
         ModManifest manifest = _manifestLoader.Load(request.ConfigPath);
-        var targets = PatchTargetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
+        IReadOnlyList<ManifestPatch> targets = _targetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
 
-        return PreviewTargets(request.AssetsFilePath, targets, request.ConfigPath);
+        return _patchPlanBuilder.CreatePreview(request.AssetsFilePath, targets, request.ConfigPath);
     }
 
     public PatchApplyResult Apply(PatchApplyRequest request)
     {
         ModManifest manifest = _manifestLoader.Load(request.ConfigPath);
-        var targets = PatchTargetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
-
-        return ApplyTargets(request.AssetsFilePath, request.OutputPath, request.BackupDirectory, targets,
+        IReadOnlyList<ManifestPatch> targets = _targetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
+        PatchFileWritePlan plan = _patchPlanBuilder.CreateRequiredWritePlan(
+            request.AssetsFilePath,
+            targets,
             request.ConfigPath);
-    }
-
-    public PatchPreviewResult PreviewTargets(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets,
-        string configPath)
-    {
-        return _patchPlanBuilder.CreatePreview(assetsFilePath, targets, configPath);
-    }
-
-    public PatchFileWritePlan CreateWritePlan(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets,
-        string configPath)
-    {
-        if (targets.Count == 0)
-        {
-            throw new InvalidOperationException(
-                $"Patch config did not contain a target for assets file: {Path.GetFileName(assetsFilePath)}");
-        }
-
-        PatchFileWritePlan plan = _patchPlanBuilder.CreateWritePlan(assetsFilePath, targets, configPath);
-
-        if (!plan.HasMatchedAssets)
-        {
-            throw new InvalidOperationException("Patch config did not match any assets.");
-        }
-
-        return plan;
-    }
-
-    private PatchApplyResult ApplyTargets(
-        string assetsFilePath,
-        string? outputPath,
-        string backupDirectory,
-        IReadOnlyList<ManifestPatch> targets,
-        string configPath)
-    {
-        PatchFileWritePlan plan = CreateWritePlan(assetsFilePath, targets, configPath);
 
         ReleaseReadResources();
 
-        return _patchOutputWriter.Write(assetsFilePath, outputPath, backupDirectory, plan);
+        return _patchOutputWriter.Write(
+            request.AssetsFilePath,
+            request.OutputPath,
+            request.BackupDirectory,
+            plan);
     }
 
-    public PatchApplyResult WritePlanInPlace(
-        string assetsFilePath,
-        string backupDirectory,
-        PatchFileWritePlan plan)
+    public PatchAssetPreview Preview(PackageSource source, TargetAssetSet targets, WorkflowTiming timings)
     {
-        ReleaseReadResources();
-
-        return _patchOutputWriter.Write(assetsFilePath, null, backupDirectory, plan);
+        return new PatchPlanner(_patchPlanBuilder).Preview(source, targets, timings);
     }
 
-    public void ReleaseReadResources()
+    public PatchAssetPlan Plan(PackageSource source, TargetAssetSet targets, WorkflowTiming timings)
+    {
+        return new PatchPlanner(_patchPlanBuilder).Plan(source, targets, timings);
+    }
+
+    public PatchAssetApplyResult Apply(PatchAssetPlan plan, string backupDirectory, WorkflowTiming timings)
+    {
+        return new PatchAssetApplier(_patchOutputWriter).Execute(plan, backupDirectory, timings);
+    }
+
+    private void ReleaseReadResources()
     {
         if (_readResourcesReleased)
         {

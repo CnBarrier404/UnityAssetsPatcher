@@ -3,8 +3,6 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Contracts;
 
-public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
-
 public sealed record InstallModResult(
     string ModName,
     string ModVersion,
@@ -45,6 +43,8 @@ public sealed record InstallPreviewFileResult(
 public sealed record InstallCopyFilePreviewResult(string Source, string DestinationPath, bool WillCopy);
 
 public sealed record AssetMatch(AssetsInfo Asset, IReadOnlyDictionary<string, JsonElement> IncludeGroup);
+
+public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
 
 public sealed record PatchPreviewResult(IReadOnlyList<PatchPreviewAssetResult> Assets);
 

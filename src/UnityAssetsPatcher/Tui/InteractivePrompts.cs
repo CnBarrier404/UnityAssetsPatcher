@@ -52,34 +52,27 @@ public sealed class InteractivePrompts
         }
     }
 
-    public string ReadSubMenuChoice(string title, IReadOnlyList<string> choices, string cancelChoice)
+    public string? ReadExistingFilePath(string label)
     {
-        var prompt = CreateSelectionPrompt(title, choices)
-            .AddCancelResult(cancelChoice);
-
-        return _console.Prompt(prompt);
+        return ReadExistingPath(label, File.Exists, value => $"File not found: {value}");
     }
 
-    private static SelectionPrompt<string> CreateSelectionPrompt(string title, IReadOnlyList<string> choices)
+    public string ReadSubMenuChoice(string title, IReadOnlyList<string> choices, string cancelChoice)
     {
         var prompt = new SelectionPrompt<string>()
             .PageSize(Math.Max(choices.Count, 3))
             .MoreChoicesText("[grey](Move up and down to reveal more choices.)[/]")
             .HighlightStyle(new Style(Color.CornflowerBlue))
             .DisableSearch()
-            .AddChoices(choices);
+            .AddChoices(choices)
+            .AddCancelResult(cancelChoice);
 
         if (!string.IsNullOrWhiteSpace(title))
         {
             prompt.Title($"[blue]{Markup.Escape(title)}[/]");
         }
 
-        return prompt;
-    }
-
-    public string? ReadExistingFilePath(string label)
-    {
-        return ReadExistingPath(label, File.Exists, value => $"File not found: {value}");
+        return _console.Prompt(prompt);
     }
 
     public string? ReadExistingDirectoryPath(string label)
@@ -171,24 +164,6 @@ public sealed class InteractivePrompts
         }
     }
 
-    public bool TryReadOptionalPath(string label, out string? path)
-    {
-        string? input = ReadText(label, allowEmpty: true);
-
-        if (input is null)
-        {
-            path = null;
-
-            return false;
-        }
-
-        string normalized = NormalizePathInput(input);
-
-        path = string.IsNullOrWhiteSpace(normalized) ? null : normalized;
-
-        return true;
-    }
-
     private string? ReadExistingPath(string label, Func<string, bool> exists, Func<string, string> missingMessage)
     {
         while (true)
@@ -256,36 +231,35 @@ public sealed class InteractivePrompts
 
             ConsoleKeyInfo key = maybeKey.Value;
 
-            if (key.Key is ConsoleKey.Enter)
+            switch (key.Key)
             {
-                _console.Write(new Text(Environment.NewLine));
+                case ConsoleKey.Enter:
+                    _console.Write(new Text(Environment.NewLine));
 
-                return builder.ToString();
-            }
+                    return builder.ToString();
+                case ConsoleKey.Escape:
+                    _console.Write(new Text(Environment.NewLine));
 
-            if (key.Key is ConsoleKey.Escape)
-            {
-                _console.Write(new Text(Environment.NewLine));
-
-                return null;
-            }
-
-            if (key.Key is ConsoleKey.Backspace)
-            {
-                if (builder.Length > 0)
+                    return null;
+                case ConsoleKey.Backspace:
                 {
-                    builder.Length--;
-                    _console.Write(new Text("\b \b"));
-                }
+                    if (builder.Length > 0)
+                    {
+                        builder.Length--;
+                        _console.Write(new Text("\b \b"));
+                    }
 
+                    continue;
+                }
+            }
+
+            if (char.IsControl(key.KeyChar))
+            {
                 continue;
             }
 
-            if (!char.IsControl(key.KeyChar))
-            {
-                builder.Append(key.KeyChar);
-                _console.Write(new Text(key.KeyChar.ToString()));
-            }
+            builder.Append(key.KeyChar);
+            _console.Write(new Text(key.KeyChar.ToString()));
         }
     }
 

@@ -5,23 +5,28 @@ namespace UnityAssetsPatcher.Tui;
 
 internal sealed class TerminalWorkflowSessionFactory : ITerminalWorkflowSessionFactory
 {
-    private readonly IAssetsFileService _assetsFileService;
+    private readonly Func<IAssetsFileReader> _createAssetsReader;
+    private readonly WorkflowFactory _workflowFactory;
 
-    public TerminalWorkflowSessionFactory(IAssetsFileService assetsFileService)
+    public TerminalWorkflowSessionFactory(
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter)
     {
-        _assetsFileService = assetsFileService;
+        _createAssetsReader = createAssetsReader;
+        _workflowFactory = new WorkflowFactory(assetsPatchWriter);
     }
 
     public TerminalWorkflowSession CreateSession()
     {
-        if (_assetsFileService is not IAssetsReadScopeFactory readScopeFactory)
-        {
-            return new TerminalWorkflowSession(new AssetsWorkflowService(_assetsFileService), null);
-        }
+        IAssetsFileReader assetsReader = _createAssetsReader();
+        InstallModWorkflow installModWorkflow = _workflowFactory.CreateInstallModWorkflow(assetsReader);
+        InspectAssetsWorkflow inspectAssetsWorkflow = _workflowFactory.CreateInspectAssetsWorkflow(assetsReader);
+        FindAssetsWorkflow findAssetsWorkflow = _workflowFactory.CreateFindAssetsWorkflow(assetsReader);
 
-        IAssetsReadScope readScope = readScopeFactory.CreateReadScope();
-        var service = new AssetsWorkflowService(readScope, _assetsFileService);
-
-        return new TerminalWorkflowSession(service, readScope);
+        return new TerminalWorkflowSession(
+            installModWorkflow,
+            inspectAssetsWorkflow,
+            findAssetsWorkflow,
+            assetsReader as IDisposable);
     }
 }

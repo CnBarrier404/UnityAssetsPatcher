@@ -1,13 +1,13 @@
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InspectAssetsWorkflow
 {
-    private readonly IAssetsReader _assetsReader;
+    private readonly IAssetsFileReader _assetsReader;
 
-    public InspectAssetsWorkflow(IAssetsReader assetsReader)
+    public InspectAssetsWorkflow(IAssetsFileReader assetsReader)
     {
         _assetsReader = assetsReader;
     }

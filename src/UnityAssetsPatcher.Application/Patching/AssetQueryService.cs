@@ -1,28 +1,17 @@
 using System.Globalization;
 using System.Text.Json;
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
 public sealed class AssetQueryService
 {
-    private readonly IAssetsReader _assetsReader;
+    private readonly IAssetsFileReader _assetsReader;
 
-    public AssetQueryService(IAssetsReader assetsReader)
+    public AssetQueryService(IAssetsFileReader assetsReader)
     {
         _assetsReader = assetsReader;
-    }
-
-    public IReadOnlyList<AssetMatch> FindAssetMatches(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets)
-    {
-        AssetQueryContext context = CreateContext(assetsFilePath);
-
-        return (from patch in targets
-            from match in FindMatches(context, patch)
-            select new AssetMatch(match.Asset, match.IncludeGroup)).ToList();
     }
 
     public IEnumerable<AssetQueryMatch> FindMatches(
@@ -32,12 +21,23 @@ public sealed class AssetQueryService
         return FindMatches(CreateContext(assetsFilePath), patch);
     }
 
+    public IReadOnlyList<AssetQueryMatch> FindMatches(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> patches)
+    {
+        AssetQueryContext context = CreateContext(assetsFilePath);
+
+        return patches
+            .SelectMany(patch => FindMatches(context, patch))
+            .ToArray();
+    }
+
     internal AssetQueryContext CreateContext(string assetsFilePath)
     {
         return new AssetQueryContext(_assetsReader, assetsFilePath);
     }
 
-    internal IEnumerable<AssetQueryMatch> FindMatches(
+    internal static IEnumerable<AssetQueryMatch> FindMatches(
         AssetQueryContext context,
         ManifestPatch patch)
     {
@@ -145,14 +145,14 @@ internal sealed class AssetQueryContext
 
     private IReadOnlyList<AssetsInfo> Assets { get; }
 
-    private readonly IAssetsReader _assetsReader;
+    private readonly IAssetsFileReader _assetsReader;
     private readonly string _assetsFilePath;
     private readonly Lazy<IReadOnlyDictionary<long, AssetsInfo>> _assetsByPathId;
 
     private readonly Dictionary<string, IReadOnlyList<AssetsInfo>>
         _assetsByType = new(StringComparer.OrdinalIgnoreCase);
 
-    public AssetQueryContext(IAssetsReader assetsReader, string assetsFilePath)
+    public AssetQueryContext(IAssetsFileReader assetsReader, string assetsFilePath)
     {
         _assetsReader = assetsReader;
         _assetsFilePath = assetsFilePath;

@@ -10,20 +10,42 @@ public sealed class TerminalApp
     private readonly InteractivePrompts _prompts;
     private readonly MainMenuTerminalPage _mainMenuPage;
 
-    public TerminalApp(IAssetsFileService assetsFileService, IAnsiConsole console)
-        : this(assetsFileService, Path.Combine(AppContext.BaseDirectory, "backup"), console) { }
-
-    public TerminalApp(IAssetsFileService assetsFileService, string backupDirectory, IAnsiConsole console)
-        : this(assetsFileService, backupDirectory, console, console) { }
+    public TerminalApp(
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        IAnsiConsole console)
+        : this(
+            () => assetsReader,
+            assetsPatchWriter,
+            Path.Combine(AppContext.BaseDirectory, "backup"),
+            console) { }
 
     public TerminalApp(
-        IAssetsFileService assetsFileService,
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        string backupDirectory,
+        IAnsiConsole console)
+        : this(() => assetsReader, assetsPatchWriter, backupDirectory, console, console) { }
+
+    public TerminalApp(
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        IAnsiConsole console)
+        : this(
+            createAssetsReader,
+            assetsPatchWriter,
+            Path.Combine(AppContext.BaseDirectory, "backup"),
+            console) { }
+
+    public TerminalApp(
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter,
         string backupDirectory,
         IAnsiConsole console,
         IAnsiConsole error)
     {
         _context = new TerminalAppContext(
-            new TerminalWorkflowSessionFactory(assetsFileService),
+            new TerminalWorkflowSessionFactory(createAssetsReader, assetsPatchWriter),
             backupDirectory,
             console,
             error);
@@ -37,6 +59,13 @@ public sealed class TerminalApp
         ];
         _mainMenuPage = new MainMenuTerminalPage(_context, _prompts, pages);
     }
+
+    private TerminalApp(
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        string backupDirectory,
+        IAnsiConsole console)
+        : this(createAssetsReader, assetsPatchWriter, backupDirectory, console, console) { }
 
     public int Run()
     {

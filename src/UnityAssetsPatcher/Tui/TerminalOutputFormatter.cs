@@ -102,9 +102,7 @@ public static class TerminalOutputFormatter
         }
 
         WriteBlankLine(console);
-        WriteInfo(
-            console,
-            $"Showing {limit.Value} of {assets.Count} assets. Use the Inspect assets page to print all rows or choose a custom limit.");
+        WriteInfo(console, $"Showing {limit.Value} of {assets.Count} assets.");
     }
 
     public static void WriteAssetFields(IAnsiConsole console, AssetsFieldInfo fieldTree)
@@ -133,12 +131,6 @@ public static class TerminalOutputFormatter
         }
 
         console.Write(table);
-    }
-
-    public static void WritePatchPreview(IAnsiConsole console, PatchPreviewResult preview)
-    {
-        WriteStatus(console, "DRY RUN", "yellow");
-        WritePatchPreviewAssets(console, preview);
     }
 
     public static void WriteInstallPreview(
@@ -176,17 +168,6 @@ public static class TerminalOutputFormatter
         {
             WriteInstallTiming(console, result.Timing);
         }
-    }
-
-    public static void WritePatchApply(IAnsiConsole console, PatchApplyResult result)
-    {
-        WriteStatus(console, "APPLIED", "green");
-        WriteSummaryRows(
-            console,
-            ("Output", result.OutputPath),
-            ("Backup", result.BackupPath ?? "not created"),
-            ("Assets", result.AssetCount.ToString(CultureInfo.InvariantCulture)),
-            ("Operations", result.OperationCount.ToString(CultureInfo.InvariantCulture)));
     }
 
     public static void WriteInstallResult(
@@ -416,6 +397,13 @@ public static class TerminalOutputFormatter
         }
     }
 
+    private static Table CreateTable()
+    {
+        return new Table()
+            .Border(TableBorder.Ascii)
+            .BorderColor(Color.Grey);
+    }
+
     private static void WriteAssetField(IAnsiConsole console, AssetsFieldInfo field, int depth)
     {
         string indentation = new(' ', depth * 2);
@@ -426,13 +414,6 @@ public static class TerminalOutputFormatter
         {
             WriteAssetField(console, child, depth + 1);
         }
-    }
-
-    private static Table CreateTable()
-    {
-        return new Table()
-            .Border(TableBorder.Ascii)
-            .BorderColor(Color.Grey);
     }
 
     private static void WriteStatus(IAnsiConsole console, string label, string color)
