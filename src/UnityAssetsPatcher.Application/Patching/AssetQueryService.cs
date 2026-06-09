@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
@@ -26,7 +26,7 @@ public sealed class AssetQueryService
         return new AssetQueryContext(_assetsReader, assetsFilePath);
     }
 
-    internal IEnumerable<AssetQueryMatch> FindMatches(
+    internal static IEnumerable<AssetQueryMatch> FindMatches(
         AssetQueryContext context,
         ManifestPatch patch)
     {

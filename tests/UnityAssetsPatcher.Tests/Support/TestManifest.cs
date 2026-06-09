@@ -2,7 +2,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace UnityAssetsPatcher.Tests;
+namespace UnityAssetsPatcher.Tests.Support;
 
 internal static class TestManifest
 {

@@ -1,6 +1,6 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
-namespace UnityAssetsPatcher.Application.Installing;
+namespace UnityAssetsPatcher.Application.Modules;
 
 public sealed partial class GameDirectoryResolver
 {
@@ -35,13 +35,6 @@ public sealed partial class GameDirectoryResolver
         return matches.Length == 1 ? matches[0] : null;
     }
 
-    private static string[] GetDefaultSteamRoots()
-    {
-        return CreateDefaultSteamRoots(DriveInfo.GetDrives()
-            .Where(drive => drive.IsReady)
-            .Select(drive => drive.RootDirectory.FullName));
-    }
-
     public static string[] CreateDefaultSteamRoots(IEnumerable<string> driveRoots)
     {
         var roots = new List<string>();
@@ -58,6 +51,13 @@ public sealed partial class GameDirectoryResolver
         return roots
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static string[] GetDefaultSteamRoots()
+    {
+        return CreateDefaultSteamRoots(DriveInfo.GetDrives()
+            .Where(drive => drive.IsReady)
+            .Select(drive => drive.RootDirectory.FullName));
     }
 
     private static IEnumerable<string> FindSteamLibraryDirectories(string steamRoot)

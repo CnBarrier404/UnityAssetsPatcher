@@ -1,42 +1,34 @@
-using UnityAssetsPatcher.Application.Contracts;
+﻿using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 
-namespace UnityAssetsPatcher.Application.Installing;
+namespace UnityAssetsPatcher.Application.Modules;
 
-public sealed class InstallSourcePreparer
+public sealed class PackageSourceLoader
 {
     private readonly IModManifestLoader _manifestLoader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
 
-    public InstallSourcePreparer(
-        IModManifestLoader manifestLoader,
-        GameDirectoryResolver gameDirectoryResolver)
+    public PackageSourceLoader(IModManifestLoader manifestLoader, GameDirectoryResolver gameDirectoryResolver)
     {
         _manifestLoader = manifestLoader;
         _gameDirectoryResolver = gameDirectoryResolver;
     }
 
-    public PreparedInstallSource Prepare(
-        string zipFilePath,
-        string? gameDirectory,
-        InstallTimingBuilder timings)
+    public PackageSource Execute(string packagePath, string? gameDirectory, WorkflowTiming timings)
     {
-        EnsureZipFileExists(zipFilePath);
+        string fullPackagePath = Path.GetFullPath(packagePath);
 
-        ModManifest manifest = timings.MeasureReadPackage(() => _manifestLoader.Load(zipFilePath));
-        string resolvedGameDirectory = ResolveGameDirectory(gameDirectory, manifest);
-        InstallPackageWorkspace workspace =
-            timings.MeasurePrepareSources(() => InstallPackageWorkspace.Prepare(zipFilePath, manifest));
-
-        return new PreparedInstallSource(zipFilePath, manifest, resolvedGameDirectory, workspace);
-    }
-
-    private static void EnsureZipFileExists(string zipFilePath)
-    {
-        if (!File.Exists(zipFilePath))
+        if (!File.Exists(fullPackagePath))
         {
-            throw new FileNotFoundException($"Mod zip file not found: {zipFilePath}", zipFilePath);
+            throw new FileNotFoundException($"Mod zip file not found: {fullPackagePath}", fullPackagePath);
         }
+
+        ModManifest manifest = timings.MeasureReadPackage(() => _manifestLoader.Load(fullPackagePath));
+        string resolvedGameDirectory = ResolveGameDirectory(gameDirectory, manifest);
+        PackageWorkspace workspace =
+            timings.MeasurePrepareSources(() => PackageWorkspace.Create(fullPackagePath, manifest));
+
+        return new PackageSource(fullPackagePath, manifest, resolvedGameDirectory, workspace);
     }
 
     private string ResolveGameDirectory(string? gameDirectory, ModManifest manifest)

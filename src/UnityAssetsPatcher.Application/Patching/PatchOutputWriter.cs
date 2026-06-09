@@ -1,5 +1,4 @@
 using UnityAssetsPatcher.Core.Assets;
-using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
@@ -120,3 +119,5 @@ public sealed class PatchOutputWriter
 
     private sealed record WriteTarget(string AssetsFilePath, string OutputPath, bool OverwritesInput);
 }
+
+public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);

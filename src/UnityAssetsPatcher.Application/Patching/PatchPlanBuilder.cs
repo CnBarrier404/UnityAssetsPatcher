@@ -1,5 +1,5 @@
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
@@ -47,6 +47,27 @@ public sealed class PatchPlanBuilder
         }
 
         return PatchFileWritePlan.ForFieldPatch(_fieldPatchPlanBuilder.CreateWritePlan(assetsFilePath, targets));
+    }
+
+    public PatchFileWritePlan CreateRequiredWritePlan(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> targets,
+        string configPath)
+    {
+        if (targets.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Patch config did not contain a target for assets file: {Path.GetFileName(assetsFilePath)}");
+        }
+
+        PatchFileWritePlan plan = CreateWritePlan(assetsFilePath, targets, configPath);
+
+        if (!plan.HasMatchedAssets)
+        {
+            throw new InvalidOperationException("Patch config did not match any assets.");
+        }
+
+        return plan;
     }
 
     private static void EnsurePatchTargetsCanBePlanned(IReadOnlyList<ManifestPatch> targets)

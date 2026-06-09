@@ -1,44 +1,41 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 
-namespace UnityAssetsPatcher.Application.Installing;
+namespace UnityAssetsPatcher.Application.Modules;
 
-public static class InstallZipPaths
+public static class PackageArchive
 {
-    public static string NormalizeZipEntryPath(string source)
+    public static string NormalizeEntryPath(string source)
     {
         return source.Replace('\\', '/');
     }
 
-    public static string GetPayloadFileName(string source)
+    public static string GetFileName(string source)
     {
         string fileName = Path.GetFileName(source.Replace('/', Path.DirectorySeparatorChar));
 
         return string.IsNullOrWhiteSpace(fileName)
-            ? throw new InvalidOperationException($"Install payload source must name a file: {source}")
+            ? throw new InvalidOperationException($"Payload source must name a file: {source}")
             : fileName;
     }
 
-    public static ZipArchiveEntry FindRequiredZipEntry(
-        ZipArchive archive,
-        string source,
-        string zipFilePath)
+    public static ZipArchiveEntry FindFileEntry(ZipArchive archive, string source, string packagePath)
     {
-        var entries = archive.Entries
+        var matches = archive.Entries
             .Where(entry => !string.IsNullOrEmpty(entry.Name) &&
                             string.Equals(entry.FullName, source, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        return entries.Length switch
+        return matches.Length switch
         {
-            1 => entries[0],
+            1 => matches[0],
             0 => throw new FileNotFoundException(
-                $"Zip payload file not found: {source} in {zipFilePath}",
+                $"Zip payload file not found: {source} in {packagePath}",
                 source),
             _ => throw new InvalidOperationException($"Zip payload file matched multiple entries: {source}")
         };
     }
 
-    public static void CopyZipEntry(ZipArchiveEntry entry, string destinationPath)
+    public static void CopyEntryToNewFile(ZipArchiveEntry entry, string destinationPath)
     {
         string? destinationDirectory = Path.GetDirectoryName(destinationPath);
 
@@ -53,10 +50,10 @@ public static class InstallZipPaths
 
         try
         {
-            using (Stream sourceStream = entry.Open())
-            using (FileStream outputStream = File.Create(tempPath))
+            using (Stream input = entry.Open())
+            using (FileStream output = File.Create(tempPath))
             {
-                sourceStream.CopyTo(outputStream);
+                input.CopyTo(output);
             }
 
             File.Move(tempPath, destinationPath, overwrite: false);
@@ -70,7 +67,7 @@ public static class InstallZipPaths
         }
     }
 
-    public static string ResolvePathUnderDirectory(string rootDirectory, string relativePath)
+    public static string ResolveUnderDirectory(string rootDirectory, string relativePath)
     {
         string fullRootDirectory = Path.GetFullPath(rootDirectory);
         string fullPath = Path.GetFullPath(Path.Combine(

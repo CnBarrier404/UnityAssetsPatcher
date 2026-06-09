@@ -1,7 +1,6 @@
 using System.Globalization;
 using Spectre.Console;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Tui;

@@ -1,6 +1,6 @@
 using System.Text.Json;
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Application.Patching;

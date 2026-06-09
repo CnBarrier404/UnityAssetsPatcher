@@ -1,14 +1,12 @@
-using System.Text.Json;
 using System.IO.Compression;
-using Xunit;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
-using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Installing;
-using UnityAssetsPatcher.Core.Json;
+using UnityAssetsPatcher.Tests.Support;
+using Xunit;
 
-namespace UnityAssetsPatcher.Tests;
+namespace UnityAssetsPatcher.Tests.Application.Workflows;
 
 public sealed class InstallModWorkflowTests
 {
@@ -369,6 +367,73 @@ public sealed class InstallModWorkflowTests
     }
 
     /// <summary>
+    /// Verifies that reusing one workflow for preview and install still releases read resources before writing.
+    /// </summary>
+    [Fact]
+    public void Install_WhenSameWorkflowPreviewedFirst_ReleasesReadResourcesAgainBeforeWriting()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+            });
+        var workflow = CreateWorkflow(assetsFileService);
+
+        try
+        {
+            workflow.Preview(new InstallPreviewRequest(zipPath, gameDirectory));
+            workflow.Install(new InstallModRequest(zipPath, gameDirectory, backupDirectory));
+
+            Assert.True(assetsFileService.DisposeCountAtWrite >= 2);
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that install preview can resolve the game directory from the manifest game field when no directory is provided.
     /// </summary>
     [Fact]
@@ -430,7 +495,7 @@ public sealed class InstallModWorkflowTests
                         ]),
                     ]),
                 }),
-            new GameDirectoryResolver([steamDirectory]));
+            [steamDirectory]);
 
         try
         {
@@ -472,7 +537,7 @@ public sealed class InstallModWorkflowTests
             """);
         var workflow = CreateWorkflow(
             new StubAssetsFileService([]),
-            new GameDirectoryResolver([]));
+            []);
 
         try
         {
@@ -668,11 +733,11 @@ public sealed class InstallModWorkflowTests
 
     private static InstallModWorkflow CreateWorkflow(
         StubAssetsFileService assetsFileService,
-        GameDirectoryResolver gameDirectoryResolver)
+        IEnumerable<string> steamRoots)
     {
         return new WorkflowFactory(
             assetsFileService,
             new ModManifestLoader(),
-            gameDirectoryResolver).CreateInstallModWorkflow(assetsFileService);
+            steamRoots).CreateInstallModWorkflow(assetsFileService);
     }
 }

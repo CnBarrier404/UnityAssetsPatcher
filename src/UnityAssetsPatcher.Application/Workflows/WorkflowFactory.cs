@@ -1,5 +1,5 @@
-using UnityAssetsPatcher.Application.Installing;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Modules;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Core.Assets;
 
@@ -17,6 +17,14 @@ public sealed class WorkflowFactory
     public WorkflowFactory(
         IAssetsFileWriter assetsPatchWriter,
         IModManifestLoader manifestLoader,
+        IEnumerable<string> steamRoots) : this(
+        assetsPatchWriter,
+        manifestLoader,
+        new GameDirectoryResolver(steamRoots)) { }
+
+    public WorkflowFactory(
+        IAssetsFileWriter assetsPatchWriter,
+        IModManifestLoader manifestLoader,
         GameDirectoryResolver gameDirectoryResolver)
     {
         _assetsPatchWriter = assetsPatchWriter;
@@ -26,22 +34,24 @@ public sealed class WorkflowFactory
 
     public InstallModWorkflow CreateInstallModWorkflow(IAssetsFileReader assetsReader)
     {
-        return new InstallModWorkflow(CreatePatchAssetsWorkflow(assetsReader), _manifestLoader, _gameDirectoryResolver);
-    }
-
-    private PatchAssetsWorkflow CreatePatchAssetsWorkflow(IAssetsFileReader assetsReader)
-    {
-        var assetQueryService = new AssetQueryService(assetsReader);
-        var valueResolver = new PatchValueResolver(assetQueryService);
-        var fieldPatchPlanBuilder = new FieldPatchPlanBuilder(assetQueryService, valueResolver);
-        var replacementPlanBuilder = new ReplacementPlanBuilder(assetQueryService);
-        var patchPlanBuilder = new PatchPlanBuilder(fieldPatchPlanBuilder, replacementPlanBuilder);
+        PatchPlanBuilder patchPlanBuilder = CreatePatchPlanBuilder(assetsReader);
         var patchOutputWriter = new PatchOutputWriter(_assetsPatchWriter);
         Action releaseReadResources = assetsReader is IDisposable disposable ? disposable.Dispose : static () => { };
 
-        return new PatchAssetsWorkflow(
+        return new InstallModWorkflow(
             patchPlanBuilder,
             patchOutputWriter,
-            releaseReadResources);
+            releaseReadResources,
+            _manifestLoader,
+            _gameDirectoryResolver);
+    }
+
+    private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)
+    {
+        var assetQueryService = new AssetQueryService(assetsReader);
+        var fieldPatchPlanBuilder = new FieldPatchPlanBuilder(assetQueryService);
+        var replacementPlanBuilder = new ReplacementPlanBuilder(assetQueryService);
+
+        return new PatchPlanBuilder(fieldPatchPlanBuilder, replacementPlanBuilder);
     }
 }

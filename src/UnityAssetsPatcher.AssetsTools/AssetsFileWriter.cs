@@ -1,6 +1,6 @@
 using AssetsTools.NET;
-using AssetsToolsNetFileWriter = AssetsTools.NET.AssetsFileWriter;
 using UnityAssetsPatcher.Core.Assets;
+using AssetsToolsNetFileWriter = AssetsTools.NET.AssetsFileWriter;
 
 namespace UnityAssetsPatcher.AssetsTools;
 

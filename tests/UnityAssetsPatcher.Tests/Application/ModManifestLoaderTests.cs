@@ -1,9 +1,10 @@
 using System.IO.Compression;
-using Xunit;
-using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Tests.Support;
+using Xunit;
 
-namespace UnityAssetsPatcher.Tests;
+namespace UnityAssetsPatcher.Tests.Application;
 
 public sealed class ModManifestLoaderTests
 {

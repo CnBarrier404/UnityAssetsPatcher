@@ -1,8 +1,8 @@
 using UnityAssetsPatcher.Core.Assets;
 
-namespace UnityAssetsPatcher.Tests;
+namespace UnityAssetsPatcher.Tests.Support;
 
-internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWriter
+internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWriter, IDisposable
 {
     private readonly IReadOnlyList<AssetsInfo> _result;
     private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldTrees;
@@ -36,6 +36,8 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     public string? InputPath { get; private set; }
     public string? OutputPath { get; private set; }
     public long? ReceivedPathId { get; private set; }
+    public int DisposeCount { get; private set; }
+    public int? DisposeCountAtWrite { get; private set; }
     public int ReadAssetsInfoCallCount { get; private set; }
     public IReadOnlyList<AssetFieldPatch> Plan { get; private set; } = [];
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
@@ -77,6 +79,7 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
         WasCalled = true;
         InputPath = inputPath;
         OutputPath = outputPath;
+        DisposeCountAtWrite = DisposeCount;
         Plan = plan;
         File.WriteAllText(outputPath, "patched");
     }
@@ -86,7 +89,13 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
         WasCalled = true;
         InputPath = inputPath;
         OutputPath = outputPath;
+        DisposeCountAtWrite = DisposeCount;
         ReplacementPlan = plan;
         File.WriteAllText(outputPath, "patched");
+    }
+
+    public void Dispose()
+    {
+        DisposeCount++;
     }
 }

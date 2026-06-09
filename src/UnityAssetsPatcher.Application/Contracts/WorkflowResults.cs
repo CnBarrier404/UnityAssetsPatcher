@@ -3,8 +3,6 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Contracts;
 
-public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
-
 public sealed record InstallModResult(
     string ModName,
     string ModVersion,

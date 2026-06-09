@@ -2,10 +2,11 @@ using Spectre.Console;
 using Spectre.Console.Rendering;
 using Spectre.Console.Testing;
 using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Tests.Support;
 using UnityAssetsPatcher.Tui;
 using Xunit;
 
-namespace UnityAssetsPatcher.Tests;
+namespace UnityAssetsPatcher.Tests.Tui;
 
 public sealed class TerminalAppTests
 {

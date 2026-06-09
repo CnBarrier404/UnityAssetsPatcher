@@ -1,9 +1,8 @@
-using System.Diagnostics;
-using UnityAssetsPatcher.Application.Contracts;
+﻿using System.Diagnostics;
 
-namespace UnityAssetsPatcher.Application.Installing;
+namespace UnityAssetsPatcher.Application.Modules;
 
-public sealed class InstallTimingBuilder
+public sealed class WorkflowTiming
 {
     private readonly Stopwatch _elapsed = Stopwatch.StartNew();
 
@@ -44,19 +43,9 @@ public sealed class InstallTimingBuilder
         return Measure(action, elapsed => _copyFiles = elapsed);
     }
 
-    public InstallTimingResult BuildPreview()
+    public WorkflowTimingSnapshot Build()
     {
-        return Build();
-    }
-
-    public InstallTimingResult BuildInstall()
-    {
-        return Build();
-    }
-
-    private InstallTimingResult Build()
-    {
-        return new InstallTimingResult(
+        return new WorkflowTimingSnapshot(
             _readPackage,
             _prepareSources,
             _findGameFiles,
@@ -81,3 +70,12 @@ public sealed class InstallTimingBuilder
         }
     }
 }
+
+public sealed record WorkflowTimingSnapshot(
+    TimeSpan ReadPackage,
+    TimeSpan PrepareSources,
+    TimeSpan FindGameFiles,
+    TimeSpan AnalyzeChanges,
+    TimeSpan? ApplyPatches,
+    TimeSpan? CopyFiles,
+    TimeSpan Elapsed);
