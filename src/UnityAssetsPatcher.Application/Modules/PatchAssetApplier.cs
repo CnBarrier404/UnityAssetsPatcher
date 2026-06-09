@@ -1,4 +1,5 @@
-﻿using UnityAssetsPatcher.Application.Patching;
+﻿using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Patching;
 
 namespace UnityAssetsPatcher.Application.Modules;
 

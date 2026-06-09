@@ -1,27 +1,23 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Modules;
-using UnityAssetsPatcher.Application.Patching;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InstallModWorkflow
 {
-    private readonly PatchPlanBuilder _patchPlanBuilder;
-    private readonly PatchOutputWriter _patchOutputWriter;
+    private readonly PatchAssetsWorkflow _patchAssetsWorkflow;
     private readonly Action _releaseReadResources;
     private readonly IModManifestLoader _manifestLoader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
 
     public InstallModWorkflow(
-        PatchPlanBuilder patchPlanBuilder,
-        PatchOutputWriter patchOutputWriter,
+        PatchAssetsWorkflow patchAssetsWorkflow,
         Action releaseReadResources,
         IModManifestLoader manifestLoader,
         GameDirectoryResolver gameDirectoryResolver)
     {
-        _patchPlanBuilder = patchPlanBuilder;
-        _patchOutputWriter = patchOutputWriter;
+        _patchAssetsWorkflow = patchAssetsWorkflow;
         _releaseReadResources = releaseReadResources;
         _manifestLoader = manifestLoader;
         _gameDirectoryResolver = gameDirectoryResolver;
@@ -41,8 +37,7 @@ public sealed class InstallModWorkflow
                 source,
                 targets,
                 requireAvailableDestination: false);
-            PatchAssetPreview patchPreview = new PatchPlanner(_patchPlanBuilder)
-                .Preview(source, targets, timings);
+            PatchAssetPreview patchPreview = _patchAssetsWorkflow.Preview(source, targets, timings);
             PayloadPreview payloadPreview = PayloadPlanner.Preview(payloadPlan);
 
             return new InstallPreviewResult(
@@ -74,11 +69,12 @@ public sealed class InstallModWorkflow
                 source,
                 targets,
                 requireAvailableDestination: true);
-            PatchAssetPlan patchPlan = new PatchPlanner(_patchPlanBuilder)
-                .Plan(source, targets, timings);
+            PatchAssetPlan patchPlan = _patchAssetsWorkflow.Plan(source, targets, timings);
             ReleaseReadResources();
-            PatchAssetApplyResult patchApplyResult = new PatchAssetApplier(_patchOutputWriter)
-                .Execute(patchPlan, request.BackupDirectory, timings);
+            PatchAssetApplyResult patchApplyResult = _patchAssetsWorkflow.Apply(
+                patchPlan,
+                request.BackupDirectory,
+                timings);
             PayloadCopyResult copiedFiles = new PayloadCopier().Execute(payloadPlan, timings);
 
             return new InstallModResult(

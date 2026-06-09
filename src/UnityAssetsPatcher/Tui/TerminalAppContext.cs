@@ -33,4 +33,18 @@ internal sealed class TerminalAppContext
 
         action.Invoke(session.InstallModWorkflow);
     }
+
+    public void UseInspectWorkflow(Func<InspectAssetsWorkflow, int> action)
+    {
+        using TerminalWorkflowSession session = _workflowSessionFactory.CreateSession();
+
+        action.Invoke(session.InspectAssetsWorkflow);
+    }
+
+    public void UseFindWorkflow(Func<FindAssetsWorkflow, int> action)
+    {
+        using TerminalWorkflowSession session = _workflowSessionFactory.CreateSession();
+
+        action.Invoke(session.FindAssetsWorkflow);
+    }
 }

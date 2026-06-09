@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Spectre.Console;
 
@@ -56,6 +57,24 @@ public sealed class InteractivePrompts
         return ReadExistingPath(label, File.Exists, value => $"File not found: {value}");
     }
 
+    public string ReadSubMenuChoice(string title, IReadOnlyList<string> choices, string cancelChoice)
+    {
+        var prompt = new SelectionPrompt<string>()
+            .PageSize(Math.Max(choices.Count, 3))
+            .MoreChoicesText("[grey](Move up and down to reveal more choices.)[/]")
+            .HighlightStyle(new Style(Color.CornflowerBlue))
+            .DisableSearch()
+            .AddChoices(choices)
+            .AddCancelResult(cancelChoice);
+
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            prompt.Title($"[blue]{Markup.Escape(title)}[/]");
+        }
+
+        return _console.Prompt(prompt);
+    }
+
     public string? ReadExistingDirectoryPath(string label)
     {
         return ReadExistingPath(label, Directory.Exists, value => $"Directory not found: {value}");
@@ -94,6 +113,55 @@ public sealed class InteractivePrompts
     {
         _console.Cursor.Show(false);
         _console.Input.ReadKey(intercept: true);
+    }
+
+    public bool TryReadInt64(string label, out long value)
+    {
+        while (true)
+        {
+            string? input = ReadText(label);
+
+            if (input is null)
+            {
+                value = 0;
+
+                return false;
+            }
+
+            string normalized = NormalizePathInput(input);
+
+            if (long.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+            {
+                return true;
+            }
+
+            WriteError($"{label} must be an integer.");
+        }
+    }
+
+    public bool TryReadPositiveInt(string label, out int value)
+    {
+        while (true)
+        {
+            string? input = ReadText(label);
+
+            if (input is null)
+            {
+                value = 0;
+
+                return false;
+            }
+
+            string normalized = NormalizePathInput(input);
+
+            if (int.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) &&
+                value > 0)
+            {
+                return true;
+            }
+
+            WriteError($"{label} must be greater than 0.");
+        }
     }
 
     private string? ReadExistingPath(string label, Func<string, bool> exists, Func<string, string> missingMessage)

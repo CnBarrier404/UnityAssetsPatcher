@@ -1,6 +1,7 @@
 using System.Globalization;
 using Spectre.Console;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Tui;
@@ -72,6 +73,64 @@ public static class TerminalOutputFormatter
     public static void WriteError(IAnsiConsole console, string message)
     {
         console.MarkupLine($"[red]{Markup.Escape(message)}[/]");
+    }
+
+    public static void WriteAssetSummary(IAnsiConsole console, IReadOnlyList<AssetsInfo> assets, int? limit)
+    {
+        Table table = CreateTable();
+        table.AddColumn(new TableColumn("Path ID").RightAligned());
+        table.AddColumn(new TableColumn("Type ID").RightAligned());
+        table.AddColumn("Type Name");
+        table.AddColumn(new TableColumn("Byte Size").RightAligned());
+
+        var assetsToPrint = limit is null ? assets : assets.Take(limit.Value);
+
+        foreach (AssetsInfo asset in assetsToPrint)
+        {
+            table.AddRow(
+                asset.PathId.ToString(CultureInfo.InvariantCulture),
+                asset.TypeId.ToString(CultureInfo.InvariantCulture),
+                Escape(asset.TypeName),
+                asset.ByteSize.ToString(CultureInfo.InvariantCulture));
+        }
+
+        console.Write(table);
+
+        if (limit is null || assets.Count <= limit.Value)
+        {
+            return;
+        }
+
+        WriteBlankLine(console);
+        WriteInfo(console, $"Showing {limit.Value} of {assets.Count} assets.");
+    }
+
+    public static void WriteAssetFields(IAnsiConsole console, AssetsFieldInfo fieldTree)
+    {
+        WriteAssetField(console, fieldTree, 0);
+    }
+
+    public static void WriteFindResults(IAnsiConsole console, IReadOnlyList<AssetMatch> matches)
+    {
+        Table table = CreateTable();
+        table.AddColumn(new TableColumn("Path ID").RightAligned());
+        table.AddColumn(new TableColumn("Type ID").RightAligned());
+        table.AddColumn("Type Name");
+        table.AddColumn("Matched Fields");
+
+        foreach (AssetMatch match in matches)
+        {
+            string matchedFields = string.Join(", ",
+                match.IncludeGroup.Select(condition =>
+                    $"{condition.Key}={JsonUtils.FormatElementValue(condition.Value)}"));
+            table.AddRow(
+                match.Asset.PathId.ToString(CultureInfo.InvariantCulture),
+                match.Asset.TypeId.ToString(CultureInfo.InvariantCulture),
+                Escape(match.Asset.TypeName),
+                Escape(matchedFields));
+        }
+
+        console.Write(table);
     }
 
     public static void WriteInstallPreview(
@@ -343,6 +402,18 @@ public static class TerminalOutputFormatter
         return new Table()
             .Border(TableBorder.Ascii)
             .BorderColor(Color.Grey);
+    }
+
+    private static void WriteAssetField(IAnsiConsole console, AssetsFieldInfo field, int depth)
+    {
+        string indentation = new(' ', depth * 2);
+        string value = field.Value is null ? string.Empty : $": {field.Value}";
+        console.MarkupLine($"{indentation}{Escape(field.Name)} ({Escape(field.TypeName)}){Escape(value)}");
+
+        foreach (AssetsFieldInfo child in field.Children)
+        {
+            WriteAssetField(console, child, depth + 1);
+        }
     }
 
     private static void WriteStatus(IAnsiConsole console, string label, string color)

@@ -8,7 +8,7 @@ public sealed class CoreAssetsContractTests
     [Fact]
     public void Contracts_DoNotExposeCombinedAssetsFileService()
     {
-        Type[] coreTypes = typeof(IAssetsFileReader).Assembly.GetTypes();
+        var coreTypes = typeof(IAssetsFileReader).Assembly.GetTypes();
 
         Assert.DoesNotContain(coreTypes, type => type.Name == "IAssetsFileService");
     }
@@ -16,7 +16,7 @@ public sealed class CoreAssetsContractTests
     [Fact]
     public void Contracts_UseAssetsFilePortNames()
     {
-        Type[] coreTypes = typeof(IAssetsFileReader).Assembly.GetTypes();
+        var coreTypes = typeof(IAssetsFileReader).Assembly.GetTypes();
         string[] typeNames = coreTypes.Select(type => type.Name).ToArray();
 
         Assert.Contains("IAssetsFileReader", typeNames);
@@ -39,7 +39,7 @@ public sealed class CoreAssetsContractTests
     [Fact]
     public void Contracts_UseFieldPatchPlanNames()
     {
-        Type[] coreTypes = typeof(IAssetsFileReader).Assembly.GetTypes();
+        var coreTypes = typeof(IAssetsFileReader).Assembly.GetTypes();
         string[] typeNames = coreTypes.Select(type => type.Name).ToArray();
 
         Assert.Contains("AssetFieldPatch", typeNames);

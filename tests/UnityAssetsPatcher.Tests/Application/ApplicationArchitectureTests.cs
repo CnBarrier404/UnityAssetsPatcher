@@ -124,6 +124,7 @@ public sealed class ApplicationArchitectureTests
         string[] expectedFiles =
         [
             "GameDirectoryResolver.cs",
+            "ManifestTargetSelector.cs",
             "ManifestPatchOperationValidator.cs",
             "PackageArchive.cs",
             "PackageSource.cs",
@@ -198,7 +199,7 @@ public sealed class ApplicationArchitectureTests
     }
 
     [Fact]
-    public void InstallWorkflow_DoesNotDependOnPatchWorkflow()
+    public void InstallWorkflow_ReusesPatchWorkflowForPatchSteps()
     {
         string root = FindRepositoryRoot();
         string installWorkflowPath = Path.Combine(
@@ -210,7 +211,9 @@ public sealed class ApplicationArchitectureTests
 
         string source = File.ReadAllText(installWorkflowPath);
 
-        Assert.DoesNotContain("PatchAssetsWorkflow", source, StringComparison.Ordinal);
+        Assert.Contains("PatchAssetsWorkflow", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("new PatchPlanner", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("new PatchAssetApplier", source, StringComparison.Ordinal);
     }
 
     [Fact]

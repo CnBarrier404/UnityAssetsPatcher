@@ -53,6 +53,8 @@ public sealed class TerminalApp
         IReadOnlyList<TerminalPage> pages =
         [
             new InstallTerminalPage(_context, _prompts),
+            new InspectTerminalPage(_context, _prompts),
+            new FindTerminalPage(_context, _prompts),
             new SettingsTerminalPage(_context),
         ];
         _mainMenuPage = new MainMenuTerminalPage(_context, _prompts, pages);

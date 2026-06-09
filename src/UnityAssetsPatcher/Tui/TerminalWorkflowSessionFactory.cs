@@ -20,7 +20,13 @@ internal sealed class TerminalWorkflowSessionFactory : ITerminalWorkflowSessionF
     {
         IAssetsFileReader assetsReader = _createAssetsReader();
         InstallModWorkflow installModWorkflow = _workflowFactory.CreateInstallModWorkflow(assetsReader);
+        InspectAssetsWorkflow inspectAssetsWorkflow = _workflowFactory.CreateInspectAssetsWorkflow(assetsReader);
+        FindAssetsWorkflow findAssetsWorkflow = _workflowFactory.CreateFindAssetsWorkflow(assetsReader);
 
-        return new TerminalWorkflowSession(installModWorkflow, assetsReader as IDisposable);
+        return new TerminalWorkflowSession(
+            installModWorkflow,
+            inspectAssetsWorkflow,
+            findAssetsWorkflow,
+            assetsReader as IDisposable);
     }
 }

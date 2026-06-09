@@ -150,6 +150,127 @@ public sealed class TerminalAppTests
     }
 
     [Fact]
+    public void Run_WhenInspectListPageUsesDefaultLimit_PrintsAssetSummaryTable()
+    {
+        string assetsPath = CreateTempFile(".assets");
+        var assets = Enumerable.Range(1, 105)
+            .Select(id => new AssetsInfo(id, 20, $"Asset{id}", 128))
+            .ToArray();
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InspectAssets);
+        SelectSubMenuOption(console, 0);
+        console.Input.PushTextWithEnter(assetsPath);
+        SelectSubMenuOption(console, 0);
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        var app = CreateApp(new StubAssetsFileService(assets), console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            string text = console.Output;
+            Assert.True(exitCode == 0, console.Output);
+            Assert.Contains("Inspect assets", text);
+            Assert.Contains("Path ID", text);
+            Assert.Contains("Asset100", text);
+            Assert.DoesNotContain("Asset101", text);
+            Assert.Contains("Showing 100 of 105 assets.", text);
+        }
+        finally
+        {
+            File.Delete(assetsPath);
+        }
+    }
+
+    [Fact]
+    public void Run_WhenInspectFieldsPageUsesPathId_PrintsSelectedAssetFieldTree()
+    {
+        string assetsPath = CreateTempFile(".assets");
+        var reader = new StubAssetsFileService(
+            [],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new(
+                    "AudioClip",
+                    "AudioClip",
+                    null,
+                    [new AssetsFieldInfo("m_Name", "string", "ambient", [])]),
+            });
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InspectAssets);
+        SelectSubMenuOption(console, 1);
+        console.Input.PushTextWithEnter(assetsPath);
+        console.Input.PushTextWithEnter("4");
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        var app = CreateApp(reader, console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            Assert.True(exitCode == 0, console.Output);
+            Assert.Equal(4, reader.ReceivedPathId);
+            Assert.Contains("AudioClip (AudioClip)", console.Output);
+            Assert.Contains("m_Name (string): ambient", console.Output);
+        }
+        finally
+        {
+            File.Delete(assetsPath);
+        }
+    }
+
+    [Fact]
+    public void Run_WhenFindPageUsesManifest_PrintsMatchingAssets()
+    {
+        string assetsPath = CreateTempFile(".assets");
+        string configPath = CreateCameraPatchManifest(
+            Path.GetFileName(assetsPath),
+            """
+            "include": [
+              {
+                "field of view": 90.0
+              }
+            ]
+            """);
+        var reader = new StubAssetsFileService(
+            [
+                new AssetsInfo(10, 20, "Camera", 128),
+                new AssetsInfo(11, 20, "Camera", 128),
+            ],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = CameraFieldTree("90.0"),
+                [11] = CameraFieldTree("75.0"),
+            });
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.FindAssets);
+        console.Input.PushTextWithEnter(assetsPath);
+        console.Input.PushTextWithEnter(configPath);
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        var app = CreateApp(reader, console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            string text = console.Output;
+            Assert.True(exitCode == 0, console.Output);
+            Assert.Contains("Find assets", text);
+            Assert.Contains("10", text);
+            Assert.Contains("Camera", text);
+            Assert.DoesNotContain(" 11 ", text);
+        }
+        finally
+        {
+            File.Delete(assetsPath);
+            File.Delete(configPath);
+        }
+    }
+
+    [Fact]
     public void Run_WhenInstallPageIsCanceled_PrintsDryRunSummaryWithoutInstalling()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
@@ -426,6 +547,8 @@ public sealed class TerminalAppTests
     private enum MainMenuOption
     {
         InstallMod,
+        InspectAssets,
+        FindAssets,
         Settings,
         Exit,
     }
@@ -540,6 +663,22 @@ public sealed class TerminalAppTests
             "Camera",
             null,
             [new AssetsFieldInfo("field of view", "float", fieldOfView, [])]);
+    }
+
+    private static string CreateCameraPatchManifest(string assetsFileName, string body)
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            $$"""
+              {
+                "target": "{{assetsFileName}}",
+                "type": "Camera",
+                {{body.Trim()}}
+              }
+              """);
+
+        return configPath;
     }
 
     private static string CreateGameDirectory(string assetsFileName)

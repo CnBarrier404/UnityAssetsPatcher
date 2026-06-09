@@ -14,6 +14,11 @@ public sealed class WorkflowFactory
     public WorkflowFactory(IAssetsFileWriter assetsPatchWriter) : this(assetsPatchWriter, new ModManifestLoader(),
         new GameDirectoryResolver()) { }
 
+    public WorkflowFactory(IAssetsFileWriter assetsPatchWriter, IModManifestLoader manifestLoader) : this(
+        assetsPatchWriter,
+        manifestLoader,
+        new GameDirectoryResolver()) { }
+
     public WorkflowFactory(
         IAssetsFileWriter assetsPatchWriter,
         IModManifestLoader manifestLoader,
@@ -37,13 +42,51 @@ public sealed class WorkflowFactory
         PatchPlanBuilder patchPlanBuilder = CreatePatchPlanBuilder(assetsReader);
         var patchOutputWriter = new PatchOutputWriter(_assetsPatchWriter);
         Action releaseReadResources = assetsReader is IDisposable disposable ? disposable.Dispose : static () => { };
+        PatchAssetsWorkflow patchAssetsWorkflow = CreatePatchAssetsWorkflow(
+            patchPlanBuilder,
+            patchOutputWriter);
 
         return new InstallModWorkflow(
-            patchPlanBuilder,
-            patchOutputWriter,
+            patchAssetsWorkflow,
             releaseReadResources,
             _manifestLoader,
             _gameDirectoryResolver);
+    }
+
+    public InspectAssetsWorkflow CreateInspectAssetsWorkflow(IAssetsFileReader assetsReader)
+    {
+        return new InspectAssetsWorkflow(assetsReader);
+    }
+
+    public FindAssetsWorkflow CreateFindAssetsWorkflow(IAssetsFileReader assetsReader)
+    {
+        return new FindAssetsWorkflow(
+            new AssetQueryService(assetsReader),
+            _manifestLoader,
+            new ManifestTargetSelector());
+    }
+
+    public PatchAssetsWorkflow CreatePatchAssetsWorkflow(IAssetsFileReader assetsReader)
+    {
+        Action releaseReadResources = assetsReader is IDisposable disposable ? disposable.Dispose : static () => { };
+
+        return CreatePatchAssetsWorkflow(
+            CreatePatchPlanBuilder(assetsReader),
+            new PatchOutputWriter(_assetsPatchWriter),
+            releaseReadResources);
+    }
+
+    private PatchAssetsWorkflow CreatePatchAssetsWorkflow(
+        PatchPlanBuilder patchPlanBuilder,
+        PatchOutputWriter patchOutputWriter,
+        Action? releaseReadResources = null)
+    {
+        return new PatchAssetsWorkflow(
+            patchPlanBuilder,
+            patchOutputWriter,
+            _manifestLoader,
+            new ManifestTargetSelector(),
+            releaseReadResources);
     }
 
     private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)
