@@ -5,6 +5,7 @@ internal sealed class MainMenuTerminalPage
     private readonly TerminalAppContext _context;
     private readonly InteractivePrompts _prompts;
     private readonly IReadOnlyList<TerminalPage> _pages;
+    private int _selectedIndex;
 
     public MainMenuTerminalPage(
         TerminalAppContext context,
@@ -18,9 +19,16 @@ internal sealed class MainMenuTerminalPage
 
     public TerminalPage? ReadSelection()
     {
-        int? selectedIndex = _prompts.ReadMainMenuChoice(_pages, WriteMainMenu);
+        int? selectedIndex = _prompts.ReadMainMenuChoice(_pages, _selectedIndex, WriteMainMenu);
 
-        return selectedIndex is null ? null : _pages[selectedIndex.Value];
+        if (selectedIndex is null)
+        {
+            return null;
+        }
+
+        _selectedIndex = selectedIndex.Value;
+
+        return _pages[_selectedIndex];
     }
 
     private void WriteMainMenu(int selectedIndex, bool clear)

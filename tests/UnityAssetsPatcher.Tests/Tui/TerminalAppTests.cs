@@ -16,7 +16,7 @@ public sealed class TerminalAppTests
         TestConsole inner = CreateConsole();
         SelectMainMenuOption(inner, MainMenuOption.Exit);
         var console = new RecordingCursorConsole(inner);
-        var app = CreateApp(new StubAssetsFileService([]), console);
+        TerminalApp app = CreateApp(new StubAssetsFileService([]), console);
 
         int exitCode = app.Run();
 
@@ -87,7 +87,7 @@ public sealed class TerminalAppTests
         inner.Input.PushKey(ConsoleKey.Escape);
         SelectMainMenuOption(inner, MainMenuOption.Exit);
         var console = new RecordingCursorConsole(inner);
-        var app = CreateApp(new StubAssetsFileService([]), console);
+        TerminalApp app = CreateApp(new StubAssetsFileService([]), console);
 
         int exitCode = app.Run();
 
@@ -138,7 +138,7 @@ public sealed class TerminalAppTests
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushKey(ConsoleKey.Escape);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = CreateApp(new StubAssetsFileService([]), console);
+        TerminalApp app = CreateApp(new StubAssetsFileService([]), console);
 
         int exitCode = app.Run();
 
@@ -163,7 +163,7 @@ public sealed class TerminalAppTests
         SelectSubMenuOption(console, 0);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = CreateApp(new StubAssetsFileService(assets), console);
+        TerminalApp app = CreateApp(new StubAssetsFileService(assets), console);
 
         try
         {
@@ -181,6 +181,26 @@ public sealed class TerminalAppTests
         {
             File.Delete(assetsPath);
         }
+    }
+
+    [Fact]
+    public void Run_WhenInspectSubMenuReceivesEscape_PreservesInspectSelectionOnMainMenu()
+    {
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InspectAssets);
+        console.Input.PushKey(ConsoleKey.Escape);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Escape);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        TerminalApp app = CreateApp(new StubAssetsFileService([]), console);
+
+        int exitCode = app.Run();
+
+        string text = console.Output;
+        Assert.True(exitCode == 0, console.Output);
+        Assert.Contains("Inspect assets", text);
+        Assert.DoesNotContain("Assets file path", text);
+        Assert.DoesNotContain("Mod zip path", text);
     }
 
     [Fact]
@@ -204,7 +224,7 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter("4");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = CreateApp(reader, console);
+        TerminalApp app = CreateApp(reader, console);
 
         try
         {
@@ -250,7 +270,7 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter(configPath);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = CreateApp(reader, console);
+        TerminalApp app = CreateApp(reader, console);
 
         try
         {
@@ -307,7 +327,7 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter("n");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = CreateApp(CreateCameraReader(), console);
+        TerminalApp app = CreateApp(CreateCameraReader(), console);
 
         try
         {
@@ -376,7 +396,7 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter("y");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = CreateApp(CreateCameraReader(), backupDirectory, console);
+        TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);
 
         try
         {
@@ -445,13 +465,14 @@ public sealed class TerminalAppTests
         SelectMainMenuOption(console, MainMenuOption.Settings);
         console.Input.PushKey(ConsoleKey.Spacebar);
         console.Input.PushKey(ConsoleKey.Escape);
-        SelectMainMenuOption(console, MainMenuOption.InstallMod);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
         console.Input.PushTextWithEnter("n");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = CreateApp(CreateCameraReader(), console);
+        TerminalApp app = CreateApp(CreateCameraReader(), console);
 
         try
         {
@@ -512,13 +533,14 @@ public sealed class TerminalAppTests
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Spacebar);
         console.Input.PushKey(ConsoleKey.Escape);
-        SelectMainMenuOption(console, MainMenuOption.InstallMod);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
         console.Input.PushTextWithEnter("n");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var app = CreateApp(CreateCameraReader(), console);
+        TerminalApp app = CreateApp(CreateCameraReader(), console);
 
         try
         {

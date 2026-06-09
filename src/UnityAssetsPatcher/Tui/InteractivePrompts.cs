@@ -15,9 +15,10 @@ public sealed class InteractivePrompts
 
     internal int? ReadMainMenuChoice(
         IReadOnlyList<TerminalPage> choices,
+        int initialSelectedIndex,
         Action<int, bool> render)
     {
-        int selectedIndex = 0;
+        int selectedIndex = initialSelectedIndex;
         bool clear = true;
 
         _console.Cursor.Show(false);
