@@ -110,6 +110,32 @@ public sealed class TerminalAppTests
     }
 
     [Fact]
+    public void WriteBottomFooterHint_PreparesCleanLineAboveFooter()
+    {
+        TestConsole inner = CreateConsole().Width(20).Height(24);
+        var console = new RecordingCursorConsole(inner);
+
+        TerminalOutputFormatter.WriteBottomFooterHint(console, "Shortcuts");
+
+        Assert.Equal([(1, 24), (1, 23), (1, 22), (1, 22)], console.CursorPositions);
+        Assert.EndsWith(new string(' ', 40), inner.Output);
+    }
+
+    [Fact]
+    public void ClearBottomFooterArea_ClearsFooterSpacerAndContentLine()
+    {
+        TestConsole inner = CreateConsole().Width(20).Height(24);
+        var console = new RecordingCursorConsole(inner);
+
+        TerminalOutputFormatter.ClearBottomFooterArea(console);
+
+        Assert.Equal([(1, 24), (1, 23), (1, 22), (1, 22)], console.CursorPositions);
+        Assert.Contains("\u001b[s", inner.Output);
+        Assert.Contains("\u001b[u", inner.Output);
+        Assert.EndsWith("\u001b[u", inner.Output);
+    }
+
+    [Fact]
     public void ReadExistingFilePath_WhenValueIsQ_TreatsInputAsAPath()
     {
         string assetsPath = CreateTempFile(".assets");
@@ -176,6 +202,39 @@ public sealed class TerminalAppTests
             Assert.Contains("Asset100", text);
             Assert.DoesNotContain("Asset101", text);
             Assert.Contains("Showing 100 of 105 assets.", text);
+        }
+        finally
+        {
+            File.Delete(assetsPath);
+        }
+    }
+
+    [Fact]
+    public void Run_WhenInspectListPrintsRows_ClearsShortcutHintBeforeOutput()
+    {
+        string assetsPath = CreateTempFile(".assets");
+        var assets = Enumerable.Range(1, 30)
+            .Select(id => new AssetsInfo(id, 21, "Material", (uint)(1600 + id)))
+            .ToArray();
+        TestConsole inner = CreateConsole().Height(10);
+        SelectMainMenuOption(inner, MainMenuOption.InspectAssets);
+        SelectSubMenuOption(inner, 0);
+        inner.Input.PushTextWithEnter(assetsPath);
+        SelectSubMenuOption(inner, 0);
+        ReturnToMainMenu(inner);
+        SelectMainMenuOption(inner, MainMenuOption.Exit);
+        var console = new RecordingCursorConsole(inner);
+        TerminalApp app = CreateApp(new StubAssetsFileService(assets), console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            Assert.True(exitCode == 0, inner.Output);
+            Assert.True(CountCursorPositions(console, (1, 10)) >= 5);
+            Assert.Contains("Material", inner.Output);
+            Assert.DoesNotContain(
+                $"{Environment.NewLine}{Environment.NewLine}{Environment.NewLine}{Environment.NewLine}", inner.Output);
         }
         finally
         {
@@ -350,6 +409,63 @@ public sealed class TerminalAppTests
             Assert.DoesNotContain("90.0 -> 75.0", text);
             Assert.DoesNotContain("Read package", text);
             Assert.Equal("original", File.ReadAllText(targetPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            Directory.Delete(gameDirectory, true);
+        }
+    }
+
+    [Fact]
+    public void Run_WhenInstallPreviewWaitsForConfirmation_RedrawsShortcutHintAbovePrompt()
+    {
+        const string shortcutHint = "Shortcuts: ↑/↓ to choose | Esc to cancel | Ctrl + C to exit";
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = CreateGameDirectory("sharedassets0.assets");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        TestConsole inner = CreateConsole().Height(10);
+        SelectMainMenuOption(inner, MainMenuOption.InstallMod);
+        inner.Input.PushTextWithEnter(zipPath);
+        inner.Input.PushTextWithEnter(gameDirectory);
+        inner.Input.PushTextWithEnter("n");
+        ReturnToMainMenu(inner);
+        SelectMainMenuOption(inner, MainMenuOption.Exit);
+        var console = new RecordingCursorConsole(inner);
+        TerminalApp app = CreateApp(CreateCameraReader(), console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            Assert.True(exitCode == 0, inner.Output);
+            Assert.Contains((1, 10), console.CursorPositions);
+            Assert.Contains((1, 9), console.CursorPositions);
+            Assert.Contains((1, 8), console.CursorPositions);
+            Assert.True(CountOccurrences(inner.Output, shortcutHint) >= 2);
         }
         finally
         {
@@ -619,6 +735,11 @@ public sealed class TerminalAppTests
             count++;
             startIndex = index + value.Length;
         }
+    }
+
+    private static int CountCursorPositions(RecordingCursorConsole console, (int Column, int Line) position)
+    {
+        return console.CursorPositions.Count(cursorPosition => cursorPosition == position);
     }
 
     private static string FirstLineContaining(string text, string value)

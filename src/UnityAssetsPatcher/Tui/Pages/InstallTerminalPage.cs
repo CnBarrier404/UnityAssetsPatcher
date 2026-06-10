@@ -26,6 +26,7 @@ internal sealed class InstallTerminalPage : TerminalPage
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        TerminalOutputFormatter.ClearBottomFooterArea(Context.Console);
         TerminalOutputFormatter.WriteInfo(Context.Console, "Analyzing mod...");
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
 
@@ -52,6 +53,7 @@ internal sealed class InstallTerminalPage : TerminalPage
         TerminalOutputFormatter.WriteInstallPreview(Context.Console, preview, Context.Settings);
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        TerminalOutputFormatter.WriteBottomFooterHint(Context.Console, TerminalPageLayout.ShortcutHint);
 
         if (!_prompts.Confirm("Apply these changes?"))
         {

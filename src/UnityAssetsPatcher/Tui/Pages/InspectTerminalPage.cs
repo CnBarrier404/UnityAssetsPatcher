@@ -61,6 +61,7 @@ internal sealed class InspectTerminalPage : TerminalPage
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        TerminalOutputFormatter.ClearBottomFooterArea(Context.Console);
         Context.UseInspectWorkflow(workflow =>
         {
             var assets = workflow.List(new InspectListRequest(assetsFilePath, limit));
@@ -84,6 +85,7 @@ internal sealed class InspectTerminalPage : TerminalPage
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        TerminalOutputFormatter.ClearBottomFooterArea(Context.Console);
         Context.UseInspectWorkflow(workflow =>
         {
             AssetsFieldInfo fieldTree = workflow.Fields(new InspectFieldsRequest(assetsFilePath, pathId));

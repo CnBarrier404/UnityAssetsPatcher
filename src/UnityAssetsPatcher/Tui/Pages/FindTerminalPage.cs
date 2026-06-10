@@ -34,6 +34,7 @@ internal sealed class FindTerminalPage : TerminalPage
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        TerminalOutputFormatter.ClearBottomFooterArea(Context.Console);
         Context.UseFindWorkflow(workflow =>
         {
             var matches = workflow.Find(new FindAssetsRequest(assetsFilePath, configPath));

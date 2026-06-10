@@ -11,6 +11,8 @@ public static class TerminalOutputFormatter
     private const string ApplicationTitle = "Unity Assets Patcher";
     private const int ApplicationTitleHorizontalPadding = 2;
     private const int SettingsOptionColumnWidth = 34;
+    private const string SaveCursor = "\e[s";
+    private const string RestoreCursor = "\e[u";
 
     public static void WritePageHeader(
         IAnsiConsole console,
@@ -68,6 +70,47 @@ public static class TerminalOutputFormatter
 
         console.Cursor.SetPosition(1, height);
         console.Markup($"[grey]{Escape(FitToWidth(message, console.Profile.Width))}[/]");
+        ClearBottomFooterArea(console, clearFooterLine: false, preserveCursor: false);
+    }
+
+    public static void ClearBottomFooterArea(IAnsiConsole console)
+    {
+        ClearBottomFooterArea(console, clearFooterLine: true, preserveCursor: true);
+    }
+
+    private static void ClearBottomFooterArea(IAnsiConsole console, bool clearFooterLine, bool preserveCursor)
+    {
+        int height = console.Profile.Height;
+
+        if (height <= 1)
+        {
+            return;
+        }
+
+        string clearLine = new(' ', Math.Max(console.Profile.Width, 0));
+        int contentLine = Math.Max(height - 2, 1);
+
+        if (preserveCursor)
+        {
+            console.Write(new Text(SaveCursor));
+        }
+
+        if (clearFooterLine)
+        {
+            console.Cursor.SetPosition(1, height);
+            console.Write(new Text(clearLine));
+        }
+
+        console.Cursor.SetPosition(1, height - 1);
+        console.Write(new Text(clearLine));
+        console.Cursor.SetPosition(1, contentLine);
+        console.Write(new Text(clearLine));
+        console.Cursor.SetPosition(1, contentLine);
+
+        if (preserveCursor)
+        {
+            console.Write(new Text(RestoreCursor));
+        }
     }
 
     public static void WriteError(IAnsiConsole console, string message)
