@@ -2,8 +2,12 @@
 
 namespace UnityAssetsPatcher.Application.Modules;
 
-public sealed partial class GameDirectoryResolver
+public sealed class GameDirectoryResolver
 {
+    private static readonly Regex VdfKeyValuePattern = new(
+        "\"(?<key>[^\"]+)\"\\s+\"(?<value>(?:\\\\.|[^\"])*)\"",
+        RegexOptions.CultureInvariant);
+
     private readonly IReadOnlyList<string> _steamRoots;
 
     public GameDirectoryResolver() : this(GetDefaultSteamRoots()) { }
@@ -135,7 +139,7 @@ public sealed partial class GameDirectoryResolver
     private static IEnumerable<string> ReadVdfValues(string path, string key)
     {
         return from line in File.ReadLines(path)
-            select VdfKeyValueRegex().Match(line)
+            select VdfKeyValuePattern.Match(line)
             into match
             where match.Success &&
                   string.Equals(match.Groups["key"].Value, key, StringComparison.OrdinalIgnoreCase)
@@ -149,7 +153,4 @@ public sealed partial class GameDirectoryResolver
             roots.Add(root);
         }
     }
-
-    [GeneratedRegex("\"(?<key>[^\"]+)\"\\s+\"(?<value>(?:\\\\.|[^\"])*)\"")]
-    private static partial Regex VdfKeyValueRegex();
 }
