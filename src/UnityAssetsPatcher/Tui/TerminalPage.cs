@@ -1,6 +1,6 @@
 namespace UnityAssetsPatcher.Tui;
 
-internal abstract class TerminalPage
+internal abstract class TerminalPage : ITerminalPage
 {
     protected TerminalAppContext Context { get; }
     public abstract string Title { get; }
@@ -11,7 +11,7 @@ internal abstract class TerminalPage
         Context = context;
     }
 
-    public abstract bool Run();
+    public abstract TerminalPageResult Run();
 
     protected void NewPage(string? title = null, string? description = null, string? shortcutHint = null,
         bool clear = true)

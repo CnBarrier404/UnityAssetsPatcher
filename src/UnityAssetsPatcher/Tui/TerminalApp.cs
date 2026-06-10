@@ -50,14 +50,15 @@ public sealed class TerminalApp
             console,
             error);
         _prompts = new InteractivePrompts(console);
-        IReadOnlyList<TerminalPage> pages =
+        var selectionPrompt = new TerminalSelectionPrompt(console);
+        IReadOnlyList<ITerminalPage> pages =
         [
             new InstallTerminalPage(_context, _prompts),
             new InspectTerminalPage(_context, _prompts),
             new FindTerminalPage(_context, _prompts),
             new SettingsTerminalPage(_context),
         ];
-        _mainMenuPage = new MainMenuTerminalPage(_context, _prompts, pages);
+        _mainMenuPage = new MainMenuTerminalPage(_context, selectionPrompt, pages);
     }
 
     private TerminalApp(
@@ -73,16 +74,21 @@ public sealed class TerminalApp
         {
             while (true)
             {
-                TerminalPage? page = _mainMenuPage.ReadSelection();
+                ITerminalPage? page = _mainMenuPage.ReadSelection();
 
                 if (page is null)
                 {
                     return 0;
                 }
 
-                bool waitBeforeReturningToMenu = RunMenuAction(page.Run);
+                TerminalPageResult result = RunMenuAction(page.Run);
 
-                if (!waitBeforeReturningToMenu)
+                if (result.Action == TerminalPageAction.Exit)
+                {
+                    return 0;
+                }
+
+                if (!result.WaitForKey)
                 {
                     continue;
                 }
@@ -103,7 +109,7 @@ public sealed class TerminalApp
         }
     }
 
-    private bool RunMenuAction(Func<bool> action)
+    private TerminalPageResult RunMenuAction(Func<TerminalPageResult> action)
     {
         try
         {
@@ -112,7 +118,7 @@ public sealed class TerminalApp
         catch (Exception exception)
         {
             TerminalOutputFormatter.WriteError(_context.Error, exception.Message);
-            return true;
+            return TerminalPageResult.ReturnToMenu();
         }
     }
 }

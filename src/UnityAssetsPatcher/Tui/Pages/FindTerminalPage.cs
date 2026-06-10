@@ -15,7 +15,7 @@ internal sealed class FindTerminalPage : TerminalPage
 
     public override string Description => "Search assets using manifest include rules.";
 
-    public override bool Run()
+    public override TerminalPageResult Run()
     {
         NewPage(Title, "Find assets matching manifest include conditions.");
 
@@ -23,14 +23,14 @@ internal sealed class FindTerminalPage : TerminalPage
 
         if (assetsFilePath is null)
         {
-            return false;
+            return TerminalPageResult.ReturnToMenu(false);
         }
 
         string? configPath = _prompts.ReadExistingFilePath("Manifest JSON or mod zip path");
 
         if (configPath is null)
         {
-            return false;
+            return TerminalPageResult.ReturnToMenu(false);
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
@@ -43,6 +43,6 @@ internal sealed class FindTerminalPage : TerminalPage
             return 0;
         });
 
-        return true;
+        return TerminalPageResult.ReturnToMenu();
     }
 }

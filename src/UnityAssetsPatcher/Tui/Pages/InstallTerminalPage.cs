@@ -14,7 +14,7 @@ internal sealed class InstallTerminalPage : TerminalPage
         _prompts = prompts;
     }
 
-    public override bool Run()
+    public override TerminalPageResult Run()
     {
         NewPage(Title, "Analyze the package first, then confirm before writing files.");
 
@@ -22,7 +22,7 @@ internal sealed class InstallTerminalPage : TerminalPage
 
         if (zipFilePath is null)
         {
-            return false;
+            return TerminalPageResult.ReturnToMenu(false);
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
@@ -39,7 +39,7 @@ internal sealed class InstallTerminalPage : TerminalPage
 
             if (gameDirectory is null)
             {
-                return false;
+                return TerminalPageResult.ReturnToMenu(false);
             }
 
             preview = TryPreviewInstall(zipFilePath, gameDirectory);
@@ -47,7 +47,7 @@ internal sealed class InstallTerminalPage : TerminalPage
 
         if (preview is null)
         {
-            return true;
+            return TerminalPageResult.ReturnToMenu();
         }
 
         TerminalOutputFormatter.WriteInstallPreview(Context.Console, preview, Context.Settings);
@@ -59,7 +59,7 @@ internal sealed class InstallTerminalPage : TerminalPage
         {
             TerminalOutputFormatter.WriteInfo(Context.Console, "Install canceled.");
 
-            return true;
+            return TerminalPageResult.ReturnToMenu();
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
@@ -72,7 +72,7 @@ internal sealed class InstallTerminalPage : TerminalPage
             return 0;
         });
 
-        return true;
+        return TerminalPageResult.ReturnToMenu();
     }
 
     private InstallPreviewResult? TryPreviewInstall(string zipFilePath, string? gameDirectory)

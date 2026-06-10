@@ -7,41 +7,26 @@ internal sealed class SettingsTerminalPage : TerminalPage
 
     public SettingsTerminalPage(TerminalAppContext context) : base(context) { }
 
-    public override bool Run()
+    public override TerminalPageResult Run()
     {
         int selectedIndex = 0;
-        bool clear = true;
-
-        Context.Console.Cursor.Show(false);
+        var selectionPrompt = new TerminalSelectionPrompt(Context.Console);
 
         while (true)
         {
-            WriteSettings(selectedIndex, clear);
-            clear = false;
+            int? toggledIndex = selectionPrompt.ReadSelection(
+                SettingsCount,
+                selectedIndex,
+                WriteSettings,
+                acceptKey: ConsoleKey.Spacebar);
 
-            var maybeKey = Context.Console.Input.ReadKey(intercept: true);
-
-            if (maybeKey is null)
+            if (toggledIndex is null)
             {
-                return false;
+                return TerminalPageResult.ReturnToMenu(false);
             }
 
-            ConsoleKeyInfo key = maybeKey.Value;
-
-            switch (key.Key)
-            {
-                case ConsoleKey.Escape:
-                    return false;
-                case ConsoleKey.UpArrow:
-                    selectedIndex = selectedIndex == 0 ? SettingsCount - 1 : selectedIndex - 1;
-                    break;
-                case ConsoleKey.DownArrow:
-                    selectedIndex = selectedIndex == SettingsCount - 1 ? 0 : selectedIndex + 1;
-                    break;
-                case ConsoleKey.Spacebar:
-                    Toggle(selectedIndex);
-                    break;
-            }
+            selectedIndex = toggledIndex.Value;
+            Toggle(selectedIndex);
         }
     }
 

@@ -36,7 +36,7 @@ internal sealed class InspectTerminalPage : TerminalPage
 
     public override string Description => "List assets or inspect a selected asset field tree.";
 
-    public override bool Run()
+    public override TerminalPageResult Run()
     {
         NewPage(Title, "List assets or inspect the field tree for a selected Path ID.");
         string choice = _prompts.ReadSubMenuChoice(string.Empty, InspectMenuChoices, Cancel);
@@ -45,11 +45,11 @@ internal sealed class InspectTerminalPage : TerminalPage
         {
             ListAssets => RunList(),
             ShowAssetFields => RunFields(),
-            _ => false,
+            _ => TerminalPageResult.ReturnToMenu(false),
         };
     }
 
-    private bool RunList()
+    private TerminalPageResult RunList()
     {
         NewPage("List assets", "Print an asset summary for one assets file.");
 
@@ -57,7 +57,7 @@ internal sealed class InspectTerminalPage : TerminalPage
 
         if (assetsFilePath is null || !TryReadAssetSummaryLimit(out int? limit))
         {
-            return false;
+            return TerminalPageResult.ReturnToMenu(false);
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
@@ -70,10 +70,10 @@ internal sealed class InspectTerminalPage : TerminalPage
             return 0;
         });
 
-        return true;
+        return TerminalPageResult.ReturnToMenu();
     }
 
-    private bool RunFields()
+    private TerminalPageResult RunFields()
     {
         NewPage("Show asset fields", "Print the field tree for one selected Path ID.");
 
@@ -81,7 +81,7 @@ internal sealed class InspectTerminalPage : TerminalPage
 
         if (assetsFilePath is null || !_prompts.TryReadInt64("Path ID", out long pathId))
         {
-            return false;
+            return TerminalPageResult.ReturnToMenu(false);
         }
 
         TerminalOutputFormatter.WriteBlankLine(Context.Console);
@@ -94,7 +94,7 @@ internal sealed class InspectTerminalPage : TerminalPage
             return 0;
         });
 
-        return true;
+        return TerminalPageResult.ReturnToMenu();
     }
 
     private bool TryReadAssetSummaryLimit(out int? limit)

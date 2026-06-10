@@ -242,14 +242,14 @@ public static class TerminalOutputFormatter
 
     internal static void WriteMainMenu(
         IAnsiConsole console,
-        IReadOnlyList<TerminalPage> pages,
+        IReadOnlyList<ITerminalPage> pages,
         int selectedIndex)
     {
         const int labelColumnWidth = 18;
 
         for (int i = 0; i < pages.Count; i++)
         {
-            TerminalPage page = pages[i];
+            ITerminalPage page = pages[i];
             string indicator = i == selectedIndex ? ">" : " ";
             string label = page.Title.PadRight(labelColumnWidth);
 

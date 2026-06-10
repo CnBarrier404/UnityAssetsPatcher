@@ -3,23 +3,23 @@ namespace UnityAssetsPatcher.Tui.Pages;
 internal sealed class MainMenuTerminalPage
 {
     private readonly TerminalAppContext _context;
-    private readonly InteractivePrompts _prompts;
-    private readonly IReadOnlyList<TerminalPage> _pages;
+    private readonly TerminalSelectionPrompt _selectionPrompt;
+    private readonly IReadOnlyList<ITerminalPage> _pages;
     private int _selectedIndex;
 
     public MainMenuTerminalPage(
         TerminalAppContext context,
-        InteractivePrompts prompts,
-        IReadOnlyList<TerminalPage> pages)
+        TerminalSelectionPrompt selectionPrompt,
+        IReadOnlyList<ITerminalPage> pages)
     {
         _context = context;
-        _prompts = prompts;
+        _selectionPrompt = selectionPrompt;
         _pages = pages;
     }
 
-    public TerminalPage? ReadSelection()
+    public ITerminalPage? ReadSelection()
     {
-        int? selectedIndex = _prompts.ReadMainMenuChoice(_pages, _selectedIndex, WriteMainMenu);
+        int? selectedIndex = _selectionPrompt.ReadSelection(_pages.Count, _selectedIndex, WriteMainMenu);
 
         if (selectedIndex is null)
         {

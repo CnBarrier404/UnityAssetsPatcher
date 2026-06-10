@@ -13,46 +13,6 @@ public sealed class InteractivePrompts
         _console = console;
     }
 
-    internal int? ReadMainMenuChoice(
-        IReadOnlyList<TerminalPage> choices,
-        int initialSelectedIndex,
-        Action<int, bool> render)
-    {
-        int selectedIndex = initialSelectedIndex;
-        bool clear = true;
-
-        _console.Cursor.Show(false);
-
-        while (true)
-        {
-            render(selectedIndex, clear);
-            clear = false;
-
-            var maybeKey = _console.Input.ReadKey(intercept: true);
-
-            if (maybeKey is null)
-            {
-                return null;
-            }
-
-            ConsoleKeyInfo key = maybeKey.Value;
-
-            switch (key.Key)
-            {
-                case ConsoleKey.Enter:
-                    return selectedIndex;
-                case ConsoleKey.Escape:
-                    return null;
-                case ConsoleKey.UpArrow:
-                    selectedIndex = selectedIndex == 0 ? choices.Count - 1 : selectedIndex - 1;
-                    break;
-                case ConsoleKey.DownArrow:
-                    selectedIndex = selectedIndex == choices.Count - 1 ? 0 : selectedIndex + 1;
-                    break;
-            }
-        }
-    }
-
     public string? ReadExistingFilePath(string label)
     {
         return ReadExistingPath(label, File.Exists, value => $"File not found: {value}");

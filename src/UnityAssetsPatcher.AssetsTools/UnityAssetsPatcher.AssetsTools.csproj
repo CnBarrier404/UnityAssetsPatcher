@@ -15,8 +15,4 @@
         <PackageReference Include="AssetsTools.NET" Version="3.0.4"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <InternalsVisibleTo Include="UnityAssetsPatcher.Tests"/>
-    </ItemGroup>
-
 </Project>
