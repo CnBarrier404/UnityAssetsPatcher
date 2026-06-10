@@ -42,6 +42,16 @@ public static class TerminalOutputFormatter
         console.MarkupLine($"[grey]{Markup.Escape(message)}[/]");
     }
 
+    public static void WriteInputLabel(IAnsiConsole console, string label)
+    {
+        console.Markup($"[blue]{Markup.Escape(label)}[/]: ");
+    }
+
+    public static void WriteConfirmationLabel(IAnsiConsole console, string prompt)
+    {
+        console.Markup($"[blue]{Markup.Escape(prompt)}[/] [grey]y/N[/]: ");
+    }
+
     private static void WriteFooterHint(IAnsiConsole console, string message)
     {
         if (string.IsNullOrWhiteSpace(message))

@@ -16,10 +16,10 @@ internal abstract class TerminalPage : ITerminalPage
     protected void NewPage(string? title = null, string? description = null, string? shortcutHint = null,
         bool clear = true)
     {
-        Context.Layout.ShowPage(
+        Context.Renderer.ShowPage(
             title ?? Title,
             description ?? Description,
-            shortcutHint: shortcutHint ?? TerminalPageLayout.ShortcutHint,
+            shortcutHint: shortcutHint ?? TerminalRenderer.ShortcutHint,
             clear);
     }
 }

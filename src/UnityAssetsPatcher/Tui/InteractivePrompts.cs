@@ -7,10 +7,15 @@ namespace UnityAssetsPatcher.Tui;
 public sealed class InteractivePrompts
 {
     private readonly IAnsiConsole _console;
+    private readonly TerminalRenderer _renderer;
 
     public InteractivePrompts(IAnsiConsole console)
+        : this(console, new TerminalRenderer(console)) { }
+
+    internal InteractivePrompts(IAnsiConsole console, TerminalRenderer renderer)
     {
         _console = console;
+        _renderer = renderer;
     }
 
     public string? ReadExistingFilePath(string label)
@@ -226,17 +231,17 @@ public sealed class InteractivePrompts
 
     private void WriteInputLabel(string label)
     {
-        _console.Markup($"[blue]{Markup.Escape(label)}[/]: ");
+        _renderer.WriteInputLabel(label);
     }
 
     private void WriteConfirmationLabel(string prompt)
     {
-        _console.Markup($"[blue]{Markup.Escape(prompt)}[/] [grey]y/N[/]: ");
+        _renderer.WriteConfirmationLabel(prompt);
     }
 
     private void WriteError(string message)
     {
-        _console.MarkupLine($"[red]{Markup.Escape(message)}[/]");
+        _renderer.WriteError(message);
     }
 
     private static string NormalizePathInput(string value)

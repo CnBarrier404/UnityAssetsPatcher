@@ -49,7 +49,7 @@ public sealed class TerminalApp
             backupDirectory,
             console,
             error);
-        _prompts = new InteractivePrompts(console);
+        _prompts = new InteractivePrompts(console, _context.Renderer);
         var selectionPrompt = new TerminalSelectionPrompt(console);
         IReadOnlyList<ITerminalPage> pages =
         [
@@ -93,13 +93,13 @@ public sealed class TerminalApp
                     continue;
                 }
 
-                _context.Layout.ShowReturnHint();
+                _context.Renderer.ShowReturnHint();
                 _prompts.WaitForKey();
             }
         }
         catch (Exception exception)
         {
-            TerminalOutputFormatter.WriteError(_context.Error, exception.Message);
+            _context.ErrorRenderer.WriteError(exception.Message);
 
             return 1;
         }
@@ -117,7 +117,7 @@ public sealed class TerminalApp
         }
         catch (Exception exception)
         {
-            TerminalOutputFormatter.WriteError(_context.Error, exception.Message);
+            _context.ErrorRenderer.WriteError(exception.Message);
             return TerminalPageResult.ReturnToMenu();
         }
     }

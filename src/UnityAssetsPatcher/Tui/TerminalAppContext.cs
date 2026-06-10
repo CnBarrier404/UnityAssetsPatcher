@@ -7,8 +7,8 @@ internal sealed class TerminalAppContext
 {
     public string BackupDirectory { get; }
     public IAnsiConsole Console { get; }
-    public IAnsiConsole Error { get; }
-    public TerminalPageLayout Layout { get; }
+    public TerminalRenderer Renderer { get; }
+    public TerminalRenderer ErrorRenderer { get; }
     public TerminalSettings Settings { get; }
 
     private readonly ITerminalWorkflowSessionFactory _workflowSessionFactory;
@@ -22,8 +22,8 @@ internal sealed class TerminalAppContext
         _workflowSessionFactory = workflowSessionFactory;
         BackupDirectory = backupDirectory;
         Console = console;
-        Error = error;
-        Layout = new TerminalPageLayout(console);
+        Renderer = new TerminalRenderer(console);
+        ErrorRenderer = new TerminalRenderer(error);
         Settings = new TerminalSettings();
     }
 

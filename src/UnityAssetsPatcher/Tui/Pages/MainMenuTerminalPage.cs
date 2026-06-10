@@ -33,7 +33,7 @@ internal sealed class MainMenuTerminalPage
 
     private void WriteMainMenu(int selectedIndex, bool clear)
     {
-        _context.Layout.ShowPage("Main menu", clear: clear);
-        TerminalOutputFormatter.WriteMainMenu(_context.Console, _pages, selectedIndex);
+        _context.Renderer.ShowPage("Main menu", clear: clear);
+        _context.Renderer.WriteMainMenu(_pages, selectedIndex);
     }
 }

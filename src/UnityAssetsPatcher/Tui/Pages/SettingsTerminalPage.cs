@@ -37,7 +37,7 @@ internal sealed class SettingsTerminalPage : TerminalPage
             "Configure output detail for this session.",
             "Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit",
             clear);
-        TerminalOutputFormatter.WriteSettings(Context.Console, GetSettings(), selectedIndex);
+        Context.Renderer.WriteSettings(GetSettings(), selectedIndex);
     }
 
     private IReadOnlyList<TerminalSettingDisplay> GetSettings()

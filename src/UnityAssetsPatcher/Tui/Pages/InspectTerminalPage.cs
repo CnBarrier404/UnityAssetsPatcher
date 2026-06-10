@@ -60,12 +60,11 @@ internal sealed class InspectTerminalPage : TerminalPage
             return TerminalPageResult.ReturnToMenu(false);
         }
 
-        TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        TerminalOutputFormatter.ClearBottomFooterArea(Context.Console);
+        Context.Renderer.PrepareOutputArea();
         Context.UseInspectWorkflow(workflow =>
         {
             var assets = workflow.List(new InspectListRequest(assetsFilePath, limit));
-            TerminalOutputFormatter.WriteAssetSummary(Context.Console, assets, limit);
+            Context.Renderer.WriteAssetSummary(assets, limit);
 
             return 0;
         });
@@ -84,12 +83,11 @@ internal sealed class InspectTerminalPage : TerminalPage
             return TerminalPageResult.ReturnToMenu(false);
         }
 
-        TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        TerminalOutputFormatter.ClearBottomFooterArea(Context.Console);
+        Context.Renderer.PrepareOutputArea();
         Context.UseInspectWorkflow(workflow =>
         {
             AssetsFieldInfo fieldTree = workflow.Fields(new InspectFieldsRequest(assetsFilePath, pathId));
-            TerminalOutputFormatter.WriteAssetFields(Context.Console, fieldTree);
+            Context.Renderer.WriteAssetFields(fieldTree);
 
             return 0;
         });
@@ -101,7 +99,7 @@ internal sealed class InspectTerminalPage : TerminalPage
     {
         while (true)
         {
-            TerminalOutputFormatter.WriteBlankLine(Context.Console);
+            Context.Renderer.WriteBlankLine();
             string choice = _prompts.ReadSubMenuChoice("Rows to print", RowLimitChoices, Cancel);
 
             switch (choice)

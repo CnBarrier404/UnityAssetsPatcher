@@ -33,12 +33,11 @@ internal sealed class FindTerminalPage : TerminalPage
             return TerminalPageResult.ReturnToMenu(false);
         }
 
-        TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        TerminalOutputFormatter.ClearBottomFooterArea(Context.Console);
+        Context.Renderer.PrepareOutputArea();
         Context.UseFindWorkflow(workflow =>
         {
             var matches = workflow.Find(new FindAssetsRequest(assetsFilePath, configPath));
-            TerminalOutputFormatter.WriteFindResults(Context.Console, matches);
+            Context.Renderer.WriteFindResults(matches);
 
             return 0;
         });

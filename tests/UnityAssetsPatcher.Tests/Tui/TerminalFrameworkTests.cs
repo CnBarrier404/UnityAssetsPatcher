@@ -24,6 +24,23 @@ public sealed class TerminalFrameworkTests
     }
 
     [Fact]
+    public void Renderer_ShowPageAndPrepareOutputArea_DelegatesLayoutRendering()
+    {
+        TestConsole console = CreateConsole().Height(10);
+        var renderer = new TerminalRenderer(console);
+
+        renderer.ShowPage("Install Mod", "Analyze the package first.");
+        renderer.PrepareOutputArea();
+
+        string output = console.Output;
+        Assert.Contains("Unity Assets Patcher", output);
+        Assert.Contains("Install Mod", output);
+        Assert.Contains("Analyze the package first.", output);
+        Assert.Contains("\u001b[s", output);
+        Assert.Contains("\u001b[u", output);
+    }
+
+    [Fact]
     public void ReadSelection_WhenDownWrapsPastLastChoice_ReturnsFirstChoice()
     {
         TestConsole console = CreateConsole();

@@ -25,10 +25,9 @@ internal sealed class InstallTerminalPage : TerminalPage
             return TerminalPageResult.ReturnToMenu(false);
         }
 
-        TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        TerminalOutputFormatter.ClearBottomFooterArea(Context.Console);
-        TerminalOutputFormatter.WriteInfo(Context.Console, "Analyzing mod...");
-        TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        Context.Renderer.PrepareOutputArea();
+        Context.Renderer.WriteInfo("Analyzing mod...");
+        Context.Renderer.WriteBlankLine();
 
         string? gameDirectory = null;
         InstallPreviewResult? preview = TryPreviewInstall(zipFilePath, gameDirectory);
@@ -50,24 +49,24 @@ internal sealed class InstallTerminalPage : TerminalPage
             return TerminalPageResult.ReturnToMenu();
         }
 
-        TerminalOutputFormatter.WriteInstallPreview(Context.Console, preview, Context.Settings);
+        Context.Renderer.WriteInstallPreview(preview, Context.Settings);
 
-        TerminalOutputFormatter.WriteBlankLine(Context.Console);
-        TerminalOutputFormatter.WriteBottomFooterHint(Context.Console, TerminalPageLayout.ShortcutHint);
+        Context.Renderer.WriteBlankLine();
+        Context.Renderer.ShowShortcutHint();
 
         if (!_prompts.Confirm("Apply these changes?"))
         {
-            TerminalOutputFormatter.WriteInfo(Context.Console, "Install canceled.");
+            Context.Renderer.WriteInfo("Install canceled.");
 
             return TerminalPageResult.ReturnToMenu();
         }
 
-        TerminalOutputFormatter.WriteBlankLine(Context.Console);
+        Context.Renderer.WriteBlankLine();
         Context.UseInstallWorkflow(workflow =>
         {
             InstallModResult result = workflow.Install(
                 new InstallModRequest(zipFilePath, gameDirectory, Context.BackupDirectory));
-            TerminalOutputFormatter.WriteInstallResult(Context.Console, result, Context.Settings);
+            Context.Renderer.WriteInstallResult(result, Context.Settings);
 
             return 0;
         });
@@ -90,8 +89,8 @@ internal sealed class InstallTerminalPage : TerminalPage
         }
         catch (DirectoryNotFoundException exception) when (gameDirectory is null)
         {
-            TerminalOutputFormatter.WriteInfo(Context.Console, exception.Message);
-            TerminalOutputFormatter.WriteBlankLine(Context.Console);
+            Context.Renderer.WriteInfo(exception.Message);
+            Context.Renderer.WriteBlankLine();
         }
 
         return preview;
