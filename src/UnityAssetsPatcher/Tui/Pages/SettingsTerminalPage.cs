@@ -10,11 +10,10 @@ internal sealed class SettingsTerminalPage : TerminalPage
     public override TerminalPageResult Run()
     {
         int selectedIndex = 0;
-        var selectionPrompt = new TerminalSelectionPrompt(Context.Console);
 
         while (true)
         {
-            int? toggledIndex = selectionPrompt.ReadSelection(
+            int? toggledIndex = Context.Prompts.ReadChoiceIndex(
                 SettingsCount,
                 selectedIndex,
                 WriteSettings,

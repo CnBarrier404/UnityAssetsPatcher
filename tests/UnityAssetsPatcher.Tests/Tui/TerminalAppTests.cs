@@ -102,8 +102,9 @@ public sealed class TerminalAppTests
     {
         TestConsole inner = CreateConsole().Height(24);
         var console = new RecordingCursorConsole(inner);
+        var renderer = new TerminalRenderer(console);
 
-        TerminalOutputFormatter.WritePageHeader(console, "Main menu", footerHint: "Shortcuts");
+        renderer.ShowPage("Main menu", shortcutHint: "Shortcuts");
 
         Assert.Contains((1, 24), console.CursorPositions);
         Assert.Equal((1, 1), console.CursorPositions[^1]);
@@ -114,8 +115,9 @@ public sealed class TerminalAppTests
     {
         TestConsole inner = CreateConsole().Width(20).Height(24);
         var console = new RecordingCursorConsole(inner);
+        var renderer = new TerminalRenderer(console);
 
-        TerminalOutputFormatter.WriteBottomFooterHint(console, "Shortcuts");
+        renderer.WriteBottomFooterHint("Shortcuts");
 
         Assert.Equal([(1, 24), (1, 23), (1, 22), (1, 22)], console.CursorPositions);
         Assert.EndsWith(new string(' ', 40), inner.Output);
@@ -126,8 +128,9 @@ public sealed class TerminalAppTests
     {
         TestConsole inner = CreateConsole().Width(20).Height(24);
         var console = new RecordingCursorConsole(inner);
+        var renderer = new TerminalRenderer(console);
 
-        TerminalOutputFormatter.ClearBottomFooterArea(console);
+        renderer.ClearBottomFooterArea();
 
         Assert.Equal([(1, 24), (1, 23), (1, 22), (1, 22)], console.CursorPositions);
         Assert.Contains("\u001b[s", inner.Output);
@@ -142,7 +145,7 @@ public sealed class TerminalAppTests
         TestConsole console = CreateConsole();
         console.Input.PushTextWithEnter("q");
         console.Input.PushTextWithEnter(assetsPath);
-        var prompts = new InteractivePrompts(console);
+        var prompts = new TerminalPrompts(console);
 
         try
         {

@@ -4,18 +4,20 @@ using Spectre.Console;
 
 namespace UnityAssetsPatcher.Tui;
 
-public sealed class InteractivePrompts
+public sealed class TerminalPrompts
 {
     private readonly IAnsiConsole _console;
     private readonly TerminalRenderer _renderer;
+    private readonly TerminalSelectionPrompt _selectionPrompt;
 
-    public InteractivePrompts(IAnsiConsole console)
+    public TerminalPrompts(IAnsiConsole console)
         : this(console, new TerminalRenderer(console)) { }
 
-    internal InteractivePrompts(IAnsiConsole console, TerminalRenderer renderer)
+    public TerminalPrompts(IAnsiConsole console, TerminalRenderer renderer)
     {
         _console = console;
         _renderer = renderer;
+        _selectionPrompt = new TerminalSelectionPrompt(console);
     }
 
     public string? ReadExistingFilePath(string label)
@@ -23,22 +25,29 @@ public sealed class InteractivePrompts
         return ReadExistingPath(label, File.Exists, value => $"File not found: {value}");
     }
 
-    public string ReadSubMenuChoice(string title, IReadOnlyList<string> choices, string cancelChoice)
+    public string ReadChoice(
+        IReadOnlyList<string> choices,
+        string cancelChoice,
+        Action<int, bool> render,
+        int initialSelectedIndex = 0,
+        ConsoleKey acceptKey = ConsoleKey.Enter)
     {
-        var prompt = new SelectionPrompt<string>()
-            .PageSize(Math.Max(choices.Count, 3))
-            .MoreChoicesText("[grey](Move up and down to reveal more choices.)[/]")
-            .HighlightStyle(new Style(Color.CornflowerBlue))
-            .DisableSearch()
-            .AddChoices(choices)
-            .AddCancelResult(cancelChoice);
+        int? selectedIndex = ReadChoiceIndex(
+            choices.Count,
+            initialSelectedIndex,
+            render,
+            acceptKey);
 
-        if (!string.IsNullOrWhiteSpace(title))
-        {
-            prompt.Title($"[blue]{Markup.Escape(title)}[/]");
-        }
+        return selectedIndex is null ? cancelChoice : choices[selectedIndex.Value];
+    }
 
-        return _console.Prompt(prompt);
+    public int? ReadChoiceIndex(
+        int optionCount,
+        int initialSelectedIndex,
+        Action<int, bool> render,
+        ConsoleKey acceptKey = ConsoleKey.Enter)
+    {
+        return _selectionPrompt.ReadSelection(optionCount, initialSelectedIndex, render, acceptKey);
     }
 
     public string? ReadExistingDirectoryPath(string label)
@@ -50,7 +59,7 @@ public sealed class InteractivePrompts
     {
         while (true)
         {
-            WriteConfirmationLabel(prompt);
+            _renderer.WriteConfirmationLabel(prompt);
             string? input = ReadCancelableLine();
 
             if (input is null)
@@ -71,7 +80,7 @@ public sealed class InteractivePrompts
                 return true;
             }
 
-            WriteError("Choose y or n.");
+            _renderer.WriteError("Choose y or n.");
         }
     }
 
@@ -101,7 +110,7 @@ public sealed class InteractivePrompts
                 return true;
             }
 
-            WriteError($"{label} must be an integer.");
+            _renderer.WriteError($"{label} must be an integer.");
         }
     }
 
@@ -126,7 +135,7 @@ public sealed class InteractivePrompts
                 return true;
             }
 
-            WriteError($"{label} must be greater than 0.");
+            _renderer.WriteError($"{label} must be greater than 0.");
         }
     }
 
@@ -145,7 +154,7 @@ public sealed class InteractivePrompts
 
             if (string.IsNullOrWhiteSpace(path))
             {
-                WriteError($"{label} is required.");
+                _renderer.WriteError($"{label} is required.");
 
                 continue;
             }
@@ -155,7 +164,7 @@ public sealed class InteractivePrompts
                 return path;
             }
 
-            WriteError(missingMessage(path));
+            _renderer.WriteError(missingMessage(path));
         }
     }
 
@@ -163,7 +172,7 @@ public sealed class InteractivePrompts
     {
         while (true)
         {
-            WriteInputLabel(label);
+            _renderer.WriteInputLabel(label);
             string? value = ReadCancelableLine();
 
             if (value is null)
@@ -176,7 +185,7 @@ public sealed class InteractivePrompts
                 return value;
             }
 
-            WriteError($"{label} is required.");
+            _renderer.WriteError($"{label} is required.");
         }
     }
 
@@ -227,21 +236,6 @@ public sealed class InteractivePrompts
             builder.Append(key.KeyChar);
             _console.Write(new Text(key.KeyChar.ToString()));
         }
-    }
-
-    private void WriteInputLabel(string label)
-    {
-        _renderer.WriteInputLabel(label);
-    }
-
-    private void WriteConfirmationLabel(string prompt)
-    {
-        _renderer.WriteConfirmationLabel(prompt);
-    }
-
-    private void WriteError(string message)
-    {
-        _renderer.WriteError(message);
     }
 
     private static string NormalizePathInput(string value)

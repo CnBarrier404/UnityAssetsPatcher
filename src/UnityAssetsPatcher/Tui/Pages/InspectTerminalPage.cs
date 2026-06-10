@@ -24,12 +24,9 @@ internal sealed class InspectTerminalPage : TerminalPage
         "Custom limit",
     ];
 
-    private readonly InteractivePrompts _prompts;
-
-    public InspectTerminalPage(TerminalAppContext context, InteractivePrompts prompts)
+    public InspectTerminalPage(TerminalAppContext context)
         : base(context)
     {
-        _prompts = prompts;
     }
 
     public override string Title => "Inspect assets";
@@ -38,8 +35,10 @@ internal sealed class InspectTerminalPage : TerminalPage
 
     public override TerminalPageResult Run()
     {
-        NewPage(Title, "List assets or inspect the field tree for a selected Path ID.");
-        string choice = _prompts.ReadSubMenuChoice(string.Empty, InspectMenuChoices, Cancel);
+        string choice = Context.Prompts.ReadChoice(
+            InspectMenuChoices,
+            Cancel,
+            WriteInspectMenu);
 
         return choice switch
         {
@@ -53,7 +52,7 @@ internal sealed class InspectTerminalPage : TerminalPage
     {
         NewPage("List assets", "Print an asset summary for one assets file.");
 
-        string? assetsFilePath = _prompts.ReadExistingFilePath("Assets file path");
+        string? assetsFilePath = Context.Prompts.ReadExistingFilePath("Assets file path");
 
         if (assetsFilePath is null || !TryReadAssetSummaryLimit(out int? limit))
         {
@@ -76,9 +75,9 @@ internal sealed class InspectTerminalPage : TerminalPage
     {
         NewPage("Show asset fields", "Print the field tree for one selected Path ID.");
 
-        string? assetsFilePath = _prompts.ReadExistingFilePath("Assets file path");
+        string? assetsFilePath = Context.Prompts.ReadExistingFilePath("Assets file path");
 
-        if (assetsFilePath is null || !_prompts.TryReadInt64("Path ID", out long pathId))
+        if (assetsFilePath is null || !Context.Prompts.TryReadInt64("Path ID", out long pathId))
         {
             return TerminalPageResult.ReturnToMenu(false);
         }
@@ -100,7 +99,10 @@ internal sealed class InspectTerminalPage : TerminalPage
         while (true)
         {
             Context.Renderer.WriteBlankLine();
-            string choice = _prompts.ReadSubMenuChoice("Rows to print", RowLimitChoices, Cancel);
+            string choice = Context.Prompts.ReadChoice(
+                RowLimitChoices,
+                Cancel,
+                WriteRowLimitMenu);
 
             switch (choice)
             {
@@ -111,7 +113,7 @@ internal sealed class InspectTerminalPage : TerminalPage
                     limit = null;
                     return true;
                 case "Custom limit":
-                    if (_prompts.TryReadPositiveInt("Maximum rows", out int customLimit))
+                    if (Context.Prompts.TryReadPositiveInt("Maximum rows", out int customLimit))
                     {
                         limit = customLimit;
                         return true;
@@ -124,5 +126,17 @@ internal sealed class InspectTerminalPage : TerminalPage
                     return false;
             }
         }
+    }
+
+    private void WriteInspectMenu(int selectedIndex, bool clear)
+    {
+        NewPage(Title, "List assets or inspect the field tree for a selected Path ID.", clear: clear);
+        Context.Renderer.WriteChoiceList(InspectMenuChoices, selectedIndex);
+    }
+
+    private void WriteRowLimitMenu(int selectedIndex, bool clear)
+    {
+        NewPage("Rows to print", clear: clear);
+        Context.Renderer.WriteChoiceList(RowLimitChoices, selectedIndex);
     }
 }

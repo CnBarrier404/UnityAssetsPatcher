@@ -7,18 +7,13 @@ internal sealed class InstallTerminalPage : TerminalPage
     public override string Title => "Install Mod";
     public override string Description => "Analyze a mod package and install after confirmation.";
 
-    private readonly InteractivePrompts _prompts;
-
-    public InstallTerminalPage(TerminalAppContext context, InteractivePrompts prompts) : base(context)
-    {
-        _prompts = prompts;
-    }
+    public InstallTerminalPage(TerminalAppContext context) : base(context) { }
 
     public override TerminalPageResult Run()
     {
         NewPage(Title, "Analyze the package first, then confirm before writing files.");
 
-        string? zipFilePath = _prompts.ReadExistingFilePath("Mod zip path");
+        string? zipFilePath = Context.Prompts.ReadExistingFilePath("Mod zip path");
 
         if (zipFilePath is null)
         {
@@ -34,7 +29,7 @@ internal sealed class InstallTerminalPage : TerminalPage
 
         if (preview is null)
         {
-            gameDirectory = _prompts.ReadExistingDirectoryPath("Game directory");
+            gameDirectory = Context.Prompts.ReadExistingDirectoryPath("Game directory");
 
             if (gameDirectory is null)
             {
@@ -54,7 +49,7 @@ internal sealed class InstallTerminalPage : TerminalPage
         Context.Renderer.WriteBlankLine();
         Context.Renderer.ShowShortcutHint();
 
-        if (!_prompts.Confirm("Apply these changes?"))
+        if (!Context.Prompts.Confirm("Apply these changes?"))
         {
             Context.Renderer.WriteInfo("Install canceled.");
 

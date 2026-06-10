@@ -7,7 +7,6 @@ namespace UnityAssetsPatcher.Tui;
 public sealed class TerminalApp
 {
     private readonly TerminalAppContext _context;
-    private readonly InteractivePrompts _prompts;
     private readonly MainMenuTerminalPage _mainMenuPage;
 
     public TerminalApp(
@@ -49,16 +48,14 @@ public sealed class TerminalApp
             backupDirectory,
             console,
             error);
-        _prompts = new InteractivePrompts(console, _context.Renderer);
-        var selectionPrompt = new TerminalSelectionPrompt(console);
         IReadOnlyList<ITerminalPage> pages =
         [
-            new InstallTerminalPage(_context, _prompts),
-            new InspectTerminalPage(_context, _prompts),
-            new FindTerminalPage(_context, _prompts),
+            new InstallTerminalPage(_context),
+            new InspectTerminalPage(_context),
+            new FindTerminalPage(_context),
             new SettingsTerminalPage(_context),
         ];
-        _mainMenuPage = new MainMenuTerminalPage(_context, selectionPrompt, pages);
+        _mainMenuPage = new MainMenuTerminalPage(_context, pages);
     }
 
     private TerminalApp(
@@ -94,7 +91,7 @@ public sealed class TerminalApp
                 }
 
                 _context.Renderer.ShowReturnHint();
-                _prompts.WaitForKey();
+                _context.Prompts.WaitForKey();
             }
         }
         catch (Exception exception)

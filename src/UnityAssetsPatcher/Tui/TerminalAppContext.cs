@@ -9,6 +9,7 @@ internal sealed class TerminalAppContext
     public IAnsiConsole Console { get; }
     public TerminalRenderer Renderer { get; }
     public TerminalRenderer ErrorRenderer { get; }
+    public TerminalPrompts Prompts { get; }
     public TerminalSettings Settings { get; }
 
     private readonly ITerminalWorkflowSessionFactory _workflowSessionFactory;
@@ -24,6 +25,7 @@ internal sealed class TerminalAppContext
         Console = console;
         Renderer = new TerminalRenderer(console);
         ErrorRenderer = new TerminalRenderer(error);
+        Prompts = new TerminalPrompts(console, Renderer);
         Settings = new TerminalSettings();
     }
 

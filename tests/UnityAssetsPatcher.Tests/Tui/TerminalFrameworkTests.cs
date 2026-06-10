@@ -41,6 +41,56 @@ public sealed class TerminalFrameworkTests
     }
 
     [Fact]
+    public void Renderer_WriteChoiceList_MarksSelectedChoice()
+    {
+        TestConsole console = CreateConsole();
+        var renderer = new TerminalRenderer(console);
+
+        renderer.WriteChoiceList(["List assets", "Show asset fields"], selectedIndex: 1);
+
+        Assert.Contains("  List assets", console.Output);
+        Assert.Contains("> Show asset fields", console.Output);
+    }
+
+    [Fact]
+    public void ReadChoice_WhenSelectionIsAccepted_ReturnsSelectedChoice()
+    {
+        TestConsole console = CreateConsole();
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        var renderer = new TerminalRenderer(console);
+        var prompts = new TerminalPrompts(console, renderer);
+
+        string choice = prompts.ReadChoice(
+            ["List assets", "Show asset fields"],
+            cancelChoice: "__cancel",
+            render: (selectedIndex, _) => renderer.WriteChoiceList(
+                ["List assets", "Show asset fields"],
+                selectedIndex));
+
+        Assert.Equal("Show asset fields", choice);
+        Assert.Contains("> Show asset fields", console.Output);
+    }
+
+    [Fact]
+    public void ReadChoice_WhenEscapeIsPressed_ReturnsCancelChoice()
+    {
+        TestConsole console = CreateConsole();
+        console.Input.PushKey(ConsoleKey.Escape);
+        var renderer = new TerminalRenderer(console);
+        var prompts = new TerminalPrompts(console, renderer);
+
+        string choice = prompts.ReadChoice(
+            ["List assets", "Show asset fields"],
+            cancelChoice: "__cancel",
+            render: (selectedIndex, _) => renderer.WriteChoiceList(
+                ["List assets", "Show asset fields"],
+                selectedIndex));
+
+        Assert.Equal("__cancel", choice);
+    }
+
+    [Fact]
     public void ReadSelection_WhenDownWrapsPastLastChoice_ReturnsFirstChoice()
     {
         TestConsole console = CreateConsole();
