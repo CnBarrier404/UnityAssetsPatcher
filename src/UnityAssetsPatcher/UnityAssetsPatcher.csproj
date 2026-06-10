@@ -21,9 +21,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
         <ProjectReference Include="..\UnityAssetsPatcher.AssetsTools\UnityAssetsPatcher.AssetsTools.csproj"/>
-        <ProjectReference Include="..\UnityAssetsPatcher.Core\UnityAssetsPatcher.Core.csproj"/>
+        <ProjectReference Include="..\UnityAssetsPatcher.Tui\UnityAssetsPatcher.Tui.csproj"/>
     </ItemGroup>
 
 </Project>

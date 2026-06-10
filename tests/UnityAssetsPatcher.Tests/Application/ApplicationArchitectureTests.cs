@@ -28,12 +28,19 @@ public sealed class ApplicationArchitectureTests
             expectedProjectReferences: ["UnityAssetsPatcher.Core.csproj"],
             expectedPackageReferences: ["AssetsTools.NET"]);
         AssertProjectReferences(
-            Path.Combine(root, "src", "UnityAssetsPatcher", "UnityAssetsPatcher.csproj"),
+            Path.Combine(root, "src", "UnityAssetsPatcher.Tui", "UnityAssetsPatcher.Tui.csproj"),
             expectedProjectReferences:
             [
                 "UnityAssetsPatcher.Application.csproj",
-                "UnityAssetsPatcher.AssetsTools.csproj",
                 "UnityAssetsPatcher.Core.csproj",
+            ],
+            expectedPackageReferences: ["Spectre.Console"]);
+        AssertProjectReferences(
+            Path.Combine(root, "src", "UnityAssetsPatcher", "UnityAssetsPatcher.csproj"),
+            expectedProjectReferences:
+            [
+                "UnityAssetsPatcher.AssetsTools.csproj",
+                "UnityAssetsPatcher.Tui.csproj",
             ],
             expectedPackageReferences: ["Spectre.Console"]);
     }

@@ -15,6 +15,6 @@
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.AssetsTools\UnityAssetsPatcher.AssetsTools.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.Core\UnityAssetsPatcher.Core.csproj"/>
-        <ProjectReference Include="..\..\src\UnityAssetsPatcher\UnityAssetsPatcher.csproj"/>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher.Tui\UnityAssetsPatcher.Tui.csproj"/>
     </ItemGroup>
 </Project>

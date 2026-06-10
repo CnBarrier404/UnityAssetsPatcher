@@ -25,9 +25,7 @@ internal sealed class InspectTerminalPage : TerminalPage
     ];
 
     public InspectTerminalPage(TerminalAppContext context)
-        : base(context)
-    {
-    }
+        : base(context) { }
 
     public override string Title => "Inspect assets";
 
