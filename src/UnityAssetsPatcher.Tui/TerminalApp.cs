@@ -9,6 +9,24 @@ public sealed class TerminalApp
     private readonly TerminalAppContext _context;
     private readonly MainMenuTerminalPage _mainMenuPage;
 
+    public static TerminalApp CreateDefault(
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        string backupDirectory)
+    {
+        IAnsiConsole errorConsole = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Out = new AnsiConsoleOutput(Console.Error),
+        });
+
+        return new TerminalApp(
+            createAssetsReader,
+            assetsPatchWriter,
+            backupDirectory,
+            AnsiConsole.Console,
+            errorConsole);
+    }
+
     public TerminalApp(
         IAssetsFileReader assetsReader,
         IAssetsFileWriter assetsPatchWriter,
@@ -36,7 +54,7 @@ public sealed class TerminalApp
             Path.Combine(AppContext.BaseDirectory, "backup"),
             console) { }
 
-    public TerminalApp(
+    private TerminalApp(
         Func<IAssetsFileReader> createAssetsReader,
         IAssetsFileWriter assetsPatchWriter,
         string backupDirectory,

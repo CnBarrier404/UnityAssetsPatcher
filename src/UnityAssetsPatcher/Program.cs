@@ -1,4 +1,3 @@
-using Spectre.Console;
 using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Tui;
 
@@ -15,17 +14,10 @@ public static class Program
         var assetsFileWriter = new AssetsFileWriter(tpkFilePath);
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
 
-        IAnsiConsole errorConsole = AnsiConsole.Create(new AnsiConsoleSettings
-        {
-            Out = new AnsiConsoleOutput(Console.Error),
-        });
-
-        var app = new TerminalApp(
+        var app = TerminalApp.CreateDefault(
             () => new AssetsFileReader(tpkFilePath),
             assetsFileWriter,
-            backupDirectory,
-            AnsiConsole.Console,
-            errorConsole);
+            backupDirectory);
 
         return app.Run();
     }

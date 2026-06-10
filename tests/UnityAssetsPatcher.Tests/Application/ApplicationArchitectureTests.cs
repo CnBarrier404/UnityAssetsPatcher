@@ -42,7 +42,10 @@ public sealed class ApplicationArchitectureTests
                 "UnityAssetsPatcher.AssetsTools.csproj",
                 "UnityAssetsPatcher.Tui.csproj",
             ],
-            expectedPackageReferences: ["Spectre.Console"]);
+            expectedPackageReferences: []);
+        AssertSourceDoesNotContain(
+            Path.Combine(root, "src", "UnityAssetsPatcher"),
+            "Spectre.Console");
     }
 
     [Fact]
@@ -500,6 +503,18 @@ public sealed class ApplicationArchitectureTests
 
         Assert.Equal(expectedProjectReferences.OrderBy(value => value, StringComparer.Ordinal), projectReferences);
         Assert.Equal(expectedPackageReferences.OrderBy(value => value, StringComparer.Ordinal), packageReferences);
+    }
+
+    private static void AssertSourceDoesNotContain(string directory, string forbiddenToken)
+    {
+        string[] offenders = Directory
+            .EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains(forbiddenToken, StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(FindRepositoryRoot(), path))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(offenders);
     }
 
     private static string FindRepositoryRoot()
