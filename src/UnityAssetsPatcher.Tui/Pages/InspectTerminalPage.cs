@@ -60,8 +60,8 @@ internal sealed class InspectTerminalPage : TerminalPage
         Context.Renderer.PrepareOutputArea();
         Context.UseInspectWorkflow(workflow =>
         {
-            var assets = workflow.List(new InspectListRequest(assetsFilePath, limit));
-            Context.Renderer.WriteAssetSummary(assets, limit);
+            InspectListResult result = workflow.List(new InspectListRequest(assetsFilePath, limit));
+            Context.Renderer.WriteAssetSummary(result.Assets, result.TotalCount);
 
             return 0;
         });

@@ -99,7 +99,7 @@ public sealed class TerminalRenderer
         }
     }
 
-    public void WriteAssetSummary(IReadOnlyList<AssetsInfo> assets, int? limit)
+    public void WriteAssetSummary(IReadOnlyList<AssetsInfo> assets, int totalCount)
     {
         Table table = CreateTable();
         table.AddColumn(new TableColumn("Path ID").RightAligned());
@@ -107,9 +107,7 @@ public sealed class TerminalRenderer
         table.AddColumn("Type Name");
         table.AddColumn(new TableColumn("Byte Size").RightAligned());
 
-        var assetsToPrint = limit is null ? assets : assets.Take(limit.Value);
-
-        foreach (AssetsInfo asset in assetsToPrint)
+        foreach (AssetsInfo asset in assets)
         {
             table.AddRow(
                 asset.PathId.ToString(CultureInfo.InvariantCulture),
@@ -120,13 +118,13 @@ public sealed class TerminalRenderer
 
         _console.Write(table);
 
-        if (limit is null || assets.Count <= limit.Value)
+        if (assets.Count >= totalCount)
         {
             return;
         }
 
         WriteBlankLine();
-        WriteInfo($"Showing {limit.Value} of {assets.Count} assets.");
+        WriteInfo($"Showing {assets.Count} of {totalCount} assets.");
     }
 
     public void WriteAssetFields(AssetsFieldInfo fieldTree)

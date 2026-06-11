@@ -42,6 +42,8 @@ public sealed record InstallPreviewFileResult(
 
 public sealed record InstallCopyFilePreviewResult(string Source, string DestinationPath, bool WillCopy);
 
+public sealed record InspectListResult(IReadOnlyList<AssetsInfo> Assets, int TotalCount);
+
 public sealed record AssetMatch(AssetsInfo Asset, IReadOnlyDictionary<string, JsonElement> IncludeGroup);
 
 public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);

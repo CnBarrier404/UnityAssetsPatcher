@@ -12,9 +12,14 @@ public sealed class InspectAssetsWorkflow
         _assetsReader = assetsReader;
     }
 
-    public IReadOnlyList<AssetsInfo> List(InspectListRequest request)
+    public InspectListResult List(InspectListRequest request)
     {
-        return _assetsReader.ReadAssetsInfo(request.AssetsFilePath);
+        var assets = _assetsReader.ReadAssetsInfo(request.AssetsFilePath);
+        var listedAssets = request.Limit is null
+            ? assets
+            : assets.Take(request.Limit.Value).ToArray();
+
+        return new InspectListResult(listedAssets, assets.Count);
     }
 
     public AssetsFieldInfo Fields(InspectFieldsRequest request)

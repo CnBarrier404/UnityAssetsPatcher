@@ -20,7 +20,37 @@ public sealed class InspectAssetsWorkflowTests
 
         var result = workflow.List(new InspectListRequest("resources.assets", 100));
 
-        Assert.Equal(assets, result);
+        Assert.Equal(assets, result.Assets);
+        Assert.Equal(2, result.TotalCount);
+    }
+
+    [Fact]
+    public void List_WhenLimitIsProvided_ReturnsLimitedAssetsAndTotalCount()
+    {
+        var assets = Enumerable.Range(1, 5)
+            .Select(id => new AssetsInfo(id, 20, $"Asset{id}", 128))
+            .ToArray();
+        var workflow = new InspectAssetsWorkflow(new StubAssetsFileService(assets));
+
+        var result = workflow.List(new InspectListRequest("resources.assets", 2));
+
+        Assert.Equal(2, result.Assets.Count);
+        Assert.Equal([assets[0], assets[1]], result.Assets);
+        Assert.Equal(5, result.TotalCount);
+    }
+
+    [Fact]
+    public void List_WhenLimitIsNull_ReturnsAllAssetsAndTotalCount()
+    {
+        var assets = Enumerable.Range(1, 5)
+            .Select(id => new AssetsInfo(id, 20, $"Asset{id}", 128))
+            .ToArray();
+        var workflow = new InspectAssetsWorkflow(new StubAssetsFileService(assets));
+
+        var result = workflow.List(new InspectListRequest("resources.assets", null));
+
+        Assert.Equal(assets, result.Assets);
+        Assert.Equal(5, result.TotalCount);
     }
 
     [Fact]
