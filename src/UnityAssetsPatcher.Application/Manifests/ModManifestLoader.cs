@@ -150,6 +150,7 @@ public sealed class ModManifestLoader : IModManifestLoader
 
         string assetsFilePath = ReadRequiredString(replaceAssetElement, "fromFile", "Manifest patch 'replaceAsset'");
         string matchFieldPath = ReadRequiredString(replaceAssetElement, "matchField", "Manifest patch 'replaceAsset'");
+        EnsureValidZipRelativePath(assetsFilePath, "replaceAsset fromFile");
 
         return new ManifestReplaceFrom(assetsFilePath, matchFieldPath);
     }

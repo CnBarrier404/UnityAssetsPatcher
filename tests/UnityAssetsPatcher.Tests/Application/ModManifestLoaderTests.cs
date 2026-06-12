@@ -485,6 +485,54 @@ public sealed class ModManifestLoaderTests
     }
 
     /// <summary>
+    /// Verifies that replacement sources must stay inside the mod zip namespace.
+    /// </summary>
+    [Theory]
+    [InlineData("C:/Users/victim/sensitive.assets")]
+    [InlineData("../modassets.assets")]
+    [InlineData("/modassets.assets")]
+    [InlineData("resources/../modassets.assets")]
+    [InlineData("resources//modassets.assets")]
+    public void Load_WhenReplaceAssetFromFileEscapesZipNamespace_ThrowsClearError(string fromFile)
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            $$"""
+              {
+                "targets": [
+                  {
+                    "file": "sharedassets4.assets",
+                    "patches": [
+                      {
+                        "type": "AudioClip",
+                        "match": {
+                          "m_Name": "Incense burn 1"
+                        },
+                        "replaceAsset": {
+                          "fromFile": "{{fromFile}}",
+                          "matchField": "m_Name"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+              """);
+
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(() => new ModManifestLoader().Load(configPath));
+
+            Assert.Contains("fromFile", exception.Message);
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
+    /// <summary>
     /// Verifies that set fields must use object property names in the current schema.
     /// </summary>
     [Fact]

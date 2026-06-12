@@ -20,7 +20,6 @@ public sealed class PackageWorkspace : IDisposable
         string[] replacementSources = manifest.Patches
             .Select(patch => patch.ReplaceFrom?.AssetsFilePath)
             .OfType<string>()
-            .Where(path => !Path.IsPathRooted(path))
             .Select(PackageArchive.NormalizeEntryPath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
