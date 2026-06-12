@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
@@ -643,8 +644,21 @@ internal static class PatchFieldValueFormatter
         }
 
         return string.Equals(element.TypeName, "string", StringComparison.OrdinalIgnoreCase)
-            ? JsonElementFactory.String(element.Value).GetRawText()
+            ? FormatJsonStringLiteral(element.Value)
             : element.Value;
+    }
+
+    private static string FormatJsonStringLiteral(string value)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStringValue(value);
+        }
+
+        return stream.TryGetBuffer(out var buffer)
+            ? Encoding.UTF8.GetString(buffer.AsSpan())
+            : Encoding.UTF8.GetString(stream.ToArray());
     }
 
     private static bool ContainsArrayValue(

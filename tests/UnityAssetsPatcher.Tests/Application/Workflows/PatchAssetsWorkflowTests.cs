@@ -45,6 +45,59 @@ public sealed class PatchAssetsWorkflowTests
     }
 
     [Fact]
+    public void Preview_WhenAddingStringArrayValue_FormatsCurrentArrayAsJsonStringLiterals()
+    {
+        const string assetsFilePath = "resources.assets";
+        var manifestLoader = new RecordingManifestLoader(new ModManifest(
+            "Injected Manifest",
+            "UnityAssetsPatcher.Tests",
+            "1.0.0",
+            null,
+            null,
+            [],
+            [
+                new ManifestPatch(
+                    assetsFilePath,
+                    "PlayerSettings",
+                    [
+                        new Dictionary<string, JsonElement>
+                        {
+                            ["m_Name"] = JsonElementFactory.String("Settings"),
+                        },
+                    ],
+                    null,
+                    [
+                        new ManifestAddOperation(
+                            "m_ValidKeywords.Array",
+                            JsonElementFactory.Array([JsonElementFactory.String("_NORMALMAP")]))
+                    ]),
+            ]));
+        var reader = new StubAssetsFileService(
+            [new AssetsInfo(10, 20, "PlayerSettings", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [10] = new("PlayerSettings", "PlayerSettings", null,
+                [
+                    new AssetsFieldInfo("m_Name", "string", "Settings", []),
+                    new AssetsFieldInfo("m_ValidKeywords", "vector", null,
+                    [
+                        new AssetsFieldInfo("Array", "Array", null,
+                        [
+                            new AssetsFieldInfo("data", "string", "Player \"One\"", []),
+                        ]),
+                    ]),
+                ]),
+            });
+        var workflow = new WorkflowFactory(reader, manifestLoader)
+            .CreatePatchAssetsWorkflow(reader);
+
+        PatchPreviewResult preview = workflow.Preview(new PatchPreviewRequest(assetsFilePath, "missing-manifest.json"));
+
+        PatchPreviewOperationResult operation = Assert.Single(Assert.Single(preview.Assets).Operations);
+        Assert.Equal("[\"Player \\u0022One\\u0022\"]", operation.OldValue);
+    }
+
+    [Fact]
     public void Apply_WhenOperationsCanChange_WritesPatchAndReturnsSummary()
     {
         string inputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");

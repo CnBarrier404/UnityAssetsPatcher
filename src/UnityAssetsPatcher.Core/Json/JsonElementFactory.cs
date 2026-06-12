@@ -103,7 +103,10 @@ public static class JsonElementFactory
             write(writer);
         }
 
-        using JsonDocument document = JsonDocument.Parse(stream.ToArray());
+        using JsonDocument document = stream.TryGetBuffer(out var buffer)
+            ? JsonDocument.Parse(buffer.AsMemory())
+            : JsonDocument.Parse(stream.ToArray());
+
         return document.RootElement.Clone();
     }
 }
