@@ -4,6 +4,11 @@ namespace UnityAssetsPatcher.Application.Modules;
 
 public static class PackageArchive
 {
+    public static ZipArchive OpenRead(string packagePath)
+    {
+        return ZipFile.OpenRead(packagePath);
+    }
+
     public static string NormalizeEntryPath(string source)
     {
         return source.Replace('\\', '/');

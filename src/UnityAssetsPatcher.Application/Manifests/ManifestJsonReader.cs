@@ -22,7 +22,12 @@ public static class ManifestJsonReader
     private static JsonElement ReadManifestElementFromZip(string zipPath)
     {
         using ZipArchive archive = ZipFile.OpenRead(zipPath);
-        // Require exactly one manifest.json so zip packages are deterministic.
+
+        return ReadManifestElementFromZip(archive, zipPath);
+    }
+
+    public static JsonElement ReadManifestElementFromZip(ZipArchive archive, string zipPath)
+    {
         var manifests = archive.Entries
             .Where(entry => !string.IsNullOrEmpty(entry.Name) &&
                             string.Equals(entry.Name, "manifest.json", StringComparison.OrdinalIgnoreCase))

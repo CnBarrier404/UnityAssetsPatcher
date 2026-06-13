@@ -15,11 +15,10 @@ public sealed class PayloadCopier
 
             var results = new List<PayloadCopiedFile>();
 
-            using ZipArchive archive = ZipFile.OpenRead(plan.PackagePath);
-
             foreach (PayloadFilePlan file in plan.Files)
             {
-                ZipArchiveEntry entry = PackageArchive.FindFileEntry(archive, file.Source, plan.PackagePath);
+                ZipArchiveEntry entry =
+                    PackageArchive.FindFileEntry(plan.PackageArchive, file.Source, plan.PackagePath);
                 PackageArchive.CopyEntryToNewFile(entry, file.DestinationPath);
                 results.Add(new PayloadCopiedFile(file.Source, file.DestinationPath));
             }

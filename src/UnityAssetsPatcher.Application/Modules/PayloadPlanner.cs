@@ -9,18 +9,16 @@ public sealed class PayloadPlanner
     {
         if (source.Manifest.Files.Count == 0)
         {
-            return new PayloadPlan(source.PackagePath, []);
+            return new PayloadPlan(source.PackagePath, source.Archive, []);
         }
 
         string payloadDirectory = ResolvePayloadDirectory(targets.AssetsFilePaths);
         var files = new List<PayloadFilePlan>();
 
-        using ZipArchive archive = ZipFile.OpenRead(source.PackagePath);
-
         foreach (ManifestFile file in source.Manifest.Files)
         {
             string entryPath = PackageArchive.NormalizeEntryPath(file.Source);
-            _ = PackageArchive.FindFileEntry(archive, entryPath, source.PackagePath);
+            _ = PackageArchive.FindFileEntry(source.Archive, entryPath, source.PackagePath);
             string destinationPath = Path.Combine(payloadDirectory, PackageArchive.GetFileName(entryPath));
 
             if (requireAvailableDestination && File.Exists(destinationPath))
@@ -31,7 +29,7 @@ public sealed class PayloadPlanner
             files.Add(new PayloadFilePlan(entryPath, destinationPath));
         }
 
-        return new PayloadPlan(source.PackagePath, files);
+        return new PayloadPlan(source.PackagePath, source.Archive, files);
     }
 
     public static PayloadPreview Preview(PayloadPlan plan)
@@ -65,7 +63,10 @@ public sealed class PayloadPlanner
     }
 }
 
-public sealed record PayloadPlan(string PackagePath, IReadOnlyList<PayloadFilePlan> Files);
+public sealed record PayloadPlan(
+    string PackagePath,
+    ZipArchive PackageArchive,
+    IReadOnlyList<PayloadFilePlan> Files);
 
 public sealed record PayloadFilePlan(string Source, string DestinationPath);
 

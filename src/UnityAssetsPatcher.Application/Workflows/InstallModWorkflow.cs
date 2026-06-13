@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Modules;
@@ -10,24 +11,28 @@ public sealed class InstallModWorkflow
     private readonly Action _releaseReadResources;
     private readonly IModManifestLoader _manifestLoader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
+    private readonly Func<string, ZipArchive> _openPackageArchive;
 
     public InstallModWorkflow(
         PatchAssetsWorkflow patchAssetsWorkflow,
         Action releaseReadResources,
         IModManifestLoader manifestLoader,
-        GameDirectoryResolver gameDirectoryResolver)
+        GameDirectoryResolver gameDirectoryResolver,
+        Func<string, ZipArchive> openPackageArchive)
     {
         _patchAssetsWorkflow = patchAssetsWorkflow;
         _releaseReadResources = releaseReadResources;
         _manifestLoader = manifestLoader;
         _gameDirectoryResolver = gameDirectoryResolver;
+        _openPackageArchive = openPackageArchive;
     }
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
     {
         var timings = new WorkflowTiming();
-        using PackageSource source = new PackageSourceLoader(_manifestLoader, _gameDirectoryResolver)
-            .Execute(request.ZipFilePath, request.GameDirectory, timings);
+        using PackageSource source =
+            new PackageSourceLoader(_manifestLoader, _gameDirectoryResolver, _openPackageArchive)
+                .Execute(request.ZipFilePath, request.GameDirectory, timings);
 
         try
         {
@@ -56,8 +61,9 @@ public sealed class InstallModWorkflow
     public InstallModResult Install(InstallModRequest request)
     {
         var timings = new WorkflowTiming();
-        using PackageSource source = new PackageSourceLoader(_manifestLoader, _gameDirectoryResolver)
-            .Execute(request.ZipFilePath, request.GameDirectory, timings);
+        using PackageSource source =
+            new PackageSourceLoader(_manifestLoader, _gameDirectoryResolver, _openPackageArchive)
+                .Execute(request.ZipFilePath, request.GameDirectory, timings);
 
         try
         {

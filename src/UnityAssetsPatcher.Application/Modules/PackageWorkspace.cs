@@ -15,7 +15,7 @@ public sealed class PackageWorkspace : IDisposable
 
     public string ConfigPath { get; }
 
-    public static PackageWorkspace Create(string packagePath, ModManifest manifest)
+    public static PackageWorkspace Create(string packagePath, ModManifest manifest, ZipArchive archive)
     {
         string[] replacementSources = manifest.Patches
             .Select(patch => patch.ReplaceFrom?.AssetsFilePath)
@@ -30,8 +30,6 @@ public sealed class PackageWorkspace : IDisposable
         }
 
         string temporaryDirectory = Path.Combine(Path.GetTempPath(), $"UnityAssetsPatcher.{Guid.NewGuid():N}");
-
-        using ZipArchive archive = ZipFile.OpenRead(packagePath);
 
         foreach (string source in replacementSources)
         {

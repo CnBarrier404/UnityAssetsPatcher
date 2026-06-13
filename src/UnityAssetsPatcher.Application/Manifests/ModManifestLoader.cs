@@ -9,10 +9,15 @@ public sealed class ModManifestLoader : IModManifestLoader
     public ModManifest Load(string configPath)
     {
         JsonElement manifestElement = ManifestJsonReader.Read(configPath);
+        return Load(manifestElement);
+    }
+
+    public ModManifest Load(JsonElement manifestElement)
+    {
         return Parse(manifestElement);
     }
 
-    private static ModManifest Parse(JsonElement manifestElement)
+    public static ModManifest Parse(JsonElement manifestElement)
     {
         string name = ReadRequiredMetadataString(manifestElement, "name");
         string author = ReadRequiredMetadataString(manifestElement, "author");

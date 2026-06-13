@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Modules;
 using UnityAssetsPatcher.Application.Patching;
@@ -10,6 +11,7 @@ public sealed class WorkflowFactory
     private readonly IAssetsFileWriter _assetsPatchWriter;
     private readonly IModManifestLoader _manifestLoader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
+    private readonly Func<string, ZipArchive> _openPackageArchive;
 
     public WorkflowFactory(IAssetsFileWriter assetsPatchWriter) : this(assetsPatchWriter, new ModManifestLoader(),
         new GameDirectoryResolver()) { }
@@ -31,10 +33,18 @@ public sealed class WorkflowFactory
         IAssetsFileWriter assetsPatchWriter,
         IModManifestLoader manifestLoader,
         GameDirectoryResolver gameDirectoryResolver)
+        : this(assetsPatchWriter, manifestLoader, gameDirectoryResolver, PackageArchive.OpenRead) { }
+
+    public WorkflowFactory(
+        IAssetsFileWriter assetsPatchWriter,
+        IModManifestLoader manifestLoader,
+        GameDirectoryResolver gameDirectoryResolver,
+        Func<string, ZipArchive> openPackageArchive)
     {
         _assetsPatchWriter = assetsPatchWriter;
         _manifestLoader = manifestLoader;
         _gameDirectoryResolver = gameDirectoryResolver;
+        _openPackageArchive = openPackageArchive;
     }
 
     public InstallModWorkflow CreateInstallModWorkflow(IAssetsFileReader assetsReader)
@@ -50,7 +60,8 @@ public sealed class WorkflowFactory
             patchAssetsWorkflow,
             releaseReadResources,
             _manifestLoader,
-            _gameDirectoryResolver);
+            _gameDirectoryResolver,
+            _openPackageArchive);
     }
 
     public InspectAssetsWorkflow CreateInspectAssetsWorkflow(IAssetsFileReader assetsReader)

@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Modules;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
@@ -273,6 +274,120 @@ public sealed class InstallModWorkflowTests
             Assert.Equal(100, replacement.TargetPathId);
             Assert.Equal("modassets.assets", Path.GetFileName(replacement.SourceAssetsFilePath));
             Assert.Equal("patched", File.ReadAllText(targetPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that one install pass reuses the same opened zip for manifest, replacement sources, payload planning, and payload copy.
+    /// </summary>
+    [Fact]
+    public void Install_WhenZipHasReplacementSourcesAndPayload_OpensPackageOnce()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string copiedPath = Path.Combine(targetDirectory, "modassets.resource");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(TestManifest.CreateJson(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "files": [
+                        {
+                          "source": "resources/modassets.resource"
+                        }
+                      ],
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "AudioClip",
+                          "include": [
+                            {
+                              "m_Name": "Incense burn 1"
+                            }
+                          ],
+                          "replaceFrom": {
+                            "assets": "resources/modassets.assets",
+                            "match": "m_Name"
+                          }
+                        }
+                      ]
+                    }
+                    """));
+            }
+
+            ZipArchiveEntry sourceAssetsEntry = archive.CreateEntry("resources/modassets.assets");
+            using (StreamWriter sourceAssetsWriter = new(sourceAssetsEntry.Open()))
+            {
+                sourceAssetsWriter.Write("source assets");
+            }
+
+            ZipArchiveEntry payloadEntry = archive.CreateEntry("resources/modassets.resource");
+            using StreamWriter payloadWriter = new(payloadEntry.Open());
+            payloadWriter.Write("payload");
+        }
+
+        var assetsFileService = new StubAssetsFileService(
+            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [targetPath] =
+                [
+                    new AssetsInfo(100, 83, "AudioClip", 128),
+                ],
+                ["modassets.assets"] =
+                [
+                    new AssetsInfo(200, 83, "AudioClip", 128),
+                ],
+            },
+            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            {
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Incense burn 1"),
+            });
+        int openCount = 0;
+
+        ZipArchive OpenPackageArchive(string packagePath)
+        {
+            openCount++;
+
+            return ZipFile.OpenRead(packagePath);
+        }
+
+        var workflow = CreateWorkflow(assetsFileService, OpenPackageArchive);
+
+        try
+        {
+            InstallModResult result = workflow.Install(
+                new InstallModRequest(zipPath, gameDirectory, backupDirectory));
+
+            Assert.Single(result.Files);
+            Assert.Single(result.CopiedFiles);
+            Assert.Equal("payload", File.ReadAllText(copiedPath));
+            Assert.Equal(1, openCount);
         }
         finally
         {
@@ -739,5 +854,16 @@ public sealed class InstallModWorkflowTests
             assetsFileService,
             new ModManifestLoader(),
             steamRoots).CreateInstallModWorkflow(assetsFileService);
+    }
+
+    private static InstallModWorkflow CreateWorkflow(
+        StubAssetsFileService assetsFileService,
+        Func<string, ZipArchive> openPackageArchive)
+    {
+        return new WorkflowFactory(
+            assetsFileService,
+            new ModManifestLoader(),
+            new GameDirectoryResolver(),
+            openPackageArchive).CreateInstallModWorkflow(assetsFileService);
     }
 }
