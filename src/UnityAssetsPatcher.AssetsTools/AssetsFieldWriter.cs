@@ -27,6 +27,7 @@ internal static class AssetsFieldWriter
         if (IsJsonArrayPatchValue(value))
         {
             WriteJsonArray(field, value);
+
             return;
         }
 
@@ -101,89 +102,132 @@ internal static class AssetsFieldWriter
         {
             JsonValueKind.True => true,
             JsonValueKind.False => false,
-            _ => throw CreateTypeMismatch(field, value)
+            JsonValueKind.Undefined => throw ThrowError(field, value),
+            JsonValueKind.Object => throw ThrowError(field, value),
+            JsonValueKind.Array => throw ThrowError(field, value),
+            JsonValueKind.String => throw ThrowError(field, value),
+            JsonValueKind.Number => throw ThrowError(field, value),
+            JsonValueKind.Null => throw ThrowError(field, value),
+            _ => throw ThrowError(field, value)
         };
     }
 
     private static void WriteInt8(AssetTypeValueField field, JsonElement value)
     {
-        field.AsSByte = checked((sbyte)GetInt64(value, field));
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out long result))
+        {
+            throw ThrowError(field, value);
+        }
+
+        checked
+        {
+            field.AsSByte = (sbyte)result;
+        }
     }
 
     private static void WriteUInt8(AssetTypeValueField field, JsonElement value)
     {
-        field.AsByte = checked((byte)GetUInt64(value, field));
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetUInt64(out ulong result))
+        {
+            throw ThrowError(field, value);
+        }
+
+        checked
+        {
+            field.AsByte = (byte)result;
+        }
     }
 
     private static void WriteInt16(AssetTypeValueField field, JsonElement value)
     {
-        field.AsShort = checked((short)GetInt64(value, field));
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out long result))
+        {
+            throw ThrowError(field, value);
+        }
+
+        checked
+        {
+            field.AsShort = (short)result;
+        }
     }
 
     private static void WriteUInt16(AssetTypeValueField field, JsonElement value)
     {
-        field.AsUShort = checked((ushort)GetUInt64(value, field));
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetUInt64(out ulong result))
+        {
+            throw ThrowError(field, value);
+        }
+
+        checked
+        {
+            field.AsUShort = (ushort)result;
+        }
     }
 
     private static void WriteInt32(AssetTypeValueField field, JsonElement value)
     {
-        field.AsInt = checked((int)GetInt64(value, field));
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out long result))
+        {
+            throw ThrowError(field, value);
+        }
+
+        checked
+        {
+            field.AsInt = (int)result;
+        }
     }
 
     private static void WriteUInt32(AssetTypeValueField field, JsonElement value)
     {
-        field.AsUInt = checked((uint)GetUInt64(value, field));
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetUInt64(out ulong result))
+        {
+            throw ThrowError(field, value);
+        }
+
+        checked
+        {
+            field.AsUInt = (uint)result;
+        }
     }
 
     private static void WriteInt64(AssetTypeValueField field, JsonElement value)
     {
-        field.AsLong = GetInt64(value, field);
+        field.AsLong = value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out long result)
+            ? result
+            : throw ThrowError(field, value);
     }
 
     private static void WriteUInt64(AssetTypeValueField field, JsonElement value)
     {
-        field.AsULong = GetUInt64(value, field);
+        field.AsULong = value.ValueKind == JsonValueKind.Number && value.TryGetUInt64(out ulong result)
+            ? result
+            : throw ThrowError(field, value);
     }
 
     private static void WriteFloat(AssetTypeValueField field, JsonElement value)
     {
-        field.AsFloat = (float)GetDouble(value, field);
+        field.AsFloat = value.ValueKind == JsonValueKind.Number &&
+                        value.TryGetSingle(out float result) &&
+                        !float.IsInfinity(result)
+            ? result
+            : throw ThrowError(field, value);
     }
 
     private static void WriteDouble(AssetTypeValueField field, JsonElement value)
     {
-        field.AsDouble = GetDouble(value, field);
+        field.AsDouble = value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out double result)
+            ? result
+            : throw ThrowError(field, value);
     }
 
     private static void WriteString(AssetTypeValueField field, JsonElement value)
     {
         field.AsString = value.ValueKind == JsonValueKind.String
             ? value.GetString() ?? string.Empty
-            : throw CreateTypeMismatch(field, value);
+            : throw ThrowError(field, value);
     }
 
-    private static long GetInt64(JsonElement value, AssetTypeValueField field)
-    {
-        return value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out long result)
-            ? result
-            : throw CreateTypeMismatch(field, value);
-    }
-
-    private static ulong GetUInt64(JsonElement value, AssetTypeValueField field)
-    {
-        return value.ValueKind == JsonValueKind.Number && value.TryGetUInt64(out ulong result)
-            ? result
-            : throw CreateTypeMismatch(field, value);
-    }
-
-    private static double GetDouble(JsonElement value, AssetTypeValueField field)
-    {
-        return value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out double result)
-            ? result
-            : throw CreateTypeMismatch(field, value);
-    }
-
-    private static InvalidOperationException CreateTypeMismatch(AssetTypeValueField field, JsonElement value)
+    private static InvalidOperationException ThrowError(AssetTypeValueField field, JsonElement value)
     {
         return new InvalidOperationException(
             $"Cannot assign {value.ValueKind} value '{JsonUtils.FormatElementValue(value)}' to field '{field.FieldName}' of type {field.Value?.ValueType}.");
