@@ -2,7 +2,7 @@ namespace UnityAssetsPatcher.Core.Assets;
 
 public interface IAssetsAccessScope : IDisposable
 {
-    IAssetsFileReader Reader { get; }
-    IAssetsFileWriter Writer { get; }
-    void ReleaseReadResources();
+    public IAssetsFileReader Reader { get; }
+    public IAssetsFileWriter Writer { get; }
+    public void ReleaseReadResources();
 }

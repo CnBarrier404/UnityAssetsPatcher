@@ -2,9 +2,9 @@ namespace UnityAssetsPatcher.Tui;
 
 public interface ITerminalPage
 {
-    string Title { get; }
+    public string Title { get; }
 
-    string Description { get; }
+    public string Description { get; }
 
-    TerminalPageResult Run();
+    public TerminalPageResult Run();
 }
