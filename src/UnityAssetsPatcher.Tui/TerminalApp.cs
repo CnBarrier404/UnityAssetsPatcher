@@ -9,63 +9,19 @@ public sealed class TerminalApp
     private readonly TerminalAppContext _context;
     private readonly MainMenuTerminalPage _mainMenuPage;
 
-    public static TerminalApp CreateDefault(
-        Func<IAssetsFileReader> createAssetsReader,
-        IAssetsFileWriter assetsPatchWriter,
-        string backupDirectory)
-    {
-        IAnsiConsole errorConsole = AnsiConsole.Create(new AnsiConsoleSettings
-        {
-            Out = new AnsiConsoleOutput(Console.Error),
-        });
-
-        return new TerminalApp(
-            createAssetsReader,
-            assetsPatchWriter,
-            backupDirectory,
-            AnsiConsole.Console,
-            errorConsole);
-    }
-
-    public TerminalApp(
-        IAssetsFileReader assetsReader,
-        IAssetsFileWriter assetsPatchWriter,
-        IAnsiConsole console)
-        : this(
-            () => assetsReader,
-            assetsPatchWriter,
-            Path.Combine(AppContext.BaseDirectory, "backup"),
-            console) { }
-
-    public TerminalApp(
-        IAssetsFileReader assetsReader,
-        IAssetsFileWriter assetsPatchWriter,
-        string backupDirectory,
-        IAnsiConsole console)
-        : this(() => assetsReader, assetsPatchWriter, backupDirectory, console, console) { }
-
     public TerminalApp(
         Func<IAssetsFileReader> createAssetsReader,
         IAssetsFileWriter assetsPatchWriter,
-        IAnsiConsole console)
-        : this(
-            createAssetsReader,
-            assetsPatchWriter,
-            Path.Combine(AppContext.BaseDirectory, "backup"),
-            console) { }
-
-    private TerminalApp(
-        Func<IAssetsFileReader> createAssetsReader,
-        IAssetsFileWriter assetsPatchWriter,
-        string backupDirectory,
         IAnsiConsole console,
-        IAnsiConsole error)
+        IAnsiConsole errorConsole,
+        string backupDirectory)
     {
         _context = new TerminalAppContext(
             new TerminalWorkflowSessionFactory(createAssetsReader, assetsPatchWriter),
             backupDirectory,
             console,
-            error);
+            errorConsole);
+
         IReadOnlyList<ITerminalPage> pages =
         [
             new InstallTerminalPage(_context),
@@ -73,15 +29,9 @@ public sealed class TerminalApp
             new FindTerminalPage(_context),
             new SettingsTerminalPage(_context),
         ];
+
         _mainMenuPage = new MainMenuTerminalPage(_context, pages);
     }
-
-    private TerminalApp(
-        Func<IAssetsFileReader> createAssetsReader,
-        IAssetsFileWriter assetsPatchWriter,
-        string backupDirectory,
-        IAnsiConsole console)
-        : this(createAssetsReader, assetsPatchWriter, backupDirectory, console, console) { }
 
     public int Run()
     {

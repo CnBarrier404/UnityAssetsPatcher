@@ -63,7 +63,7 @@ public sealed class TerminalAppTests
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
         var assetsReaderFactory = new RecordingAssetsReaderFactory(CreateCameraReader());
-        var app = new TerminalApp(assetsReaderFactory.CreateReader, new StubAssetsFileService([]), console);
+        var app = CreateApp(assetsReaderFactory.CreateReader, new StubAssetsFileService([]), console);
 
         try
         {
@@ -781,7 +781,7 @@ public sealed class TerminalAppTests
 
     private static TerminalApp CreateApp(StubAssetsFileService assetsFileService, IAnsiConsole console)
     {
-        return new TerminalApp(assetsFileService, assetsFileService, console);
+        return CreateApp(() => assetsFileService, assetsFileService, console);
     }
 
     private static TerminalApp CreateApp(
@@ -789,7 +789,25 @@ public sealed class TerminalAppTests
         string backupDirectory,
         IAnsiConsole console)
     {
-        return new TerminalApp(assetsFileService, assetsFileService, backupDirectory, console);
+        return TerminalAppFactory.Create(
+            () => assetsFileService,
+            assetsFileService,
+            backupDirectory,
+            console,
+            console);
+    }
+
+    private static TerminalApp CreateApp(
+        Func<IAssetsFileReader> createAssetsReader,
+        IAssetsFileWriter assetsPatchWriter,
+        IAnsiConsole console)
+    {
+        return TerminalAppFactory.Create(
+            createAssetsReader,
+            assetsPatchWriter,
+            Path.Combine(AppContext.BaseDirectory, "backup"),
+            console,
+            console);
     }
 
     private static StubAssetsFileService CreateCameraReader()

@@ -14,7 +14,7 @@ public static class Program
         var assetsFileWriter = new AssetsFileWriter(tpkFilePath);
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
 
-        var app = TerminalApp.CreateDefault(
+        TerminalApp app = TerminalAppFactory.CreateDefault(
             () => new AssetsFileReader(tpkFilePath),
             assetsFileWriter,
             backupDirectory);
