@@ -10,14 +10,10 @@ public static class Program
         // The TPK is a bundled type database resource and does not depend on the startup working directory.
         // Source: https://github.com/AssetRipper/Tpk
         string tpkFilePath = Path.Combine(AppContext.BaseDirectory, "resources.tpk");
-
-        var assetsFileWriter = new AssetsFileWriter(tpkFilePath);
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
+        var assetsScopeFactory = new AssetsToolsAccessScopeFactory(tpkFilePath);
 
-        TerminalApp app = TerminalAppFactory.CreateDefault(
-            () => new AssetsFileReader(tpkFilePath),
-            assetsFileWriter,
-            backupDirectory);
+        TerminalApp app = TerminalAppFactory.CreateDefault(assetsScopeFactory, backupDirectory);
 
         return app.Run();
     }

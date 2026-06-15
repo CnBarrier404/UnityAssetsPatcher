@@ -31,7 +31,7 @@ public sealed class PatchAssetsWorkflowTests
             {
                 [10] = CameraFieldTree("90.0"),
             });
-        var workflow = new WorkflowFactory(reader, manifestLoader)
+        var workflow = new WorkflowFactory(manifestLoader)
             .CreatePatchAssetsWorkflow(reader);
 
         PatchPreviewResult preview = workflow.Preview(new PatchPreviewRequest("resources.assets", configPath));
@@ -88,7 +88,7 @@ public sealed class PatchAssetsWorkflowTests
                     ]),
                 ]),
             });
-        var workflow = new WorkflowFactory(reader, manifestLoader)
+        var workflow = new WorkflowFactory(manifestLoader)
             .CreatePatchAssetsWorkflow(reader);
 
         PatchPreviewResult preview = workflow.Preview(new PatchPreviewRequest(assetsFilePath, "missing-manifest.json"));
@@ -120,7 +120,7 @@ public sealed class PatchAssetsWorkflowTests
             {
                 [10] = CameraFieldTree("90.0"),
             });
-        var workflow = new WorkflowFactory(assetsFileService, manifestLoader)
+        var workflow = new WorkflowFactory(manifestLoader)
             .CreatePatchAssetsWorkflow(assetsFileService);
 
         try
@@ -172,7 +172,7 @@ public sealed class PatchAssetsWorkflowTests
             {
                 [10] = CameraFieldTree("90.0"),
             });
-        var workflow = new WorkflowFactory(assetsFileService, manifestLoader)
+        var workflow = new WorkflowFactory(manifestLoader)
             .CreatePatchAssetsWorkflow(assetsFileService);
 
         try

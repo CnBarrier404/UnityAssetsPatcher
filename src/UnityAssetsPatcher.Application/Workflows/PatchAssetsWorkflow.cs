@@ -2,6 +2,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Modules;
 using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -11,21 +12,20 @@ public sealed class PatchAssetsWorkflow
     private readonly PatchOutputWriter _patchOutputWriter;
     private readonly IModManifestLoader _manifestLoader;
     private readonly ManifestTargetSelector _targetSelector;
-    private readonly Action _releaseReadResources;
-    private bool _readResourcesReleased;
+    private readonly IAssetsAccessScope _assets;
 
     public PatchAssetsWorkflow(
         PatchPlanBuilder patchPlanBuilder,
         PatchOutputWriter patchOutputWriter,
         IModManifestLoader manifestLoader,
         ManifestTargetSelector targetSelector,
-        Action? releaseReadResources = null)
+        IAssetsAccessScope assets)
     {
         _patchPlanBuilder = patchPlanBuilder;
         _patchOutputWriter = patchOutputWriter;
         _manifestLoader = manifestLoader;
         _targetSelector = targetSelector;
-        _releaseReadResources = releaseReadResources ?? (() => { });
+        _assets = assets;
     }
 
     public PatchPreviewResult Preview(PatchPreviewRequest request)
@@ -71,12 +71,6 @@ public sealed class PatchAssetsWorkflow
 
     private void ReleaseReadResources()
     {
-        if (_readResourcesReleased)
-        {
-            return;
-        }
-
-        _readResourcesReleased = true;
-        _releaseReadResources();
+        _assets.ReleaseReadResources();
     }
 }

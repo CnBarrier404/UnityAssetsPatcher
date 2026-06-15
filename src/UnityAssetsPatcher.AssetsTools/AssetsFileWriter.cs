@@ -4,7 +4,7 @@ using AssetsToolsNetFileWriter = AssetsTools.NET.AssetsFileWriter;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileWriter : IAssetsFileWriter
+public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
 {
     private readonly string _tpkFilePath;
 
@@ -22,6 +22,11 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
     {
         ValidateReplacementSources(plan);
         WriteAssetsFile(inputPath, outputPath, session => ApplyReplacementPlan(session, plan));
+    }
+
+    public void Dispose()
+    {
+        // Writer resources are currently scoped per write operation.
     }
 
     private void WriteAssetsFile(string inputPath, string outputPath, Action<AssetsFileSession> applyChanges)

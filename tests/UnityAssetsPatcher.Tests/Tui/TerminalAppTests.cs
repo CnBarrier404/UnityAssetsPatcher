@@ -62,15 +62,15 @@ public sealed class TerminalAppTests
         console.Input.PushTextWithEnter("n");
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
-        var assetsReaderFactory = new RecordingAssetsReaderFactory(CreateCameraReader());
-        var app = CreateApp(assetsReaderFactory.CreateReader, new StubAssetsFileService([]), console);
+        var assetsScopeFactory = new RecordingAssetsScopeFactory(CreateCameraReader(), new StubAssetsFileService([]));
+        var app = CreateApp(assetsScopeFactory, console);
 
         try
         {
             int exitCode = app.Run();
 
             Assert.Equal(0, exitCode);
-            Assert.Equal(2, assetsReaderFactory.CreateReaderCount);
+            Assert.Equal(2, assetsScopeFactory.CreateScopeCount);
         }
         finally
         {
@@ -694,21 +694,23 @@ public sealed class TerminalAppTests
         Exit,
     }
 
-    private sealed class RecordingAssetsReaderFactory
+    private sealed class RecordingAssetsScopeFactory : IAssetsAccessScopeFactory
     {
         private readonly IAssetsFileReader _assetsReader;
+        private readonly IAssetsFileWriter _assetsWriter;
 
-        public RecordingAssetsReaderFactory(IAssetsFileReader assetsReader)
+        public RecordingAssetsScopeFactory(IAssetsFileReader assetsReader, IAssetsFileWriter assetsWriter)
         {
             _assetsReader = assetsReader;
+            _assetsWriter = assetsWriter;
         }
 
-        public int CreateReaderCount { get; private set; }
+        public int CreateScopeCount { get; private set; }
 
-        public IAssetsFileReader CreateReader()
+        public IAssetsAccessScope CreateScope()
         {
-            CreateReaderCount++;
-            return _assetsReader;
+            CreateScopeCount++;
+            return new TestAssetsAccessScope(_assetsReader, _assetsWriter);
         }
     }
 
@@ -781,7 +783,7 @@ public sealed class TerminalAppTests
 
     private static TerminalApp CreateApp(StubAssetsFileService assetsFileService, IAnsiConsole console)
     {
-        return CreateApp(() => assetsFileService, assetsFileService, console);
+        return CreateApp(new TestAssetsAccessScopeFactory(assetsFileService, assetsFileService), console);
     }
 
     private static TerminalApp CreateApp(
@@ -790,24 +792,57 @@ public sealed class TerminalAppTests
         IAnsiConsole console)
     {
         return TerminalAppFactory.Create(
-            () => assetsFileService,
-            assetsFileService,
+            new TestAssetsAccessScopeFactory(assetsFileService, assetsFileService),
             backupDirectory,
             console,
             console);
     }
 
     private static TerminalApp CreateApp(
-        Func<IAssetsFileReader> createAssetsReader,
-        IAssetsFileWriter assetsPatchWriter,
+        IAssetsAccessScopeFactory assetsScopeFactory,
         IAnsiConsole console)
     {
         return TerminalAppFactory.Create(
-            createAssetsReader,
-            assetsPatchWriter,
+            assetsScopeFactory,
             Path.Combine(AppContext.BaseDirectory, "backup"),
             console,
             console);
+    }
+
+    private sealed class TestAssetsAccessScopeFactory(
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsWriter) : IAssetsAccessScopeFactory
+    {
+        public IAssetsAccessScope CreateScope()
+        {
+            return new TestAssetsAccessScope(assetsReader, assetsWriter);
+        }
+    }
+
+    private sealed class TestAssetsAccessScope(
+        IAssetsFileReader assetsReader,
+        IAssetsFileWriter assetsWriter) : IAssetsAccessScope
+    {
+        public IAssetsFileReader Reader => assetsReader;
+        public IAssetsFileWriter Writer => assetsWriter;
+
+        public void ReleaseReadResources()
+        {
+            if (assetsReader is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            ReleaseReadResources();
+
+            if (!ReferenceEquals(assetsReader, assetsWriter) && assetsWriter is IDisposable disposableWriter)
+            {
+                disposableWriter.Dispose();
+            }
+        }
     }
 
     private static StubAssetsFileService CreateCameraReader()

@@ -12,10 +12,10 @@ internal sealed class TerminalAppContext
     public TerminalPrompts Prompts { get; }
     public TerminalSettings Settings { get; }
 
-    private readonly ITerminalWorkflowSessionFactory _workflowSessionFactory;
+    private readonly TerminalWorkflowSessionFactory _workflowSessionFactory;
 
     public TerminalAppContext(
-        ITerminalWorkflowSessionFactory workflowSessionFactory,
+        TerminalWorkflowSessionFactory workflowSessionFactory,
         string backupDirectory,
         IAnsiConsole console,
         IAnsiConsole error)

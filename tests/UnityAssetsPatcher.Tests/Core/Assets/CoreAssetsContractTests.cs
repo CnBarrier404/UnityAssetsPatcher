@@ -21,6 +21,8 @@ public sealed class CoreAssetsContractTests
 
         Assert.Contains("IAssetsFileReader", typeNames);
         Assert.Contains("IAssetsFileWriter", typeNames);
+        Assert.Contains("IAssetsAccessScope", typeNames);
+        Assert.Contains("IAssetsAccessScopeFactory", typeNames);
         Assert.DoesNotContain("IAssetsReader", typeNames);
         Assert.DoesNotContain("IAssetsPatchWriter", typeNames);
     }

@@ -2,26 +2,27 @@ using System.IO.Compression;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Modules;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InstallModWorkflow
 {
     private readonly PatchAssetsWorkflow _patchAssetsWorkflow;
-    private readonly Action _releaseReadResources;
+    private readonly IAssetsAccessScope _assets;
     private readonly IModManifestLoader _manifestLoader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly Func<string, ZipArchive> _openPackageArchive;
 
     public InstallModWorkflow(
         PatchAssetsWorkflow patchAssetsWorkflow,
-        Action releaseReadResources,
+        IAssetsAccessScope assets,
         IModManifestLoader manifestLoader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive)
     {
         _patchAssetsWorkflow = patchAssetsWorkflow;
-        _releaseReadResources = releaseReadResources;
+        _assets = assets;
         _manifestLoader = manifestLoader;
         _gameDirectoryResolver = gameDirectoryResolver;
         _openPackageArchive = openPackageArchive;
@@ -98,7 +99,7 @@ public sealed class InstallModWorkflow
 
     private void ReleaseReadResources()
     {
-        _releaseReadResources();
+        _assets.ReleaseReadResources();
     }
 
     private static InstallPreviewFileResult[] ToInstallPreviewFiles(PatchAssetPreview preview)

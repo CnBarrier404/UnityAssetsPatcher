@@ -6,12 +6,10 @@ namespace UnityAssetsPatcher.Tui;
 public static class TerminalAppFactory
 {
     public static TerminalApp CreateDefault(
-        Func<IAssetsFileReader> createAssetsReader,
-        IAssetsFileWriter assetsPatchWriter,
+        IAssetsAccessScopeFactory assetsScopeFactory,
         string backupDirectory)
     {
-        ArgumentNullException.ThrowIfNull(createAssetsReader);
-        ArgumentNullException.ThrowIfNull(assetsPatchWriter);
+        ArgumentNullException.ThrowIfNull(assetsScopeFactory);
         ArgumentNullException.ThrowIfNull(backupDirectory);
 
         IAnsiConsole errorConsole = AnsiConsole.Create(new AnsiConsoleSettings
@@ -20,31 +18,27 @@ public static class TerminalAppFactory
         });
 
         return Create(
-            createAssetsReader,
-            assetsPatchWriter,
+            assetsScopeFactory,
             backupDirectory,
             AnsiConsole.Console,
             errorConsole);
     }
 
     public static TerminalApp Create(
-        Func<IAssetsFileReader> createAssetsReader,
-        IAssetsFileWriter assetsPatchWriter,
+        IAssetsAccessScopeFactory assetsScopeFactory,
         string backupDirectory,
         IAnsiConsole console,
         IAnsiConsole errorConsole)
     {
-        ArgumentNullException.ThrowIfNull(createAssetsReader);
-        ArgumentNullException.ThrowIfNull(assetsPatchWriter);
+        ArgumentNullException.ThrowIfNull(assetsScopeFactory);
         ArgumentNullException.ThrowIfNull(backupDirectory);
         ArgumentNullException.ThrowIfNull(console);
         ArgumentNullException.ThrowIfNull(errorConsole);
 
         return new TerminalApp(
-            createAssetsReader,
-            assetsPatchWriter,
+            assetsScopeFactory,
+            backupDirectory,
             console,
-            errorConsole,
-            backupDirectory);
+            errorConsole);
     }
 }

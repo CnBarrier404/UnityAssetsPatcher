@@ -3,30 +3,28 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Tui;
 
-internal sealed class TerminalWorkflowSessionFactory : ITerminalWorkflowSessionFactory
+internal sealed class TerminalWorkflowSessionFactory
 {
-    private readonly Func<IAssetsFileReader> _createAssetsReader;
+    private readonly IAssetsAccessScopeFactory _assetsScopeFactory;
     private readonly WorkflowFactory _workflowFactory;
 
-    public TerminalWorkflowSessionFactory(
-        Func<IAssetsFileReader> createAssetsReader,
-        IAssetsFileWriter assetsPatchWriter)
+    public TerminalWorkflowSessionFactory(IAssetsAccessScopeFactory assetsScopeFactory)
     {
-        _createAssetsReader = createAssetsReader;
-        _workflowFactory = new WorkflowFactory(assetsPatchWriter);
+        _assetsScopeFactory = assetsScopeFactory;
+        _workflowFactory = new WorkflowFactory();
     }
 
     public TerminalWorkflowSession CreateSession()
     {
-        IAssetsFileReader assetsReader = _createAssetsReader();
-        InstallModWorkflow installModWorkflow = _workflowFactory.CreateInstallModWorkflow(assetsReader);
-        InspectAssetsWorkflow inspectAssetsWorkflow = _workflowFactory.CreateInspectAssetsWorkflow(assetsReader);
-        FindAssetsWorkflow findAssetsWorkflow = _workflowFactory.CreateFindAssetsWorkflow(assetsReader);
+        IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
+        InstallModWorkflow installModWorkflow = _workflowFactory.CreateInstallModWorkflow(assets);
+        InspectAssetsWorkflow inspectAssetsWorkflow = _workflowFactory.CreateInspectAssetsWorkflow(assets);
+        FindAssetsWorkflow findAssetsWorkflow = _workflowFactory.CreateFindAssetsWorkflow(assets);
 
         return new TerminalWorkflowSession(
             installModWorkflow,
             inspectAssetsWorkflow,
             findAssetsWorkflow,
-            assetsReader as IDisposable);
+            assets);
     }
 }

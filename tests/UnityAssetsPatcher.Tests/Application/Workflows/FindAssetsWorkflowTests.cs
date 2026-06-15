@@ -33,7 +33,7 @@ public sealed class FindAssetsWorkflowTests
             {
                 [10] = new("Camera", "Camera", null, [new AssetsFieldInfo("m_Name", "string", "Main Camera", [])]),
             });
-        var workflow = new WorkflowFactory(reader, manifestLoader)
+        var workflow = new WorkflowFactory(manifestLoader)
             .CreateFindAssetsWorkflow(reader);
 
         var matches = workflow.Find(new FindAssetsRequest("resources.assets", configPath));
@@ -68,7 +68,7 @@ public sealed class FindAssetsWorkflowTests
                 [10] = new("Camera", "Camera", null, [new AssetsFieldInfo("m_Name", "string", "Main Camera", [])]),
                 [11] = new("Camera", "Camera", null, [new AssetsFieldInfo("m_Name", "string", "Secondary Camera", [])]),
             });
-        var workflow = new WorkflowFactory(reader, manifestLoader)
+        var workflow = new WorkflowFactory(manifestLoader)
             .CreateFindAssetsWorkflow(reader);
 
         var matches = workflow.Find(new FindAssetsRequest("resources.assets", configPath));

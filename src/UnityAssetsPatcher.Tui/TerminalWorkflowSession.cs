@@ -4,13 +4,13 @@ namespace UnityAssetsPatcher.Tui;
 
 internal sealed class TerminalWorkflowSession : IDisposable
 {
-    private readonly IDisposable? _disposable;
+    private readonly IDisposable _disposable;
 
     public TerminalWorkflowSession(
         InstallModWorkflow installModWorkflow,
         InspectAssetsWorkflow inspectAssetsWorkflow,
         FindAssetsWorkflow findAssetsWorkflow,
-        IDisposable? disposable)
+        IDisposable disposable)
     {
         InstallModWorkflow = installModWorkflow;
         InspectAssetsWorkflow = inspectAssetsWorkflow;
@@ -26,6 +26,6 @@ internal sealed class TerminalWorkflowSession : IDisposable
 
     public void Dispose()
     {
-        _disposable?.Dispose();
+        _disposable.Dispose();
     }
 }

@@ -10,14 +10,18 @@ public sealed class TerminalApp
     private readonly MainMenuTerminalPage _mainMenuPage;
 
     public TerminalApp(
-        Func<IAssetsFileReader> createAssetsReader,
-        IAssetsFileWriter assetsPatchWriter,
+        IAssetsAccessScopeFactory assetsScopeFactory,
+        string backupDirectory,
         IAnsiConsole console,
-        IAnsiConsole errorConsole,
-        string backupDirectory)
+        IAnsiConsole errorConsole)
     {
+        ArgumentNullException.ThrowIfNull(assetsScopeFactory);
+        ArgumentNullException.ThrowIfNull(backupDirectory);
+        ArgumentNullException.ThrowIfNull(console);
+        ArgumentNullException.ThrowIfNull(errorConsole);
+
         _context = new TerminalAppContext(
-            new TerminalWorkflowSessionFactory(createAssetsReader, assetsPatchWriter),
+            new TerminalWorkflowSessionFactory(assetsScopeFactory),
             backupDirectory,
             console,
             errorConsole);

@@ -2,7 +2,7 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Tests.Support;
 
-internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWriter, IDisposable
+internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWriter, IAssetsAccessScope, IDisposable
 {
     private readonly IReadOnlyList<AssetsInfo> _result;
     private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldTrees;
@@ -41,6 +41,8 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     public int ReadAssetsInfoCallCount { get; private set; }
     public IReadOnlyList<AssetFieldPatch> Plan { get; private set; } = [];
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
+    public IAssetsFileReader Reader => this;
+    public IAssetsFileWriter Writer => this;
 
     private int ReadAssetsFieldInfoCallCount { get; set; }
 
@@ -97,5 +99,10 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     public void Dispose()
     {
         DisposeCount++;
+    }
+
+    public void ReleaseReadResources()
+    {
+        Dispose();
     }
 }

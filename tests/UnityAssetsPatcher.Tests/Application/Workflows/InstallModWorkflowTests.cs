@@ -843,7 +843,7 @@ public sealed class InstallModWorkflowTests
 
     private static InstallModWorkflow CreateWorkflow(StubAssetsFileService assetsFileService)
     {
-        return new WorkflowFactory(assetsFileService).CreateInstallModWorkflow(assetsFileService);
+        return new WorkflowFactory().CreateInstallModWorkflow(assetsFileService);
     }
 
     private static InstallModWorkflow CreateWorkflow(
@@ -851,7 +851,6 @@ public sealed class InstallModWorkflowTests
         IEnumerable<string> steamRoots)
     {
         return new WorkflowFactory(
-            assetsFileService,
             new ModManifestLoader(),
             steamRoots).CreateInstallModWorkflow(assetsFileService);
     }
@@ -861,7 +860,6 @@ public sealed class InstallModWorkflowTests
         Func<string, ZipArchive> openPackageArchive)
     {
         return new WorkflowFactory(
-            assetsFileService,
             new ModManifestLoader(),
             new GameDirectoryResolver(),
             openPackageArchive).CreateInstallModWorkflow(assetsFileService);
