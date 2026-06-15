@@ -2,17 +2,22 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsToolsAccessScopeFactory : IAssetsAccessScopeFactory
+public sealed class AssetsToolsAccessScopeFactory : IAssetsAccessScopeFactory, IDisposable
 {
-    private readonly string _tpkFilePath;
-
     public AssetsToolsAccessScopeFactory(string tpkFilePath)
     {
-        _tpkFilePath = tpkFilePath;
+        Context = new AssetsToolsContext(tpkFilePath);
     }
+
+    public AssetsToolsContext Context { get; }
 
     public IAssetsAccessScope CreateScope()
     {
-        return new AssetsToolsAccessScope(new AssetsFileReader(_tpkFilePath), new AssetsFileWriter(_tpkFilePath));
+        return new AssetsToolsAccessScope(new AssetsFileReader(Context), new AssetsFileWriter(Context));
+    }
+
+    public void Dispose()
+    {
+        Context.Dispose();
     }
 }

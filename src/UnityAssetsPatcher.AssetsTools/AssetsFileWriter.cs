@@ -6,11 +6,19 @@ namespace UnityAssetsPatcher.AssetsTools;
 
 public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
 {
-    private readonly string _tpkFilePath;
+    private readonly AssetsToolsContext _context;
+    private readonly bool _ownsContext;
 
     public AssetsFileWriter(string tpkFilePath)
+        : this(new AssetsToolsContext(tpkFilePath), ownsContext: true) { }
+
+    internal AssetsFileWriter(AssetsToolsContext context)
+        : this(context, ownsContext: false) { }
+
+    private AssetsFileWriter(AssetsToolsContext context, bool ownsContext)
     {
-        _tpkFilePath = tpkFilePath;
+        _context = context;
+        _ownsContext = ownsContext;
     }
 
     public void WritePatch(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
@@ -26,7 +34,10 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
 
     public void Dispose()
     {
-        // Writer resources are currently scoped per write operation.
+        if (_ownsContext)
+        {
+            _context.Dispose();
+        }
     }
 
     private void WriteAssetsFile(string inputPath, string outputPath, Action<AssetsFileSession> applyChanges)
@@ -36,7 +47,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
 
         try
         {
-            using (AssetsFileSession session = AssetsFileSession.Open(inputPath, _tpkFilePath))
+            using (AssetsFileSession session = AssetsFileSession.Open(inputPath, _context))
             {
                 if (!string.IsNullOrEmpty(outputDirectory))
                 {
@@ -96,7 +107,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
     {
         foreach (AssetFieldPatch asset in plan)
         {
-            AssetTypeValueField baseField = session.Manager.GetBaseField(session.AssetsFileInstance, asset.PathId);
+            AssetTypeValueField baseField = session.GetBaseField(asset.PathId);
 
             if (baseField.IsDummy)
             {
@@ -123,13 +134,11 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
         foreach (var sourceGroup in plan.GroupBy(replacement => replacement.SourceAssetsFilePath,
                      StringComparer.OrdinalIgnoreCase))
         {
-            using AssetsFileSession sourceSession = AssetsFileSession.Open(sourceGroup.Key, _tpkFilePath);
+            using AssetsFileSession sourceSession = AssetsFileSession.Open(sourceGroup.Key, _context);
 
             foreach (AssetReplacement replacement in sourceGroup)
             {
-                AssetTypeValueField sourceField = sourceSession.Manager.GetBaseField(
-                    sourceSession.AssetsFileInstance,
-                    replacement.SourcePathId);
+                AssetTypeValueField sourceField = sourceSession.GetBaseField(replacement.SourcePathId);
 
                 if (sourceField.IsDummy)
                 {
@@ -137,9 +146,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
                         $"Source asset not found or cannot be read: {replacement.SourcePathId}");
                 }
 
-                AssetTypeValueField targetField = targetSession.Manager.GetBaseField(
-                    targetSession.AssetsFileInstance,
-                    replacement.TargetPathId);
+                AssetTypeValueField targetField = targetSession.GetBaseField(replacement.TargetPathId);
 
                 if (targetField.IsDummy)
                 {

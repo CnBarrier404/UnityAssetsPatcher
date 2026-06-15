@@ -7,6 +7,41 @@ namespace UnityAssetsPatcher.Tests.AssetsTools;
 public sealed class AssetsToolsAccessScopeTests
 {
     [Fact]
+    public void CreateScope_WhenScopesOpenAssetsFiles_ReturnsAssetData()
+    {
+        using var factory = new AssetsToolsAccessScopeFactory(GetRealTpkFilePath());
+
+        using (IAssetsAccessScope scope = factory.CreateScope())
+        {
+            var assets = scope.Reader.ReadAssetsInfo(GetRealAssetsFilePath());
+            Assert.NotEmpty(assets);
+        }
+
+        using (IAssetsAccessScope scope = factory.CreateScope())
+        {
+            var assets = scope.Reader.ReadAssetsInfo(GetRealAssetsFilePath());
+            Assert.NotEmpty(assets);
+        }
+    }
+
+    [Fact]
+    public void ReadAssetsFieldInfo_WhenReadingMultipleAssetsInOneSession_ReturnsFieldTrees()
+    {
+        using var factory = new AssetsToolsAccessScopeFactory(GetRealTpkFilePath());
+        using IAssetsAccessScope scope = factory.CreateScope();
+        var assets = scope.Reader.ReadAssetsInfo(GetRealAssetsFilePath())
+            .Take(2)
+            .ToArray();
+        Assert.Equal(2, assets.Length);
+
+        AssetsFieldInfo firstFieldTree = scope.Reader.ReadAssetsFieldInfo(GetRealAssetsFilePath(), assets[0].PathId);
+        AssetsFieldInfo secondFieldTree = scope.Reader.ReadAssetsFieldInfo(GetRealAssetsFilePath(), assets[1].PathId);
+
+        Assert.False(string.IsNullOrWhiteSpace(firstFieldTree.Name));
+        Assert.False(string.IsNullOrWhiteSpace(secondFieldTree.Name));
+    }
+
+    [Fact]
     public void ReleaseReadResources_WhenCalledMultipleTimes_DisposesReaderOnce()
     {
         var reader = new DisposableAssetsReader();
@@ -71,5 +106,42 @@ public sealed class AssetsToolsAccessScopeTests
         {
             DisposeCount++;
         }
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        string? directory = Directory.GetCurrentDirectory();
+
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory, "UnityAssetsPatcher.sln")))
+            {
+                return directory;
+            }
+
+            directory = Directory.GetParent(directory)?.FullName;
+        }
+
+        throw new InvalidOperationException("Repository root was not found.");
+    }
+
+    private static string GetRealAssetsFilePath()
+    {
+        return Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "UnityAssetsPatcher.Tests",
+            "RealTestAssets",
+            "sharedassets0.assets");
+    }
+
+    private static string GetRealTpkFilePath()
+    {
+        return Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "UnityAssetsPatcher",
+            "Assets",
+            "AssetsRipper.tpk");
     }
 }

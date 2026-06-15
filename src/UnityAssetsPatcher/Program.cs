@@ -11,7 +11,7 @@ public static class Program
         // Source: https://github.com/AssetRipper/Tpk
         string tpkFilePath = Path.Combine(AppContext.BaseDirectory, "resources.tpk");
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
-        var assetsScopeFactory = new AssetsToolsAccessScopeFactory(tpkFilePath);
+        using var assetsScopeFactory = new AssetsToolsAccessScopeFactory(tpkFilePath);
 
         TerminalApp app = TerminalAppFactory.CreateDefault(assetsScopeFactory, backupDirectory);
 

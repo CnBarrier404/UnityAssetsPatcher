@@ -5,49 +5,51 @@ namespace UnityAssetsPatcher.AssetsTools;
 
 internal sealed class AssetsFileSession : IDisposable
 {
-    public AssetsManager Manager { get; }
-    public AssetsFileInstance AssetsFileInstance { get; }
+    private AssetsFileInstance AssetsFileInstance { get; }
+
     public AssetsFile AssetsFile => AssetsFileInstance.file;
 
-    private AssetsFileSession(AssetsManager manager, AssetsFileInstance assetsFileInstance)
+    private readonly AssetsToolsContext _context;
+
+    private AssetsFileSession(AssetsToolsContext context, AssetsFileInstance assetsFileInstance)
     {
-        Manager = manager;
+        _context = context;
         AssetsFileInstance = assetsFileInstance;
     }
 
-    public static AssetsFileSession Open(string assetsFilePath, string tpkFilePath)
+    public static AssetsFileSession Open(string assetsFilePath, AssetsToolsContext context)
     {
         if (!File.Exists(assetsFilePath))
         {
             throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
         }
 
-        if (!File.Exists(tpkFilePath))
-        {
-            throw new FileNotFoundException($"TPK file not found: {tpkFilePath}", tpkFilePath);
-        }
-
-        var manager = new AssetsManager();
+        AssetsFileInstance? assetsFileInstance = null;
 
         try
         {
-            manager.LoadClassPackage(tpkFilePath);
-            AssetsFileInstance assetsFileInstance = manager.LoadAssetsFile(assetsFilePath, true);
+            assetsFileInstance = context.LoadAssetsFile(assetsFilePath);
 
-            manager.LoadClassDatabaseFromPackage(assetsFileInstance.file.Metadata.UnityVersion);
-
-            return new AssetsFileSession(manager, assetsFileInstance);
+            return new AssetsFileSession(context, assetsFileInstance);
         }
         catch
         {
-            manager.UnloadAll(true);
+            if (assetsFileInstance is not null)
+            {
+                context.UnloadAssetsFile(assetsFileInstance);
+            }
 
             throw;
         }
     }
 
+    public AssetTypeValueField GetBaseField(long pathId)
+    {
+        return _context.GetBaseField(AssetsFileInstance, pathId);
+    }
+
     public void Dispose()
     {
-        Manager.UnloadAll(true);
+        _context.UnloadAssetsFile(AssetsFileInstance);
     }
 }

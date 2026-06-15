@@ -6,7 +6,8 @@ namespace UnityAssetsPatcher.AssetsTools;
 
 public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 {
-    private readonly string _tpkFilePath;
+    private readonly AssetsToolsContext _context;
+    private readonly bool _ownsContext;
     private readonly Dictionary<string, AssetsFileSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<AssetsInfo>> _assetsInfo = new(StringComparer.OrdinalIgnoreCase);
 
@@ -14,8 +15,15 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
         new(StringComparer.OrdinalIgnoreCase);
 
     public AssetsFileReader(string tpkFilePath)
+        : this(new AssetsToolsContext(tpkFilePath), ownsContext: true) { }
+
+    internal AssetsFileReader(AssetsToolsContext context)
+        : this(context, ownsContext: false) { }
+
+    private AssetsFileReader(AssetsToolsContext context, bool ownsContext)
     {
-        _tpkFilePath = tpkFilePath;
+        _context = context;
+        _ownsContext = ownsContext;
     }
 
     public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
@@ -64,6 +72,11 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
         _sessions.Clear();
         _assetsInfo.Clear();
         _fieldTrees.Clear();
+
+        if (_ownsContext)
+        {
+            _context.Dispose();
+        }
     }
 
     private AssetsFileSession GetSession(string fullPath)
@@ -73,7 +86,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
             return session;
         }
 
-        session = AssetsFileSession.Open(fullPath, _tpkFilePath);
+        session = AssetsFileSession.Open(fullPath, _context);
         _sessions.Add(fullPath, session);
 
         return session;
@@ -92,7 +105,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 
     private static AssetsFieldInfo ReadSessionAssetsFieldInfo(AssetsFileSession session, long pathId)
     {
-        AssetTypeValueField field = session.Manager.GetBaseField(session.AssetsFileInstance, pathId);
+        AssetTypeValueField field = session.GetBaseField(pathId);
 
         return field.IsDummy
             ? throw new InvalidOperationException($"Asset not found or cannot be read: {pathId}")
