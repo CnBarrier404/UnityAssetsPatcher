@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 using UnityAssetsPatcher.Core.Assets;
@@ -64,9 +65,18 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 
     public void Dispose()
     {
+        ExceptionDispatchInfo? firstException = null;
+
         foreach (AssetsFileSession session in _sessions.Values)
         {
-            session.Dispose();
+            try
+            {
+                session.Dispose();
+            }
+            catch (Exception exception)
+            {
+                firstException ??= ExceptionDispatchInfo.Capture(exception);
+            }
         }
 
         _sessions.Clear();
@@ -75,8 +85,17 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 
         if (_ownsContext)
         {
-            _context.Dispose();
+            try
+            {
+                _context.Dispose();
+            }
+            catch (Exception exception)
+            {
+                firstException ??= ExceptionDispatchInfo.Capture(exception);
+            }
         }
+
+        firstException?.Throw();
     }
 
     private AssetsFileSession GetSession(string fullPath)

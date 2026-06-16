@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Reflection;
 using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Core.Assets;
 using Xunit;
@@ -78,6 +80,18 @@ public sealed class AssetsFileReaderTests
         }
     }
 
+    [Fact]
+    public void Dispose_WhenSessionDisposeFails_ClearsSessionCacheAndRethrows()
+    {
+        var reader = new AssetsFileReader(GetRealTpkFilePath());
+        IDictionary sessions = GetPrivateDictionary(reader, "_sessions");
+        sessions.Add(GetRealAssetsFilePath(), null);
+
+        Assert.Throws<NullReferenceException>(reader.Dispose);
+
+        Assert.Empty(sessions);
+    }
+
     private static string FindRepositoryRoot()
     {
         string? directory = Directory.GetCurrentDirectory();
@@ -113,5 +127,16 @@ public sealed class AssetsFileReaderTests
             "UnityAssetsPatcher",
             "Assets",
             "AssetsRipper.tpk");
+    }
+
+    private static IDictionary GetPrivateDictionary(AssetsFileReader reader, string fieldName)
+    {
+        FieldInfo field = typeof(AssetsFileReader).GetField(
+                              fieldName,
+                              BindingFlags.Instance | BindingFlags.NonPublic) ??
+                          throw new InvalidOperationException($"Field not found: {fieldName}");
+
+        return (IDictionary)(field.GetValue(reader) ??
+                             throw new InvalidOperationException($"Field value was null: {fieldName}"));
     }
 }
