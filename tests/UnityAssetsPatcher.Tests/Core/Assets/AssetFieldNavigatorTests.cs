@@ -97,6 +97,23 @@ public sealed class AssetFieldNavigatorTests
         Assert.Equal([first, second], result);
     }
 
+    [Theory]
+    [InlineData("int")]
+    [InlineData("short")]
+    [InlineData("long")]
+    [InlineData("byte")]
+    [InlineData("UInt32")]
+    [InlineData("SInt64")]
+    public void GetArrayElementFields_WhenArrayOnlyContainsSizeMetadata_ReturnsEmpty(string sizeTypeName)
+    {
+        AssetsFieldInfo size = CreateField("size", sizeTypeName, value: "0");
+        AssetsFieldInfo arrayField = CreateField("Array", "Array", [size]);
+
+        var result = AssetFieldNavigator.GetArrayElementFields(arrayField);
+
+        Assert.Empty(result);
+    }
+
     private static AssetsFieldInfo CreateField(
         string name,
         string typeName,

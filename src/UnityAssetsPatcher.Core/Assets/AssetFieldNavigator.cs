@@ -35,12 +35,20 @@ public static class AssetFieldNavigator
             .Where(child => string.Equals(child.Name, "data", StringComparison.Ordinal))
             .ToArray();
 
-        return dataChildren.Length > 0 ? dataChildren : arrayField.Children;
+        return dataChildren.Length > 0
+            ? dataChildren
+            : arrayField.Children.Where(child => !IsArraySizeMetadata(child)).ToArray();
     }
 
     private static bool IsArrayField(AssetsFieldInfo field)
     {
         return string.Equals(field.Name, "Array", StringComparison.Ordinal) ||
-               string.Equals(field.TypeName, "Array", StringComparison.Ordinal);
+               AssetFieldTypeNames.IsArray(field.TypeName);
+    }
+
+    private static bool IsArraySizeMetadata(AssetsFieldInfo field)
+    {
+        return string.Equals(field.Name, "size", StringComparison.Ordinal) &&
+               AssetFieldTypeNames.IsInteger(field.TypeName);
     }
 }

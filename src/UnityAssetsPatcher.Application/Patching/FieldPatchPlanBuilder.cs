@@ -643,7 +643,7 @@ internal static class PatchFieldValueFormatter
             return FormatObjectFieldValue(element);
         }
 
-        return string.Equals(element.TypeName, "string", StringComparison.OrdinalIgnoreCase)
+        return AssetFieldTypeNames.IsString(element.TypeName)
             ? FormatJsonStringLiteral(element.Value)
             : element.Value;
     }
@@ -701,12 +701,12 @@ internal static class PatchFieldValueFormatter
         string value = field.Value ?? throw new InvalidOperationException(
             $"Array field '{field.Name}' contains a non-scalar element.");
 
-        if (string.Equals(field.TypeName, "string", StringComparison.OrdinalIgnoreCase))
+        if (AssetFieldTypeNames.IsString(field.TypeName))
         {
             return JsonElementFactory.String(value);
         }
 
-        if (IsBooleanType(field.TypeName))
+        if (AssetFieldTypeNames.IsBoolean(field.TypeName))
         {
             if (bool.TryParse(value, out bool boolean))
             {
@@ -719,51 +719,24 @@ internal static class PatchFieldValueFormatter
             }
         }
 
-        if (IsUnsignedIntegerType(field.TypeName) &&
+        if (AssetFieldTypeNames.IsUnsignedInteger(field.TypeName) &&
             ulong.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong unsignedInteger))
         {
             return JsonElementFactory.Number(unsignedInteger);
         }
 
-        if (IsSignedIntegerType(field.TypeName) &&
+        if (AssetFieldTypeNames.IsSignedInteger(field.TypeName) &&
             long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long signedInteger))
         {
             return JsonElementFactory.Number(signedInteger);
         }
 
-        if (IsFloatingPointType(field.TypeName) &&
+        if (AssetFieldTypeNames.IsFloatingPoint(field.TypeName) &&
             double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double floatingPoint))
         {
             return JsonElementFactory.Number(floatingPoint);
         }
 
         return JsonElementFactory.String(value);
-    }
-
-    private static bool IsBooleanType(string typeName)
-    {
-        return string.Equals(typeName, "bool", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(typeName, "boolean", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsSignedIntegerType(string typeName)
-    {
-        return typeName.Equals("int", StringComparison.OrdinalIgnoreCase) ||
-               typeName.Equals("short", StringComparison.OrdinalIgnoreCase) ||
-               typeName.Equals("long", StringComparison.OrdinalIgnoreCase) ||
-               typeName.StartsWith("int", StringComparison.OrdinalIgnoreCase) ||
-               typeName.StartsWith("sint", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsUnsignedIntegerType(string typeName)
-    {
-        return typeName.Equals("byte", StringComparison.OrdinalIgnoreCase) ||
-               typeName.StartsWith("uint", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsFloatingPointType(string typeName)
-    {
-        return string.Equals(typeName, "float", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(typeName, "double", StringComparison.OrdinalIgnoreCase);
     }
 }
