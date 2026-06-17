@@ -12,9 +12,4 @@ public readonly record struct TerminalPageResult(TerminalPageAction Action, bool
     {
         return new TerminalPageResult(TerminalPageAction.ReturnToMenu, waitForKey);
     }
-
-    public static TerminalPageResult Exit()
-    {
-        return new TerminalPageResult(TerminalPageAction.Exit, false);
-    }
 }
