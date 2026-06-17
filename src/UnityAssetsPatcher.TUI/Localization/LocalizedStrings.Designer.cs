@@ -132,7 +132,7 @@ namespace UnityAssetsPatcher.TUI.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to InstallPreview_Targets.
+        ///   Looks up a localized string similar to Targets.
         /// </summary>
         internal static string InstallPreview_Targets {
             get {
@@ -141,7 +141,7 @@ namespace UnityAssetsPatcher.TUI.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to InstallResult_Backup.
+        ///   Looks up a localized string similar to Backup.
         /// </summary>
         internal static string InstallResult_Backup {
             get {
@@ -236,6 +236,24 @@ namespace UnityAssetsPatcher.TUI.Localization {
         internal static string MainMenu_Title {
             get {
                 return ResourceManager.GetString("MainMenu_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restore an installed mod from backup..
+        /// </summary>
+        internal static string MainMenu_UninstallMod_Description {
+            get {
+                return ResourceManager.GetString("MainMenu_UninstallMod_Description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Uninstall Mod.
+        /// </summary>
+        internal static string MainMenu_UninstallMod_Title {
+            get {
+                return ResourceManager.GetString("MainMenu_UninstallMod_Title", resourceCulture);
             }
         }
         
@@ -366,15 +384,6 @@ namespace UnityAssetsPatcher.TUI.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Author.
-        /// </summary>
-        internal static string Summary_Author {
-            get {
-                return ResourceManager.GetString("Summary_Author", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to asset(s).
         /// </summary>
         internal static string Summary_AssetUnit {
@@ -384,7 +393,16 @@ namespace UnityAssetsPatcher.TUI.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Summary_Elapsed.
+        ///   Looks up a localized string similar to Author.
+        /// </summary>
+        internal static string Summary_Author {
+            get {
+                return ResourceManager.GetString("Summary_Author", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Elapsed.
         /// </summary>
         internal static string Summary_Elapsed {
             get {
@@ -420,11 +438,191 @@ namespace UnityAssetsPatcher.TUI.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Summary_Version.
+        ///   Looks up a localized string similar to Version.
         /// </summary>
         internal static string Summary_Version {
             get {
                 return ResourceManager.GetString("Summary_Version", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot uninstall because required files are missing..
+        /// </summary>
+        internal static string UninstallPage_CannotUninstallMissingFiles {
+            get {
+                return ResourceManager.GetString("UninstallPage_CannotUninstallMissingFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Uninstall this mod?.
+        /// </summary>
+        internal static string UninstallPage_ConfirmPrompt {
+            get {
+                return ResourceManager.GetString("UninstallPage_ConfirmPrompt", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No installed mods found..
+        /// </summary>
+        internal static string UninstallPage_NoInstalledModsFound {
+            get {
+                return ResourceManager.GetString("UninstallPage_NoInstalledModsFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Uninstall canceled..
+        /// </summary>
+        internal static string UninstallPage_UninstallCanceled {
+            get {
+                return ResourceManager.GetString("UninstallPage_UninstallCanceled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to already missing.
+        /// </summary>
+        internal static string UninstallPreview_AlreadyMissing {
+            get {
+                return ResourceManager.GetString("UninstallPreview_AlreadyMissing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Files to restore.
+        /// </summary>
+        internal static string UninstallPreview_FilesToRestore {
+            get {
+                return ResourceManager.GetString("UninstallPreview_FilesToRestore", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to missing required file.
+        /// </summary>
+        internal static string UninstallPreview_MissingRequiredFile {
+            get {
+                return ResourceManager.GetString("UninstallPreview_MissingRequiredFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Payload files to delete.
+        /// </summary>
+        internal static string UninstallPreview_PayloadFilesToDelete {
+            get {
+                return ResourceManager.GetString("UninstallPreview_PayloadFilesToDelete", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ready.
+        /// </summary>
+        internal static string UninstallPreview_Ready {
+            get {
+                return ResourceManager.GetString("UninstallPreview_Ready", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to UNINSTALL PREVIEW.
+        /// </summary>
+        internal static string UninstallPreview_Status {
+            get {
+                return ResourceManager.GetString("UninstallPreview_Status", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to will delete.
+        /// </summary>
+        internal static string UninstallPreview_WillDelete {
+            get {
+                return ResourceManager.GetString("UninstallPreview_WillDelete", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to deleted.
+        /// </summary>
+        internal static string UninstallResult_Deleted {
+            get {
+                return ResourceManager.GetString("UninstallResult_Deleted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Deleted payload files.
+        /// </summary>
+        internal static string UninstallResult_DeletedPayloadFiles {
+            get {
+                return ResourceManager.GetString("UninstallResult_DeletedPayloadFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restored files.
+        /// </summary>
+        internal static string UninstallResult_RestoredFiles {
+            get {
+                return ResourceManager.GetString("UninstallResult_RestoredFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to UNINSTALLED.
+        /// </summary>
+        internal static string UninstallResult_Status {
+            get {
+                return ResourceManager.GetString("UninstallResult_Status", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Deleted files.
+        /// </summary>
+        internal static string UninstallSummary_DeletedFiles {
+            get {
+                return ResourceManager.GetString("UninstallSummary_DeletedFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Game directory.
+        /// </summary>
+        internal static string UninstallSummary_GameDirectory {
+            get {
+                return ResourceManager.GetString("UninstallSummary_GameDirectory", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Installed.
+        /// </summary>
+        internal static string UninstallSummary_Installed {
+            get {
+                return ResourceManager.GetString("UninstallSummary_Installed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Payload files.
+        /// </summary>
+        internal static string UninstallSummary_PayloadFiles {
+            get {
+                return ResourceManager.GetString("UninstallSummary_PayloadFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restored files.
+        /// </summary>
+        internal static string UninstallSummary_RestoredFiles {
+            get {
+                return ResourceManager.GetString("UninstallSummary_RestoredFiles", resourceCulture);
             }
         }
     }

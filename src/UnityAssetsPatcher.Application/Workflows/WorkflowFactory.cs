@@ -57,6 +57,11 @@ public sealed class WorkflowFactory
             _openPackageArchive);
     }
 
+    public UninstallModWorkflow CreateUninstallModWorkflow(string backupDirectory)
+    {
+        return new UninstallModWorkflow(new ModInstallationStore(backupDirectory));
+    }
+
     public InspectAssetsWorkflow CreateInspectAssetsWorkflow(IAssetsAccessScope assets)
     {
         return new InspectAssetsWorkflow(assets.Reader);

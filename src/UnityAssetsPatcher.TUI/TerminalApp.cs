@@ -33,6 +33,7 @@ public sealed class TerminalApp
         IReadOnlyList<ITerminalPage> pages =
         [
             new InstallTerminalPage(_context),
+            new UninstallTerminalPage(_context),
             new SettingsTerminalPage(_context),
         ];
 

@@ -299,6 +299,54 @@ public sealed class TerminalAppTests : IDisposable
     }
 
     [Fact]
+    public void Run_WhenUninstallPageIsConfirmed_RestoresInstalledModFromRecord()
+    {
+        string zipPath = CreateCameraPatchZip();
+        string gameDirectory = CreateGameDirectory("sharedassets0.assets");
+        string targetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets0.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InstallMod);
+        console.Input.PushTextWithEnter(zipPath);
+        console.Input.PushTextWithEnter(gameDirectory);
+        console.Input.PushTextWithEnter("y");
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.UninstallMod);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter("y");
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            string text = console.Output;
+            Assert.True(exitCode == 0, console.Output);
+            Assert.Contains("Uninstall Mod", text);
+            Assert.Contains("Test Mod", text);
+            Assert.Contains("UNINSTALL PREVIEW", text);
+            Assert.Contains("UNINSTALLED", text);
+            Assert.Equal("original", File.ReadAllText(targetPath));
+            string recordPath = Directory
+                .EnumerateFiles(backupDirectory, "record.json", SearchOption.AllDirectories)
+                .Single();
+            Assert.Contains("\"status\": \"uninstalled\"", File.ReadAllText(recordPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            Directory.Delete(gameDirectory, true);
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
     public void Run_WhenSettingsToggleVerboseLogging_InstallPreviewPrintsFieldDiff()
     {
         string zipPath = CreateCameraPatchZip();
@@ -343,6 +391,7 @@ public sealed class TerminalAppTests : IDisposable
     private enum MainMenuOption
     {
         InstallMod,
+        UninstallMod,
         Settings,
         Exit,
     }

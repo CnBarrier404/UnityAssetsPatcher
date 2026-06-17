@@ -78,12 +78,18 @@ public sealed class InstallModWorkflow
                 targets,
                 requireAvailableDestination: true);
             PatchAssetPlan patchPlan = _patchAssetsWorkflow.Plan(source, targets, timings);
+            var recordStore = new ModInstallationStore(request.BackupDirectory);
+            string installDirectory = recordStore.CreateInstallDirectory(source.Manifest.Name, source.Manifest.Version);
+            string assetsBackupDirectory = Path.Combine(installDirectory, "assets");
             ReleaseReadResources();
             PatchAssetApplyResult patchApplyResult = _patchAssetsWorkflow.Apply(
                 patchPlan,
-                request.BackupDirectory,
+                assetsBackupDirectory,
                 timings);
             PayloadCopyResult copiedFiles = new PayloadCopier().Execute(payloadPlan, timings);
+            recordStore.Save(
+                CreateInstallRecord(source, patchApplyResult, copiedFiles),
+                installDirectory);
 
             return new InstallModResult(
                 source.Manifest.Name,
@@ -102,6 +108,38 @@ public sealed class InstallModWorkflow
     private void ReleaseReadResources()
     {
         _assets.ReleaseReadResources();
+    }
+
+    private static InstallRecord CreateInstallRecord(
+        PackageSource source,
+        PatchAssetApplyResult patchApplyResult,
+        PayloadCopyResult copiedFiles)
+    {
+        return new InstallRecord(
+            Guid.NewGuid().ToString("N"),
+            InstallRecordStatus.Installed,
+            DateTimeOffset.Now,
+            null,
+            source.Manifest.Name,
+            source.Manifest.Version,
+            source.Manifest.Author,
+            source.PackagePath,
+            source.GameDirectory,
+            patchApplyResult.Files
+                .Select(file => new InstallRecordPatchedFile(
+                    file.Target,
+                    file.AssetsFilePath,
+                    file.BackupPath,
+                    null,
+                    file.AssetCount,
+                    file.OperationCount))
+                .ToArray(),
+            copiedFiles.Files
+                .Select(file => new InstallRecordCopiedFile(
+                    file.Source,
+                    file.DestinationPath,
+                    File.Exists(file.DestinationPath)))
+                .ToArray());
     }
 
     private static InstallPreviewFileResult[] ToInstallPreviewFiles(PatchAssetPreview preview)

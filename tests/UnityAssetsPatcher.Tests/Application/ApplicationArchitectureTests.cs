@@ -136,6 +136,7 @@ public sealed class ApplicationArchitectureTests
             "GameDirectoryResolver.cs",
             "ManifestTargetSelector.cs",
             "ManifestPatchOperationValidator.cs",
+            "ModInstallationStore.cs",
             "PackageArchive.cs",
             "PackageSource.cs",
             "PackageSourceLoader.cs",
@@ -200,7 +201,9 @@ public sealed class ApplicationArchitectureTests
 
         string[] offenders = Directory
             .EnumerateFiles(workflowsDirectory, "*Install*Workflow.cs", SearchOption.TopDirectoryOnly)
-            .Where(path => !string.Equals(Path.GetFileName(path), "InstallModWorkflow.cs", StringComparison.Ordinal))
+            .Where(path =>
+                !string.Equals(Path.GetFileName(path), "InstallModWorkflow.cs", StringComparison.Ordinal) &&
+                !string.Equals(Path.GetFileName(path), "UninstallModWorkflow.cs", StringComparison.Ordinal))
             .Select(path => Path.GetRelativePath(root, path))
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();

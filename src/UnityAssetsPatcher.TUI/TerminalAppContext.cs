@@ -38,4 +38,11 @@ internal sealed class TerminalAppContext
 
         action.Invoke(session.InstallModWorkflow);
     }
+
+    public void UseUninstallWorkflow(Func<UninstallModWorkflow, int> action)
+    {
+        UninstallModWorkflow workflow = new WorkflowFactory().CreateUninstallModWorkflow(BackupDirectory);
+
+        action.Invoke(workflow);
+    }
 }
