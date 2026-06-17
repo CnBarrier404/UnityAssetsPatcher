@@ -141,7 +141,7 @@ public sealed class TerminalFrameworkTests : IDisposable
 
         ui.Summary.WriteRows(
             ("Name", "Example"),
-            ("Items", ui.Summary.FormatCount(2, "item(s)")));
+            ("Items", TerminalSummary.FormatCount(2, "item(s)")));
 
         string output = console.Output;
         Assert.Contains("Name", output);

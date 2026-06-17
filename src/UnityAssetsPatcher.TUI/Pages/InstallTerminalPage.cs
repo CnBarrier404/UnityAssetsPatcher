@@ -104,7 +104,7 @@ internal sealed class InstallTerminalPage : TerminalPage
             (LocalizedStrings.Summary_Mod, result.ModName),
             (LocalizedStrings.Summary_Version, result.ModVersion),
             (LocalizedStrings.Summary_Author, result.ModAuthor),
-            (LocalizedStrings.Summary_Elapsed, Context.Ui.Summary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
+            (LocalizedStrings.Summary_Elapsed, TerminalSummary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
 
         WriteInstallPreviewTargets(result.Files);
 
@@ -132,7 +132,7 @@ internal sealed class InstallTerminalPage : TerminalPage
                 result.Files.Sum(file => file.AssetCount).ToString(CultureInfo.InvariantCulture)),
             (LocalizedStrings.Summary_Operations,
                 result.Files.Sum(file => file.OperationCount).ToString(CultureInfo.InvariantCulture)),
-            (LocalizedStrings.Summary_Elapsed, Context.Ui.Summary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
+            (LocalizedStrings.Summary_Elapsed, TerminalSummary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
 
         WriteInstallResultTargets(result.Files);
         WriteInstallResultPayloads(result.CopiedFiles);
@@ -239,7 +239,7 @@ internal sealed class InstallTerminalPage : TerminalPage
 
     private string FormatCount(int count, string unit)
     {
-        return Context.Ui.Summary.FormatCount(count, unit);
+        return TerminalSummary.FormatCount(count, unit);
     }
 
     private void WriteInstallTiming(InstallTimingResult timing)
@@ -247,10 +247,10 @@ internal sealed class InstallTerminalPage : TerminalPage
         Context.Ui.Text.WriteBlankLine();
         Context.Console.MarkupLine("[blue]Timing[/]");
         Context.Ui.Summary.WriteRows(
-            ("Read package", Context.Ui.Summary.FormatElapsedSecondsWithUnit(timing.ReadPackage)),
-            ("Prepare sources", Context.Ui.Summary.FormatElapsedSecondsWithUnit(timing.PrepareSources)),
-            ("Find game files", Context.Ui.Summary.FormatElapsedSecondsWithUnit(timing.FindGameFiles)),
-            ("Analyze changes", Context.Ui.Summary.FormatElapsedSecondsWithUnit(timing.AnalyzeChanges)),
+            ("Read package", TerminalSummary.FormatElapsedSecondsWithUnit(timing.ReadPackage)),
+            ("Prepare sources", TerminalSummary.FormatElapsedSecondsWithUnit(timing.PrepareSources)),
+            ("Find game files", TerminalSummary.FormatElapsedSecondsWithUnit(timing.FindGameFiles)),
+            ("Analyze changes", TerminalSummary.FormatElapsedSecondsWithUnit(timing.AnalyzeChanges)),
             ("Apply patches", FormatTimingStage(timing.ApplyPatches)),
             ("Copy files", FormatTimingStage(timing.CopyFiles)));
     }
@@ -259,6 +259,6 @@ internal sealed class InstallTerminalPage : TerminalPage
     {
         return elapsed is null
             ? "skipped"
-            : Context.Ui.Summary.FormatElapsedSecondsWithUnit(elapsed.Value);
+            : TerminalSummary.FormatElapsedSecondsWithUnit(elapsed.Value);
     }
 }
