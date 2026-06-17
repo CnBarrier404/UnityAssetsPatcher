@@ -69,6 +69,7 @@ public sealed class InstallModWorkflowTests
                 new InstallModRequest(zipPath, gameDirectory, backupDirectory));
 
             Assert.Equal("Test Mod", result.ModName);
+            Assert.Equal("UnityAssetsPatcher.Tests", result.ModAuthor);
             InstallModFileResult file = Assert.Single(result.Files);
             Assert.Equal("sharedassets0.assets", file.Target);
             Assert.Equal(targetPath, file.AssetsFilePath);
@@ -460,6 +461,7 @@ public sealed class InstallModWorkflowTests
                 new InstallPreviewRequest(zipPath, gameDirectory));
 
             Assert.Equal("Test Mod", result.ModName);
+            Assert.Equal("UnityAssetsPatcher.Tests", result.ModAuthor);
             InstallPreviewFileResult file = Assert.Single(result.Files);
             Assert.Equal("sharedassets0.assets", file.Target);
             Assert.Equal(targetPath, file.AssetsFilePath);

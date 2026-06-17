@@ -6,6 +6,7 @@ namespace UnityAssetsPatcher.Application.Contracts;
 public sealed record InstallModResult(
     string ModName,
     string ModVersion,
+    string ModAuthor,
     IReadOnlyList<InstallModFileResult> Files,
     IReadOnlyList<InstallCopiedFileResult> CopiedFiles,
     InstallTimingResult Timing);
@@ -22,6 +23,7 @@ public sealed record InstallCopiedFileResult(string Source, string DestinationPa
 public sealed record InstallPreviewResult(
     string ModName,
     string ModVersion,
+    string ModAuthor,
     IReadOnlyList<InstallPreviewFileResult> Files,
     IReadOnlyList<InstallCopyFilePreviewResult> CopiedFiles,
     InstallTimingResult Timing);

@@ -3,21 +3,22 @@ using Spectre.Console;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Json;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
 internal sealed class InstallTerminalPage : TerminalPage
 {
-    public override string Title => "Install Mod";
-    public override string Description => "Analyze a mod package and install after confirmation.";
+    public override string Title => LocalizedStrings.MainMenu_InstallMod_Title;
+    public override string Description => LocalizedStrings.MainMenu_InstallMod_Description;
 
     public InstallTerminalPage(TerminalAppContext context) : base(context) { }
 
     public override TerminalPageResult Run()
     {
-        NewPage(Title, "Analyze the package first, then confirm before writing files.");
+        NewPage(Title, Description);
 
-        string? zipFilePath = Context.Prompts.ReadExistingFilePath("Mod zip path");
+        string? zipFilePath = Context.Prompts.ReadExistingFilePath(LocalizedStrings.InstallPage_ModZipPathPrompt);
 
         if (zipFilePath is null)
         {
@@ -25,7 +26,7 @@ internal sealed class InstallTerminalPage : TerminalPage
         }
 
         Context.Ui.Layout.PrepareOutputArea();
-        Context.Ui.Text.WriteInfo("Analyzing mod...");
+        Context.Ui.Text.WriteInfo(LocalizedStrings.InstallPage_AnalyzingMod);
         Context.Ui.Text.WriteBlankLine();
 
         string? gameDirectory = null;
@@ -33,7 +34,7 @@ internal sealed class InstallTerminalPage : TerminalPage
 
         if (preview is null)
         {
-            gameDirectory = Context.Prompts.ReadExistingDirectoryPath("Game directory");
+            gameDirectory = Context.Prompts.ReadExistingDirectoryPath(LocalizedStrings.InstallPage_GameDirectoryPrompt);
 
             if (gameDirectory is null)
             {
@@ -53,9 +54,9 @@ internal sealed class InstallTerminalPage : TerminalPage
         Context.Ui.Text.WriteBlankLine();
         Context.Ui.Layout.ShowShortcutHint();
 
-        if (!Context.Prompts.Confirm("Apply these changes?"))
+        if (!Context.Prompts.Confirm(LocalizedStrings.InstallPage_ApplyTheseChangesPrompt))
         {
-            Context.Ui.Text.WriteInfo("Install canceled.");
+            Context.Ui.Text.WriteInfo(LocalizedStrings.InstallPage_InstallCanceled);
 
             return TerminalPageResult.ReturnToMenu();
         }
@@ -97,30 +98,22 @@ internal sealed class InstallTerminalPage : TerminalPage
 
     private void WriteInstallPreview(InstallPreviewResult result)
     {
-        Context.Ui.Status.Write("DRY RUN", "yellow");
-
-        int assetCount = result.Files.Sum(file => file.Preview.Assets.Count);
-        int operationCount = CountPreviewOperations(result);
-        int changingOperationCount = CountChangingPreviewOperations(result);
+        Context.Ui.Status.Write(LocalizedStrings.InstallPreview_DryRunStatus, "yellow");
 
         Context.Ui.Summary.WriteRows(
-            ("Mod", result.ModName),
-            ("Version", result.ModVersion),
-            ("Targets", result.Files.Count.ToString(CultureInfo.InvariantCulture)),
-            ("Payload files", result.CopiedFiles.Count.ToString(CultureInfo.InvariantCulture)),
-            ("Assets", assetCount.ToString(CultureInfo.InvariantCulture)),
-            ("Operations", FormatOperationCounts(changingOperationCount, operationCount - changingOperationCount)),
-            ("Elapsed", $"{Context.Ui.Summary.FormatElapsedSeconds(result.Timing.Elapsed)} s"));
+            (LocalizedStrings.Summary_Mod, result.ModName),
+            (LocalizedStrings.Summary_Version, result.ModVersion),
+            (LocalizedStrings.Summary_Author, result.ModAuthor),
+            (LocalizedStrings.Summary_Elapsed, Context.Ui.Summary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
 
         WriteInstallPreviewTargets(result.Files);
-        WriteInstallPreviewPayloads(result.CopiedFiles);
 
         if (Context.Settings.VerboseLogging)
         {
             WriteInstallPreviewDetails(result.Files);
         }
 
-        if (Context.Settings.InstallTimingDetails)
+        if (Context.Settings.VerboseLogging)
         {
             WriteInstallTiming(result.Timing);
         }
@@ -128,20 +121,23 @@ internal sealed class InstallTerminalPage : TerminalPage
 
     private void WriteInstallResult(InstallModResult result)
     {
-        Context.Ui.Status.Write("INSTALLED", "green");
+        Context.Ui.Status.Write(LocalizedStrings.InstallResult_InstalledStatus, "green");
         Context.Ui.Summary.WriteRows(
-            ("Mod", result.ModName),
-            ("Version", result.ModVersion),
-            ("Patched files", result.Files.Count.ToString(CultureInfo.InvariantCulture)),
-            ("Copied files", result.CopiedFiles.Count.ToString(CultureInfo.InvariantCulture)),
-            ("Assets", result.Files.Sum(file => file.AssetCount).ToString(CultureInfo.InvariantCulture)),
-            ("Operations", result.Files.Sum(file => file.OperationCount).ToString(CultureInfo.InvariantCulture)),
-            ("Elapsed", $"{Context.Ui.Summary.FormatElapsedSeconds(result.Timing.Elapsed)} s"));
+            (LocalizedStrings.Summary_Mod, result.ModName),
+            (LocalizedStrings.Summary_Version, result.ModVersion),
+            (LocalizedStrings.InstallResult_PatchedFiles, result.Files.Count.ToString(CultureInfo.InvariantCulture)),
+            (LocalizedStrings.InstallResult_CopiedFiles,
+                result.CopiedFiles.Count.ToString(CultureInfo.InvariantCulture)),
+            (LocalizedStrings.Summary_Assets,
+                result.Files.Sum(file => file.AssetCount).ToString(CultureInfo.InvariantCulture)),
+            (LocalizedStrings.Summary_Operations,
+                result.Files.Sum(file => file.OperationCount).ToString(CultureInfo.InvariantCulture)),
+            (LocalizedStrings.Summary_Elapsed, Context.Ui.Summary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
 
         WriteInstallResultTargets(result.Files);
         WriteInstallResultPayloads(result.CopiedFiles);
 
-        if (Context.Settings.InstallTimingDetails)
+        if (Context.Settings.VerboseLogging)
         {
             WriteInstallTiming(result.Timing);
         }
@@ -155,36 +151,12 @@ internal sealed class InstallTerminalPage : TerminalPage
         }
 
         Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine("[blue]Targets[/]");
+        Context.Console.MarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallPreview_Targets)}[/]");
 
         foreach (InstallPreviewFileResult file in files)
         {
-            int assetCount = file.Preview.Assets.Count;
-            int operationCount = file.Preview.Assets.Sum(asset => asset.Operations.Count);
-            int changingOperationCount = file.Preview.Assets.Sum(asset =>
-                asset.Operations.Count(operation => operation.WillChange));
-
             Context.Console.MarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: {FormatCount(assetCount, "asset")}, {FormatOperationCounts(changingOperationCount, operationCount - changingOperationCount)}");
-            Context.Console.MarkupLine($"  [grey]{TerminalText.Escape(file.AssetsFilePath)}[/]");
-        }
-    }
-
-    private void WriteInstallPreviewPayloads(IReadOnlyList<InstallCopyFilePreviewResult> copiedFiles)
-    {
-        if (copiedFiles.Count == 0)
-        {
-            return;
-        }
-
-        Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine("[blue]Payload files[/]");
-
-        foreach (InstallCopyFilePreviewResult copiedFile in copiedFiles)
-        {
-            string status = copiedFile.WillCopy ? "will copy" : "skipped, destination exists";
-            Context.Console.MarkupLine(
-                $"- {TerminalText.Escape(Path.GetFileName(copiedFile.Source))}: {TerminalText.Escape(status)}");
+                $"- {TerminalText.Escape(file.Target)}: [grey]{TerminalText.Escape(file.AssetsFilePath)}[/]");
         }
     }
 
@@ -201,7 +173,8 @@ internal sealed class InstallTerminalPage : TerminalPage
         foreach (InstallPreviewFileResult file in files)
         {
             Context.Ui.Text.WriteBlankLine();
-            Context.Console.MarkupLine($"[blue]Target[/] {TerminalText.Escape(file.Target)}");
+            Context.Console.MarkupLine(
+                $"[blue]Target[/] {TerminalText.Escape(file.Target)}");
             WritePatchPreviewAssets(file.Preview);
         }
     }
@@ -214,13 +187,14 @@ internal sealed class InstallTerminalPage : TerminalPage
         }
 
         Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine("[blue]Patched files[/]");
+        Context.Console.MarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallResult_PatchedFiles)}[/]");
 
         foreach (InstallModFileResult file in files)
         {
             Context.Console.MarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: {FormatCount(file.AssetCount, "asset")}, {FormatCount(file.OperationCount, "operation")}");
-            Context.Console.MarkupLine($"  [grey]Backup[/] {TerminalText.Escape(file.BackupPath)}");
+                $"- {TerminalText.Escape(file.Target)}: {FormatCount(file.AssetCount, LocalizedStrings.Summary_AssetUnit)}, {FormatCount(file.OperationCount, LocalizedStrings.Summary_OperationUnit)}");
+            Context.Console.MarkupLine(
+                $"  [grey]{TerminalText.Escape(LocalizedStrings.InstallResult_Backup)}[/] {TerminalText.Escape(file.BackupPath)}");
         }
     }
 
@@ -232,7 +206,7 @@ internal sealed class InstallTerminalPage : TerminalPage
         }
 
         Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine("[blue]Copied files[/]");
+        Context.Console.MarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallResult_CopiedFiles)}[/]");
 
         foreach (InstallCopiedFileResult copiedFile in copiedFiles)
         {
@@ -258,34 +232,14 @@ internal sealed class InstallTerminalPage : TerminalPage
                 }
 
                 Context.Console.MarkupLine(
-                    $"  {TerminalText.Escape(operation.Path)}: {TerminalText.Escape(operation.OldValue)} [grey]->[/] {TerminalText.Escape(JsonUtils.FormatElementValue(operation.To))}");
+                    $"  {TerminalText.Escape(operation.Path)}: {TerminalText.Escape(operation.OldValue)} -> {TerminalText.Escape(JsonUtils.FormatElementValue(operation.To))}");
             }
         }
     }
 
-    private static int CountPreviewOperations(InstallPreviewResult result)
+    private string FormatCount(int count, string unit)
     {
-        return result.Files.Sum(file => file.Preview.Assets.Sum(asset => asset.Operations.Count));
-    }
-
-    private static int CountChangingPreviewOperations(InstallPreviewResult result)
-    {
-        return result.Files.Sum(file => file.Preview.Assets.Sum(asset =>
-            asset.Operations.Count(operation => operation.WillChange)));
-    }
-
-    private string FormatOperationCounts(int changingCount, int skippedCount)
-    {
-        string changing = FormatCount(changingCount, "operation");
-
-        return skippedCount == 0
-            ? changing
-            : $"{changing} changing, {FormatCount(skippedCount, "operation")} skipped";
-    }
-
-    private string FormatCount(int count, string singular)
-    {
-        return Context.Ui.Summary.FormatCount(count, singular);
+        return Context.Ui.Summary.FormatCount(count, unit);
     }
 
     private void WriteInstallTiming(InstallTimingResult timing)
@@ -293,16 +247,18 @@ internal sealed class InstallTerminalPage : TerminalPage
         Context.Ui.Text.WriteBlankLine();
         Context.Console.MarkupLine("[blue]Timing[/]");
         Context.Ui.Summary.WriteRows(
-            ("Read package", $"{Context.Ui.Summary.FormatElapsedSeconds(timing.ReadPackage)} s"),
-            ("Prepare sources", $"{Context.Ui.Summary.FormatElapsedSeconds(timing.PrepareSources)} s"),
-            ("Find game files", $"{Context.Ui.Summary.FormatElapsedSeconds(timing.FindGameFiles)} s"),
-            ("Analyze changes", $"{Context.Ui.Summary.FormatElapsedSeconds(timing.AnalyzeChanges)} s"),
+            ("Read package", Context.Ui.Summary.FormatElapsedSecondsWithUnit(timing.ReadPackage)),
+            ("Prepare sources", Context.Ui.Summary.FormatElapsedSecondsWithUnit(timing.PrepareSources)),
+            ("Find game files", Context.Ui.Summary.FormatElapsedSecondsWithUnit(timing.FindGameFiles)),
+            ("Analyze changes", Context.Ui.Summary.FormatElapsedSecondsWithUnit(timing.AnalyzeChanges)),
             ("Apply patches", FormatTimingStage(timing.ApplyPatches)),
             ("Copy files", FormatTimingStage(timing.CopyFiles)));
     }
 
     private string FormatTimingStage(TimeSpan? elapsed)
     {
-        return elapsed is null ? "skipped" : $"{Context.Ui.Summary.FormatElapsedSeconds(elapsed.Value)} s";
+        return elapsed is null
+            ? "skipped"
+            : Context.Ui.Summary.FormatElapsedSecondsWithUnit(elapsed.Value);
     }
 }

@@ -49,6 +49,7 @@ public sealed class InstallModWorkflow
             return new InstallPreviewResult(
                 source.Manifest.Name,
                 source.Manifest.Version,
+                source.Manifest.Author,
                 ToInstallPreviewFiles(patchPreview),
                 ToInstallCopyPreviewFiles(payloadPreview),
                 ToInstallTiming(timings.Build()));
@@ -87,6 +88,7 @@ public sealed class InstallModWorkflow
             return new InstallModResult(
                 source.Manifest.Name,
                 source.Manifest.Version,
+                source.Manifest.Author,
                 ToInstallModFiles(patchApplyResult),
                 ToInstallCopiedFiles(copiedFiles),
                 ToInstallTiming(timings.Build()));
