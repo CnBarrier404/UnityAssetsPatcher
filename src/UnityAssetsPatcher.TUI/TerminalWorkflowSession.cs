@@ -8,13 +8,13 @@ internal sealed class TerminalWorkflowSession : IDisposable
 
     public TerminalWorkflowSession(
         InstallModWorkflow installModWorkflow,
-        InspectAssetsWorkflow inspectAssetsWorkflow,
-        FindAssetsWorkflow findAssetsWorkflow,
+        InspectAssetsWorkflow inspectSummary_AssetsWorkflow,
+        FindAssetsWorkflow findSummary_AssetsWorkflow,
         IDisposable disposable)
     {
         InstallModWorkflow = installModWorkflow;
-        InspectAssetsWorkflow = inspectAssetsWorkflow;
-        FindAssetsWorkflow = findAssetsWorkflow;
+        InspectAssetsWorkflow = inspectSummary_AssetsWorkflow;
+        FindAssetsWorkflow = findSummary_AssetsWorkflow;
         _disposable = disposable;
     }
 

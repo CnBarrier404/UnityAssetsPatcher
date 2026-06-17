@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Spectre.Console;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI;
 
@@ -23,7 +24,7 @@ public sealed class TerminalPrompts
 
     public string? ReadExistingFilePath(string label)
     {
-        return ReadExistingPath(label, File.Exists, value => $"File not found: {value}");
+        return ReadExistingPath(label, File.Exists, value => Format(LocalizedStrings.Prompt_FileNotFoundFormat, value));
     }
 
     public string ReadChoice(
@@ -53,7 +54,8 @@ public sealed class TerminalPrompts
 
     public string? ReadExistingDirectoryPath(string label)
     {
-        return ReadExistingPath(label, Directory.Exists, value => $"Directory not found: {value}");
+        return ReadExistingPath(label, Directory.Exists,
+            value => Format(LocalizedStrings.Prompt_DirectoryNotFoundFormat, value));
     }
 
     public bool Confirm(string prompt)
@@ -81,7 +83,7 @@ public sealed class TerminalPrompts
                 return true;
             }
 
-            _text.WriteError("Choose y or n.");
+            _text.WriteError(LocalizedStrings.Prompt_YesNoChoiceError);
         }
     }
 
@@ -111,7 +113,7 @@ public sealed class TerminalPrompts
                 return true;
             }
 
-            _text.WriteError($"{label} must be an integer.");
+            _text.WriteError(Format(LocalizedStrings.Prompt_LabelMustBeIntegerFormat, label));
         }
     }
 
@@ -136,7 +138,7 @@ public sealed class TerminalPrompts
                 return true;
             }
 
-            _text.WriteError($"{label} must be greater than 0.");
+            _text.WriteError(Format(LocalizedStrings.Prompt_LabelMustBeGreaterThanZeroFormat, label));
         }
     }
 
@@ -155,7 +157,7 @@ public sealed class TerminalPrompts
 
             if (string.IsNullOrWhiteSpace(path))
             {
-                _text.WriteError($"{label} is required.");
+                _text.WriteError(Format(LocalizedStrings.Prompt_LabelRequiredFormat, label));
 
                 continue;
             }
@@ -186,7 +188,7 @@ public sealed class TerminalPrompts
                 return value;
             }
 
-            _text.WriteError($"{label} is required.");
+            _text.WriteError(Format(LocalizedStrings.Prompt_LabelRequiredFormat, label));
         }
     }
 
@@ -251,5 +253,10 @@ public sealed class TerminalPrompts
         }
 
         return path;
+    }
+
+    private static string Format(string format, params object[] args)
+    {
+        return string.Format(CultureInfo.CurrentUICulture, format, args);
     }
 }

@@ -1,11 +1,12 @@
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
 internal sealed class SettingsTerminalPage : TerminalPage
 {
-    public override string Title => "Settings";
-    public override string Description => "Adjust output detail for this session.";
+    public override string Title => LocalizedStrings.MainMenu_Settings_Title;
+    public override string Description => LocalizedStrings.MainMenu_Settings_Description;
 
     public SettingsTerminalPage(TerminalAppContext context) : base(context) { }
 
@@ -35,10 +36,10 @@ internal sealed class SettingsTerminalPage : TerminalPage
     {
         NewPage(
             Title,
-            "Configure output detail for this session.",
-            "Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit",
+            LocalizedStrings.SettingsPage_ConfigureOutputDetailsDescription,
+            LocalizedStrings.SettingsPage_ShortcutHint,
             clear);
-        Context.Ui.Lists.WriteToggleList(GetSettings(), selectedIndex);
+        Context.Ui.List.WriteToggleList(GetSettings(), selectedIndex);
     }
 
     private IReadOnlyList<TerminalToggleDisplay> GetSettings()
@@ -46,13 +47,9 @@ internal sealed class SettingsTerminalPage : TerminalPage
         return
         [
             new TerminalToggleDisplay(
-                "Verbose Logging",
-                "Show detailed install preview logs, including per-asset field changes.",
+                LocalizedStrings.SettingsPage_VerboseLoggingName,
+                LocalizedStrings.SettingsPage_VerboseLoggingDescription,
                 Context.Settings.VerboseLogging),
-            new TerminalToggleDisplay(
-                "Install timing details",
-                "Show per-stage package, search, analysis, patch, and copy timings.",
-                Context.Settings.InstallTimingDetails),
         ];
     }
 
@@ -63,11 +60,8 @@ internal sealed class SettingsTerminalPage : TerminalPage
             case 0:
                 Context.Settings.VerboseLogging = !Context.Settings.VerboseLogging;
                 break;
-            case 1:
-                Context.Settings.InstallTimingDetails = !Context.Settings.InstallTimingDetails;
-                break;
         }
     }
 
-    private static int SettingsCount => 2;
+    private static int SettingsCount => 1;
 }

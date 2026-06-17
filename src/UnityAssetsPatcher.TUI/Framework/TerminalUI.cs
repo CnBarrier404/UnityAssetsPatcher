@@ -7,13 +7,12 @@ public sealed class TerminalUI
 {
     public TerminalLayout Layout { get; }
     public TerminalText Text { get; }
-    public TerminalLists Lists { get; }
-    public TerminalTables Tables { get; }
+    public TerminalList List { get; }
+    public TerminalTable Table { get; }
     public TerminalSummary Summary { get; }
     public TerminalStatus Status { get; }
 
-    public TerminalUI(IAnsiConsole console)
-        : this(console, AppInfo.Default) { }
+    public TerminalUI(IAnsiConsole console) : this(console, AppInfo.Default) { }
 
     public TerminalUI(IAnsiConsole console, AppInfo appInfo)
     {
@@ -22,8 +21,8 @@ public sealed class TerminalUI
 
         Text = new TerminalText(console);
         Layout = new TerminalLayout(console, Text, appInfo);
-        Lists = new TerminalLists(console);
-        Tables = new TerminalTables();
+        List = new TerminalList(console);
+        Table = new TerminalTable(console);
         Summary = new TerminalSummary(console);
         Status = new TerminalStatus(console);
     }

@@ -1,4 +1,4 @@
-﻿using Spectre.Console;
+using Spectre.Console;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI.Framework;

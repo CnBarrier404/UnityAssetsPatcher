@@ -1,4 +1,5 @@
 using Spectre.Console;
+using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI;
 
@@ -21,14 +22,15 @@ public sealed class TerminalSelectionPrompt
 
         if (optionCount <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(optionCount), "Option count must be greater than 0.");
+            throw new ArgumentOutOfRangeException(nameof(optionCount),
+                LocalizedStrings.SelectionPrompt_OptionCountOutOfRange);
         }
 
         if (initialSelectedIndex < 0 || initialSelectedIndex >= optionCount)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(initialSelectedIndex),
-                "Initial selected index must reference an available option.");
+                LocalizedStrings.SelectionPrompt_InitialSelectedIndexOutOfRange);
         }
 
         int selectedIndex = initialSelectedIndex;

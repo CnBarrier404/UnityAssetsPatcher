@@ -1,13 +1,14 @@
 using Spectre.Console;
 using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Framework;
 
 public sealed class TerminalLayout
 {
-    public const string ShortcutHint = "Shortcuts: ↑/↓ to choose | Esc to cancel | Ctrl + C to exit";
+    public static string ShortcutHint => LocalizedStrings.Layout_ShortcutHint;
+
     private const int ApplicationTitleHorizontalPadding = 2;
-    private const string ReturnToMainMenuPrompt = "Press any key to return to the main menu.";
     private const string SaveCursor = "\e[s";
     private const string RestoreCursor = "\e[u";
 
@@ -25,10 +26,10 @@ public sealed class TerminalLayout
     public void ShowPage(
         string title,
         string? description = null,
-        string shortcutHint = ShortcutHint,
+        string? shortcutHint = null,
         bool clear = true)
     {
-        WriteApplicationHeader(shortcutHint, clear);
+        WriteApplicationHeader(shortcutHint ?? ShortcutHint, clear);
         _console.MarkupLine($"[bold blue]{TerminalText.Escape(title)}[/]");
 
         if (!string.IsNullOrWhiteSpace(description))
@@ -41,7 +42,7 @@ public sealed class TerminalLayout
 
     public void ShowReturnHint()
     {
-        WriteBottomFooterHint(ReturnToMainMenuPrompt);
+        WriteBottomFooterHint(LocalizedStrings.Layout_ReturnToMainMenuPrompt);
     }
 
     public void ShowShortcutHint()
@@ -67,6 +68,7 @@ public sealed class TerminalLayout
         if (height <= 0)
         {
             WriteFooterHint(message);
+
             return;
         }
 

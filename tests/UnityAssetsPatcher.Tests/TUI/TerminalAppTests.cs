@@ -1,3 +1,4 @@
+using System.Globalization;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using Spectre.Console.Testing;
@@ -9,8 +10,20 @@ using Xunit;
 
 namespace UnityAssetsPatcher.Tests.TUI;
 
-public sealed class TerminalAppTests
+public sealed class TerminalAppTests : IDisposable
 {
+    private readonly CultureInfo _originalUiCulture = CultureInfo.CurrentUICulture;
+
+    public TerminalAppTests()
+    {
+        CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
+    }
+
+    public void Dispose()
+    {
+        CultureInfo.CurrentUICulture = _originalUiCulture;
+    }
+
     [Fact]
     public void Run_WhenMainMenuWaitsForInput_HidesCursorUntilApplicationExit()
     {
@@ -30,32 +43,8 @@ public sealed class TerminalAppTests
     [Fact]
     public void Run_UsesExplicitAssetsReaderFactoryForWorkflowSessions()
     {
-        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string zipPath = CreateCameraPatchZip();
         string gameDirectory = CreateGameDirectory("sharedassets0.assets");
-        TestManifest.WriteZip(
-            zipPath,
-            """
-            {
-              "patches": [
-                {
-                  "target": "sharedassets0.assets",
-                  "type": "Camera",
-                  "include": [
-                    {
-                      "field of view": 90.0
-                    }
-                  ],
-                  "set": [
-                    {
-                      "field": "field of view",
-                      "from": 90.0,
-                      "to": 75.0
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
         TestConsole console = CreateConsole();
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
@@ -134,9 +123,9 @@ public sealed class TerminalAppTests
         ui.Layout.ClearBottomFooterArea();
 
         Assert.Equal([(1, 24), (1, 23), (1, 22), (1, 22)], console.CursorPositions);
-        Assert.Contains("\u001b[s", inner.Output);
-        Assert.Contains("\u001b[u", inner.Output);
-        Assert.EndsWith("\u001b[u", inner.Output);
+        Assert.Contains("\e[s", inner.Output);
+        Assert.Contains("\e[u", inner.Output);
+        Assert.EndsWith("\e[u", inner.Output);
     }
 
     [Fact]
@@ -180,209 +169,11 @@ public sealed class TerminalAppTests
     }
 
     [Fact]
-    public void Run_WhenInspectListPageUsesDefaultLimit_PrintsAssetSummaryTable()
-    {
-        string assetsPath = CreateTempFile(".assets");
-        var assets = Enumerable.Range(1, 105)
-            .Select(id => new AssetsInfo(id, 20, $"Asset{id}", 128))
-            .ToArray();
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.InspectAssets);
-        SelectSubMenuOption(console, 0);
-        console.Input.PushTextWithEnter(assetsPath);
-        SelectSubMenuOption(console, 0);
-        ReturnToMainMenu(console);
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        TerminalApp app = CreateApp(new StubAssetsFileService(assets), console);
-
-        try
-        {
-            int exitCode = app.Run();
-
-            string text = console.Output;
-            Assert.True(exitCode == 0, console.Output);
-            Assert.Contains("Inspect assets", text);
-            Assert.Contains("Path ID", text);
-            Assert.Contains("Asset100", text);
-            Assert.DoesNotContain("Asset101", text);
-            Assert.Contains("Showing 100 of 105 assets.", text);
-        }
-        finally
-        {
-            File.Delete(assetsPath);
-        }
-    }
-
-    [Fact]
-    public void Run_WhenInspectListPrintsRows_ClearsShortcutHintBeforeOutput()
-    {
-        string assetsPath = CreateTempFile(".assets");
-        var assets = Enumerable.Range(1, 30)
-            .Select(id => new AssetsInfo(id, 21, "Material", (uint)(1600 + id)))
-            .ToArray();
-        TestConsole inner = CreateConsole().Height(10);
-        SelectMainMenuOption(inner, MainMenuOption.InspectAssets);
-        SelectSubMenuOption(inner, 0);
-        inner.Input.PushTextWithEnter(assetsPath);
-        SelectSubMenuOption(inner, 0);
-        ReturnToMainMenu(inner);
-        SelectMainMenuOption(inner, MainMenuOption.Exit);
-        var console = new RecordingCursorConsole(inner);
-        TerminalApp app = CreateApp(new StubAssetsFileService(assets), console);
-
-        try
-        {
-            int exitCode = app.Run();
-
-            Assert.True(exitCode == 0, inner.Output);
-            Assert.True(CountCursorPositions(console, (1, 10)) >= 5);
-            Assert.Contains("Material", inner.Output);
-            Assert.DoesNotContain(
-                $"{Environment.NewLine}{Environment.NewLine}{Environment.NewLine}{Environment.NewLine}", inner.Output);
-        }
-        finally
-        {
-            File.Delete(assetsPath);
-        }
-    }
-
-    [Fact]
-    public void Run_WhenInspectSubMenuReceivesEscape_PreservesInspectSelectionOnMainMenu()
-    {
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.InspectAssets);
-        console.Input.PushKey(ConsoleKey.Escape);
-        console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.Escape);
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        TerminalApp app = CreateApp(new StubAssetsFileService([]), console);
-
-        int exitCode = app.Run();
-
-        string text = console.Output;
-        Assert.True(exitCode == 0, console.Output);
-        Assert.Contains("Inspect assets", text);
-        Assert.DoesNotContain("Assets file path", text);
-        Assert.DoesNotContain("Mod zip path", text);
-    }
-
-    [Fact]
-    public void Run_WhenInspectFieldsPageUsesPathId_PrintsSelectedAssetFieldTree()
-    {
-        string assetsPath = CreateTempFile(".assets");
-        var reader = new StubAssetsFileService(
-            [],
-            new Dictionary<long, AssetsFieldInfo>
-            {
-                [4] = new(
-                    "AudioClip",
-                    "AudioClip",
-                    null,
-                    [new AssetsFieldInfo("m_Name", "string", "ambient", [])]),
-            });
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.InspectAssets);
-        SelectSubMenuOption(console, 1);
-        console.Input.PushTextWithEnter(assetsPath);
-        console.Input.PushTextWithEnter("4");
-        ReturnToMainMenu(console);
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        TerminalApp app = CreateApp(reader, console);
-
-        try
-        {
-            int exitCode = app.Run();
-
-            Assert.True(exitCode == 0, console.Output);
-            Assert.Equal(4, reader.ReceivedPathId);
-            Assert.Contains("AudioClip (AudioClip)", console.Output);
-            Assert.Contains("m_Name (string): ambient", console.Output);
-        }
-        finally
-        {
-            File.Delete(assetsPath);
-        }
-    }
-
-    [Fact]
-    public void Run_WhenFindPageUsesManifest_PrintsMatchingAssets()
-    {
-        string assetsPath = CreateTempFile(".assets");
-        string configPath = CreateCameraPatchManifest(
-            Path.GetFileName(assetsPath),
-            """
-            "include": [
-              {
-                "field of view": 90.0
-              }
-            ]
-            """);
-        var reader = new StubAssetsFileService(
-            [
-                new AssetsInfo(10, 20, "Camera", 128),
-                new AssetsInfo(11, 20, "Camera", 128),
-            ],
-            new Dictionary<long, AssetsFieldInfo>
-            {
-                [10] = CameraFieldTree("90.0"),
-                [11] = CameraFieldTree("75.0"),
-            });
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.FindAssets);
-        console.Input.PushTextWithEnter(assetsPath);
-        console.Input.PushTextWithEnter(configPath);
-        ReturnToMainMenu(console);
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        TerminalApp app = CreateApp(reader, console);
-
-        try
-        {
-            int exitCode = app.Run();
-
-            string text = console.Output;
-            Assert.True(exitCode == 0, console.Output);
-            Assert.Contains("Find assets", text);
-            Assert.Contains("10", text);
-            Assert.Contains("Camera", text);
-            Assert.DoesNotContain(" 11 ", text);
-        }
-        finally
-        {
-            File.Delete(assetsPath);
-            File.Delete(configPath);
-        }
-    }
-
-    [Fact]
     public void Run_WhenInstallPageIsCanceled_PrintsDryRunSummaryWithoutInstalling()
     {
-        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string zipPath = CreateCameraPatchZip();
         string gameDirectory = CreateGameDirectory("sharedassets0.assets");
         string targetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets0.assets");
-        TestManifest.WriteZip(
-            zipPath,
-            """
-            {
-              "patches": [
-                {
-                  "target": "sharedassets0.assets",
-                  "type": "Camera",
-                  "include": [
-                    {
-                      "field of view": 90.0
-                    }
-                  ],
-                  "set": [
-                    {
-                      "field": "field of view",
-                      "from": 90.0,
-                      "to": 75.0
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
         TestConsole console = CreateConsole();
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
@@ -399,16 +190,18 @@ public sealed class TerminalAppTests
             string text = console.Output;
             Assert.True(exitCode == 0, console.Output);
             Assert.Contains("Install Mod", text);
-            Assert.Contains("DRY RUN", text);
+            Assert.Contains("PREVIEW", text);
             Assert.Contains("Apply these changes?", text);
             Assert.Contains("Install canceled.", text);
             Assert.DoesNotContain("INSTALLED", text);
             Assert.Contains("Test Mod", text);
+            Assert.Contains("UnityAssetsPatcher.Tests", text);
             Assert.Contains("1.0.0", text);
             Assert.Equal(1, CountOccurrences(text, "Version"));
             Assert.DoesNotContain("Test Mod 1.0.0", text);
             Assert.Contains("sharedassets0.assets", text);
-            Assert.Contains("Operations", text);
+            Assert.Contains("- sharedassets0.assets:", text);
+            Assert.DoesNotContain("Operations", text);
             Assert.DoesNotContain("field of view", text);
             Assert.DoesNotContain("90.0 -> 75.0", text);
             Assert.DoesNotContain("Read package", text);
@@ -425,32 +218,8 @@ public sealed class TerminalAppTests
     public void Run_WhenInstallPreviewWaitsForConfirmation_RedrawsShortcutHintAbovePrompt()
     {
         const string shortcutHint = "Shortcuts: ↑/↓ to choose | Esc to cancel | Ctrl + C to exit";
-        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string zipPath = CreateCameraPatchZip();
         string gameDirectory = CreateGameDirectory("sharedassets0.assets");
-        TestManifest.WriteZip(
-            zipPath,
-            """
-            {
-              "patches": [
-                {
-                  "target": "sharedassets0.assets",
-                  "type": "Camera",
-                  "include": [
-                    {
-                      "field of view": 90.0
-                    }
-                  ],
-                  "set": [
-                    {
-                      "field": "field of view",
-                      "from": 90.0,
-                      "to": 75.0
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
         TestConsole inner = CreateConsole().Height(10);
         SelectMainMenuOption(inner, MainMenuOption.InstallMod);
         inner.Input.PushTextWithEnter(zipPath);
@@ -481,34 +250,10 @@ public sealed class TerminalAppTests
     [Fact]
     public void Run_WhenInstallPageIsConfirmed_PreviewsAndInstallsMod()
     {
-        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string zipPath = CreateCameraPatchZip();
         string gameDirectory = CreateGameDirectory("sharedassets0.assets");
         string targetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets0.assets");
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        TestManifest.WriteZip(
-            zipPath,
-            """
-            {
-              "patches": [
-                {
-                  "target": "sharedassets0.assets",
-                  "type": "Camera",
-                  "include": [
-                    {
-                      "field of view": 90.0
-                    }
-                  ],
-                  "set": [
-                    {
-                      "field": "field of view",
-                      "from": 90.0,
-                      "to": 75.0
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
         TestConsole console = CreateConsole();
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
@@ -525,11 +270,12 @@ public sealed class TerminalAppTests
             string text = console.Output;
             Assert.True(exitCode == 0, console.Output);
             Assert.Contains("Install Mod", text);
-            Assert.Contains("DRY RUN", text);
+            Assert.Contains("PREVIEW", text);
             Assert.Contains("Apply these changes?", text);
             Assert.Contains("Apply these changes? y/N", text);
             Assert.DoesNotContain("[y/N] [y/n]", text);
             Assert.Contains("INSTALLED", text);
+            Assert.Contains("Operations", text);
             Assert.Contains("Test Mod", text);
             Assert.Contains("1.0.0", text);
             Assert.Equal(2, CountOccurrences(text, "Version"));
@@ -555,32 +301,8 @@ public sealed class TerminalAppTests
     [Fact]
     public void Run_WhenSettingsToggleVerboseLogging_InstallPreviewPrintsFieldDiff()
     {
-        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string zipPath = CreateCameraPatchZip();
         string gameDirectory = CreateGameDirectory("sharedassets0.assets");
-        TestManifest.WriteZip(
-            zipPath,
-            """
-            {
-              "patches": [
-                {
-                  "target": "sharedassets0.assets",
-                  "type": "Camera",
-                  "include": [
-                    {
-                      "field of view": 90.0
-                    }
-                  ],
-                  "set": [
-                    {
-                      "field": "field of view",
-                      "from": 90.0,
-                      "to": 75.0
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
         TestConsole console = CreateConsole();
         SelectMainMenuOption(console, MainMenuOption.Settings);
         console.Input.PushKey(ConsoleKey.Spacebar);
@@ -601,83 +323,15 @@ public sealed class TerminalAppTests
             string text = console.Output;
             Assert.True(exitCode == 0, console.Output);
             Assert.Contains("Settings", text);
-            Assert.Contains("[x] Verbose Logging", text);
+            Assert.Contains("[x] Verbose output", text);
             Assert.Contains("Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit", text);
             Assert.DoesNotContain("Enter or Esc", text);
-            Assert.DoesNotContain("Detailed install output", text);
             Assert.Contains(
-                "Show detailed install preview logs, including per-asset field changes.",
-                FirstLineContaining(text, "Verbose Logging"));
+                "Show detailed install preview logs and per-stage install timings.",
+                FirstLineContaining(text, "Verbose output"));
             Assert.Contains("field of view", text);
             Assert.Contains("90.0 -> 75.0", text);
-            Assert.DoesNotContain("Read package", text);
-        }
-        finally
-        {
-            File.Delete(zipPath);
-            Directory.Delete(gameDirectory, true);
-        }
-    }
-
-    [Fact]
-    public void Run_WhenSettingsToggleInstallTimingDetails_InstallPreviewPrintsStageTimings()
-    {
-        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
-        string gameDirectory = CreateGameDirectory("sharedassets0.assets");
-        TestManifest.WriteZip(
-            zipPath,
-            """
-            {
-              "patches": [
-                {
-                  "target": "sharedassets0.assets",
-                  "type": "Camera",
-                  "include": [
-                    {
-                      "field of view": 90.0
-                    }
-                  ],
-                  "set": [
-                    {
-                      "field": "field of view",
-                      "from": 90.0,
-                      "to": 75.0
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
-        TestConsole console = CreateConsole();
-        SelectMainMenuOption(console, MainMenuOption.Settings);
-        console.Input.PushKey(ConsoleKey.DownArrow);
-        console.Input.PushKey(ConsoleKey.Spacebar);
-        console.Input.PushKey(ConsoleKey.Escape);
-        console.Input.PushKey(ConsoleKey.DownArrow);
-        console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushTextWithEnter(zipPath);
-        console.Input.PushTextWithEnter(gameDirectory);
-        console.Input.PushTextWithEnter("n");
-        ReturnToMainMenu(console);
-        SelectMainMenuOption(console, MainMenuOption.Exit);
-        TerminalApp app = CreateApp(CreateCameraReader(), console);
-
-        try
-        {
-            int exitCode = app.Run();
-
-            string text = console.Output;
-            Assert.True(exitCode == 0, console.Output);
-            Assert.Contains("Settings", text);
-            Assert.Contains("[x] Install timing details", text);
-            Assert.Contains("Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit", text);
-            Assert.DoesNotContain("Enter or Esc", text);
-            Assert.Contains(
-                "Show per-stage package, search, analysis, patch, and copy timings.",
-                FirstLineContaining(text, "Install timing details"));
             Assert.Contains("Read package", text);
-            Assert.Contains("Analyze changes", text);
-            Assert.DoesNotContain("field of view", text);
         }
         finally
         {
@@ -689,8 +343,6 @@ public sealed class TerminalAppTests
     private enum MainMenuOption
     {
         InstallMod,
-        InspectAssets,
-        FindAssets,
         Settings,
         Exit,
     }
@@ -741,11 +393,6 @@ public sealed class TerminalAppTests
             count++;
             startIndex = index + value.Length;
         }
-    }
-
-    private static int CountCursorPositions(RecordingCursorConsole console, (int Column, int Line) position)
-    {
-        return console.CursorPositions.Count(cursorPosition => cursorPosition == position);
     }
 
     private static string FirstLineContaining(string text, string value)
@@ -846,6 +493,36 @@ public sealed class TerminalAppTests
         }
     }
 
+    private static string CreateCameraPatchZip()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "Camera",
+                  "include": [
+                    {
+                      "field of view": 90.0
+                    }
+                  ],
+                  "set": [
+                    {
+                      "field": "field of view",
+                      "from": 90.0,
+                      "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        return zipPath;
+    }
+
     private static StubAssetsFileService CreateCameraReader()
     {
         return new StubAssetsFileService(
@@ -863,22 +540,6 @@ public sealed class TerminalAppTests
             "Camera",
             null,
             [new AssetsFieldInfo("field of view", "float", fieldOfView, [])]);
-    }
-
-    private static string CreateCameraPatchManifest(string assetsFileName, string body)
-    {
-        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        TestManifest.Write(
-            configPath,
-            $$"""
-              {
-                "target": "{{assetsFileName}}",
-                "type": "Camera",
-                {{body.Trim()}}
-              }
-              """);
-
-        return configPath;
     }
 
     private static string CreateGameDirectory(string assetsFileName)

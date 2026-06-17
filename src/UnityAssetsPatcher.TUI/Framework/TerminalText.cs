@@ -1,4 +1,5 @@
 using Spectre.Console;
+using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Framework;
 
@@ -28,7 +29,8 @@ public sealed class TerminalText
 
     public void WriteConfirmationLabel(string prompt)
     {
-        _console.Markup($"[blue]{Escape(prompt)}[/] [grey]y/N[/]: ");
+        _console.Markup(
+            $"[blue]{Escape(prompt)}[/] [grey]{Escape(LocalizedStrings.Prompt_ConfirmationChoiceHint)}[/]: ");
     }
 
     public void WriteError(string message)
