@@ -18,13 +18,7 @@ internal sealed class TerminalWorkflowSessionFactory
     {
         IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
         InstallModWorkflow installModWorkflow = _workflowFactory.CreateInstallModWorkflow(assets);
-        InspectAssetsWorkflow inspectSummary_AssetsWorkflow = _workflowFactory.CreateInspectAssetsWorkflow(assets);
-        FindAssetsWorkflow findSummary_AssetsWorkflow = _workflowFactory.CreateFindAssetsWorkflow(assets);
 
-        return new TerminalWorkflowSession(
-            installModWorkflow,
-            inspectSummary_AssetsWorkflow,
-            findSummary_AssetsWorkflow,
-            assets);
+        return new TerminalWorkflowSession(installModWorkflow, assets);
     }
 }
