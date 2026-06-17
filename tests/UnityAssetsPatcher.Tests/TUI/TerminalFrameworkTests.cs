@@ -1,4 +1,5 @@
 using Spectre.Console.Testing;
+using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.TUI.Framework;
 using Xunit;
@@ -28,13 +29,13 @@ public sealed class TerminalFrameworkTests
     public void Layout_ShowPageAndPrepareOutputArea_DelegatesLayoutRendering()
     {
         TestConsole console = CreateConsole().Height(10);
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Example Tool", "v1.2.3"));
 
         ui.Layout.ShowPage("Task Runner", "Choose an action first.");
         ui.Layout.PrepareOutputArea();
 
         string output = console.Output;
-        Assert.Contains("Unity Assets Patcher", output);
+        Assert.Contains("Example Tool (v1.2.3)", output);
         Assert.Contains("Task Runner", output);
         Assert.Contains("Choose an action first.", output);
         Assert.Contains("\u001b[s", output);

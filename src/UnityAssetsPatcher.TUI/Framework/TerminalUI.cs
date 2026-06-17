@@ -1,4 +1,5 @@
 using Spectre.Console;
+using UnityAssetsPatcher.Core;
 
 namespace UnityAssetsPatcher.TUI.Framework;
 
@@ -12,11 +13,15 @@ public sealed class TerminalUI
     public TerminalStatus Status { get; }
 
     public TerminalUI(IAnsiConsole console)
+        : this(console, AppInfo.Default) { }
+
+    public TerminalUI(IAnsiConsole console, AppInfo appInfo)
     {
         ArgumentNullException.ThrowIfNull(console);
+        ArgumentNullException.ThrowIfNull(appInfo);
 
         Text = new TerminalText(console);
-        Layout = new TerminalLayout(console, Text);
+        Layout = new TerminalLayout(console, Text, appInfo);
         Lists = new TerminalLists(console);
         Tables = new TerminalTables();
         Summary = new TerminalSummary(console);

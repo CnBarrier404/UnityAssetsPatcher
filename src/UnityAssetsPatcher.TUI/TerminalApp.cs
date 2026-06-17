@@ -1,4 +1,5 @@
 using Spectre.Console;
+using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.TUI.Pages;
 
@@ -12,17 +13,20 @@ public sealed class TerminalApp
     public TerminalApp(
         IAssetsAccessScopeFactory assetsScopeFactory,
         string backupDirectory,
+        AppInfo appInfo,
         IAnsiConsole console,
         IAnsiConsole errorConsole)
     {
         ArgumentNullException.ThrowIfNull(assetsScopeFactory);
         ArgumentNullException.ThrowIfNull(backupDirectory);
+        ArgumentNullException.ThrowIfNull(appInfo);
         ArgumentNullException.ThrowIfNull(console);
         ArgumentNullException.ThrowIfNull(errorConsole);
 
         _context = new TerminalAppContext(
             new TerminalWorkflowSessionFactory(assetsScopeFactory),
             backupDirectory,
+            appInfo,
             console,
             errorConsole);
 

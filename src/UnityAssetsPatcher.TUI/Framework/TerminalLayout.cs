@@ -1,11 +1,11 @@
 using Spectre.Console;
+using UnityAssetsPatcher.Core;
 
 namespace UnityAssetsPatcher.TUI.Framework;
 
 public sealed class TerminalLayout
 {
     public const string ShortcutHint = "Shortcuts: ↑/↓ to choose | Esc to cancel | Ctrl + C to exit";
-    private const string ApplicationTitle = "Unity Assets Patcher";
     private const int ApplicationTitleHorizontalPadding = 2;
     private const string ReturnToMainMenuPrompt = "Press any key to return to the main menu.";
     private const string SaveCursor = "\e[s";
@@ -13,11 +13,13 @@ public sealed class TerminalLayout
 
     private readonly IAnsiConsole _console;
     private readonly TerminalText _text;
+    private readonly AppInfo _appInfo;
 
-    public TerminalLayout(IAnsiConsole console, TerminalText text)
+    public TerminalLayout(IAnsiConsole console, TerminalText text, AppInfo appInfo)
     {
         _console = console;
         _text = text;
+        _appInfo = appInfo;
     }
 
     public void ShowPage(
@@ -143,11 +145,11 @@ public sealed class TerminalLayout
 
     private void WriteApplicationTitle()
     {
-        string title = $"{ApplicationTitle} ({BuildInfo.DisplayVersion})";
+        string title = $"{_appInfo.Name} ({_appInfo.DisplayVersion})";
         int boxWidth = title.Length + (ApplicationTitleHorizontalPadding * 2) + 2;
 
         WriteTitleBoxLine("╭", "─", "╮", boxWidth);
-        WriteTitleContentLine(title, greyStartIndex: ApplicationTitle.Length + 1);
+        WriteTitleContentLine(title, greyStartIndex: _appInfo.Name.Length + 1);
         WriteTitleBoxLine("╰", "─", "╯", boxWidth);
     }
 
