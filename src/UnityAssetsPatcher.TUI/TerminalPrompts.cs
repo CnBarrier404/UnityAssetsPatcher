@@ -1,22 +1,23 @@
 using System.Globalization;
 using System.Text;
 using Spectre.Console;
+using UnityAssetsPatcher.TUI.Framework;
 
-namespace UnityAssetsPatcher.Tui;
+namespace UnityAssetsPatcher.TUI;
 
 public sealed class TerminalPrompts
 {
     private readonly IAnsiConsole _console;
-    private readonly TerminalRenderer _renderer;
+    private readonly TerminalText _text;
     private readonly TerminalSelectionPrompt _selectionPrompt;
 
     public TerminalPrompts(IAnsiConsole console)
-        : this(console, new TerminalRenderer(console)) { }
+        : this(console, new TerminalUI(console).Text) { }
 
-    public TerminalPrompts(IAnsiConsole console, TerminalRenderer renderer)
+    public TerminalPrompts(IAnsiConsole console, TerminalText text)
     {
         _console = console;
-        _renderer = renderer;
+        _text = text;
         _selectionPrompt = new TerminalSelectionPrompt(console);
     }
 
@@ -59,7 +60,7 @@ public sealed class TerminalPrompts
     {
         while (true)
         {
-            _renderer.WriteConfirmationLabel(prompt);
+            _text.WriteConfirmationLabel(prompt);
             string? input = ReadCancelableLine();
 
             if (input is null)
@@ -80,7 +81,7 @@ public sealed class TerminalPrompts
                 return true;
             }
 
-            _renderer.WriteError("Choose y or n.");
+            _text.WriteError("Choose y or n.");
         }
     }
 
@@ -110,7 +111,7 @@ public sealed class TerminalPrompts
                 return true;
             }
 
-            _renderer.WriteError($"{label} must be an integer.");
+            _text.WriteError($"{label} must be an integer.");
         }
     }
 
@@ -135,7 +136,7 @@ public sealed class TerminalPrompts
                 return true;
             }
 
-            _renderer.WriteError($"{label} must be greater than 0.");
+            _text.WriteError($"{label} must be greater than 0.");
         }
     }
 
@@ -154,7 +155,7 @@ public sealed class TerminalPrompts
 
             if (string.IsNullOrWhiteSpace(path))
             {
-                _renderer.WriteError($"{label} is required.");
+                _text.WriteError($"{label} is required.");
 
                 continue;
             }
@@ -164,7 +165,7 @@ public sealed class TerminalPrompts
                 return path;
             }
 
-            _renderer.WriteError(missingMessage(path));
+            _text.WriteError(missingMessage(path));
         }
     }
 
@@ -172,7 +173,7 @@ public sealed class TerminalPrompts
     {
         while (true)
         {
-            _renderer.WriteInputLabel(label);
+            _text.WriteInputLabel(label);
             string? value = ReadCancelableLine();
 
             if (value is null)
@@ -185,7 +186,7 @@ public sealed class TerminalPrompts
                 return value;
             }
 
-            _renderer.WriteError($"{label} is required.");
+            _text.WriteError($"{label} is required.");
         }
     }
 

@@ -1,4 +1,4 @@
-namespace UnityAssetsPatcher.Tui;
+namespace UnityAssetsPatcher.TUI;
 
 public interface ITerminalPage
 {

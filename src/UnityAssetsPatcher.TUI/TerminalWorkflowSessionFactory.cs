@@ -1,7 +1,7 @@
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 
-namespace UnityAssetsPatcher.Tui;
+namespace UnityAssetsPatcher.TUI;
 
 internal sealed class TerminalWorkflowSessionFactory
 {

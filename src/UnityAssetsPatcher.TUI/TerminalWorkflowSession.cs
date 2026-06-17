@@ -1,6 +1,6 @@
 using UnityAssetsPatcher.Application.Workflows;
 
-namespace UnityAssetsPatcher.Tui;
+namespace UnityAssetsPatcher.TUI;
 
 internal sealed class TerminalWorkflowSession : IDisposable
 {

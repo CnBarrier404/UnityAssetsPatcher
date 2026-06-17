@@ -3,10 +3,11 @@ using Spectre.Console.Rendering;
 using Spectre.Console.Testing;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
-using UnityAssetsPatcher.Tui;
+using UnityAssetsPatcher.TUI;
+using UnityAssetsPatcher.TUI.Framework;
 using Xunit;
 
-namespace UnityAssetsPatcher.Tests.Tui;
+namespace UnityAssetsPatcher.Tests.TUI;
 
 public sealed class TerminalAppTests
 {
@@ -102,9 +103,9 @@ public sealed class TerminalAppTests
     {
         TestConsole inner = CreateConsole().Height(24);
         var console = new RecordingCursorConsole(inner);
-        var renderer = new TerminalRenderer(console);
+        var ui = new TerminalUI(console);
 
-        renderer.ShowPage("Main menu", shortcutHint: "Shortcuts");
+        ui.Layout.ShowPage("Main menu", shortcutHint: "Shortcuts");
 
         Assert.Contains((1, 24), console.CursorPositions);
         Assert.Equal((1, 1), console.CursorPositions[^1]);
@@ -115,9 +116,9 @@ public sealed class TerminalAppTests
     {
         TestConsole inner = CreateConsole().Width(20).Height(24);
         var console = new RecordingCursorConsole(inner);
-        var renderer = new TerminalRenderer(console);
+        var ui = new TerminalUI(console);
 
-        renderer.WriteBottomFooterHint("Shortcuts");
+        ui.Layout.WriteBottomFooterHint("Shortcuts");
 
         Assert.Equal([(1, 24), (1, 23), (1, 22), (1, 22)], console.CursorPositions);
         Assert.EndsWith(new string(' ', 40), inner.Output);
@@ -128,9 +129,9 @@ public sealed class TerminalAppTests
     {
         TestConsole inner = CreateConsole().Width(20).Height(24);
         var console = new RecordingCursorConsole(inner);
-        var renderer = new TerminalRenderer(console);
+        var ui = new TerminalUI(console);
 
-        renderer.ClearBottomFooterArea();
+        ui.Layout.ClearBottomFooterArea();
 
         Assert.Equal([(1, 24), (1, 23), (1, 22), (1, 22)], console.CursorPositions);
         Assert.Contains("\u001b[s", inner.Output);

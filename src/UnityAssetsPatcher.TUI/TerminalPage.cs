@@ -1,4 +1,6 @@
-namespace UnityAssetsPatcher.Tui;
+using UnityAssetsPatcher.TUI.Framework;
+
+namespace UnityAssetsPatcher.TUI;
 
 internal abstract class TerminalPage : ITerminalPage
 {
@@ -16,10 +18,10 @@ internal abstract class TerminalPage : ITerminalPage
     protected void NewPage(string? title = null, string? description = null, string? shortcutHint = null,
         bool clear = true)
     {
-        Context.Renderer.ShowPage(
+        Context.Ui.Layout.ShowPage(
             title ?? Title,
             description ?? Description,
-            shortcutHint: shortcutHint ?? TerminalRenderer.ShortcutHint,
+            shortcutHint: shortcutHint ?? TerminalLayout.ShortcutHint,
             clear);
     }
 }

@@ -1,6 +1,6 @@
 using Spectre.Console;
 
-namespace UnityAssetsPatcher.Tui;
+namespace UnityAssetsPatcher.TUI;
 
 public sealed class TerminalSelectionPrompt
 {

@@ -1,8 +1,9 @@
 using Spectre.Console.Testing;
-using UnityAssetsPatcher.Tui;
+using UnityAssetsPatcher.TUI;
+using UnityAssetsPatcher.TUI.Framework;
 using Xunit;
 
-namespace UnityAssetsPatcher.Tests.Tui;
+namespace UnityAssetsPatcher.Tests.TUI;
 
 public sealed class TerminalFrameworkTests
 {
@@ -24,32 +25,69 @@ public sealed class TerminalFrameworkTests
     }
 
     [Fact]
-    public void Renderer_ShowPageAndPrepareOutputArea_DelegatesLayoutRendering()
+    public void Layout_ShowPageAndPrepareOutputArea_DelegatesLayoutRendering()
     {
         TestConsole console = CreateConsole().Height(10);
-        var renderer = new TerminalRenderer(console);
+        var ui = new TerminalUI(console);
 
-        renderer.ShowPage("Install Mod", "Analyze the package first.");
-        renderer.PrepareOutputArea();
+        ui.Layout.ShowPage("Task Runner", "Choose an action first.");
+        ui.Layout.PrepareOutputArea();
 
         string output = console.Output;
         Assert.Contains("Unity Assets Patcher", output);
-        Assert.Contains("Install Mod", output);
-        Assert.Contains("Analyze the package first.", output);
+        Assert.Contains("Task Runner", output);
+        Assert.Contains("Choose an action first.", output);
         Assert.Contains("\u001b[s", output);
         Assert.Contains("\u001b[u", output);
     }
 
     [Fact]
-    public void Renderer_WriteChoiceList_MarksSelectedChoice()
+    public void Lists_WriteChoiceList_MarksSelectedChoice()
     {
         TestConsole console = CreateConsole();
-        var renderer = new TerminalRenderer(console);
+        var ui = new TerminalUI(console);
 
-        renderer.WriteChoiceList(["List assets", "Show asset fields"], selectedIndex: 1);
+        ui.Lists.WriteChoiceList(["First action", "Second action"], selectedIndex: 1);
 
-        Assert.Contains("  List assets", console.Output);
-        Assert.Contains("> Show asset fields", console.Output);
+        Assert.Contains("  First action", console.Output);
+        Assert.Contains("> Second action", console.Output);
+    }
+
+    [Fact]
+    public void Lists_WriteDescribedChoiceList_AlignsLabelAndDescription()
+    {
+        TestConsole console = CreateConsole();
+        var ui = new TerminalUI(console);
+
+        ui.Lists.WriteDescribedChoiceList(
+            [
+                new TerminalChoiceDisplay("Primary action", "Run the primary task."),
+                new TerminalChoiceDisplay("Preferences", "Adjust output detail."),
+            ],
+            selectedIndex: 0);
+
+        string output = console.Output;
+        Assert.Contains("> Primary action", output);
+        Assert.Contains("Run the primary task.", output);
+        Assert.Contains("  Preferences", output);
+        Assert.Contains("Adjust output detail.", output);
+    }
+
+    [Fact]
+    public void Summary_WriteRows_PrintsAlignedLabelValuePairs()
+    {
+        TestConsole console = CreateConsole();
+        var ui = new TerminalUI(console);
+
+        ui.Summary.WriteRows(
+            ("Name", "Example"),
+            ("Items", ui.Summary.FormatCount(2, "item")));
+
+        string output = console.Output;
+        Assert.Contains("Name", output);
+        Assert.Contains("Example", output);
+        Assert.Contains("Items", output);
+        Assert.Contains("2 items", output);
     }
 
     [Fact]
@@ -58,18 +96,18 @@ public sealed class TerminalFrameworkTests
         TestConsole console = CreateConsole();
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Enter);
-        var renderer = new TerminalRenderer(console);
-        var prompts = new TerminalPrompts(console, renderer);
+        var ui = new TerminalUI(console);
+        var prompts = new TerminalPrompts(console, ui.Text);
 
         string choice = prompts.ReadChoice(
-            ["List assets", "Show asset fields"],
+            ["First action", "Second action"],
             cancelChoice: "__cancel",
-            render: (selectedIndex, _) => renderer.WriteChoiceList(
-                ["List assets", "Show asset fields"],
+            render: (selectedIndex, _) => ui.Lists.WriteChoiceList(
+                ["First action", "Second action"],
                 selectedIndex));
 
-        Assert.Equal("Show asset fields", choice);
-        Assert.Contains("> Show asset fields", console.Output);
+        Assert.Equal("Second action", choice);
+        Assert.Contains("> Second action", console.Output);
     }
 
     [Fact]
@@ -77,14 +115,14 @@ public sealed class TerminalFrameworkTests
     {
         TestConsole console = CreateConsole();
         console.Input.PushKey(ConsoleKey.Escape);
-        var renderer = new TerminalRenderer(console);
-        var prompts = new TerminalPrompts(console, renderer);
+        var ui = new TerminalUI(console);
+        var prompts = new TerminalPrompts(console, ui.Text);
 
         string choice = prompts.ReadChoice(
-            ["List assets", "Show asset fields"],
+            ["First action", "Second action"],
             cancelChoice: "__cancel",
-            render: (selectedIndex, _) => renderer.WriteChoiceList(
-                ["List assets", "Show asset fields"],
+            render: (selectedIndex, _) => ui.Lists.WriteChoiceList(
+                ["First action", "Second action"],
                 selectedIndex));
 
         Assert.Equal("__cancel", choice);

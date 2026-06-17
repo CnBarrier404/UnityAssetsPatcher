@@ -28,7 +28,7 @@ public sealed class ApplicationArchitectureTests
             expectedProjectReferences: ["UnityAssetsPatcher.Core.csproj"],
             expectedPackageReferences: ["AssetsTools.NET"]);
         AssertProjectReferences(
-            Path.Combine(root, "src", "UnityAssetsPatcher.Tui", "UnityAssetsPatcher.Tui.csproj"),
+            Path.Combine(root, "src", "UnityAssetsPatcher.TUI", "UnityAssetsPatcher.TUI.csproj"),
             expectedProjectReferences:
             [
                 "UnityAssetsPatcher.Application.csproj",
@@ -40,7 +40,7 @@ public sealed class ApplicationArchitectureTests
             expectedProjectReferences:
             [
                 "UnityAssetsPatcher.AssetsTools.csproj",
-                "UnityAssetsPatcher.Tui.csproj",
+                "UnityAssetsPatcher.TUI.csproj",
             ],
             expectedPackageReferences: []);
         AssertSourceDoesNotContain(

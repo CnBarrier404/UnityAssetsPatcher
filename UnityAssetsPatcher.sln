@@ -8,7 +8,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAssetsPatcher.Applicat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAssetsPatcher.AssetsTools", "src\UnityAssetsPatcher.AssetsTools\UnityAssetsPatcher.AssetsTools.csproj", "{0A487CD7-2955-4683-B940-BBCA2C9E2121}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAssetsPatcher.Tui", "src\UnityAssetsPatcher.Tui\UnityAssetsPatcher.Tui.csproj", "{0A64E5C2-7ECF-4201-B81F-B25B513D4799}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAssetsPatcher.TUI", "src\UnityAssetsPatcher.TUI\UnityAssetsPatcher.TUI.csproj", "{0A64E5C2-7ECF-4201-B81F-B25B513D4799}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAssetsPatcher.Tests", "tests\UnityAssetsPatcher.Tests\UnityAssetsPatcher.Tests.csproj", "{4149F3EB-AB5F-4352-BC4D-C2A0CE827AF9}"
 EndProject

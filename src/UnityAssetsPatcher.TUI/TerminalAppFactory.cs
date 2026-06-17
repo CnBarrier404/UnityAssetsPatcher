@@ -1,7 +1,7 @@
 using Spectre.Console;
 using UnityAssetsPatcher.Core.Assets;
 
-namespace UnityAssetsPatcher.Tui;
+namespace UnityAssetsPatcher.TUI;
 
 public static class TerminalAppFactory
 {

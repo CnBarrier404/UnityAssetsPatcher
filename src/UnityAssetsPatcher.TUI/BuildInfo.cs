@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace UnityAssetsPatcher;
+namespace UnityAssetsPatcher.TUI;
 
 internal static class BuildInfo
 {

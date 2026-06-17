@@ -1,14 +1,15 @@
 ﻿using Spectre.Console;
 using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.TUI.Framework;
 
-namespace UnityAssetsPatcher.Tui;
+namespace UnityAssetsPatcher.TUI;
 
 internal sealed class TerminalAppContext
 {
     public string BackupDirectory { get; }
     public IAnsiConsole Console { get; }
-    public TerminalRenderer Renderer { get; }
-    public TerminalRenderer ErrorRenderer { get; }
+    public TerminalUI Ui { get; }
+    public TerminalUI ErrorUi { get; }
     public TerminalPrompts Prompts { get; }
     public TerminalSettings Settings { get; }
 
@@ -23,9 +24,9 @@ internal sealed class TerminalAppContext
         _workflowSessionFactory = workflowSessionFactory;
         BackupDirectory = backupDirectory;
         Console = console;
-        Renderer = new TerminalRenderer(console);
-        ErrorRenderer = new TerminalRenderer(error);
-        Prompts = new TerminalPrompts(console, Renderer);
+        Ui = new TerminalUI(console);
+        ErrorUi = new TerminalUI(error);
+        Prompts = new TerminalPrompts(console, Ui.Text);
         Settings = new TerminalSettings();
     }
 

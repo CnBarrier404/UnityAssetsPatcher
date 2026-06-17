@@ -1,7 +1,10 @@
+using System.Globalization;
+using Spectre.Console;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.TUI.Framework;
 
-namespace UnityAssetsPatcher.Tui.Pages;
+namespace UnityAssetsPatcher.TUI.Pages;
 
 internal sealed class InspectTerminalPage : TerminalPage
 {
@@ -57,11 +60,11 @@ internal sealed class InspectTerminalPage : TerminalPage
             return TerminalPageResult.ReturnToMenu(false);
         }
 
-        Context.Renderer.PrepareOutputArea();
+        Context.Ui.Layout.PrepareOutputArea();
         Context.UseInspectWorkflow(workflow =>
         {
             InspectListResult result = workflow.List(new InspectListRequest(assetsFilePath, limit));
-            Context.Renderer.WriteAssetSummary(result.Assets, result.TotalCount);
+            WriteAssetSummary(result.Assets, result.TotalCount);
 
             return 0;
         });
@@ -80,11 +83,11 @@ internal sealed class InspectTerminalPage : TerminalPage
             return TerminalPageResult.ReturnToMenu(false);
         }
 
-        Context.Renderer.PrepareOutputArea();
+        Context.Ui.Layout.PrepareOutputArea();
         Context.UseInspectWorkflow(workflow =>
         {
             AssetsFieldInfo fieldTree = workflow.Fields(new InspectFieldsRequest(assetsFilePath, pathId));
-            Context.Renderer.WriteAssetFields(fieldTree);
+            WriteAssetFields(fieldTree);
 
             return 0;
         });
@@ -96,7 +99,7 @@ internal sealed class InspectTerminalPage : TerminalPage
     {
         while (true)
         {
-            Context.Renderer.WriteBlankLine();
+            Context.Ui.Text.WriteBlankLine();
             string choice = Context.Prompts.ReadChoice(
                 RowLimitChoices,
                 Cancel,
@@ -129,12 +132,58 @@ internal sealed class InspectTerminalPage : TerminalPage
     private void WriteInspectMenu(int selectedIndex, bool clear)
     {
         NewPage(Title, "List assets or inspect the field tree for a selected Path ID.", clear: clear);
-        Context.Renderer.WriteChoiceList(InspectMenuChoices, selectedIndex);
+        Context.Ui.Lists.WriteChoiceList(InspectMenuChoices, selectedIndex);
     }
 
     private void WriteRowLimitMenu(int selectedIndex, bool clear)
     {
         NewPage("Rows to print", clear: clear);
-        Context.Renderer.WriteChoiceList(RowLimitChoices, selectedIndex);
+        Context.Ui.Lists.WriteChoiceList(RowLimitChoices, selectedIndex);
+    }
+
+    private void WriteAssetSummary(IReadOnlyList<AssetsInfo> assets, int totalCount)
+    {
+        var table = Context.Ui.Tables.CreateTable();
+        table.AddColumn(new TableColumn("Path ID").RightAligned());
+        table.AddColumn(new TableColumn("Type ID").RightAligned());
+        table.AddColumn("Type Name");
+        table.AddColumn(new TableColumn("Byte Size").RightAligned());
+
+        foreach (AssetsInfo asset in assets)
+        {
+            table.AddRow(
+                asset.PathId.ToString(CultureInfo.InvariantCulture),
+                asset.TypeId.ToString(CultureInfo.InvariantCulture),
+                TerminalText.Escape(asset.TypeName),
+                asset.ByteSize.ToString(CultureInfo.InvariantCulture));
+        }
+
+        Context.Console.Write(table);
+
+        if (assets.Count >= totalCount)
+        {
+            return;
+        }
+
+        Context.Ui.Text.WriteBlankLine();
+        Context.Ui.Text.WriteInfo($"Showing {assets.Count} of {totalCount} assets.");
+    }
+
+    private void WriteAssetFields(AssetsFieldInfo fieldTree)
+    {
+        WriteAssetField(fieldTree, 0);
+    }
+
+    private void WriteAssetField(AssetsFieldInfo field, int depth)
+    {
+        string indentation = new(' ', depth * 2);
+        string value = field.Value is null ? string.Empty : $": {field.Value}";
+        Context.Console.MarkupLine(
+            $"{indentation}{TerminalText.Escape(field.Name)} ({TerminalText.Escape(field.TypeName)}){TerminalText.Escape(value)}");
+
+        foreach (AssetsFieldInfo child in field.Children)
+        {
+            WriteAssetField(child, depth + 1);
+        }
     }
 }

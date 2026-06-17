@@ -1,8 +1,8 @@
 using Spectre.Console;
 using UnityAssetsPatcher.Core.Assets;
-using UnityAssetsPatcher.Tui.Pages;
+using UnityAssetsPatcher.TUI.Pages;
 
-namespace UnityAssetsPatcher.Tui;
+namespace UnityAssetsPatcher.TUI;
 
 public sealed class TerminalApp
 {
@@ -62,13 +62,13 @@ public sealed class TerminalApp
                     continue;
                 }
 
-                _context.Renderer.ShowReturnHint();
+                _context.Ui.Layout.ShowReturnHint();
                 _context.Prompts.WaitForKey();
             }
         }
         catch (Exception exception)
         {
-            _context.ErrorRenderer.WriteError(exception.Message);
+            _context.ErrorUi.Text.WriteError(exception.Message);
 
             return 1;
         }
@@ -86,7 +86,7 @@ public sealed class TerminalApp
         }
         catch (Exception exception)
         {
-            _context.ErrorRenderer.WriteError(exception.Message);
+            _context.ErrorUi.Text.WriteError(exception.Message);
             return TerminalPageResult.ReturnToMenu();
         }
     }

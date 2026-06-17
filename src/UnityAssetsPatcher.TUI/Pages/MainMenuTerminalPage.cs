@@ -1,4 +1,6 @@
-namespace UnityAssetsPatcher.Tui.Pages;
+using UnityAssetsPatcher.TUI.Framework;
+
+namespace UnityAssetsPatcher.TUI.Pages;
 
 internal sealed class MainMenuTerminalPage
 {
@@ -30,7 +32,9 @@ internal sealed class MainMenuTerminalPage
 
     private void WriteMainMenu(int selectedIndex, bool clear)
     {
-        _context.Renderer.ShowPage("Main menu", clear: clear);
-        _context.Renderer.WriteMainMenu(_pages, selectedIndex);
+        _context.Ui.Layout.ShowPage("Main menu", clear: clear);
+        _context.Ui.Lists.WriteDescribedChoiceList(
+            _pages.Select(page => new TerminalChoiceDisplay(page.Title, page.Description)).ToArray(),
+            selectedIndex);
     }
 }

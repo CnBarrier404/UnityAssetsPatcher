@@ -1,4 +1,6 @@
-namespace UnityAssetsPatcher.Tui.Pages;
+using UnityAssetsPatcher.TUI.Framework;
+
+namespace UnityAssetsPatcher.TUI.Pages;
 
 internal sealed class SettingsTerminalPage : TerminalPage
 {
@@ -36,18 +38,18 @@ internal sealed class SettingsTerminalPage : TerminalPage
             "Configure output detail for this session.",
             "Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit",
             clear);
-        Context.Renderer.WriteSettings(GetSettings(), selectedIndex);
+        Context.Ui.Lists.WriteToggleList(GetSettings(), selectedIndex);
     }
 
-    private IReadOnlyList<TerminalSettingDisplay> GetSettings()
+    private IReadOnlyList<TerminalToggleDisplay> GetSettings()
     {
         return
         [
-            new TerminalSettingDisplay(
+            new TerminalToggleDisplay(
                 "Verbose Logging",
                 "Show detailed install preview logs, including per-asset field changes.",
                 Context.Settings.VerboseLogging),
-            new TerminalSettingDisplay(
+            new TerminalToggleDisplay(
                 "Install timing details",
                 "Show per-stage package, search, analysis, patch, and copy timings.",
                 Context.Settings.InstallTimingDetails),
