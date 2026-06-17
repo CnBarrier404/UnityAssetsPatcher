@@ -42,7 +42,7 @@
         <value>Author</value>
     </data>
     <data name="InstallResult_Backup" xml:space="preserve">
-        <value>InstallResult_Backup</value>
+        <value>Backup</value>
     </data>
     <data name="InstallPage_ChangingOperationCountsFormat" xml:space="preserve">
         <value>{0} changing, {1} skipped</value>
@@ -63,7 +63,7 @@
         <value>PREVIEW</value>
     </data>
     <data name="Summary_Elapsed" xml:space="preserve">
-        <value>Summary_Elapsed</value>
+        <value>Elapsed</value>
     </data>
     <data name="Prompt_FileNotFoundFormat" xml:space="preserve">
         <value>File not found: {0}</value>
@@ -133,10 +133,10 @@
         <value>Shortcuts: ↑/↓ to choose | Esc to cancel | Ctrl + C to exit</value>
     </data>
     <data name="InstallPreview_Targets" xml:space="preserve">
-        <value>InstallPreview_Targets</value>
+        <value>Targets</value>
     </data>
     <data name="Summary_Version" xml:space="preserve">
-        <value>Summary_Version</value>
+        <value>Version</value>
     </data>
     <data name="SettingsPage_VerboseLoggingDescription" xml:space="preserve">
         <value>Show detailed install preview logs and per-stage install timings.</value>
