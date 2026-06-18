@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application.Contracts;
 using Spectre.Console.Testing;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI;
@@ -36,6 +39,125 @@ public sealed class TerminalFrameworkTests : IDisposable
         Assert.Equal(
             typeof(TerminalPageResult),
             typeof(ITerminalPage).GetMethod(nameof(ITerminalPage.Run))?.ReturnType);
+    }
+
+    [Fact]
+    public void PageConstructors_DoNotUseServiceProviderOrContextObjects()
+    {
+        var tuiAssembly = typeof(TerminalApp).Assembly;
+
+        Assert.Null(tuiAssembly.GetType("UnityAssetsPatcher.TUI.TerminalAppContext"));
+
+        Type[] pageTypes = tuiAssembly
+            .GetTypes()
+            .Where(type => type is { IsClass: true, Namespace: "UnityAssetsPatcher.TUI.Pages" })
+            .ToArray();
+
+        Assert.NotEmpty(pageTypes);
+
+        foreach (Type pageType in pageTypes)
+        {
+            foreach (ParameterInfo parameter in pageType
+                         .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                         .SelectMany(constructor => constructor.GetParameters()))
+            {
+                Assert.NotEqual(typeof(IServiceProvider), parameter.ParameterType);
+                Assert.False(
+                    parameter.ParameterType.Name.EndsWith("Context", StringComparison.Ordinal),
+                    $"{pageType.Name} constructor depends on context type {parameter.ParameterType.Name}.");
+            }
+        }
+    }
+
+    [Fact]
+    public void PageConstructors_DoNotDependOnLowLevelTerminalServices()
+    {
+        var forbiddenTypes = new HashSet<Type>
+        {
+            typeof(Spectre.Console.IAnsiConsole),
+            typeof(TerminalUI),
+            typeof(TerminalPrompts),
+        };
+        Type[] pageTypes = typeof(TerminalApp).Assembly
+            .GetTypes()
+            .Where(type => type is { IsClass: true, Namespace: "UnityAssetsPatcher.TUI.Pages" } &&
+                           typeof(ITerminalPage).IsAssignableFrom(type))
+            .ToArray();
+
+        Assert.NotEmpty(pageTypes);
+
+        foreach (Type pageType in pageTypes)
+        {
+            ParameterInfo[] parameters = pageType
+                .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .SelectMany(constructor => constructor.GetParameters())
+                .ToArray();
+
+            Assert.DoesNotContain(parameters, parameter => forbiddenTypes.Contains(parameter.ParameterType));
+        }
+    }
+
+    [Fact]
+    public void ViewConstructors_DoNotDependOnAnsiConsoleDirectly()
+    {
+        Type[] viewTypes = typeof(TerminalApp).Assembly
+            .GetTypes()
+            .Where(type => type is { IsClass: true, Namespace: "UnityAssetsPatcher.TUI.Pages" } &&
+                           type.Name.EndsWith("TerminalView", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.NotEmpty(viewTypes);
+
+        foreach (Type viewType in viewTypes)
+        {
+            ParameterInfo[] parameters = viewType
+                .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .SelectMany(constructor => constructor.GetParameters())
+                .ToArray();
+
+            Assert.DoesNotContain(parameters,
+                parameter => parameter.ParameterType == typeof(Spectre.Console.IAnsiConsole));
+        }
+    }
+
+    [Fact]
+    public void TuiComposition_DoesNotUseDedicatedErrorOutputChannel()
+    {
+        var tuiAssembly = typeof(TerminalApp).Assembly;
+
+        Assert.Null(tuiAssembly.GetType("UnityAssetsPatcher.TUI.TerminalErrorOutput"));
+
+        Type[] constructorParameterTypes = tuiAssembly
+            .GetTypes()
+            .Where(type => type.Namespace?.StartsWith("UnityAssetsPatcher.TUI", StringComparison.Ordinal) == true)
+            .SelectMany(type =>
+                type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            .SelectMany(constructor => constructor.GetParameters())
+            .Select(parameter => parameter.ParameterType)
+            .ToArray();
+
+        Assert.DoesNotContain(constructorParameterTypes, type => type.Name == "TerminalErrorOutput");
+    }
+
+    [Fact]
+    public void AddUnityAssetsPatcherTui_RegistersTerminalAppForOfficialServiceProvider()
+    {
+        TestConsole console = CreateConsole();
+        using ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IWorkflowService>(new ThrowingWorkflowService())
+            .AddUnityAssetsPatcherTUI(
+                "backup",
+                AppInfo.Default,
+                console)
+            .BuildServiceProvider(new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true,
+            });
+
+        TerminalApp app = provider.GetRequiredService<TerminalApp>();
+
+        Assert.NotNull(app);
     }
 
     [Fact]
@@ -167,6 +289,17 @@ public sealed class TerminalFrameworkTests : IDisposable
         int localizedValueColumn = GetDisplayWidth(lines[1][..lines[1].IndexOf("1", StringComparison.Ordinal)]);
 
         Assert.Equal(englishValueColumn, localizedValueColumn);
+    }
+
+    [Fact]
+    public void Text_WriteWarning_PrintsWarningMessage()
+    {
+        TestConsole console = CreateConsole();
+        var ui = new TerminalUI(console);
+
+        ui.Text.WriteWarning("Careful");
+
+        Assert.Contains("Careful", console.Output);
     }
 
     [Fact]
@@ -303,5 +436,33 @@ public sealed class TerminalFrameworkTests : IDisposable
             or >= '\ufe30' and <= '\ufe6f' or >= '\uff00' and <= '\uff60' or >= '\uffe0' and <= '\uffe6'
             ? 2
             : 1);
+    }
+
+    private sealed class ThrowingWorkflowService : IWorkflowService
+    {
+        public InstallPreviewResult PreviewInstall(InstallPreviewRequest request)
+        {
+            throw new NotSupportedException();
+        }
+
+        public InstallModResult Install(InstallModRequest request)
+        {
+            throw new NotSupportedException();
+        }
+
+        public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
+        {
+            throw new NotSupportedException();
+        }
+
+        public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request)
+        {
+            throw new NotSupportedException();
+        }
+
+        public UninstallModResult Uninstall(UninstallModRequest request)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

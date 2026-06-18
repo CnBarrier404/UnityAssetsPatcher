@@ -1,10 +1,12 @@
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using Spectre.Console.Testing;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
 using UnityAssetsPatcher.TUI;
@@ -520,11 +522,18 @@ public sealed class TerminalAppTests : IDisposable
             backupDirectory,
             new WorkflowFactory());
 
-        return TerminalAppFactory.Create(
-            workflowService,
-            backupDirectory,
-            console,
-            console);
+        return new ServiceCollection()
+            .AddSingleton(workflowService)
+            .AddUnityAssetsPatcherTUI(
+                backupDirectory,
+                AppInfo.Default,
+                console)
+            .BuildServiceProvider(new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true,
+            })
+            .GetRequiredService<TerminalApp>();
     }
 
     private sealed class TestAssetsAccessScopeFactory(

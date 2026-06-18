@@ -22,6 +22,16 @@ public sealed class TerminalText
         _console.MarkupLine($"[grey]{Escape(message)}[/]");
     }
 
+    public void WriteWarning(string message)
+    {
+        _console.MarkupLine($"[yellow]{Escape(message)}[/]");
+    }
+
+    public void WriteMarkupLine(string markup)
+    {
+        _console.MarkupLine(markup);
+    }
+
     public void WriteInputLabel(string label)
     {
         _console.Markup($"[blue]{Escape(label)}[/]: ");

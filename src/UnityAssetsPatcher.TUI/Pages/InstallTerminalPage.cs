@@ -1,39 +1,56 @@
-using System.Globalization;
-using Spectre.Console;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-internal sealed class InstallTerminalPage : TerminalPage
+internal sealed class InstallTerminalPage : ITerminalPage
 {
-    public override string Title => LocalizedStrings.MainMenu_InstallMod_Title;
-    public override string Description => LocalizedStrings.MainMenu_InstallMod_Description;
+    public string Title => LocalizedStrings.MainMenu_InstallMod_Title;
+    public string Description => LocalizedStrings.MainMenu_InstallMod_Description;
 
-    public InstallTerminalPage(TerminalAppContext context) : base(context) { }
+    private readonly IWorkflowService _workflowService;
+    private readonly TerminalInstallOptions _installOptions;
+    private readonly TerminalPageChrome _chrome;
+    private readonly TerminalSettings _settings;
+    private readonly InstallTerminalInput _input;
+    private readonly InstallTerminalView _view;
 
-    public override TerminalPageResult Run()
+    public InstallTerminalPage(
+        IWorkflowService workflowService,
+        TerminalInstallOptions installOptions,
+        TerminalPageChrome chrome,
+        TerminalSettings settings,
+        InstallTerminalInput input,
+        InstallTerminalView view)
     {
-        NewPage(Title, Description);
+        _workflowService = workflowService;
+        _installOptions = installOptions;
+        _chrome = chrome;
+        _settings = settings;
+        _input = input;
+        _view = view;
+    }
 
-        string? zipFilePath = Context.Prompts.ReadExistingFilePath(LocalizedStrings.InstallPage_ModZipPathPrompt);
+    public TerminalPageResult Run()
+    {
+        _chrome.ShowPage(Title, Description);
+
+        string? zipFilePath = _input.ReadModZipPath();
 
         if (zipFilePath is null)
         {
             return TerminalPageResult.ReturnToMenu(false);
         }
 
-        Context.Ui.Layout.PrepareOutputArea();
-        Context.Ui.Text.WriteInfo(LocalizedStrings.InstallPage_AnalyzingMod);
-        Context.Ui.Text.WriteBlankLine();
+        _chrome.PrepareOutputArea();
+        _view.WriteAnalyzing();
 
         string? gameDirectory = null;
         InstallPreviewResult? preview = TryPreviewInstall(zipFilePath, gameDirectory);
 
         if (preview is null)
         {
-            gameDirectory = Context.Prompts.ReadExistingDirectoryPath(LocalizedStrings.InstallPage_GameDirectoryPrompt);
+            gameDirectory = _input.ReadGameDirectory();
 
             if (gameDirectory is null)
             {
@@ -48,22 +65,22 @@ internal sealed class InstallTerminalPage : TerminalPage
             return TerminalPageResult.ReturnToMenu();
         }
 
-        WriteInstallPreview(preview);
+        _view.WriteInstallPreview(preview, _settings.VerboseOutput);
 
-        Context.Ui.Text.WriteBlankLine();
-        Context.Ui.Layout.ShowShortcutHint();
+        _view.WriteBlankLine();
+        _chrome.ShowShortcutHint();
 
-        if (!Context.Prompts.Confirm(LocalizedStrings.InstallPage_ApplyTheseChangesPrompt))
+        if (!_input.ConfirmApply())
         {
-            Context.Ui.Text.WriteInfo(LocalizedStrings.InstallPage_InstallCanceled);
+            _view.WriteInstallCanceled();
 
             return TerminalPageResult.ReturnToMenu();
         }
 
-        Context.Ui.Text.WriteBlankLine();
-        InstallModResult result = Context.WorkflowService.Install(
-            new InstallModRequest(zipFilePath, gameDirectory, Context.BackupDirectory));
-        WriteInstallResult(result);
+        _view.WriteBlankLine();
+        InstallModResult result = _workflowService.Install(
+            new InstallModRequest(zipFilePath, gameDirectory, _installOptions.BackupDirectory));
+        _view.WriteInstallResult(result, _settings.VerboseOutput);
 
         return TerminalPageResult.ReturnToMenu();
     }
@@ -72,181 +89,15 @@ internal sealed class InstallTerminalPage : TerminalPage
     {
         try
         {
-            return Context.WorkflowService.PreviewInstall(
+            return _workflowService.PreviewInstall(
                 new InstallPreviewRequest(zipFilePath, gameDirectory));
         }
         catch (DirectoryNotFoundException exception) when (gameDirectory is null)
         {
-            Context.Ui.Text.WriteInfo(exception.Message);
-            Context.Ui.Text.WriteBlankLine();
+            _view.WriteInfo(exception.Message);
+            _view.WriteBlankLine();
         }
 
         return null;
-    }
-
-    private void WriteInstallPreview(InstallPreviewResult result)
-    {
-        Context.Ui.Status.Write(LocalizedStrings.InstallPreview_DryRunStatus, "yellow");
-
-        Context.Ui.Summary.WriteRows(
-            (LocalizedStrings.Summary_Mod, result.ModName),
-            (LocalizedStrings.Summary_Version, result.ModVersion),
-            (LocalizedStrings.Summary_Author, result.ModAuthor),
-            (LocalizedStrings.Summary_Elapsed, TerminalSummary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
-
-        WriteInstallPreviewTargets(result.Files);
-
-        if (Context.Settings.VerboseLogging)
-        {
-            WriteInstallPreviewDetails(result.Files);
-        }
-
-        if (Context.Settings.VerboseLogging)
-        {
-            WriteInstallTiming(result.Timing);
-        }
-    }
-
-    private void WriteInstallResult(InstallModResult result)
-    {
-        Context.Ui.Status.Write(LocalizedStrings.InstallResult_InstalledStatus, "green");
-        Context.Ui.Summary.WriteRows(
-            (LocalizedStrings.Summary_Mod, result.ModName),
-            (LocalizedStrings.Summary_Version, result.ModVersion),
-            (LocalizedStrings.InstallResult_PatchedFiles, result.Files.Count.ToString(CultureInfo.InvariantCulture)),
-            (LocalizedStrings.InstallResult_CopiedFiles,
-                result.CopiedFiles.Count.ToString(CultureInfo.InvariantCulture)),
-            (LocalizedStrings.Summary_Assets,
-                result.Files.Sum(file => file.AssetCount).ToString(CultureInfo.InvariantCulture)),
-            (LocalizedStrings.Summary_Operations,
-                result.Files.Sum(file => file.OperationCount).ToString(CultureInfo.InvariantCulture)),
-            (LocalizedStrings.Summary_Elapsed, TerminalSummary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
-
-        WriteInstallResultTargets(result.Files);
-        WriteInstallResultPayloads(result.CopiedFiles);
-
-        if (Context.Settings.VerboseLogging)
-        {
-            WriteInstallTiming(result.Timing);
-        }
-    }
-
-    private void WriteInstallPreviewTargets(IReadOnlyList<InstallPreviewFileResult> files)
-    {
-        if (files.Count == 0)
-        {
-            return;
-        }
-
-        Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallPreview_Targets)}[/]");
-
-        foreach (InstallPreviewFileResult file in files)
-        {
-            Context.Console.MarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: [grey]{TerminalText.Escape(file.AssetsFilePath)}[/]");
-        }
-    }
-
-    private void WriteInstallPreviewDetails(IReadOnlyList<InstallPreviewFileResult> files)
-    {
-        if (files.Count == 0)
-        {
-            return;
-        }
-
-        Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine("[blue]Details[/]");
-
-        foreach (InstallPreviewFileResult file in files)
-        {
-            Context.Ui.Text.WriteBlankLine();
-            Context.Console.MarkupLine(
-                $"[blue]Target[/] {TerminalText.Escape(file.Target)}");
-            WritePatchPreviewAssets(file.Preview);
-        }
-    }
-
-    private void WriteInstallResultTargets(IReadOnlyList<InstallModFileResult> files)
-    {
-        if (files.Count == 0)
-        {
-            return;
-        }
-
-        Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallResult_PatchedFiles)}[/]");
-
-        foreach (InstallModFileResult file in files)
-        {
-            Context.Console.MarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: {FormatCount(file.AssetCount, LocalizedStrings.Summary_AssetUnit)}, {FormatCount(file.OperationCount, LocalizedStrings.Summary_OperationUnit)}");
-            Context.Console.MarkupLine(
-                $"  [grey]{TerminalText.Escape(LocalizedStrings.InstallResult_Backup)}[/] {TerminalText.Escape(file.BackupPath)}");
-        }
-    }
-
-    private void WriteInstallResultPayloads(IReadOnlyList<InstallCopiedFileResult> copiedFiles)
-    {
-        if (copiedFiles.Count == 0)
-        {
-            return;
-        }
-
-        Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallResult_CopiedFiles)}[/]");
-
-        foreach (InstallCopiedFileResult copiedFile in copiedFiles)
-        {
-            Context.Console.MarkupLine($"- {TerminalText.Escape(Path.GetFileName(copiedFile.DestinationPath))}");
-        }
-    }
-
-    private void WritePatchPreviewAssets(PatchPreviewResult preview)
-    {
-        foreach (PatchPreviewAssetResult assetResult in preview.Assets)
-        {
-            Context.Ui.Text.WriteBlankLine();
-            Context.Console.MarkupLine(
-                $"[grey]Path ID {assetResult.Asset.PathId.ToString(CultureInfo.InvariantCulture)} ({TerminalText.Escape(assetResult.Asset.TypeName)})[/]");
-
-            foreach (PatchPreviewOperationResult operation in assetResult.Operations)
-            {
-                if (!operation.WillChange)
-                {
-                    Context.Console.MarkupLine(
-                        $"  {TerminalText.Escape(operation.Path)}: skipped, current value {TerminalText.Escape(operation.OldValue)} does not match expected {TerminalText.Escape(operation.FromText)}");
-                    continue;
-                }
-
-                Context.Console.MarkupLine(
-                    $"  {TerminalText.Escape(operation.Path)}: {TerminalText.Escape(operation.OldValue)} -> {TerminalText.Escape(operation.ToText)}");
-            }
-        }
-    }
-
-    private static string FormatCount(int count, string unit)
-    {
-        return TerminalSummary.FormatCount(count, unit);
-    }
-
-    private void WriteInstallTiming(InstallTimingResult timing)
-    {
-        Context.Ui.Text.WriteBlankLine();
-        Context.Console.MarkupLine("[blue]Timing[/]");
-        Context.Ui.Summary.WriteRows(
-            ("Read package", TerminalSummary.FormatElapsedSecondsWithUnit(timing.ReadPackage)),
-            ("Prepare sources", TerminalSummary.FormatElapsedSecondsWithUnit(timing.PrepareSources)),
-            ("Find game files", TerminalSummary.FormatElapsedSecondsWithUnit(timing.FindGameFiles)),
-            ("Analyze changes", TerminalSummary.FormatElapsedSecondsWithUnit(timing.AnalyzeChanges)),
-            ("Apply patches", FormatTimingStage(timing.ApplyPatches)),
-            ("Copy files", FormatTimingStage(timing.CopyFiles)));
-    }
-
-    private static string FormatTimingStage(TimeSpan? elapsed)
-    {
-        return elapsed is null
-            ? "skipped"
-            : TerminalSummary.FormatElapsedSecondsWithUnit(elapsed.Value);
     }
 }

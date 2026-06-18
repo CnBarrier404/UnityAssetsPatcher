@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Workflows;
@@ -21,10 +22,19 @@ public static class Program
         var workflowFactory = new WorkflowFactory();
         IWorkflowService workflowService = new WorkflowService(assetsScopeFactory, backupDirectory, workflowFactory);
 
-        TerminalApp app = TerminalAppFactory.CreateDefault(
-            workflowService,
-            backupDirectory,
-            appInfo);
+        using ServiceProvider serviceProvider = new ServiceCollection()
+            .AddSingleton(workflowService)
+            .AddUnityAssetsPatcherTUI(
+                backupDirectory,
+                appInfo,
+                Spectre.Console.AnsiConsole.Console)
+            .BuildServiceProvider(new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true,
+            });
+
+        var app = serviceProvider.GetRequiredService<TerminalApp>();
 
         return app.Run();
     }

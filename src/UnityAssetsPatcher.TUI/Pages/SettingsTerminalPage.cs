@@ -3,24 +3,35 @@ using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-internal sealed class SettingsTerminalPage : TerminalPage
+internal sealed class SettingsTerminalPage : ITerminalPage
 {
-    public override string Title => LocalizedStrings.MainMenu_Settings_Title;
-    public override string Description => LocalizedStrings.MainMenu_Settings_Description;
+    public string Title => LocalizedStrings.MainMenu_Settings_Title;
+    public string Description => LocalizedStrings.MainMenu_Settings_Description;
 
-    public SettingsTerminalPage(TerminalAppContext context) : base(context) { }
+    private readonly TerminalSettings _settings;
+    private readonly SettingsTerminalInput _input;
+    private readonly SettingsTerminalView _view;
 
-    public override TerminalPageResult Run()
+    public SettingsTerminalPage(
+        TerminalSettings settings,
+        SettingsTerminalInput input,
+        SettingsTerminalView view)
+    {
+        _settings = settings;
+        _input = input;
+        _view = view;
+    }
+
+    public TerminalPageResult Run()
     {
         int selectedIndex = 0;
 
         while (true)
         {
-            int? toggledIndex = Context.Prompts.ReadChoiceIndex(
+            int? toggledIndex = _input.ReadToggledSetting(
                 SettingsCount,
                 selectedIndex,
-                WriteSettings,
-                acceptKey: ConsoleKey.Spacebar);
+                (index, clear) => _view.WriteSettings(Title, GetSettings(), index, clear));
 
             if (toggledIndex is null)
             {
@@ -32,16 +43,6 @@ internal sealed class SettingsTerminalPage : TerminalPage
         }
     }
 
-    private void WriteSettings(int selectedIndex, bool clear)
-    {
-        NewPage(
-            Title,
-            LocalizedStrings.SettingsPage_ConfigureOutputDetailsDescription,
-            LocalizedStrings.SettingsPage_ShortcutHint,
-            clear);
-        Context.Ui.List.WriteToggleList(GetSettings(), selectedIndex);
-    }
-
     private IReadOnlyList<TerminalToggleDisplay> GetSettings()
     {
         return
@@ -49,7 +50,7 @@ internal sealed class SettingsTerminalPage : TerminalPage
             new TerminalToggleDisplay(
                 LocalizedStrings.SettingsPage_VerboseLoggingName,
                 LocalizedStrings.SettingsPage_VerboseLoggingDescription,
-                Context.Settings.VerboseLogging),
+                _settings.VerboseOutput),
         ];
     }
 
@@ -58,7 +59,7 @@ internal sealed class SettingsTerminalPage : TerminalPage
         switch (selectedIndex)
         {
             case 0:
-                Context.Settings.VerboseLogging = !Context.Settings.VerboseLogging;
+                _settings.VerboseOutput = !_settings.VerboseOutput;
                 break;
         }
     }
