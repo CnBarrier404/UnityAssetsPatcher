@@ -2,6 +2,9 @@ using System.Globalization;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using Spectre.Console.Testing;
+using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
 using UnityAssetsPatcher.TUI;
@@ -480,7 +483,10 @@ public sealed class TerminalAppTests : IDisposable
 
     private static TerminalApp CreateApp(StubAssetsFileService assetsFileService, IAnsiConsole console)
     {
-        return CreateApp(new TestAssetsAccessScopeFactory(assetsFileService, assetsFileService), console);
+        return CreateApp(
+            new TestAssetsAccessScopeFactory(assetsFileService, assetsFileService),
+            Path.Combine(AppContext.BaseDirectory, "backup"),
+            console);
     }
 
     private static TerminalApp CreateApp(
@@ -488,10 +494,9 @@ public sealed class TerminalAppTests : IDisposable
         string backupDirectory,
         IAnsiConsole console)
     {
-        return TerminalAppFactory.Create(
+        return CreateApp(
             new TestAssetsAccessScopeFactory(assetsFileService, assetsFileService),
             backupDirectory,
-            console,
             console);
     }
 
@@ -499,9 +504,25 @@ public sealed class TerminalAppTests : IDisposable
         IAssetsAccessScopeFactory assetsScopeFactory,
         IAnsiConsole console)
     {
-        return TerminalAppFactory.Create(
+        return CreateApp(
             assetsScopeFactory,
             Path.Combine(AppContext.BaseDirectory, "backup"),
+            console);
+    }
+
+    private static TerminalApp CreateApp(
+        IAssetsAccessScopeFactory assetsScopeFactory,
+        string backupDirectory,
+        IAnsiConsole console)
+    {
+        IWorkflowService workflowService = new WorkflowService(
+            assetsScopeFactory,
+            backupDirectory,
+            new WorkflowFactory());
+
+        return TerminalAppFactory.Create(
+            workflowService,
+            backupDirectory,
             console,
             console);
     }

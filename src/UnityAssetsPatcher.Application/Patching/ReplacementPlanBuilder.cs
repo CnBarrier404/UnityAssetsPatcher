@@ -67,6 +67,8 @@ public sealed class ReplacementPlanBuilder
                     $"Path ID {match.Target.PathId}",
                     JsonElementFactory.String(match.MatchValue),
                     JsonElementFactory.String($"Path ID {match.Source.PathId} from {sourceAssetsFilePath}"),
+                    match.MatchValue,
+                    $"Path ID {match.Source.PathId} from {sourceAssetsFilePath}",
                     true);
                 assets.Add(new PatchPreviewAssetResult(match.Target, [operation]));
             }

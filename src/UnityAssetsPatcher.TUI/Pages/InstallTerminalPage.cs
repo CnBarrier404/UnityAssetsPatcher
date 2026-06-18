@@ -1,7 +1,6 @@
 using System.Globalization;
 using Spectre.Console;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Core.Json;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 
@@ -62,30 +61,19 @@ internal sealed class InstallTerminalPage : TerminalPage
         }
 
         Context.Ui.Text.WriteBlankLine();
-        Context.UseInstallWorkflow(workflow =>
-        {
-            InstallModResult result = workflow.Install(
-                new InstallModRequest(zipFilePath, gameDirectory, Context.BackupDirectory));
-            WriteInstallResult(result);
-
-            return 0;
-        });
+        InstallModResult result = Context.WorkflowService.Install(
+            new InstallModRequest(zipFilePath, gameDirectory, Context.BackupDirectory));
+        WriteInstallResult(result);
 
         return TerminalPageResult.ReturnToMenu();
     }
 
     private InstallPreviewResult? TryPreviewInstall(string zipFilePath, string? gameDirectory)
     {
-        InstallPreviewResult? preview = null;
-
         try
         {
-            Context.UseInstallWorkflow(workflow =>
-            {
-                preview = workflow.Preview(new InstallPreviewRequest(zipFilePath, gameDirectory));
-
-                return 0;
-            });
+            return Context.WorkflowService.PreviewInstall(
+                new InstallPreviewRequest(zipFilePath, gameDirectory));
         }
         catch (DirectoryNotFoundException exception) when (gameDirectory is null)
         {
@@ -93,7 +81,7 @@ internal sealed class InstallTerminalPage : TerminalPage
             Context.Ui.Text.WriteBlankLine();
         }
 
-        return preview;
+        return null;
     }
 
     private void WriteInstallPreview(InstallPreviewResult result)
@@ -227,17 +215,17 @@ internal sealed class InstallTerminalPage : TerminalPage
                 if (!operation.WillChange)
                 {
                     Context.Console.MarkupLine(
-                        $"  {TerminalText.Escape(operation.Path)}: skipped, current value {TerminalText.Escape(operation.OldValue)} does not match expected {TerminalText.Escape(JsonUtils.FormatElementValue(operation.From))}");
+                        $"  {TerminalText.Escape(operation.Path)}: skipped, current value {TerminalText.Escape(operation.OldValue)} does not match expected {TerminalText.Escape(operation.FromText)}");
                     continue;
                 }
 
                 Context.Console.MarkupLine(
-                    $"  {TerminalText.Escape(operation.Path)}: {TerminalText.Escape(operation.OldValue)} -> {TerminalText.Escape(JsonUtils.FormatElementValue(operation.To))}");
+                    $"  {TerminalText.Escape(operation.Path)}: {TerminalText.Escape(operation.OldValue)} -> {TerminalText.Escape(operation.ToText)}");
             }
         }
     }
 
-    private string FormatCount(int count, string unit)
+    private static string FormatCount(int count, string unit)
     {
         return TerminalSummary.FormatCount(count, unit);
     }
@@ -255,7 +243,7 @@ internal sealed class InstallTerminalPage : TerminalPage
             ("Copy files", FormatTimingStage(timing.CopyFiles)));
     }
 
-    private string FormatTimingStage(TimeSpan? elapsed)
+    private static string FormatTimingStage(TimeSpan? elapsed)
     {
         return elapsed is null
             ? "skipped"

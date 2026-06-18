@@ -1,6 +1,6 @@
 using Spectre.Console;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core;
-using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.TUI.Pages;
 
 namespace UnityAssetsPatcher.TUI;
@@ -10,25 +10,19 @@ public sealed class TerminalApp
     private readonly TerminalAppContext _context;
     private readonly MainMenuTerminalPage _mainMenuPage;
 
-    public TerminalApp(
-        IAssetsAccessScopeFactory assetsScopeFactory,
+    public TerminalApp(IWorkflowService workflowService,
         string backupDirectory,
         AppInfo appInfo,
         IAnsiConsole console,
         IAnsiConsole errorConsole)
     {
-        ArgumentNullException.ThrowIfNull(assetsScopeFactory);
+        ArgumentNullException.ThrowIfNull(workflowService);
         ArgumentNullException.ThrowIfNull(backupDirectory);
         ArgumentNullException.ThrowIfNull(appInfo);
         ArgumentNullException.ThrowIfNull(console);
         ArgumentNullException.ThrowIfNull(errorConsole);
 
-        _context = new TerminalAppContext(
-            new TerminalWorkflowSessionFactory(assetsScopeFactory),
-            backupDirectory,
-            appInfo,
-            console,
-            errorConsole);
+        _context = new TerminalAppContext(workflowService, backupDirectory, appInfo, console, errorConsole);
 
         IReadOnlyList<ITerminalPage> pages =
         [

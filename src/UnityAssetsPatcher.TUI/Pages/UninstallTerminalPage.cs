@@ -1,7 +1,6 @@
 using System.Globalization;
 using Spectre.Console;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Modules;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 
@@ -18,13 +17,7 @@ internal sealed class UninstallTerminalPage : TerminalPage
     {
         NewPage(Title, Description);
 
-        IReadOnlyList<InstallRecordSummary> installed = [];
-        Context.UseUninstallWorkflow(workflow =>
-        {
-            installed = workflow.ListInstalled();
-
-            return 0;
-        });
+        var installed = Context.WorkflowService.ListInstalledMods();
 
         if (installed.Count == 0)
         {
@@ -45,18 +38,8 @@ internal sealed class UninstallTerminalPage : TerminalPage
 
         InstallRecordSummary selected = installed[selectedIndex.Value];
         Context.Ui.Layout.PrepareOutputArea();
-        UninstallPreviewResult? preview = null;
-        Context.UseUninstallWorkflow(workflow =>
-        {
-            preview = workflow.Preview(new UninstallPreviewRequest(selected.InstallDirectory));
-
-            return 0;
-        });
-
-        if (preview is null)
-        {
-            return TerminalPageResult.ReturnToMenu();
-        }
+        UninstallPreviewResult preview = Context.WorkflowService.PreviewUninstall(
+            new UninstallPreviewRequest(selected.InstallDirectory));
 
         WritePreview(selected, preview);
 
@@ -79,13 +62,9 @@ internal sealed class UninstallTerminalPage : TerminalPage
         }
 
         Context.Ui.Text.WriteBlankLine();
-        Context.UseUninstallWorkflow(workflow =>
-        {
-            UninstallModResult result = workflow.Uninstall(new UninstallModRequest(selected.InstallDirectory));
-            WriteResult(result);
-
-            return 0;
-        });
+        UninstallModResult result = Context.WorkflowService.Uninstall(
+            new UninstallModRequest(selected.InstallDirectory));
+        WriteResult(result);
 
         return TerminalPageResult.ReturnToMenu();
     }

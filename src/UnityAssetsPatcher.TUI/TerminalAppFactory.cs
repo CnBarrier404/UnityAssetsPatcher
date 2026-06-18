@@ -1,17 +1,17 @@
 using Spectre.Console;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core;
-using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.TUI;
 
 public static class TerminalAppFactory
 {
     public static TerminalApp CreateDefault(
-        IAssetsAccessScopeFactory assetsScopeFactory,
+        IWorkflowService workflowService,
         string backupDirectory,
         AppInfo appInfo)
     {
-        ArgumentNullException.ThrowIfNull(assetsScopeFactory);
+        ArgumentNullException.ThrowIfNull(workflowService);
         ArgumentNullException.ThrowIfNull(backupDirectory);
         ArgumentNullException.ThrowIfNull(appInfo);
 
@@ -21,7 +21,7 @@ public static class TerminalAppFactory
         });
 
         return Create(
-            assetsScopeFactory,
+            workflowService,
             backupDirectory,
             appInfo,
             AnsiConsole.Console,
@@ -29,29 +29,29 @@ public static class TerminalAppFactory
     }
 
     public static TerminalApp Create(
-        IAssetsAccessScopeFactory assetsScopeFactory,
+        IWorkflowService workflowService,
         string backupDirectory,
         IAnsiConsole console,
         IAnsiConsole errorConsole)
     {
-        return Create(assetsScopeFactory, backupDirectory, AppInfo.Default, console, errorConsole);
+        return Create(workflowService, backupDirectory, AppInfo.Default, console, errorConsole);
     }
 
     private static TerminalApp Create(
-        IAssetsAccessScopeFactory assetsScopeFactory,
+        IWorkflowService workflowService,
         string backupDirectory,
         AppInfo appInfo,
         IAnsiConsole console,
         IAnsiConsole errorConsole)
     {
-        ArgumentNullException.ThrowIfNull(assetsScopeFactory);
+        ArgumentNullException.ThrowIfNull(workflowService);
         ArgumentNullException.ThrowIfNull(backupDirectory);
         ArgumentNullException.ThrowIfNull(appInfo);
         ArgumentNullException.ThrowIfNull(console);
         ArgumentNullException.ThrowIfNull(errorConsole);
 
         return new TerminalApp(
-            assetsScopeFactory,
+            workflowService,
             backupDirectory,
             appInfo,
             console,

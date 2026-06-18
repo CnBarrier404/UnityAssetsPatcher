@@ -1,3 +1,6 @@
+using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI;
@@ -13,10 +16,13 @@ public static class Program
         string tpkFilePath = Path.Combine(AppContext.BaseDirectory, "resources.tpk");
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
         AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
+
         using var assetsScopeFactory = new AssetsToolsAccessScopeFactory(tpkFilePath);
+        var workflowFactory = new WorkflowFactory();
+        IWorkflowService workflowService = new WorkflowService(assetsScopeFactory, backupDirectory, workflowFactory);
 
         TerminalApp app = TerminalAppFactory.CreateDefault(
-            assetsScopeFactory,
+            workflowService,
             backupDirectory,
             appInfo);
 

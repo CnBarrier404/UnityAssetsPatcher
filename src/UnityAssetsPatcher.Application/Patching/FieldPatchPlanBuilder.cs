@@ -29,6 +29,8 @@ public sealed class FieldPatchPlanBuilder
                         operation.OldValue,
                         operation.From,
                         operation.To,
+                        JsonUtils.FormatElementValue(operation.From),
+                        JsonUtils.FormatElementValue(operation.To),
                         operation.WillChange))
                     .ToArray()))
             .ToArray());

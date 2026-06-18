@@ -41,6 +41,8 @@ public sealed class PatchAssetsWorkflowTests
         PatchPreviewOperationResult operation = Assert.Single(asset.Operations);
         Assert.Equal("field of view", operation.Path);
         Assert.True(operation.WillChange);
+        Assert.Equal("90", operation.FromText);
+        Assert.Equal("75", operation.ToText);
         Assert.Equal(configPath, manifestLoader.ConfigPath);
     }
 

@@ -91,4 +91,13 @@ public sealed record PatchPreviewOperationResult(
     string OldValue,
     JsonElement From,
     JsonElement To,
+    string FromText,
+    string ToText,
     bool WillChange);
+
+public sealed record InstallRecordSummary(
+    string InstallDirectory,
+    string ModName,
+    string ModVersion,
+    string GameDirectory,
+    DateTimeOffset InstalledAt);

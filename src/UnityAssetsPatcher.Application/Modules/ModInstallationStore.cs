@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Modules;
 
@@ -140,10 +141,3 @@ public sealed record InstallRecordCopiedFile(
     string Source,
     string DestinationPath,
     bool Exists);
-
-public sealed record InstallRecordSummary(
-    string InstallDirectory,
-    string ModName,
-    string ModVersion,
-    string GameDirectory,
-    DateTimeOffset InstalledAt);
