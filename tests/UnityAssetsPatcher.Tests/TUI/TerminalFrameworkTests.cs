@@ -1,9 +1,10 @@
 using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application;
 using Spectre.Console.Testing;
 using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.TUI.Framework;
 using Xunit;
@@ -144,7 +145,8 @@ public sealed class TerminalFrameworkTests : IDisposable
     {
         TestConsole console = CreateConsole();
         using ServiceProvider provider = new ServiceCollection()
-            .AddSingleton<IWorkflowService>(new ThrowingWorkflowService())
+            .AddSingleton<IAssetsAccessScopeFactory>(new ThrowingAssetsAccessScopeFactory())
+            .AddUnityAssetsPatcherApplication("backup")
             .AddUnityAssetsPatcherTUI(
                 "backup",
                 AppInfo.Default,
@@ -438,29 +440,9 @@ public sealed class TerminalFrameworkTests : IDisposable
             : 1);
     }
 
-    private sealed class ThrowingWorkflowService : IWorkflowService
+    private sealed class ThrowingAssetsAccessScopeFactory : IAssetsAccessScopeFactory
     {
-        public InstallPreviewResult PreviewInstall(InstallPreviewRequest request)
-        {
-            throw new NotSupportedException();
-        }
-
-        public InstallModResult Install(InstallModRequest request)
-        {
-            throw new NotSupportedException();
-        }
-
-        public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
-        {
-            throw new NotSupportedException();
-        }
-
-        public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request)
-        {
-            throw new NotSupportedException();
-        }
-
-        public UninstallModResult Uninstall(UninstallModRequest request)
+        public IAssetsAccessScope CreateScope()
         {
             throw new NotSupportedException();
         }

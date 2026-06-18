@@ -4,8 +4,6 @@ using Spectre.Console;
 using Spectre.Console.Rendering;
 using Spectre.Console.Testing;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
@@ -517,13 +515,9 @@ public sealed class TerminalAppTests : IDisposable
         string backupDirectory,
         IAnsiConsole console)
     {
-        IWorkflowService workflowService = new WorkflowService(
-            assetsScopeFactory,
-            backupDirectory,
-            new WorkflowFactory());
-
         return new ServiceCollection()
-            .AddSingleton(workflowService)
+            .AddSingleton<IAssetsAccessScopeFactory>(assetsScopeFactory)
+            .AddUnityAssetsPatcherApplication(backupDirectory)
             .AddUnityAssetsPatcherTUI(
                 backupDirectory,
                 AppInfo.Default,

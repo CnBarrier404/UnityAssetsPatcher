@@ -1,7 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI;
@@ -18,12 +16,9 @@ public static class Program
         string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
         AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
 
-        using var assetsScopeFactory = new AssetsToolsAccessScopeFactory(tpkFilePath);
-        var workflowFactory = new WorkflowFactory();
-        IWorkflowService workflowService = new WorkflowService(assetsScopeFactory, backupDirectory, workflowFactory);
-
         using ServiceProvider serviceProvider = new ServiceCollection()
-            .AddSingleton(workflowService)
+            .AddUnityAssetsPatcherAssetsTools(tpkFilePath)
+            .AddUnityAssetsPatcherApplication(backupDirectory)
             .AddUnityAssetsPatcherTUI(
                 backupDirectory,
                 appInfo,
