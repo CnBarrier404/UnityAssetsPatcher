@@ -13,7 +13,7 @@
 
     <ItemGroup>
         <PackageReference Include="AssetsTools.NET" Version="3.0.4"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="11.0.0-preview.5.26302.115" />
     </ItemGroup>
 
 </Project>
