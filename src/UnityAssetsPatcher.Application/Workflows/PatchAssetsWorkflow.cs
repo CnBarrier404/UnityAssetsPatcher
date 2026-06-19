@@ -1,8 +1,5 @@
-using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Modules;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -10,48 +7,13 @@ public sealed class PatchAssetsWorkflow
 {
     private readonly PatchPlanBuilder _patchPlanBuilder;
     private readonly PatchOutputWriter _patchOutputWriter;
-    private readonly IModManifestLoader _manifestLoader;
-    private readonly ManifestTargetSelector _targetSelector;
-    private readonly IAssetsAccessScope _assets;
 
     public PatchAssetsWorkflow(
         PatchPlanBuilder patchPlanBuilder,
-        PatchOutputWriter patchOutputWriter,
-        IModManifestLoader manifestLoader,
-        ManifestTargetSelector targetSelector,
-        IAssetsAccessScope assets)
+        PatchOutputWriter patchOutputWriter)
     {
         _patchPlanBuilder = patchPlanBuilder;
         _patchOutputWriter = patchOutputWriter;
-        _manifestLoader = manifestLoader;
-        _targetSelector = targetSelector;
-        _assets = assets;
-    }
-
-    public PatchPreviewResult Preview(PatchPreviewRequest request)
-    {
-        ModManifest manifest = _manifestLoader.Load(request.ConfigPath);
-        IReadOnlyList<ManifestPatch> targets = _targetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
-
-        return _patchPlanBuilder.CreatePreview(request.AssetsFilePath, targets, request.ConfigPath);
-    }
-
-    public PatchApplyResult Apply(PatchApplyRequest request)
-    {
-        ModManifest manifest = _manifestLoader.Load(request.ConfigPath);
-        IReadOnlyList<ManifestPatch> targets = _targetSelector.ForAssetsFile(manifest, request.AssetsFilePath);
-        PatchFileWritePlan plan = _patchPlanBuilder.CreateRequiredWritePlan(
-            request.AssetsFilePath,
-            targets,
-            request.ConfigPath);
-
-        ReleaseReadResources();
-
-        return _patchOutputWriter.Write(
-            request.AssetsFilePath,
-            request.OutputPath,
-            request.BackupDirectory,
-            plan);
     }
 
     public PatchAssetPreview Preview(PackageSource source, TargetAssetSet targets, WorkflowTiming timings)
@@ -67,10 +29,5 @@ public sealed class PatchAssetsWorkflow
     public PatchAssetApplyResult Apply(PatchAssetPlan plan, string backupDirectory, WorkflowTiming timings)
     {
         return new PatchAssetApplier(_patchOutputWriter).Execute(plan, backupDirectory, timings);
-    }
-
-    private void ReleaseReadResources()
-    {
-        _assets.ReleaseReadResources();
     }
 }

@@ -44,10 +44,7 @@ public sealed class WorkflowFactory
     {
         PatchPlanBuilder patchPlanBuilder = CreatePatchPlanBuilder(assets.Reader);
         var patchOutputWriter = new PatchOutputWriter(assets.Writer);
-        PatchAssetsWorkflow patchAssetsWorkflow = CreatePatchAssetsWorkflow(
-            patchPlanBuilder,
-            patchOutputWriter,
-            assets);
+        var patchAssetsWorkflow = new PatchAssetsWorkflow(patchPlanBuilder, patchOutputWriter);
 
         return new InstallModWorkflow(
             patchAssetsWorkflow,
@@ -62,38 +59,12 @@ public sealed class WorkflowFactory
         return new UninstallModWorkflow(new ModInstallationStore(backupDirectory));
     }
 
-    public InspectAssetsWorkflow CreateInspectAssetsWorkflow(IAssetsAccessScope assets)
-    {
-        return new InspectAssetsWorkflow(assets.Reader);
-    }
-
     public FindAssetsWorkflow CreateFindAssetsWorkflow(IAssetsAccessScope assets)
     {
         return new FindAssetsWorkflow(
             new AssetQueryService(assets.Reader),
             _manifestLoader,
             new ManifestTargetSelector());
-    }
-
-    public PatchAssetsWorkflow CreatePatchAssetsWorkflow(IAssetsAccessScope assets)
-    {
-        return CreatePatchAssetsWorkflow(
-            CreatePatchPlanBuilder(assets.Reader),
-            new PatchOutputWriter(assets.Writer),
-            assets);
-    }
-
-    private PatchAssetsWorkflow CreatePatchAssetsWorkflow(
-        PatchPlanBuilder patchPlanBuilder,
-        PatchOutputWriter patchOutputWriter,
-        IAssetsAccessScope assets)
-    {
-        return new PatchAssetsWorkflow(
-            patchPlanBuilder,
-            patchOutputWriter,
-            _manifestLoader,
-            new ManifestTargetSelector(),
-            assets);
     }
 
     private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)

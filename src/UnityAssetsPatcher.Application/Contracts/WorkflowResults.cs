@@ -76,8 +76,6 @@ public sealed record UninstallPreviewRestoredFileResult(
 
 public sealed record UninstallPreviewDeletedFileResult(string Source, string DestinationPath, bool Exists);
 
-public sealed record InspectListResult(IReadOnlyList<AssetsInfo> Assets, int TotalCount);
-
 public sealed record AssetMatch(AssetsInfo Asset, IReadOnlyDictionary<string, JsonElement> IncludeGroup);
 
 public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
