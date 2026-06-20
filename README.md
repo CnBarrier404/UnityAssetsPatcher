@@ -1,6 +1,6 @@
 # Unity Assets Patcher
 
-Unity Assets Patcher 是一个用于预览、检查和安装 Unity `.assets` 文件 mod 的交互式命令行工具。
+Unity Assets Patcher 是一个用于安装和卸载 Unity `.assets` 文件 mod 的交互式命令行工具。
 
 它主要面向无法方便接入 `BepInEx` 等运行时 mod 框架的 Unity 游戏，通过 manifest 描述要安装的资源文件和 assets 变更。
 
@@ -17,9 +17,8 @@ dotnet run --project src\UnityAssetsPatcher\UnityAssetsPatcher.csproj
 ## 功能
 
 - 安装 mod zip 包，并在写入前显示 dry run 预览。
-- 检查 Unity assets 文件中的资产列表和字段树。
-- 使用 manifest 条件查找目标 asset。
 - 安装 manifest 中声明的 assets 变更和 payload 文件。
+- 卸载已安装的 mod，并恢复原始 assets 文件。
 - 覆盖原始 assets 文件前自动创建备份。
 
 ## Mod 包与 Manifest

@@ -4,7 +4,7 @@ This file applies to the entire repository.
 
 ## Project Overview
 
-UnityAssetsPatcher is a .NET 10 interactive command-line tool for inspecting, finding, installing, and uninstalling Unity assets file mods. It is not a Unity project; do not use Unity Editor workflows for normal development.
+UnityAssetsPatcher is a .NET 10 interactive command-line tool for installing and uninstalling Unity assets file mods. It is not a Unity project; do not use Unity Editor workflows for normal development.
 
 The solution contains:
 
@@ -44,10 +44,10 @@ Install and uninstall both perform a preview first and only write after confirma
 - `TerminalUI` is the rendering facade aggregating `TerminalLayout`, `TerminalText`, `TerminalList`, `TerminalTable`, `TerminalSummary`, and `TerminalStatus` under `Framework/`.
 - `TerminalPrompts` and `TerminalSelectionPrompt` own interactive input behavior.
 - TUI pages follow an MVP-like pattern: each page is split into three classes — `*TerminalPage` (controller/orchestrator implementing `ITerminalPage`), `*TerminalInput` (user input handling), and `*TerminalView` (output rendering). Page constructors are forbidden from depending on `IAnsiConsole`, `TerminalUI`, `TerminalPrompts`, `IServiceProvider`, or any `*Context` type — enforced by reflection tests.
-- Domain workflow orchestration lives in `FindAssetsWorkflow`, `PatchAssetsWorkflow`, `InstallModWorkflow`, and `UninstallModWorkflow`, composed through `WorkflowFactory`.
-- `WorkflowFactory` manually composes workflow instances with their dependencies using the provided `IAssetsAccessScope`. Only the top-level `IWorkflowService` and `IAssetsAccessScopeFactory` are DI-managed singletons.
+- Domain workflow orchestration lives in `PatchAssetsWorkflow`, `InstallModWorkflow`, and `UninstallModWorkflow`, composed through `WorkflowFactory`.
+- `WorkflowFactory` manually composes workflow instances with their dependencies using the provided `IAssetsAccessScope`. The top-level `IWorkflowService`, `WorkflowFactory`, and `IAssetsAccessScopeFactory` are DI-managed singletons.
 - `IWorkflowService` / `WorkflowService` is the application facade that delegates to workflow instances via `WorkflowFactory`. Request and response types live in `Application/Contracts/` as `WorkflowRequests` and `WorkflowResults`.
-- Find/patch/install/uninstall behavior belongs under `src/UnityAssetsPatcher.Application`.
+- Patch/install/uninstall behavior belongs under `src/UnityAssetsPatcher.Application`.
 - Reusable install steps such as package loading, target resolution, patch planning, payload planning, and copy/apply execution belong under `Application/Modules`.
 - Patch query, field patch planning, replacement planning, and output write coordination belong under `Application/Patching`.
 - Shared domain models and contracts belong under `src/UnityAssetsPatcher.Core`.
@@ -60,12 +60,12 @@ Install and uninstall both perform a preview first and only write after confirma
 ## Manifest And Mod Package Notes
 
 - The app accepts manifest JSON files and mod zip packages where workflows call `ModManifestLoader`.
-- Patch targeting is selected by assets file name through `ManifestTargetSelector`.
+- Patch targeting is selected by assets file name through `TargetAssetResolver`.
 - Install workflows may patch assets files and copy payload files from a mod package.
 - Preserve preview behavior: preview commands should analyze and print intended changes without writing assets files, copying payloads, restoring backups, deleting payloads, or updating install records.
 - `ModInstallationStore` persists install records as `record.json` files in timestamped backup directories, tracking `Installed`/`Uninstalled` status for uninstall support.
 - `GameDirectoryResolver` resolves a game's install directory by scanning Steam library roots for `appmanifest_*.acf` files matching the game name, parsing VDF key-value format.
-- `PackageWorkspace` extracts source assets files from the mod zip into a temp directory when patches use `replaceAsset`, and cleans up on dispose.
+- `ModPackage` extracts source assets files from the mod zip into a temp directory when patches use `replaceAsset`, and cleans up on dispose.
 
 ## Coding Guidelines
 

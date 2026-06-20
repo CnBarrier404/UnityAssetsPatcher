@@ -2,10 +2,7 @@
 
 本文档说明 Unity Assets Patcher 当前支持的 `manifest.json` 格式。Manifest 用来描述 mod 元数据、目标游戏、需要复制的 payload 文件，以及要安装到 Unity `.assets` 文件中的变更。
 
-Manifest 主要被两个交互功能使用：
-
-- `Install Mod`：读取 mod zip，预览并安装 manifest 中声明的变更。
-- `Find assets`：使用 manifest 中的 `type` 和 `match` 条件查找目标 asset。
+Manifest 被 `Install Mod` 功能使用：读取 mod zip，预览并安装 manifest 中声明的变更。
 
 ## Mod 包结构
 
@@ -170,7 +167,7 @@ Mod.zip
 ]
 ```
 
-用于安装的 patch 必须至少包含 `set`、`add` 或 `replaceAsset` 之一。只包含 `type` 和 `match` 的 manifest 可以用于 `Find assets`，不能用于安装。
+用于安装的 patch 必须至少包含 `set`、`add` 或 `replaceAsset` 之一。
 
 ## 定位目标 asset
 
