@@ -17,7 +17,7 @@ public sealed class ReplacementPlanBuilder
     public IReadOnlyList<AssetReplacement> CreateWritePlan(
         string assetsFilePath,
         IReadOnlyList<ManifestPatch> targets,
-        string configPath)
+        IReadOnlyDictionary<string, string> sourceAssetsPaths)
     {
         var replacements = new List<AssetReplacement>();
 
@@ -29,14 +29,10 @@ public sealed class ReplacementPlanBuilder
             }
 
             string sourceAssetsFilePath =
-                ResolveReplaceFromAssetsFilePath(configPath, patch.ReplaceFrom.AssetsFilePath);
+                ResolveReplaceFromAssetsFilePath(sourceAssetsPaths, patch.ReplaceFrom.AssetsFilePath);
 
-            foreach (AssetReplacementMatch match in FindReplacementMatches(assetsFilePath, sourceAssetsFilePath,
-                         patch))
-            {
-                replacements.Add(new AssetReplacement(sourceAssetsFilePath, match.Source.PathId,
-                    match.Target.PathId));
-            }
+            replacements.AddRange(FindReplacementMatches(assetsFilePath, sourceAssetsFilePath, patch).Select(match =>
+                new AssetReplacement(sourceAssetsFilePath, match.Source.PathId, match.Target.PathId)));
         }
 
         return replacements;
@@ -45,7 +41,7 @@ public sealed class ReplacementPlanBuilder
     public PatchPreviewResult CreatePreview(
         string assetsFilePath,
         IReadOnlyList<ManifestPatch> targets,
-        string configPath)
+        IReadOnlyDictionary<string, string> sourceAssetsPaths)
     {
         var assets = new List<PatchPreviewAssetResult>();
 
@@ -57,21 +53,14 @@ public sealed class ReplacementPlanBuilder
             }
 
             string sourceAssetsFilePath =
-                ResolveReplaceFromAssetsFilePath(configPath, patch.ReplaceFrom.AssetsFilePath);
+                ResolveReplaceFromAssetsFilePath(sourceAssetsPaths, patch.ReplaceFrom.AssetsFilePath);
 
-            foreach (AssetReplacementMatch match in FindReplacementMatches(assetsFilePath, sourceAssetsFilePath,
-                         patch))
-            {
-                var operation = new PatchPreviewOperationResult(
-                    "*",
-                    $"Path ID {match.Target.PathId}",
+            assets.AddRange(from match in FindReplacementMatches(assetsFilePath, sourceAssetsFilePath, patch)
+                let operation = new PatchPreviewOperationResult("*", $"Path ID {match.Target.PathId}",
                     JsonElementFactory.String(match.MatchValue),
                     JsonElementFactory.String($"Path ID {match.Source.PathId} from {sourceAssetsFilePath}"),
-                    match.MatchValue,
-                    $"Path ID {match.Source.PathId} from {sourceAssetsFilePath}",
-                    true);
-                assets.Add(new PatchPreviewAssetResult(match.Target, [operation]));
-            }
+                    match.MatchValue, $"Path ID {match.Source.PathId} from {sourceAssetsFilePath}", true)
+                select new PatchPreviewAssetResult(match.Target, [operation]));
         }
 
         return new PatchPreviewResult(assets);
@@ -112,19 +101,14 @@ public sealed class ReplacementPlanBuilder
                 .Select(match => match.Asset)
                 .ToArray();
 
-            if (sourceMatches.Length == 0)
+            yield return sourceMatches.Length switch
             {
-                throw new InvalidOperationException(
-                    $"Replacement source did not contain a '{patch.AssetTypeName}' asset with {replaceFrom.MatchFieldPath} '{matchValue}'.");
-            }
-
-            if (sourceMatches.Length > 1)
-            {
-                throw new InvalidOperationException(
-                    $"Replacement source contains multiple '{patch.AssetTypeName}' assets with {replaceFrom.MatchFieldPath} '{matchValue}'.");
-            }
-
-            yield return new AssetReplacementMatch(targetMatch.Asset, sourceMatches[0], matchValue);
+                0 => throw new InvalidOperationException(
+                    $"Replacement source did not contain a '{patch.AssetTypeName}' asset with {replaceFrom.MatchFieldPath} '{matchValue}'."),
+                > 1 => throw new InvalidOperationException(
+                    $"Replacement source contains multiple '{patch.AssetTypeName}' assets with {replaceFrom.MatchFieldPath} '{matchValue}'."),
+                _ => new AssetReplacementMatch(targetMatch.Asset, sourceMatches[0], matchValue)
+            };
         }
     }
 
@@ -140,17 +124,19 @@ public sealed class ReplacementPlanBuilder
             $"Replacement {role} Path ID {pathId} does not contain scalar match field '{matchFieldPath}'.");
     }
 
-    private static string ResolveReplaceFromAssetsFilePath(string configPath, string assetsFilePath)
+    private static string ResolveReplaceFromAssetsFilePath(
+        IReadOnlyDictionary<string, string> sourceAssetsPaths,
+        string assetsFilePath)
     {
-        if (Path.IsPathRooted(assetsFilePath))
+        string normalizedPath = assetsFilePath.Replace('\\', '/');
+
+        if (sourceAssetsPaths.TryGetValue(normalizedPath, out string? resolvedPath))
         {
-            return Path.GetFullPath(assetsFilePath);
+            return resolvedPath;
         }
 
-        string fullConfigPath = Path.GetFullPath(configPath);
-        string baseDirectory = Path.GetDirectoryName(fullConfigPath) ?? Directory.GetCurrentDirectory();
-
-        return Path.GetFullPath(Path.Combine(baseDirectory, assetsFilePath));
+        throw new FileNotFoundException(
+            $"Replacement source assets file not found in package: {assetsFilePath}");
     }
 
     private sealed record AssetReplacementMatch(AssetsInfo Target, AssetsInfo Source, string MatchValue);

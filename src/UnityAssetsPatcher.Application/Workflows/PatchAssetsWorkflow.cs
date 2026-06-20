@@ -16,14 +16,14 @@ public sealed class PatchAssetsWorkflow
         _patchOutputWriter = patchOutputWriter;
     }
 
-    public PatchAssetPreview Preview(PackageSource source, TargetAssetSet targets, WorkflowTiming timings)
+    public PatchAssetPreview Preview(ModPackage package, TargetAssetSet targets, WorkflowTiming timings)
     {
-        return new PatchPlanner(_patchPlanBuilder).Preview(source, targets, timings);
+        return new PatchPlanner(_patchPlanBuilder).Preview(package, targets, timings);
     }
 
-    public PatchAssetPlan Plan(PackageSource source, TargetAssetSet targets, WorkflowTiming timings)
+    public PatchAssetPlan Plan(ModPackage package, TargetAssetSet targets, WorkflowTiming timings)
     {
-        return new PatchPlanner(_patchPlanBuilder).Plan(source, targets, timings);
+        return new PatchPlanner(_patchPlanBuilder).Plan(package, targets, timings);
     }
 
     public PatchAssetApplyResult Apply(PatchAssetPlan plan, string backupDirectory, WorkflowTiming timings)

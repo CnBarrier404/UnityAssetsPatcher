@@ -19,7 +19,7 @@ public sealed class PatchPlanBuilder
     public PatchPreviewResult CreatePreview(
         string assetsFilePath,
         IReadOnlyList<ManifestPatch> targets,
-        string configPath)
+        IReadOnlyDictionary<string, string> sourceAssetsPaths)
     {
         if (targets.Count == 0)
         {
@@ -29,21 +29,21 @@ public sealed class PatchPlanBuilder
         EnsurePatchTargetsCanBePlanned(targets);
 
         return PatchOperationRules.HasReplacementOperations(targets)
-            ? _replacementPlanBuilder.CreatePreview(assetsFilePath, targets, configPath)
+            ? _replacementPlanBuilder.CreatePreview(assetsFilePath, targets, sourceAssetsPaths)
             : _fieldPatchPlanBuilder.CreatePreview(assetsFilePath, targets);
     }
 
-    public PatchFileWritePlan CreateWritePlan(
+    private PatchFileWritePlan CreateWritePlan(
         string assetsFilePath,
         IReadOnlyList<ManifestPatch> targets,
-        string configPath)
+        IReadOnlyDictionary<string, string> sourceAssetsPaths)
     {
         EnsurePatchTargetsCanBePlanned(targets);
 
         if (PatchOperationRules.HasReplacementOperations(targets))
         {
             return PatchFileWritePlan.ForReplacements(
-                _replacementPlanBuilder.CreateWritePlan(assetsFilePath, targets, configPath));
+                _replacementPlanBuilder.CreateWritePlan(assetsFilePath, targets, sourceAssetsPaths));
         }
 
         return PatchFileWritePlan.ForFieldPatch(_fieldPatchPlanBuilder.CreateWritePlan(assetsFilePath, targets));
@@ -52,7 +52,7 @@ public sealed class PatchPlanBuilder
     public PatchFileWritePlan CreateRequiredWritePlan(
         string assetsFilePath,
         IReadOnlyList<ManifestPatch> targets,
-        string configPath)
+        IReadOnlyDictionary<string, string> sourceAssetsPaths)
     {
         if (targets.Count == 0)
         {
@@ -60,14 +60,11 @@ public sealed class PatchPlanBuilder
                 $"Patch config did not contain a target for assets file: {Path.GetFileName(assetsFilePath)}");
         }
 
-        PatchFileWritePlan plan = CreateWritePlan(assetsFilePath, targets, configPath);
+        PatchFileWritePlan plan = CreateWritePlan(assetsFilePath, targets, sourceAssetsPaths);
 
-        if (!plan.HasMatchedAssets)
-        {
-            throw new InvalidOperationException("Patch config did not match any assets.");
-        }
-
-        return plan;
+        return !plan.HasMatchedAssets
+            ? throw new InvalidOperationException("Patch config did not match any assets.")
+            : plan;
     }
 
     private static void EnsurePatchTargetsCanBePlanned(IReadOnlyList<ManifestPatch> targets)

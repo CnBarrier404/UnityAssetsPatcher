@@ -832,6 +832,213 @@ public sealed class InstallModWorkflowTests
         }
     }
 
+    /// <summary>
+    /// Verifies that replacement planning resolves source paths from the explicit source path map,
+    /// not from a fake manifest.json path or directory derivation.
+    /// </summary>
+    [Fact]
+    public void Install_WhenReplaceFromUsesZipEntry_SourcePathResolvedFromExplicitMap()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(TestManifest.CreateJson(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "AudioClip",
+                          "include": [
+                            {
+                              "m_Name": "Incense burn 1"
+                            }
+                          ],
+                          "replaceFrom": {
+                            "assets": "resources/modassets.assets",
+                            "match": "m_Name"
+                          }
+                        }
+                      ]
+                    }
+                    """));
+            }
+
+            ZipArchiveEntry sourceAssetsEntry = archive.CreateEntry("resources/modassets.assets");
+            using StreamWriter sourceAssetsWriter = new(sourceAssetsEntry.Open());
+            sourceAssetsWriter.Write("source assets");
+        }
+
+        var assetsFileService = new StubAssetsFileService(
+            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [targetPath] =
+                [
+                    new AssetsInfo(100, 83, "AudioClip", 128),
+                ],
+                ["modassets.assets"] =
+                [
+                    new AssetsInfo(200, 83, "AudioClip", 128),
+                ],
+            },
+            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            {
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Incense burn 1"),
+            });
+        var workflow = CreateWorkflow(assetsFileService);
+
+        try
+        {
+            workflow.Install(new InstallModRequest(zipPath, gameDirectory, backupDirectory));
+
+            AssetReplacement replacement = Assert.Single(assetsFileService.ReplacementPlan);
+            Assert.StartsWith(Path.GetTempPath(), replacement.SourceAssetsFilePath, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("UnityAssetsPatcher.", replacement.SourceAssetsFilePath);
+            Assert.EndsWith("modassets.assets", replacement.SourceAssetsFilePath);
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when source extraction fails midway, the temporary directory is cleaned up.
+    /// Uses a before/after diff to avoid interfering with concurrent runs.
+    /// </summary>
+    [Fact]
+    public void Install_WhenSecondSourceEntryMissing_DeletesTemporaryDirectory()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        HashSet<string> before = Directory.GetDirectories(Path.GetTempPath(), "UnityAssetsPatcher.*")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(TestManifest.CreateJson(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "AudioClip",
+                          "include": [
+                            {
+                              "m_Name": "Incense burn 1"
+                            }
+                          ],
+                          "replaceFrom": {
+                            "assets": "resources/modassets.assets",
+                            "match": "m_Name"
+                          }
+                        },
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "AudioClip",
+                          "include": [
+                            {
+                              "m_Name": "Missing clip"
+                            }
+                          ],
+                          "replaceFrom": {
+                            "assets": "resources/missing.assets",
+                            "match": "m_Name"
+                          }
+                        }
+                      ]
+                    }
+                    """));
+            }
+
+            ZipArchiveEntry sourceAssetsEntry = archive.CreateEntry("resources/modassets.assets");
+            using StreamWriter sourceAssetsWriter = new(sourceAssetsEntry.Open());
+            sourceAssetsWriter.Write("source assets");
+        }
+
+        var assetsFileService = new StubAssetsFileService(
+            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [targetPath] =
+                [
+                    new AssetsInfo(100, 83, "AudioClip", 128),
+                ],
+            },
+            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            {
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
+            });
+        var workflow = CreateWorkflow(assetsFileService);
+
+        try
+        {
+            Assert.ThrowsAny<Exception>(() =>
+                workflow.Install(new InstallModRequest(zipPath, gameDirectory, backupDirectory)));
+
+            HashSet<string> after = Directory.GetDirectories(Path.GetTempPath(), "UnityAssetsPatcher.*")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            after.ExceptWith(before);
+            Assert.Empty(after);
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            HashSet<string> cleanup = Directory.GetDirectories(Path.GetTempPath(), "UnityAssetsPatcher.*")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            cleanup.ExceptWith(before);
+
+            foreach (string dir in cleanup)
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
+
     private static AssetsFieldInfo CreateAudioClipFieldTree(string name)
     {
         return new AssetsFieldInfo(

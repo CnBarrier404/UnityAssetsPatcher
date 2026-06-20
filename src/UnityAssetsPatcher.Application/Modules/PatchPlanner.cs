@@ -13,7 +13,7 @@ public sealed class PatchPlanner
     }
 
     public PatchAssetPreview Preview(
-        PackageSource source,
+        ModPackage package,
         TargetAssetSet targets,
         WorkflowTiming timings)
     {
@@ -23,7 +23,7 @@ public sealed class PatchPlanner
                 PatchPreviewResult preview = _patchPlanBuilder.CreatePreview(
                     target.AssetsFilePath,
                     target.Patches,
-                    source.ConfigPath);
+                    package.SourceAssetsPaths);
 
                 return new PatchAssetPreviewFile(target.Name, target.AssetsFilePath, preview);
             })
@@ -33,7 +33,7 @@ public sealed class PatchPlanner
     }
 
     public PatchAssetPlan Plan(
-        PackageSource source,
+        ModPackage package,
         TargetAssetSet targets,
         WorkflowTiming timings)
     {
@@ -43,7 +43,7 @@ public sealed class PatchPlanner
                 PatchFileWritePlan patchPlan = _patchPlanBuilder.CreateRequiredWritePlan(
                     target.AssetsFilePath,
                     target.Patches,
-                    source.ConfigPath);
+                    package.SourceAssetsPaths);
 
                 return new PatchAssetFilePlan(target.Name, target.AssetsFilePath, patchPlan);
             })

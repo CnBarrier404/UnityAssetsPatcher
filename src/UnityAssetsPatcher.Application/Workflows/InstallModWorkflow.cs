@@ -31,25 +31,28 @@ public sealed class InstallModWorkflow
     public InstallPreviewResult Preview(InstallPreviewRequest request)
     {
         var timings = new WorkflowTiming();
-        using PackageSource source =
-            new PackageSourceLoader(_manifestLoader, _gameDirectoryResolver, _openPackageArchive)
-                .Execute(request.ZipFilePath, request.GameDirectory, timings);
+        using ModPackage package = ModPackage.Load(
+            request.ZipFilePath,
+            request.GameDirectory,
+            _manifestLoader,
+            _gameDirectoryResolver,
+            _openPackageArchive,
+            timings);
 
         try
         {
             TargetAssetSet targets = new TargetAssetResolver()
-                .Execute(source.GameDirectory, source.Manifest, timings);
-            PayloadPlan payloadPlan = new PayloadPlanner().Plan(
-                source,
+                .Execute(package.GameDirectory, package.Manifest, timings);
+            PayloadPlan payloadPlan = package.PlanPayload(
                 targets,
                 requireAvailableDestination: false);
-            PatchAssetPreview patchPreview = _patchAssetsWorkflow.Preview(source, targets, timings);
-            PayloadPreview payloadPreview = PayloadPlanner.Preview(payloadPlan);
+            PatchAssetPreview patchPreview = _patchAssetsWorkflow.Preview(package, targets, timings);
+            PayloadPreview payloadPreview = ModPackage.PreviewPayload(payloadPlan);
 
             return new InstallPreviewResult(
-                source.Manifest.Name,
-                source.Manifest.Version,
-                source.Manifest.Author,
+                package.Manifest.Name,
+                package.Manifest.Version,
+                package.Manifest.Author,
                 ToInstallPreviewFiles(patchPreview),
                 ToInstallCopyPreviewFiles(payloadPreview),
                 ToInstallTiming(timings.Build()));
@@ -63,38 +66,42 @@ public sealed class InstallModWorkflow
     public InstallModResult Install(InstallModRequest request)
     {
         var timings = new WorkflowTiming();
-        using PackageSource source =
-            new PackageSourceLoader(_manifestLoader, _gameDirectoryResolver, _openPackageArchive)
-                .Execute(request.ZipFilePath, request.GameDirectory, timings);
+        using ModPackage package = ModPackage.Load(
+            request.ZipFilePath,
+            request.GameDirectory,
+            _manifestLoader,
+            _gameDirectoryResolver,
+            _openPackageArchive,
+            timings);
 
         try
         {
-            new ManifestPatchOperationValidator().Execute(source.Manifest);
+            new ManifestPatchOperationValidator().Execute(package.Manifest);
 
             TargetAssetSet targets = new TargetAssetResolver()
-                .Execute(source.GameDirectory, source.Manifest, timings);
-            PayloadPlan payloadPlan = new PayloadPlanner().Plan(
-                source,
+                .Execute(package.GameDirectory, package.Manifest, timings);
+            PayloadPlan payloadPlan = package.PlanPayload(
                 targets,
                 requireAvailableDestination: true);
-            PatchAssetPlan patchPlan = _patchAssetsWorkflow.Plan(source, targets, timings);
+            PatchAssetPlan patchPlan = _patchAssetsWorkflow.Plan(package, targets, timings);
             var recordStore = new ModInstallationStore(request.BackupDirectory);
-            string installDirectory = recordStore.CreateInstallDirectory(source.Manifest.Name, source.Manifest.Version);
+            string installDirectory =
+                recordStore.CreateInstallDirectory(package.Manifest.Name, package.Manifest.Version);
             string assetsBackupDirectory = Path.Combine(installDirectory, "assets");
             ReleaseReadResources();
             PatchAssetApplyResult patchApplyResult = _patchAssetsWorkflow.Apply(
                 patchPlan,
                 assetsBackupDirectory,
                 timings);
-            PayloadCopyResult copiedFiles = new PayloadCopier().Execute(payloadPlan, timings);
+            PayloadCopyResult copiedFiles = ModPackage.CopyPayload(payloadPlan, timings);
             recordStore.Save(
-                CreateInstallRecord(source, patchApplyResult, copiedFiles),
+                CreateInstallRecord(package, patchApplyResult, copiedFiles),
                 installDirectory);
 
             return new InstallModResult(
-                source.Manifest.Name,
-                source.Manifest.Version,
-                source.Manifest.Author,
+                package.Manifest.Name,
+                package.Manifest.Version,
+                package.Manifest.Author,
                 ToInstallModFiles(patchApplyResult),
                 ToInstallCopiedFiles(copiedFiles),
                 ToInstallTiming(timings.Build()));
@@ -111,7 +118,7 @@ public sealed class InstallModWorkflow
     }
 
     private static InstallRecord CreateInstallRecord(
-        PackageSource source,
+        ModPackage package,
         PatchAssetApplyResult patchApplyResult,
         PayloadCopyResult copiedFiles)
     {
@@ -120,11 +127,11 @@ public sealed class InstallModWorkflow
             InstallRecordStatus.Installed,
             DateTimeOffset.Now,
             null,
-            source.Manifest.Name,
-            source.Manifest.Version,
-            source.Manifest.Author,
-            source.PackagePath,
-            source.GameDirectory,
+            package.Manifest.Name,
+            package.Manifest.Version,
+            package.Manifest.Author,
+            package.PackagePath,
+            package.GameDirectory,
             patchApplyResult.Files
                 .Select(file => new InstallRecordPatchedFile(
                     file.Target,
