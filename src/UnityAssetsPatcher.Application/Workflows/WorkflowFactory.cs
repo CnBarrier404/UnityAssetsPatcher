@@ -15,10 +15,6 @@ public sealed class WorkflowFactory
     public WorkflowFactory() : this(new ModManifestLoader(),
         new GameDirectoryResolver()) { }
 
-    public WorkflowFactory(IModManifestLoader manifestLoader) : this(
-        manifestLoader,
-        new GameDirectoryResolver()) { }
-
     public WorkflowFactory(
         IModManifestLoader manifestLoader,
         IEnumerable<string> steamRoots) : this(
@@ -57,14 +53,6 @@ public sealed class WorkflowFactory
     public UninstallModWorkflow CreateUninstallModWorkflow(string backupDirectory)
     {
         return new UninstallModWorkflow(new ModInstallationStore(backupDirectory));
-    }
-
-    public FindAssetsWorkflow CreateFindAssetsWorkflow(IAssetsAccessScope assets)
-    {
-        return new FindAssetsWorkflow(
-            new AssetQueryService(assets.Reader),
-            _manifestLoader,
-            new ManifestTargetSelector());
     }
 
     private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)
