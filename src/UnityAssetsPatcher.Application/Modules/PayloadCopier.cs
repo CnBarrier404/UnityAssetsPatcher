@@ -19,7 +19,10 @@ public sealed class PayloadCopier
             {
                 ZipArchiveEntry entry =
                     PackageArchive.FindFileEntry(plan.PackageArchive, file.Source, plan.PackagePath);
-                PackageArchive.CopyEntryToNewFile(entry, file.DestinationPath);
+                PackageArchive.CopyEntryToNewFile(
+                    entry,
+                    file.DestinationPath,
+                    PackageArchive.MaxEntryUncompressedBytes);
                 results.Add(new PayloadCopiedFile(file.Source, file.DestinationPath));
             }
 

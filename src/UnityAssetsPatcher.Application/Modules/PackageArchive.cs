@@ -4,6 +4,9 @@ namespace UnityAssetsPatcher.Application.Modules;
 
 public static class PackageArchive
 {
+    public const long MaxEntryUncompressedBytes = 2L * 1024L * 1024L * 1024L; // 2GB
+    private const int CopyBufferSize = 81920;
+
     public static ZipArchive OpenRead(string packagePath)
     {
         return ZipFile.OpenRead(packagePath);
@@ -40,9 +43,20 @@ public static class PackageArchive
         };
     }
 
-    public static void CopyEntryToNewFile(ZipArchiveEntry entry, string destinationPath)
+    public static void CopyEntryToNewFile(ZipArchiveEntry entry, string destinationPath, long maxEntryBytes)
     {
         string? destinationDirectory = Path.GetDirectoryName(destinationPath);
+
+        if (maxEntryBytes <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxEntryBytes), maxEntryBytes,
+                "Maximum entry size must be positive.");
+        }
+
+        if (entry.Length > maxEntryBytes)
+        {
+            throw CreateEntryTooLargeException(entry, entry.Length, maxEntryBytes);
+        }
 
         if (!string.IsNullOrEmpty(destinationDirectory))
         {
@@ -58,7 +72,7 @@ public static class PackageArchive
             using (Stream input = entry.Open())
             using (FileStream output = File.Create(tempPath))
             {
-                input.CopyTo(output);
+                CopyEntryWithLimit(input, output, entry, maxEntryBytes);
             }
 
             File.Move(tempPath, destinationPath, overwrite: false);
@@ -70,6 +84,34 @@ public static class PackageArchive
                 File.Delete(tempPath);
             }
         }
+    }
+
+    private static void CopyEntryWithLimit(Stream input, Stream output, ZipArchiveEntry entry, long maxEntryBytes)
+    {
+        byte[] buffer = new byte[CopyBufferSize];
+        long copiedBytes = 0;
+        int bytesRead;
+
+        while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            if (copiedBytes > maxEntryBytes - bytesRead)
+            {
+                throw CreateEntryTooLargeException(entry, copiedBytes + bytesRead, maxEntryBytes);
+            }
+
+            output.Write(buffer, 0, bytesRead);
+            copiedBytes += bytesRead;
+        }
+    }
+
+    private static InvalidOperationException CreateEntryTooLargeException(
+        ZipArchiveEntry entry,
+        long entryBytes,
+        long maxEntryBytes)
+    {
+        return new InvalidOperationException(
+            $"Zip entry exceeds the maximum allowed uncompressed size: {entry.FullName} " +
+            $"({entryBytes} bytes > {maxEntryBytes} bytes).");
     }
 
     public static string ResolveUnderDirectory(string rootDirectory, string relativePath)

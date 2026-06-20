@@ -35,7 +35,10 @@ public sealed class PackageWorkspace : IDisposable
         {
             ZipArchiveEntry entry = PackageArchive.FindFileEntry(archive, source, packagePath);
             string destinationPath = PackageArchive.ResolveUnderDirectory(temporaryDirectory, source);
-            PackageArchive.CopyEntryToNewFile(entry, destinationPath);
+            PackageArchive.CopyEntryToNewFile(
+                entry,
+                destinationPath,
+                PackageArchive.MaxEntryUncompressedBytes);
         }
 
         return new PackageWorkspace(Path.Combine(temporaryDirectory, "manifest.json"), temporaryDirectory);
