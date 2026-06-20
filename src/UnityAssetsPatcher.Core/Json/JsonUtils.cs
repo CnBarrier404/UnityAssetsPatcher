@@ -64,6 +64,44 @@ public static class JsonUtils
     }
 
     /// <summary>
+    /// Reads a UTF-8 JSON stream with a bounded byte count and returns a standalone copy of its root element.
+    /// </summary>
+    /// <param name="stream">The JSON stream to read.</param>
+    /// <param name="sourceDescription">A short source description used in validation error messages.</param>
+    /// <returns>A cloned root <see cref="JsonElement"/> that remains valid after the internal document is disposed.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="stream"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the stream exceeds the maximum JSON size.</exception>
+    /// <exception cref="JsonException">Thrown when the stream content is not valid JSON.</exception>
+    public static JsonElement ReadElementFromStream(Stream stream, string sourceDescription)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceDescription);
+
+        using MemoryStream buffer = new();
+        byte[] chunk = new byte[81920];
+        long readBytes = 0;
+        int bytesRead;
+
+        while ((bytesRead = stream.Read(chunk, 0, chunk.Length)) > 0)
+        {
+            if (readBytes > MaxJsonFileSize - bytesRead)
+            {
+                throw new InvalidOperationException(
+                    $"JSON source '{sourceDescription}' exceeds maximum allowed size of {MaxJsonFileSize} bytes.");
+            }
+
+            buffer.Write(chunk, 0, bytesRead);
+            readBytes += bytesRead;
+        }
+
+        buffer.Position = 0;
+
+        using JsonDocument document = JsonDocument.Parse(buffer);
+
+        return document.RootElement.Clone();
+    }
+
+    /// <summary>
     /// Formats a JSON value for terminal output and exception messages.
     /// </summary>
     /// <param name="value">The JSON value to format.</param>

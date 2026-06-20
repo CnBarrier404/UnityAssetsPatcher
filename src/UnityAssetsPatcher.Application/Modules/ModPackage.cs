@@ -68,8 +68,7 @@ public sealed class ModPackage : IDisposable
             {
                 archive = openPackageArchive(modPackageFullPath);
 
-                JsonElement manifestElement =
-                    ManifestJsonReader.ReadManifestElementFromZip(archive, modPackageFullPath);
+                JsonElement manifestElement = ManifestJsonReader.ReadFromZipArchive(archive, modPackageFullPath);
 
                 return manifestLoader.Load(manifestElement);
             });

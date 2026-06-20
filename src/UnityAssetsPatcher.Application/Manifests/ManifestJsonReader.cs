@@ -8,26 +8,7 @@ public static class ManifestJsonReader
 {
     private const long MaxManifestSize = 10 * 1024 * 1024; // 10MB
 
-    public static JsonElement Read(string configPath)
-    {
-        if (!File.Exists(configPath))
-        {
-            throw new FileNotFoundException($"Manifest file not found: {configPath}", configPath);
-        }
-
-        return Path.GetExtension(configPath).Equals(".zip", StringComparison.OrdinalIgnoreCase)
-            ? ReadManifestElementFromZip(configPath)
-            : JsonUtils.ReadElementFromFile(configPath);
-    }
-
-    private static JsonElement ReadManifestElementFromZip(string zipPath)
-    {
-        using ZipArchive archive = ZipFile.OpenRead(zipPath);
-
-        return ReadManifestElementFromZip(archive, zipPath);
-    }
-
-    public static JsonElement ReadManifestElementFromZip(ZipArchive archive, string zipPath)
+    public static JsonElement ReadFromZipArchive(ZipArchive archive, string zipPath)
     {
         var manifests = archive.Entries
             .Where(entry => !string.IsNullOrEmpty(entry.Name) &&
@@ -49,7 +30,7 @@ public static class ManifestJsonReader
         }
 
         using Stream stream = manifest.Open();
-        using JsonDocument document = JsonDocument.Parse(stream);
-        return document.RootElement.Clone();
+
+        return JsonUtils.ReadElementFromStream(stream, $"manifest file '{manifest.FullName}' in '{zipPath}'");
     }
 }

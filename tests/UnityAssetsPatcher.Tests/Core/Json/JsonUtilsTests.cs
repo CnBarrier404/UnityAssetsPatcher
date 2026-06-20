@@ -106,6 +106,34 @@ public sealed class JsonUtilsTests
     }
 
     [Fact]
+    public void ReadElementFromStream_ReadsJsonElement()
+    {
+        using MemoryStream stream = new(
+            """
+                {
+                  "type": "Camera"
+                }
+                """u8.ToArray());
+
+        JsonElement element = JsonUtils.ReadElementFromStream(stream, "manifest.json");
+
+        Assert.Equal("Camera", element.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public void ReadElementFromStream_WhenStreamExceedsMaxSize_ThrowsInvalidOperationException()
+    {
+        byte[] bytes = new byte[10 * 1024 * 1024 + 1];
+
+        using MemoryStream stream = new(bytes);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            JsonUtils.ReadElementFromStream(stream, "manifest.json"));
+
+        Assert.Contains("exceeds maximum allowed size", exception.Message);
+    }
+
+    [Fact]
     public void ReadRequiredProperty_WhenPropertyHasExpectedKind_ReturnsProperty()
     {
         JsonElement element = JsonUtils.ParseElement(

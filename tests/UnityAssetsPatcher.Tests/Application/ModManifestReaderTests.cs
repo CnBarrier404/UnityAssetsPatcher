@@ -1,23 +1,23 @@
 using System.IO.Compression;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application;
 
-public sealed class ManifestJsonReaderTests
+public sealed class ModManifestReaderTests
 {
     /// <summary>
-    /// Verifies that ReadManifestElementFromZip rejects manifest.json entries exceeding the 10 MB size limit,
+    /// Verifies that Read rejects manifest.json entries exceeding the 10 MB size limit,
     /// preventing unbounded memory allocation from maliciously crafted zip files.
     /// </summary>
     [Fact]
-    public void ReadManifestElementFromZip_WhenManifestExceedsMaxSize_ThrowsInvalidOperationException()
+    public void Read_WhenZipManifestExceedsMaxSize_ThrowsInvalidOperationException()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
 
         try
         {
-            // Create a zip with a manifest.json slightly over 10 MB
             using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
             {
                 ZipArchiveEntry entry = archive.CreateEntry("manifest.json");
@@ -27,11 +27,9 @@ public sealed class ManifestJsonReaderTests
                 entryStream.Write(new byte[size]);
             }
 
-            using ZipArchive zip = ZipFile.OpenRead(zipPath);
-
             var exception =
                 Assert.Throws<InvalidOperationException>(() =>
-                    ManifestJsonReader.ReadManifestElementFromZip(zip, zipPath));
+                    new ModManifestLoader().Load(zipPath));
 
             Assert.Contains("exceeds maximum allowed size", exception.Message);
         }
@@ -42,10 +40,10 @@ public sealed class ManifestJsonReaderTests
     }
 
     /// <summary>
-    /// Verifies that ReadManifestElementFromZip accepts manifest.json entries within the 10 MB size limit.
+    /// Verifies that Read accepts manifest.json entries within the 10 MB size limit.
     /// </summary>
     [Fact]
-    public void ReadManifestElementFromZip_WhenManifestWithinSizeLimit_ReturnsRootElement()
+    public void Read_WhenZipManifestWithinSizeLimit_ReturnsRootElement()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
 
@@ -60,17 +58,35 @@ public sealed class ManifestJsonReaderTests
                     """
                     {
                       "name": "Test Mod",
-                      "version": "1.0.0"
+                      "author": "Tester",
+                      "version": "1.0.0",
+                      "targets": [
+                        {
+                          "file": "globalgamemanagers.assets",
+                          "patches": [
+                            {
+                              "type": "GameObject",
+                              "match": {
+                                "m_Name": "Camera"
+                              },
+                              "set": {
+                                "m_IsActive": {
+                                  "from": false,
+                                  "to": true
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     }
                     """);
             }
 
-            using ZipArchive zip = ZipFile.OpenRead(zipPath);
+            ModManifest manifest = new ModManifestLoader().Load(zipPath);
 
-            var element = ManifestJsonReader.ReadManifestElementFromZip(zip, zipPath);
-
-            Assert.Equal("Test Mod", element.GetProperty("name").GetString());
-            Assert.Equal("1.0.0", element.GetProperty("version").GetString());
+            Assert.Equal("Test Mod", manifest.Name);
+            Assert.Equal("1.0.0", manifest.Version);
         }
         finally
         {
