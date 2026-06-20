@@ -15,6 +15,12 @@ namespace UnityAssetsPatcher.Core.Json;
 public static class JsonUtils
 {
     /// <summary>
+    /// Maximum allowed size for JSON files read from disk (10 MB).
+    /// Prevents unbounded memory allocation from maliciously crafted files.
+    /// </summary>
+    private const long MaxJsonFileSize = 10 * 1024 * 1024;
+
+    /// <summary>
     /// Parses JSON text and returns a standalone copy of the root element.
     /// </summary>
     /// <param name="json">The JSON text to parse.</param>
@@ -41,9 +47,20 @@ public static class JsonUtils
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        return !File.Exists(path)
-            ? throw new FileNotFoundException($"JSON file not found: {path}", path)
-            : ParseElement(File.ReadAllText(path, Encoding.UTF8));
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"JSON file not found: {path}", path);
+        }
+
+        FileInfo fileInfo = new(path);
+
+        if (fileInfo.Length > MaxJsonFileSize)
+        {
+            throw new InvalidOperationException(
+                $"JSON file '{path}' exceeds maximum allowed size of {MaxJsonFileSize} bytes.");
+        }
+
+        return ParseElement(File.ReadAllText(path, Encoding.UTF8));
     }
 
     /// <summary>

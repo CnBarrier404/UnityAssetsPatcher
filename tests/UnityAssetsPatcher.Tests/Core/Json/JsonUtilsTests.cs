@@ -218,4 +218,35 @@ public sealed class JsonUtilsTests
 
         Assert.Equal("Sample 'description' property must be a string.", exception.Message);
     }
+
+    /// <summary>
+    /// Verifies that ReadElementFromFile rejects files exceeding the 10 MB size limit,
+    /// preventing unbounded memory allocation from maliciously crafted files.
+    /// </summary>
+    [Fact]
+    public void ReadElementFromFile_WhenFileExceedsMaxSize_ThrowsInvalidOperationException()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        string path = Path.Combine(directory, "large.json");
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+
+            // Write a file slightly over 10 MB
+            const int fileSize = 10 * 1024 * 1024 + 1;
+            File.WriteAllText(path, new string(' ', fileSize));
+
+            var exception = Assert.Throws<InvalidOperationException>(() => JsonUtils.ReadElementFromFile(path));
+
+            Assert.Contains("exceeds maximum allowed size", exception.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
 }
