@@ -5,8 +5,9 @@ on:
     tags:
       - "v*.*.*"
 
-permissions:
-  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   DOTNET_VERSION: "10.0.x"
@@ -15,24 +16,41 @@ env:
   RUNTIME_IDENTIFIER: win-x64
 
 jobs:
-  release:
-    name: Build and upload Windows release
+  build:
+    name: Build and test
     runs-on: windows-latest
+    permissions:
+      contents: read
+    env:
+      TAG_NAME: ${{ github.ref_name }}
+
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      is_prerelease: ${{ steps.release.outputs.is_prerelease }}
+      zip_filename: ${{ steps.release.outputs.artifact_name }}.zip
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5.3.0
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-
 
       - name: Resolve release metadata
         id: release
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = "$env:TAG_NAME"
 
           if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)$') {
             throw "Release tags must look like v1.2.3 or v1.2.3-beta.1. Actual tag: $tag"
@@ -50,7 +68,7 @@ jobs:
         run: dotnet restore ${{ env.SOLUTION_PATH }} --runtime ${{ env.RUNTIME_IDENTIFIER }}
 
       - name: Run tests
-        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-restore --runtime ${{ env.RUNTIME_IDENTIFIER }}
 
       - name: Publish executable
         shell: pwsh
@@ -66,7 +84,7 @@ jobs:
             -p:DebugType=none `
             -p:DebugSymbols=false `
             -p:Version=${{ steps.release.outputs.version }} `
-            -p:InformationalVersion=${{ github.ref_name }}
+            -p:InformationalVersion=${{ env.TAG_NAME }}
 
       - name: Package release asset
         id: package
@@ -96,11 +114,21 @@ jobs:
 
           "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
 
+      - name: Generate checksum
+        id: checksum
+        shell: pwsh
+        run: |
+          $zipPath = "${{ steps.package.outputs.zip_path }}"
+          $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumFile = "$zipPath.sha256"
+          "$hash  $(Split-Path $zipPath -Leaf)" | Set-Content -Path $checksumFile -Encoding utf8
+          "checksum_path=$checksumFile" >> $env:GITHUB_OUTPUT
+
       - name: Prepare release notes
         id: notes
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = "$env:TAG_NAME"
           $version = "${{ steps.release.outputs.version }}"
           $notesPath = "artifacts/release-notes.md"
           $fallbackNotes = "Automated release for $tag."
@@ -163,66 +191,37 @@ jobs:
           $releaseNotes | Set-Content -Path $notesPath -Encoding utf8
           "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
 
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            artifacts/*.zip
+            artifacts/*.sha256
+            artifacts/release-notes.md
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts
+
       - name: Create or update GitHub Release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $tag = "${{ github.ref_name }}"
-          $zipPath = "${{ steps.package.outputs.zip_path }}"
-          $notesPath = "${{ steps.notes.outputs.notes_path }}"
-          $isPrerelease = [System.Convert]::ToBoolean("${{ steps.release.outputs.is_prerelease }}")
-
-          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
-
-          if ($LASTEXITCODE -eq 0) {
-            $editArgs = @(
-              "release",
-              "edit",
-              $tag,
-              "--repo",
-              $env:GITHUB_REPOSITORY,
-              "--title",
-              $tag,
-              "--notes-file",
-              $notesPath
-            )
-
-            if ($isPrerelease) {
-              $editArgs += "--prerelease"
-            }
-
-            gh @editArgs
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to update GitHub Release $tag."
-            }
-
-            gh release upload $tag $zipPath --repo $env:GITHUB_REPOSITORY --clobber
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to upload release asset to $tag."
-            }
-
-            exit 0
-          }
-
-          $createArgs = @(
-            "release",
-            "create",
-            $tag,
-            $zipPath,
-            "--repo",
-            $env:GITHUB_REPOSITORY,
-            "--title",
-            $tag,
-            "--notes-file",
-            $notesPath
-          )
-
-          if ($isPrerelease) {
-            $createArgs += "--prerelease"
-          }
-
-          gh @createArgs
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to create GitHub Release $tag."
-          }
+        uses: softprops/action-gh-release@v8
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: artifacts/release-notes.md
+          prerelease: ${{ needs.build.outputs.is_prerelease == 'true' }}
+          files: |
+            artifacts/${{ needs.build.outputs.zip_filename }}
+            artifacts/${{ needs.build.outputs.zip_filename }}.sha256
