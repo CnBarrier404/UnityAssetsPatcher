@@ -14,7 +14,7 @@ public static class ApplicationServiceCollectionExtensions
         string backupDirectory)
     {
         services.AddSingleton<ModManifestReader>();
-        services.AddSingleton<GameDirectoryResolver>();
+        services.AddSingleton(_ => new GameDirectoryResolver());
         services.AddSingleton<Func<string, System.IO.Compression.ZipArchive>>(_ => PackageArchive.OpenRead);
         services.AddSingleton<ManifestPatchOperationValidator>();
         services.AddSingleton<TargetAssetResolver>();
