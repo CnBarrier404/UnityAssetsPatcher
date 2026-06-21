@@ -76,9 +76,10 @@ jobs:
           $artifactName = "${{ steps.release.outputs.artifact_name }}"
           $zipPath = "artifacts/$artifactName.zip"
           $publishPath = "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}"
-          $packageFiles = @(Get-ChildItem -Path $publishPath -File |
+          $publishRoot = (Resolve-Path $publishPath).Path
+          $packageFiles = @(Get-ChildItem -Path $publishRoot -Recurse -File |
             Where-Object { $_.Extension -ne ".pdb" } |
-            Select-Object -ExpandProperty Name)
+            ForEach-Object { [System.IO.Path]::GetRelativePath($publishRoot, $_.FullName).Replace("\", "/") })
 
           if ($packageFiles.Count -eq 0) {
             throw "No publish files found to package."
@@ -86,7 +87,7 @@ jobs:
 
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
 
-          Push-Location $publishPath
+          Push-Location $publishRoot
           try {
             tar -a -cf "../../../$zipPath" @packageFiles
           }
