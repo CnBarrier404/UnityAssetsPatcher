@@ -18,7 +18,8 @@ public interface IUninstallModWorkflowFactory
 
 public sealed class InstallModWorkflowFactory : IInstallModWorkflowFactory
 {
-    private readonly PatchAssetsWorkflowFactory _patchAssetsWorkflowFactory;
+    private readonly PatchPlannerFactory _patchPlannerFactory;
+    private readonly PatchAssetApplierFactory _patchAssetApplierFactory;
     private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly Func<string, ZipArchive> _openPackageArchive;
@@ -27,7 +28,8 @@ public sealed class InstallModWorkflowFactory : IInstallModWorkflowFactory
     private readonly ModInstallationStoreFactory _recordStoreFactory;
 
     public InstallModWorkflowFactory(
-        PatchAssetsWorkflowFactory patchAssetsWorkflowFactory,
+        PatchPlannerFactory patchPlannerFactory,
+        PatchAssetApplierFactory patchAssetApplierFactory,
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive,
@@ -35,7 +37,8 @@ public sealed class InstallModWorkflowFactory : IInstallModWorkflowFactory
         TargetAssetResolver targetAssetResolver,
         ModInstallationStoreFactory recordStoreFactory)
     {
-        _patchAssetsWorkflowFactory = patchAssetsWorkflowFactory;
+        _patchPlannerFactory = patchPlannerFactory;
+        _patchAssetApplierFactory = patchAssetApplierFactory;
         _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
         _openPackageArchive = openPackageArchive;
@@ -47,7 +50,8 @@ public sealed class InstallModWorkflowFactory : IInstallModWorkflowFactory
     public InstallModWorkflow Create(IAssetsAccessScope assets)
     {
         return new InstallModWorkflow(
-            _patchAssetsWorkflowFactory.Create(assets),
+            _patchPlannerFactory.Create(assets.Reader),
+            _patchAssetApplierFactory.Create(assets.Writer),
             assets,
             _manifestReader,
             _gameDirectoryResolver,
@@ -70,27 +74,6 @@ public sealed class UninstallModWorkflowFactory : IUninstallModWorkflowFactory
     public UninstallModWorkflow Create(string backupDirectory)
     {
         return new UninstallModWorkflow(_recordStoreFactory.Create(backupDirectory));
-    }
-}
-
-public sealed class PatchAssetsWorkflowFactory
-{
-    private readonly PatchPlannerFactory _patchPlannerFactory;
-    private readonly PatchAssetApplierFactory _patchAssetApplierFactory;
-
-    public PatchAssetsWorkflowFactory(
-        PatchPlannerFactory patchPlannerFactory,
-        PatchAssetApplierFactory patchAssetApplierFactory)
-    {
-        _patchPlannerFactory = patchPlannerFactory;
-        _patchAssetApplierFactory = patchAssetApplierFactory;
-    }
-
-    public PatchAssetsWorkflow Create(IAssetsAccessScope assets)
-    {
-        return new PatchAssetsWorkflow(
-            _patchPlannerFactory.Create(assets.Reader),
-            _patchAssetApplierFactory.Create(assets.Writer));
     }
 }
 

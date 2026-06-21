@@ -8,7 +8,8 @@ namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InstallModWorkflow
 {
-    private readonly PatchAssetsWorkflow _patchAssetsWorkflow;
+    private readonly PatchPlanner _patchPlanner;
+    private readonly PatchAssetApplier _patchAssetApplier;
     private readonly IAssetsAccessScope _assets;
     private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
@@ -18,7 +19,8 @@ public sealed class InstallModWorkflow
     private readonly ModInstallationStoreFactory _recordStoreFactory;
 
     public InstallModWorkflow(
-        PatchAssetsWorkflow patchAssetsWorkflow,
+        PatchPlanner patchPlanner,
+        PatchAssetApplier patchAssetApplier,
         IAssetsAccessScope assets,
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
@@ -27,7 +29,8 @@ public sealed class InstallModWorkflow
         TargetAssetResolver targetAssetResolver,
         ModInstallationStoreFactory recordStoreFactory)
     {
-        _patchAssetsWorkflow = patchAssetsWorkflow;
+        _patchPlanner = patchPlanner;
+        _patchAssetApplier = patchAssetApplier;
         _assets = assets;
         _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
@@ -54,7 +57,7 @@ public sealed class InstallModWorkflow
             PayloadPlan payloadPlan = package.PlanPayload(
                 targets,
                 requireAvailableDestination: false);
-            PatchAssetPreview patchPreview = _patchAssetsWorkflow.Preview(package, targets, timings);
+            PatchAssetPreview patchPreview = _patchPlanner.Preview(package, targets, timings);
             PayloadPreview payloadPreview = ModPackage.PreviewPayload(payloadPlan);
 
             return new InstallPreviewResult(
@@ -90,13 +93,13 @@ public sealed class InstallModWorkflow
             PayloadPlan payloadPlan = package.PlanPayload(
                 targets,
                 requireAvailableDestination: true);
-            PatchAssetPlan patchPlan = _patchAssetsWorkflow.Plan(package, targets, timings);
+            PatchAssetPlan patchPlan = _patchPlanner.Plan(package, targets, timings);
             ModInstallationStore recordStore = _recordStoreFactory.Create(request.BackupDirectory);
             string installDirectory =
                 recordStore.CreateInstallDirectory(package.Manifest.Name, package.Manifest.Version);
             string assetsBackupDirectory = Path.Combine(installDirectory, "assets");
             ReleaseReadResources();
-            PatchAssetApplyResult patchApplyResult = _patchAssetsWorkflow.Apply(
+            PatchAssetApplyResult patchApplyResult = _patchAssetApplier.Execute(
                 patchPlan,
                 assetsBackupDirectory,
                 timings);

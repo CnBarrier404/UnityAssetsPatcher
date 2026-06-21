@@ -24,7 +24,6 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<PatchOutputWriterFactory>();
         services.AddSingleton<PatchPlannerFactory>();
         services.AddSingleton<PatchAssetApplierFactory>();
-        services.AddSingleton<PatchAssetsWorkflowFactory>();
         services.AddSingleton<IInstallModWorkflowFactory, InstallModWorkflowFactory>();
         services.AddSingleton<IUninstallModWorkflowFactory, UninstallModWorkflowFactory>();
         services.AddSingleton<IWorkflowService>(provider => new WorkflowService(

@@ -1075,9 +1075,8 @@ public sealed class InstallModWorkflowTests
         Func<string, ZipArchive> openPackageArchive)
     {
         var factory = new InstallModWorkflowFactory(
-            new PatchAssetsWorkflowFactory(
-                new PatchPlannerFactory(new PatchPlanBuilderFactory(new AssetQueryServiceFactory())),
-                new PatchAssetApplierFactory(new PatchOutputWriterFactory())),
+            new PatchPlannerFactory(new PatchPlanBuilderFactory(new AssetQueryServiceFactory())),
+            new PatchAssetApplierFactory(new PatchOutputWriterFactory()),
             new ModManifestReader(),
             gameDirectoryResolver,
             openPackageArchive,
