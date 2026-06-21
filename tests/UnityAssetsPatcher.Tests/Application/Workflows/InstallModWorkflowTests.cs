@@ -1052,25 +1052,39 @@ public sealed class InstallModWorkflowTests
 
     private static InstallModWorkflow CreateWorkflow(StubAssetsFileService assetsFileService)
     {
-        return new WorkflowFactory().CreateInstallModWorkflow(assetsFileService);
+        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(), PackageArchive.OpenRead);
     }
 
     private static InstallModWorkflow CreateWorkflow(
         StubAssetsFileService assetsFileService,
         IEnumerable<string> steamRoots)
     {
-        return new WorkflowFactory(
-            new ModManifestReader(),
-            steamRoots).CreateInstallModWorkflow(assetsFileService);
+        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(steamRoots), PackageArchive.OpenRead);
     }
 
     private static InstallModWorkflow CreateWorkflow(
         StubAssetsFileService assetsFileService,
         Func<string, ZipArchive> openPackageArchive)
     {
-        return new WorkflowFactory(
+        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(), openPackageArchive);
+    }
+
+    private static InstallModWorkflow CreateWorkflow(
+        StubAssetsFileService assetsFileService,
+        GameDirectoryResolver gameDirectoryResolver,
+        Func<string, ZipArchive> openPackageArchive)
+    {
+        var factory = new InstallModWorkflowFactory(
+            new PatchAssetsWorkflowFactory(
+                new PatchPlannerFactory(new PatchPlanBuilderFactory(new AssetQueryServiceFactory())),
+                new PatchAssetApplierFactory(new PatchOutputWriterFactory())),
             new ModManifestReader(),
-            new GameDirectoryResolver(),
-            openPackageArchive).CreateInstallModWorkflow(assetsFileService);
+            gameDirectoryResolver,
+            openPackageArchive,
+            new ManifestPatchOperationValidator(),
+            new TargetAssetResolver(),
+            new ModInstallationStoreFactory());
+
+        return factory.Create(assetsFileService);
     }
 }

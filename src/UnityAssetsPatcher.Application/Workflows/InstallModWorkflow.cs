@@ -13,19 +13,28 @@ public sealed class InstallModWorkflow
     private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly Func<string, ZipArchive> _openPackageArchive;
+    private readonly ManifestPatchOperationValidator _patchOperationValidator;
+    private readonly TargetAssetResolver _targetAssetResolver;
+    private readonly ModInstallationStoreFactory _recordStoreFactory;
 
     public InstallModWorkflow(
         PatchAssetsWorkflow patchAssetsWorkflow,
         IAssetsAccessScope assets,
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
-        Func<string, ZipArchive> openPackageArchive)
+        Func<string, ZipArchive> openPackageArchive,
+        ManifestPatchOperationValidator patchOperationValidator,
+        TargetAssetResolver targetAssetResolver,
+        ModInstallationStoreFactory recordStoreFactory)
     {
         _patchAssetsWorkflow = patchAssetsWorkflow;
         _assets = assets;
         _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
         _openPackageArchive = openPackageArchive;
+        _patchOperationValidator = patchOperationValidator;
+        _targetAssetResolver = targetAssetResolver;
+        _recordStoreFactory = recordStoreFactory;
     }
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
@@ -41,8 +50,7 @@ public sealed class InstallModWorkflow
 
         try
         {
-            TargetAssetSet targets = new TargetAssetResolver()
-                .Execute(package.GameDirectory, package.Manifest, timings);
+            TargetAssetSet targets = _targetAssetResolver.Execute(package.GameDirectory, package.Manifest, timings);
             PayloadPlan payloadPlan = package.PlanPayload(
                 targets,
                 requireAvailableDestination: false);
@@ -76,15 +84,14 @@ public sealed class InstallModWorkflow
 
         try
         {
-            new ManifestPatchOperationValidator().Execute(package.Manifest);
+            _patchOperationValidator.Execute(package.Manifest);
 
-            TargetAssetSet targets = new TargetAssetResolver()
-                .Execute(package.GameDirectory, package.Manifest, timings);
+            TargetAssetSet targets = _targetAssetResolver.Execute(package.GameDirectory, package.Manifest, timings);
             PayloadPlan payloadPlan = package.PlanPayload(
                 targets,
                 requireAvailableDestination: true);
             PatchAssetPlan patchPlan = _patchAssetsWorkflow.Plan(package, targets, timings);
-            var recordStore = new ModInstallationStore(request.BackupDirectory);
+            ModInstallationStore recordStore = _recordStoreFactory.Create(request.BackupDirectory);
             string installDirectory =
                 recordStore.CreateInstallDirectory(package.Manifest.Name, package.Manifest.Version);
             string assetsBackupDirectory = Path.Combine(installDirectory, "assets");
