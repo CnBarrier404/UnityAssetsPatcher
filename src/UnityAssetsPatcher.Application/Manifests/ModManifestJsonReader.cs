@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 
-public static class ManifestJsonReader
+public static class ModManifestJsonReader
 {
     private const long MaxManifestSize = 10 * 1024 * 1024; // 10MB
 

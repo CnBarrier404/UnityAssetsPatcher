@@ -10,20 +10,20 @@ public sealed class InstallModWorkflow
 {
     private readonly PatchAssetsWorkflow _patchAssetsWorkflow;
     private readonly IAssetsAccessScope _assets;
-    private readonly IModManifestLoader _manifestLoader;
+    private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly Func<string, ZipArchive> _openPackageArchive;
 
     public InstallModWorkflow(
         PatchAssetsWorkflow patchAssetsWorkflow,
         IAssetsAccessScope assets,
-        IModManifestLoader manifestLoader,
+        ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive)
     {
         _patchAssetsWorkflow = patchAssetsWorkflow;
         _assets = assets;
-        _manifestLoader = manifestLoader;
+        _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
         _openPackageArchive = openPackageArchive;
     }
@@ -34,7 +34,7 @@ public sealed class InstallModWorkflow
         using ModPackage package = ModPackage.Load(
             request.ZipFilePath,
             request.GameDirectory,
-            _manifestLoader,
+            _manifestReader,
             _gameDirectoryResolver,
             _openPackageArchive,
             timings);
@@ -69,7 +69,7 @@ public sealed class InstallModWorkflow
         using ModPackage package = ModPackage.Load(
             request.ZipFilePath,
             request.GameDirectory,
-            _manifestLoader,
+            _manifestReader,
             _gameDirectoryResolver,
             _openPackageArchive,
             timings);

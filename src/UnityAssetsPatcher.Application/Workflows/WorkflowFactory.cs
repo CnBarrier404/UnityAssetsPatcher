@@ -8,30 +8,30 @@ namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class WorkflowFactory
 {
-    private readonly IModManifestLoader _manifestLoader;
+    private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly Func<string, ZipArchive> _openPackageArchive;
 
-    public WorkflowFactory() : this(new ModManifestLoader(),
+    public WorkflowFactory() : this(new ModManifestReader(),
         new GameDirectoryResolver()) { }
 
     public WorkflowFactory(
-        IModManifestLoader manifestLoader,
+        ModManifestReader manifestReader,
         IEnumerable<string> steamRoots) : this(
-        manifestLoader,
+        manifestReader,
         new GameDirectoryResolver(steamRoots)) { }
 
     public WorkflowFactory(
-        IModManifestLoader manifestLoader,
+        ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver)
-        : this(manifestLoader, gameDirectoryResolver, PackageArchive.OpenRead) { }
+        : this(manifestReader, gameDirectoryResolver, PackageArchive.OpenRead) { }
 
     public WorkflowFactory(
-        IModManifestLoader manifestLoader,
+        ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive)
     {
-        _manifestLoader = manifestLoader;
+        _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
         _openPackageArchive = openPackageArchive;
     }
@@ -45,7 +45,7 @@ public sealed class WorkflowFactory
         return new InstallModWorkflow(
             patchAssetsWorkflow,
             assets,
-            _manifestLoader,
+            _manifestReader,
             _gameDirectoryResolver,
             _openPackageArchive);
     }

@@ -225,7 +225,7 @@ public sealed class InstallModWorkflowTests
                           "type": "AudioClip",
                           "include": [
                             {
-                              "m_Name": "Incense burn 1"
+                              "m_Name": "Example Clip"
                             }
                           ],
                           "replaceFrom": {
@@ -257,8 +257,8 @@ public sealed class InstallModWorkflowTests
             },
             new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
             {
-                [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
-                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
+                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
             });
         var workflow = CreateWorkflow(assetsFileService);
 
@@ -328,7 +328,7 @@ public sealed class InstallModWorkflowTests
                           "type": "AudioClip",
                           "include": [
                             {
-                              "m_Name": "Incense burn 1"
+                              "m_Name": "Example Clip"
                             }
                           ],
                           "replaceFrom": {
@@ -366,8 +366,8 @@ public sealed class InstallModWorkflowTests
             },
             new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
             {
-                [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
-                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
+                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
             });
         int openCount = 0;
 
@@ -559,25 +559,25 @@ public sealed class InstallModWorkflowTests
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string steamDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "Steam");
         string steamAppsDirectory = Path.Combine(steamDirectory, "steamapps");
-        string gameDirectory = Path.Combine(steamAppsDirectory, "common", "Phasmophobia");
+        string gameDirectory = Path.Combine(steamAppsDirectory, "common", "Example Game");
         string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
         string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
         Directory.CreateDirectory(targetDirectory);
         File.WriteAllText(targetPath, "original");
         File.WriteAllText(
-            Path.Combine(steamAppsDirectory, "appmanifest_739630.acf"),
+            Path.Combine(steamAppsDirectory, "appmanifest_123456.acf"),
             """
             "AppState"
             {
-                "name" "Phasmophobia"
-                "installdir" "Phasmophobia"
+                "name" "Example Game"
+                "installdir" "Example Game"
             }
             """);
         TestManifest.WriteZip(
             zipPath,
             """
             {
-              "game": "Phasmophobia",
+              "game": "Example Game",
               "patches": [
                 {
                   "target": "sharedassets0.assets",
@@ -864,7 +864,7 @@ public sealed class InstallModWorkflowTests
                           "type": "AudioClip",
                           "include": [
                             {
-                              "m_Name": "Incense burn 1"
+                              "m_Name": "Example Clip"
                             }
                           ],
                           "replaceFrom": {
@@ -896,8 +896,8 @@ public sealed class InstallModWorkflowTests
             },
             new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
             {
-                [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
-                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
+                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
             });
         var workflow = CreateWorkflow(assetsFileService);
 
@@ -960,7 +960,7 @@ public sealed class InstallModWorkflowTests
                           "type": "AudioClip",
                           "include": [
                             {
-                              "m_Name": "Incense burn 1"
+                              "m_Name": "Example Clip"
                             }
                           ],
                           "replaceFrom": {
@@ -1001,7 +1001,7 @@ public sealed class InstallModWorkflowTests
             },
             new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
             {
-                [(targetPath, 100)] = CreateAudioClipFieldTree("Incense burn 1"),
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
             });
         var workflow = CreateWorkflow(assetsFileService);
 
@@ -1060,7 +1060,7 @@ public sealed class InstallModWorkflowTests
         IEnumerable<string> steamRoots)
     {
         return new WorkflowFactory(
-            new ModManifestLoader(),
+            new ModManifestReader(),
             steamRoots).CreateInstallModWorkflow(assetsFileService);
     }
 
@@ -1069,7 +1069,7 @@ public sealed class InstallModWorkflowTests
         Func<string, ZipArchive> openPackageArchive)
     {
         return new WorkflowFactory(
-            new ModManifestLoader(),
+            new ModManifestReader(),
             new GameDirectoryResolver(),
             openPackageArchive).CreateInstallModWorkflow(assetsFileService);
     }

@@ -46,7 +46,7 @@ public sealed class ModPackage : IDisposable
     public static ModPackage Load(
         string modPackagePath,
         string? gameDirectory,
-        IModManifestLoader manifestLoader,
+        ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive,
         WorkflowTiming timings)
@@ -68,9 +68,9 @@ public sealed class ModPackage : IDisposable
             {
                 archive = openPackageArchive(modPackageFullPath);
 
-                JsonElement manifestElement = ManifestJsonReader.ReadFromZipArchive(archive, modPackageFullPath);
+                JsonElement manifestElement = ModManifestJsonReader.ReadFromZipArchive(archive, modPackageFullPath);
 
-                return manifestLoader.Load(manifestElement);
+                return manifestReader.Load(manifestElement);
             });
 
             string gameDirectoryPath = ResolveGameDirectory(gameDirectory, modManifest, gameDirectoryResolver);

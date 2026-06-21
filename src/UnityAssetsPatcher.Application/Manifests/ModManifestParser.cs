@@ -1,39 +1,11 @@
-using System.IO.Compression;
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Json;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 
-public sealed class ModManifestLoader : IModManifestLoader
+public static class ModManifestParser
 {
-    public ModManifest Load(string configPath)
-    {
-        if (!File.Exists(configPath))
-        {
-            throw new FileNotFoundException($"Manifest file not found: {configPath}", configPath);
-        }
-
-        JsonElement manifestElement;
-
-        if (Path.GetExtension(configPath).Equals(".zip", StringComparison.OrdinalIgnoreCase))
-        {
-            using ZipArchive archive = ZipFile.OpenRead(configPath);
-            manifestElement = ManifestJsonReader.ReadFromZipArchive(archive, configPath);
-        }
-        else
-        {
-            manifestElement = JsonUtils.ReadElementFromFile(configPath);
-        }
-
-        return Load(manifestElement);
-    }
-
-    public ModManifest Load(JsonElement manifestElement)
-    {
-        return Parse(manifestElement);
-    }
-
     public static ModManifest Parse(JsonElement manifestElement)
     {
         string name = ReadRequiredMetadataString(manifestElement, "name");
@@ -45,6 +17,43 @@ public sealed class ModManifestLoader : IModManifestLoader
         var patches = ReadTargets(manifestElement);
 
         return new ModManifest(name, author, version, description, game, files, patches);
+    }
+
+    public static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadMatchGroups(JsonElement patchElement)
+    {
+        JsonElement matchElement = JsonUtils.ReadRequiredProperty(
+            patchElement,
+            "match",
+            JsonValueKind.Object,
+            "Manifest patch");
+
+        var match = ReadFieldValueMap(matchElement, "Manifest patch match object");
+
+        return [match];
+    }
+
+    public static ManifestSetOperation[]? ReadSetOperations(JsonElement patchElement)
+    {
+        if (!JsonUtils.TryReadProperty(patchElement, "set", JsonValueKind.Object, out JsonElement setElement))
+        {
+            return null;
+        }
+
+        return setElement.EnumerateObject()
+            .Select(property => ReadSetOperation(property.Name, property.Value))
+            .ToArray();
+    }
+
+    public static ManifestAddOperation[]? ReadAddOperations(JsonElement patchElement)
+    {
+        if (!JsonUtils.TryReadProperty(patchElement, "add", JsonValueKind.Object, out JsonElement addElement))
+        {
+            return null;
+        }
+
+        return addElement.EnumerateObject()
+            .Select(ReadAddOperation)
+            .ToArray();
     }
 
     private static string ReadRequiredMetadataString(JsonElement manifestElement, string propertyName)
@@ -147,9 +156,9 @@ public sealed class ModManifestLoader : IModManifestLoader
         }
 
         string assetTypeName = ReadAssetTypeName(patchElement);
-        var includeGroups = ManifestFieldOperationReader.ReadMatchGroups(patchElement);
-        var setOperations = ManifestFieldOperationReader.ReadSetOperations(patchElement);
-        var addOperations = ManifestFieldOperationReader.ReadAddOperations(patchElement);
+        var includeGroups = ReadMatchGroups(patchElement);
+        var setOperations = ReadSetOperations(patchElement);
+        var addOperations = ReadAddOperations(patchElement);
         ManifestReplaceFrom? replaceFrom = ReadOptionalReplaceAsset(patchElement);
         string? componentTypeName = ReadOptionalComponentTypeName(patchElement, assetTypeName, replaceFrom);
 
@@ -262,6 +271,63 @@ public sealed class ModManifestLoader : IModManifestLoader
         {
             throw new InvalidOperationException(
                 $"Manifest {propertyName} must not contain empty, '.', or '..' segments.");
+        }
+    }
+
+    private static ManifestSetOperation ReadSetOperation(string field, JsonElement element)
+    {
+        EnsureValidFieldPath(field, "set");
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("Each set field value must be an object.");
+        }
+
+        if (!element.TryGetProperty("from", out JsonElement fromElement))
+        {
+            throw new InvalidOperationException("Each set field value must contain a 'from' property.");
+        }
+
+        if (!element.TryGetProperty("to", out JsonElement toElement))
+        {
+            throw new InvalidOperationException("Each set field value must contain a 'to' property.");
+        }
+
+        return new ManifestSetOperation(field, fromElement.Clone(), toElement.Clone());
+    }
+
+    private static ManifestAddOperation ReadAddOperation(JsonProperty property)
+    {
+        EnsureValidFieldPath(property.Name, "add");
+
+        return property.Value.ValueKind != JsonValueKind.Array
+            ? throw new InvalidOperationException("Each add field value must be an array.")
+            : new ManifestAddOperation(property.Name, property.Value.Clone());
+    }
+
+    private static Dictionary<string, JsonElement> ReadFieldValueMap(JsonElement element, string propertyDescription)
+    {
+        var values = element.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal);
+
+        if (values.Count == 0)
+        {
+            throw new InvalidOperationException($"{propertyDescription} cannot be empty.");
+        }
+
+        foreach (string field in values.Keys)
+        {
+            EnsureValidFieldPath(field, propertyDescription);
+        }
+
+        return values;
+    }
+
+    private static void EnsureValidFieldPath(string field, string propertyDescription)
+    {
+        if (string.IsNullOrWhiteSpace(field))
+        {
+            throw new InvalidOperationException($"{propertyDescription} field path cannot be empty.");
         }
     }
 }
