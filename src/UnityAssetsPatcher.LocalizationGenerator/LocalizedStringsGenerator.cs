@@ -1,0 +1,187 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
+
+namespace UnityAssetsPatcher.LocalizationGenerator;
+
+/// <summary>
+/// Source generator that reads the primary locale JSON file (en-US) at compile time
+/// and generates a strongly-typed <c>LocalizedStrings</c> static class.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The generator also validates all other locale JSON files supplied as <c>AdditionalFiles</c>.
+/// Keys present in a locale file but missing from en-US produce a warning (extra key),
+/// and keys in en-US missing from a locale file produce a warning (untranslated).
+/// </para>
+/// <para>
+/// AdditionalFiles are configured in the consuming project's <c>.csproj</c>:
+/// <code>
+/// &lt;AdditionalFiles Include="Localization\JSON\en-US.json" SourceItemGroupType="PrimaryLocale" /&gt;
+/// &lt;AdditionalFiles Include="Localization\JSON\*.json" /&gt;
+/// </code>
+/// </para>
+/// </remarks>
+[Generator(LanguageNames.CSharp)]
+public sealed class LocalizedStringsGenerator : IIncrementalGenerator
+{
+    private const string PrimaryLocaleHintName = "en-US.json";
+
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var localeFiles = context.AdditionalTextsProvider
+            .Where(static file => file.Path.Replace('\\', '/').Contains("/JSON/") &&
+                                  file.Path.EndsWith(".json"));
+
+        IncrementalValueProvider<ImmutableArray<(string HintName, string Content)>> fileContents =
+            localeFiles.Select(static (file, ct) =>
+            {
+                string? content = file.GetText(ct)?.ToString();
+                string hintName = Path.GetFileName(file.Path);
+                return (hintName, content ?? string.Empty);
+            }).Collect();
+
+        context.RegisterSourceOutput(fileContents, static (spc, files) =>
+        {
+            string? primaryContent = null;
+
+            foreach ((string hintName, string content) in files)
+            {
+                if (hintName != PrimaryLocaleHintName)
+                {
+                    continue;
+                }
+
+                primaryContent = content;
+                break;
+            }
+
+            if (primaryContent is null)
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    Descriptors.PrimaryLocaleNotFound,
+                    Location.None,
+                    PrimaryLocaleHintName));
+                return;
+            }
+
+            var primaryKeys = ParseKeys(primaryContent);
+
+            if (primaryKeys.Count == 0)
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    Descriptors.PrimaryLocaleEmpty,
+                    Location.None,
+                    PrimaryLocaleHintName));
+                return;
+            }
+
+            var primaryKeySet = new HashSet<string>(primaryKeys);
+
+            foreach (var (hintName, content) in files)
+            {
+                if (hintName == PrimaryLocaleHintName)
+                {
+                    continue;
+                }
+
+                ValidateLocaleFile(spc, hintName, content, primaryKeySet);
+            }
+
+            string source = GenerateSource(primaryKeys);
+            spc.AddSource("LocalizedStrings.g.cs", SourceText.From(source, Encoding.UTF8));
+        });
+    }
+
+    private static List<string> ParseKeys(string json)
+    {
+        var keys = new List<string>();
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(json);
+
+            keys.AddRange(document.RootElement.EnumerateObject().Select(property => property.Name));
+        }
+        catch (JsonException)
+        {
+            // The diagnostic will be reported by the caller.
+        }
+
+        return keys;
+    }
+
+    private static void ValidateLocaleFile(
+        SourceProductionContext context,
+        string hintName,
+        string content,
+        HashSet<string> primaryKeys)
+    {
+        List<string> localeKeys;
+
+        try
+        {
+            localeKeys = ParseKeys(content);
+        }
+        catch
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Descriptors.LocaleFileInvalidJson,
+                Location.None,
+                hintName));
+            return;
+        }
+
+        var localeKeySet = new HashSet<string>(localeKeys);
+
+        foreach (string key in localeKeys.Where(key => !primaryKeys.Contains(key)))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Descriptors.LocaleHasExtraKey,
+                Location.None,
+                hintName,
+                key));
+        }
+
+        foreach (string key in primaryKeys.Where(key => !localeKeySet.Contains(key)))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Descriptors.LocaleMissingKey,
+                Location.None,
+                hintName,
+                key));
+        }
+    }
+
+    private static string GenerateSource(List<string> keys)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine();
+        sb.AppendLine("namespace UnityAssetsPatcher.TUI.Localization;");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Provides strongly-typed access to localized string resources.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("/// <remarks>");
+        sb.AppendLine("/// Generated from en-US.json by LocalizedStringsGenerator. Do not edit manually.");
+        sb.AppendLine("/// </remarks>");
+        sb.AppendLine("internal static class LocalizedStrings");
+        sb.AppendLine("{");
+
+        foreach (string key in keys)
+        {
+            sb.AppendLine($"    internal static string {key} => JsonLocalizationProvider.GetString(\"{key}\");");
+        }
+
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+}

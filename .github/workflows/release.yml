@@ -60,7 +60,6 @@ jobs:
             --runtime $env:RUNTIME_IDENTIFIER `
             --self-contained true `
             --output "artifacts/publish/$env:RUNTIME_IDENTIFIER" `
-            -p:PublishAot=true `
             -p:JsonSerializerIsReflectionEnabledByDefault=false `
             -p:WarningsAsErrors=IL2026%3BIL3050 `
             -p:PublishSingleFile=true `
