@@ -51,18 +51,16 @@ public static class AssetFieldMatcher
 
     private static bool MatchesObjectValue(AssetsFieldInfo field, JsonElement expectedObject)
     {
-        foreach (JsonProperty property in expectedObject.EnumerateObject())
-        {
-            AssetsFieldInfo? child = field.Children.FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, property.Name, StringComparison.Ordinal));
+        return expectedObject
+            .EnumerateObject()
+            .All(property => MatchesObjectProperty(field, property));
+    }
 
-            if (child is null || !MatchesFieldValue(child, property.Value))
-            {
-                return false;
-            }
-        }
+    private static bool MatchesObjectProperty(AssetsFieldInfo field, JsonProperty property)
+    {
+        AssetsFieldInfo? child = field.Child(property.Name);
 
-        return true;
+        return child is not null && MatchesFieldValue(child, property.Value);
     }
 
     private static bool MatchesArrayValue(AssetsFieldInfo field, JsonElement expectedArray)

@@ -9,12 +9,8 @@ public static class AssetFieldNavigator
             path,
             static field => field.Name,
             static field => field.Children,
-            static field => field.Value);
-    }
-
-    public static AssetsFieldInfo? FindDirectChild(AssetsFieldInfo field, string name)
-    {
-        return field.Children.FirstOrDefault(child => string.Equals(child.Name, name, StringComparison.Ordinal));
+            static field => field.Value,
+            static (field, name) => field.ChildrenNamed(name));
     }
 
     public static AssetsFieldInfo? ResolveArrayField(AssetsFieldInfo? field)
@@ -24,18 +20,23 @@ public static class AssetFieldNavigator
             return null;
         }
 
-        return IsArrayField(field)
-            ? field
+        if (IsArrayField(field))
+        {
+            return field;
+        }
+
+        AssetsFieldInfo? namedArray = field.Child("Array");
+
+        return namedArray is not null && IsArrayField(namedArray)
+            ? namedArray
             : field.Children.FirstOrDefault(IsArrayField);
     }
 
     public static IReadOnlyList<AssetsFieldInfo> GetArrayElementFields(AssetsFieldInfo arrayField)
     {
-        var dataChildren = arrayField.Children
-            .Where(child => string.Equals(child.Name, "data", StringComparison.Ordinal))
-            .ToArray();
+        var dataChildren = arrayField.ChildrenNamed("data");
 
-        return dataChildren.Length > 0
+        return dataChildren.Count > 0
             ? dataChildren
             : arrayField.Children.Where(child => !IsArraySizeMetadata(child)).ToArray();
     }

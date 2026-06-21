@@ -349,7 +349,7 @@ internal sealed class FieldPatchOperationPlanner
         bool parentMatches,
         string? parentFailureMessage)
     {
-        AssetsFieldInfo? child = PatchFieldValueFormatter.FindDirectChild(parentField, property.Name);
+        AssetsFieldInfo? child = PatchFieldValueFormatter.Child(parentField, property.Name);
         string childPath = $"{operation.FieldPath}.{property.Name}";
         bool isArrayPatch = PatchFieldValueFormatter.IsJsonArrayPatchValue(property.Value);
         JsonElement from = PatchFieldValueFormatter.GetObjectPropertyOrDefault(operation.From, property.Name);
@@ -539,9 +539,9 @@ internal static class FieldPatchWriteOperationMapper
 
 internal static class PatchFieldValueFormatter
 {
-    public static AssetsFieldInfo? FindDirectChild(AssetsFieldInfo field, string name)
+    public static AssetsFieldInfo? Child(AssetsFieldInfo field, string name)
     {
-        return AssetFieldNavigator.FindDirectChild(field, name);
+        return field.Child(name);
     }
 
     public static bool IsJsonArrayPatchValue(JsonElement value)

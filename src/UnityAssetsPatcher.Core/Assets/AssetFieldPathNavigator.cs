@@ -7,7 +7,8 @@ public static class AssetFieldPathNavigator
         string path,
         Func<TField, string> getName,
         Func<TField, IEnumerable<TField>> getChildren,
-        Func<TField, string?> getValue)
+        Func<TField, string?> getValue,
+        Func<TField, string, IEnumerable<TField>>? getChildrenByName = null)
         where TField : class
     {
         var segments = AssetFieldPath.Parse(path);
@@ -21,7 +22,7 @@ public static class AssetFieldPathNavigator
 
         foreach (AssetFieldPathSegment segment in segments)
         {
-            current = FindChildBySegment(current, segment, getName, getChildren, getValue);
+            current = FindChildBySegment(current, segment, getName, getChildren, getValue, getChildrenByName);
 
             if (current is null)
             {
@@ -55,12 +56,21 @@ public static class AssetFieldPathNavigator
         AssetFieldPathSegment segment,
         Func<TField, string> getName,
         Func<TField, IEnumerable<TField>> getChildren,
-        Func<TField, string?> getValue)
+        Func<TField, string?> getValue,
+        Func<TField, string, IEnumerable<TField>>? getChildrenByName)
         where TField : class
     {
-        return getChildren(field).FirstOrDefault(child =>
-            string.Equals(getName(child), segment.Name, StringComparison.Ordinal) &&
-            MatchesSelector(child, segment, getName, getChildren, getValue));
+        var candidates = getChildrenByName is not null
+            ? getChildrenByName(field, segment.Name)
+            : getChildren(field).Where(child => string.Equals(getName(child), segment.Name, StringComparison.Ordinal));
+
+        if (!segment.HasSelector)
+        {
+            return candidates.FirstOrDefault();
+        }
+
+        return candidates.FirstOrDefault(child =>
+            MatchesSelector(child, segment, getName, getChildren, getValue, getChildrenByName));
     }
 
     private static bool MatchesSelector<TField>(
@@ -68,7 +78,8 @@ public static class AssetFieldPathNavigator
         AssetFieldPathSegment segment,
         Func<TField, string> getName,
         Func<TField, IEnumerable<TField>> getChildren,
-        Func<TField, string?> getValue)
+        Func<TField, string?> getValue,
+        Func<TField, string, IEnumerable<TField>>? getChildrenByName)
         where TField : class
     {
         if (!segment.HasSelector)
@@ -76,8 +87,10 @@ public static class AssetFieldPathNavigator
             return true;
         }
 
-        TField? selectorField = getChildren(field).FirstOrDefault(child =>
-            string.Equals(getName(child), segment.SelectorFieldName, StringComparison.Ordinal));
+        TField? selectorField = getChildrenByName is not null
+            ? getChildrenByName(field, segment.SelectorFieldName!).FirstOrDefault()
+            : getChildren(field).FirstOrDefault(child =>
+                string.Equals(getName(child), segment.SelectorFieldName, StringComparison.Ordinal));
 
         return selectorField is not null &&
                string.Equals(getValue(selectorField), segment.SelectorValue, StringComparison.Ordinal);

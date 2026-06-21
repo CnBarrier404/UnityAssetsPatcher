@@ -6,6 +6,31 @@ namespace UnityAssetsPatcher.Tests.Core.Assets;
 public sealed class AssetFieldNavigatorTests
 {
     [Fact]
+    public void Child_WhenMultipleChildrenShareName_ReturnsFirstMatchingChild()
+    {
+        AssetsFieldInfo first = CreateField("data", "pair", value: "first");
+        AssetsFieldInfo second = CreateField("data", "pair", value: "second");
+        AssetsFieldInfo parent = CreateField("Array", "Array", [first, second]);
+
+        AssetsFieldInfo? result = parent.Child("data");
+
+        Assert.Same(first, result);
+    }
+
+    [Fact]
+    public void ChildrenNamed_WhenMultipleChildrenShareName_ReturnsAllMatchesInOrder()
+    {
+        AssetsFieldInfo first = CreateField("data", "pair", value: "first");
+        AssetsFieldInfo unrelated = CreateField("size", "int", value: "2");
+        AssetsFieldInfo second = CreateField("data", "pair", value: "second");
+        AssetsFieldInfo parent = CreateField("Array", "Array", [first, unrelated, second]);
+
+        IReadOnlyList<AssetsFieldInfo> result = parent.ChildrenNamed("data");
+
+        Assert.Equal([first, second], result);
+    }
+
+    [Fact]
     public void FindField_WhenPathIsSingleSegment_ReturnsDescendantByName()
     {
         AssetsFieldInfo fieldTree = CreateMaterialFieldTree("8842");
