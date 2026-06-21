@@ -8,13 +8,6 @@ public sealed class ModInstallationStore
 {
     public const string RecordFileName = "record.json";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-    };
-
     private readonly string _backupDirectory;
     private readonly Func<DateTimeOffset> _now;
 
@@ -53,7 +46,7 @@ public sealed class ModInstallationStore
 
         Directory.CreateDirectory(installDirectory);
         string recordPath = GetRecordPath(installDirectory);
-        string json = JsonSerializer.Serialize(record, JsonOptions);
+        string json = JsonSerializer.Serialize(record, ModInstallationJsonContext.Default.InstallRecord);
         File.WriteAllText(recordPath, json);
     }
 
@@ -64,7 +57,7 @@ public sealed class ModInstallationStore
         string recordPath = GetRecordPath(installDirectory);
         using FileStream stream = File.OpenRead(recordPath);
 
-        return JsonSerializer.Deserialize<InstallRecord>(stream, JsonOptions) ??
+        return JsonSerializer.Deserialize(stream, ModInstallationJsonContext.Default.InstallRecord) ??
                throw new InvalidOperationException($"Install record could not be read: {recordPath}");
     }
 
@@ -125,7 +118,10 @@ public sealed record InstallRecord(
 
 public enum InstallRecordStatus
 {
+    [JsonStringEnumMemberName("installed")]
     Installed,
+
+    [JsonStringEnumMemberName("uninstalled")]
     Uninstalled,
 }
 
