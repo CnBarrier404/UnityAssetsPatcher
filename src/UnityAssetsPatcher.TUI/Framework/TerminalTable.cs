@@ -26,7 +26,7 @@ public sealed class TerminalTable
 
         foreach (TerminalTableColumn column in columns)
         {
-            table.AddColumn(new TableColumn($"[blue]{TerminalText.Escape(column.Header)}[/]"));
+            table.AddColumn(new TableColumn($"[{TerminalTheme.Label}]{TerminalText.Escape(column.Header)}[/]"));
         }
 
         foreach (var row in rows)

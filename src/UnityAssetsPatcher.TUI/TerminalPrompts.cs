@@ -65,30 +65,47 @@ public sealed class TerminalPrompts
 
     public ConfirmChoice ConfirmOrCancel(string prompt)
     {
+        _console.Cursor.Show(false);
+        _text.WriteConfirmationLabel(prompt);
+
         while (true)
         {
-            _text.WriteConfirmationLabel(prompt);
-            string? input = ReadCancelableLine();
+            var maybeKey = _console.Input.ReadKey(intercept: true);
 
-            if (input is null)
+            if (maybeKey is null)
             {
                 return ConfirmChoice.Canceled;
             }
 
-            string normalized = input.Trim().ToLowerInvariant();
+            ConsoleKeyInfo key = maybeKey.Value;
 
-            if (normalized.Length == 0 ||
-                normalized is "n" or "no")
+            switch (key.Key)
             {
-                return ConfirmChoice.No;
+                case ConsoleKey.Escape:
+                    _console.Write(new Text(Environment.NewLine));
+
+                    return ConfirmChoice.Canceled;
+                case ConsoleKey.Enter:
+                    _console.Write(new Text(Environment.NewLine));
+
+                    return ConfirmChoice.No;
             }
 
-            if (normalized is "y" or "yes")
+            char choice = char.ToLowerInvariant(key.KeyChar);
+
+            if (choice == 'y')
             {
+                _console.Write(new Text($"y{Environment.NewLine}"));
+
                 return ConfirmChoice.Yes;
             }
 
-            _text.WriteError(LocalizedStrings.Prompt_YesNoChoiceError);
+            if (choice == 'n')
+            {
+                _console.Write(new Text($"n{Environment.NewLine}"));
+
+                return ConfirmChoice.No;
+            }
         }
     }
 

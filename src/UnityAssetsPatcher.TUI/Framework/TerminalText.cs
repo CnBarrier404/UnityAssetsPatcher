@@ -19,12 +19,12 @@ public sealed class TerminalText
 
     public void WriteInfo(string message)
     {
-        _console.MarkupLine($"[grey]{Escape(message)}[/]");
+        _console.MarkupLine($"[{TerminalTheme.Muted}]{Escape(message)}[/]");
     }
 
     public void WriteWarning(string message)
     {
-        _console.MarkupLine($"[yellow]{Escape(message)}[/]");
+        _console.MarkupLine($"[{TerminalTheme.Warning}]{Escape(message)}[/]");
     }
 
     public void WriteMarkupLine(string markup)
@@ -34,18 +34,18 @@ public sealed class TerminalText
 
     public void WriteInputLabel(string label)
     {
-        _console.Markup($"[blue]{Escape(label)}[/]: ");
+        _console.Markup($"[{TerminalTheme.Label}]{Escape(label)}[/]: ");
     }
 
     public void WriteConfirmationLabel(string prompt)
     {
         _console.Markup(
-            $"[blue]{Escape(prompt)}[/] [grey]{Escape(LocalizedStrings.Prompt_ConfirmationChoiceHint)}[/]: ");
+            $"[{TerminalTheme.Label}]{Escape(prompt)}[/] [{TerminalTheme.Muted}]{Escape(LocalizedStrings.Prompt_ConfirmationChoiceHint)}[/]: ");
     }
 
     public void WriteError(string message)
     {
-        _console.MarkupLine($"[red]{Escape(message)}[/]");
+        _console.MarkupLine($"[{TerminalTheme.Error}]{Escape(message)}[/]");
     }
 
     public static string Escape(string value)

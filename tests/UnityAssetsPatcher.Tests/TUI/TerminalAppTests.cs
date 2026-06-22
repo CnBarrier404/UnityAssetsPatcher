@@ -52,7 +52,7 @@ public sealed class TerminalAppTests : IDisposable
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
-        console.Input.PushTextWithEnter("n");
+        console.Input.PushKey(ConsoleKey.N);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
         var assetsScopeFactory = new RecordingAssetsScopeFactory(CreateCameraReader(), new StubAssetsFileService([]));
@@ -181,7 +181,7 @@ public sealed class TerminalAppTests : IDisposable
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
-        console.Input.PushTextWithEnter("n");
+        console.Input.PushKey(ConsoleKey.N);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
         TerminalApp app = CreateApp(CreateCameraReader(), console);
@@ -227,7 +227,7 @@ public sealed class TerminalAppTests : IDisposable
         SelectMainMenuOption(inner, MainMenuOption.InstallMod);
         inner.Input.PushTextWithEnter(zipPath);
         inner.Input.PushTextWithEnter(gameDirectory);
-        inner.Input.PushTextWithEnter("n");
+        inner.Input.PushKey(ConsoleKey.N);
         ReturnToMainMenu(inner);
         SelectMainMenuOption(inner, MainMenuOption.Exit);
         var console = new RecordingCursorConsole(inner);
@@ -261,7 +261,7 @@ public sealed class TerminalAppTests : IDisposable
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
-        console.Input.PushTextWithEnter("y");
+        console.Input.PushKey(ConsoleKey.Y);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
         TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);
@@ -312,11 +312,11 @@ public sealed class TerminalAppTests : IDisposable
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
-        console.Input.PushTextWithEnter("y");
+        console.Input.PushKey(ConsoleKey.Y);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.UninstallMod);
         console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushTextWithEnter("y");
+        console.Input.PushKey(ConsoleKey.Y);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
         TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);
@@ -362,7 +362,7 @@ public sealed class TerminalAppTests : IDisposable
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
-        console.Input.PushTextWithEnter("n");
+        console.Input.PushKey(ConsoleKey.N);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
         TerminalApp app = CreateApp(CreateCameraReader(), console);
@@ -404,8 +404,8 @@ public sealed class TerminalAppTests : IDisposable
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
-        console.Input.PushTextWithEnter("y");
-        console.Input.PushTextWithEnter("y");
+        console.Input.PushKey(ConsoleKey.Y);
+        console.Input.PushKey(ConsoleKey.Y);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
         TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);
@@ -450,8 +450,8 @@ public sealed class TerminalAppTests : IDisposable
         SelectMainMenuOption(console, MainMenuOption.InstallMod);
         console.Input.PushTextWithEnter(zipPath);
         console.Input.PushTextWithEnter(gameDirectory);
-        console.Input.PushTextWithEnter("n");
-        console.Input.PushTextWithEnter("y");
+        console.Input.PushKey(ConsoleKey.N);
+        console.Input.PushKey(ConsoleKey.Y);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
         TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);

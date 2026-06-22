@@ -29,7 +29,8 @@ public sealed class TerminalList
 
             if (i == selectedIndex)
             {
-                _console.MarkupLine($"[cyan]{TerminalText.Escape(line)}[/]");
+                _console.MarkupLine($"[{TerminalTheme.Selection}]{TerminalText.Escape(line)}[/]");
+
                 continue;
             }
 
@@ -66,6 +67,11 @@ public sealed class TerminalList
             string checkbox = toggle.Enabled ? "[x]" : "[ ]";
             WriteDescribedLine($"{indicator} {checkbox} {toggle.Name}", toggle.Description, ToggleOptionColumnWidth,
                 i == selectedIndex);
+
+            if (i < toggles.Count - 1)
+            {
+                _console.Write(new Text(Environment.NewLine));
+            }
         }
     }
 
@@ -89,12 +95,12 @@ public sealed class TerminalList
             if (selected)
             {
                 _console.MarkupLine(
-                    $"[cyan]{TerminalText.Escape(labelPart)}[/] [cyan]{TerminalText.Escape(descriptionPart)}[/]");
+                    $"[{TerminalTheme.Selection}]{TerminalText.Escape(labelPart)}[/] [{TerminalTheme.Muted}]{TerminalText.Escape(descriptionPart)}[/]");
                 continue;
             }
 
             _console.MarkupLine(
-                $"{TerminalText.Escape(labelPart)} [grey]{TerminalText.Escape(descriptionPart)}[/]");
+                $"{TerminalText.Escape(labelPart)} [{TerminalTheme.Muted}]{TerminalText.Escape(descriptionPart)}[/]");
         }
     }
 }

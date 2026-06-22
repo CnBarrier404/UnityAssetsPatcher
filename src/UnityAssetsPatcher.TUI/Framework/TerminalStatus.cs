@@ -11,8 +11,18 @@ public sealed class TerminalStatus
         _console = console;
     }
 
-    public void Write(string label, string color)
+    public void WritePreview(string label)
     {
-        _console.MarkupLine($"[bold {color}]{TerminalText.Escape(label)}[/]");
+        Write(label, TerminalTheme.StatusPreview);
+    }
+
+    public void WriteSuccess(string label)
+    {
+        Write(label, TerminalTheme.StatusSuccess);
+    }
+
+    private void Write(string label, string token)
+    {
+        _console.MarkupLine($"[{token}]{TerminalText.Escape(label)}[/]");
     }
 }

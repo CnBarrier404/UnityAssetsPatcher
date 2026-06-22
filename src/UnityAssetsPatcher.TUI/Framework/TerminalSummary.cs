@@ -19,7 +19,7 @@ public sealed class TerminalSummary
         foreach ((string label, string value) in rows)
         {
             _console.MarkupLine(
-                $"[grey]{TerminalText.Escape(TerminalDisplay.PadRight(label, LabelColumnWidth))}[/] {TerminalText.Escape(value)}");
+                $"[{TerminalTheme.Muted}]{TerminalText.Escape(TerminalDisplay.PadRight(label, LabelColumnWidth))}[/] {TerminalText.Escape(value)}");
         }
     }
 

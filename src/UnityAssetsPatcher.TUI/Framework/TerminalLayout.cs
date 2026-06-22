@@ -30,11 +30,11 @@ public sealed class TerminalLayout
         bool clear = true)
     {
         WriteApplicationHeader(shortcutHint ?? ShortcutHint, clear);
-        _console.MarkupLine($"[bold blue]{TerminalText.Escape(title)}[/]");
+        _console.MarkupLine($"[{TerminalTheme.Title}]{TerminalText.Escape(title)}[/]");
 
         if (!string.IsNullOrWhiteSpace(description))
         {
-            _console.MarkupLine($"[grey]{TerminalText.Escape(description)}[/]");
+            _console.MarkupLine($"[{TerminalTheme.Muted}]{TerminalText.Escape(description)}[/]");
         }
 
         _text.WriteBlankLine();
@@ -73,7 +73,8 @@ public sealed class TerminalLayout
         }
 
         _console.Cursor.SetPosition(1, height);
-        _console.Markup($"[grey]{TerminalText.Escape(FitToWidth(message, _console.Profile.Width))}[/]");
+        _console.Markup(
+            $"[{TerminalTheme.Muted}]{TerminalText.Escape(FitToWidth(message, _console.Profile.Width))}[/]");
         ClearBottomFooterArea(clearFooterLine: false, preserveCursor: false);
     }
 
@@ -174,7 +175,7 @@ public sealed class TerminalLayout
         int width)
     {
         _console.MarkupLine(
-            $"[grey]{TerminalText.Escape(left + string.Concat(Enumerable.Repeat(horizontal, width - 2)) + right)}[/]");
+            $"[{TerminalTheme.Muted}]{TerminalText.Escape(left + string.Concat(Enumerable.Repeat(horizontal, width - 2)) + right)}[/]");
     }
 
     private void WriteTitleContentLine(
@@ -185,7 +186,7 @@ public sealed class TerminalLayout
         string paddedContent =
             $"{new string(' ', ApplicationTitleHorizontalPadding)}{content}{new string(' ', ApplicationTitleHorizontalPadding)}";
 
-        _console.Markup("[grey]│[/]");
+        _console.Markup($"[{TerminalTheme.Muted}]│[/]");
 
         if (greyStartIndex is null)
         {
@@ -202,7 +203,7 @@ public sealed class TerminalLayout
 
             if (boldStartIndex is null)
             {
-                _console.Markup($"[grey]{TerminalText.Escape(grey)}[/]");
+                _console.Markup($"[{TerminalTheme.Muted}]{TerminalText.Escape(grey)}[/]");
             }
             else
             {
@@ -210,11 +211,11 @@ public sealed class TerminalLayout
                 string label = paddedContent[greyIndex..boldIndex];
                 string value = paddedContent[boldIndex..];
 
-                _console.Markup($"[grey]{TerminalText.Escape(label)}[/]");
+                _console.Markup($"[{TerminalTheme.Muted}]{TerminalText.Escape(label)}[/]");
                 _console.Markup($"[bold]{TerminalText.Escape(value)}[/]");
             }
         }
 
-        _console.MarkupLine("[grey]│[/]");
+        _console.MarkupLine($"[{TerminalTheme.Muted}]│[/]");
     }
 }

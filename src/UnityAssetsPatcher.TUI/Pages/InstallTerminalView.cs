@@ -39,23 +39,23 @@ internal sealed class InstallTerminalView
     {
         _ui.Text.WriteBlankLine();
         _ui.Text.WriteMarkupLine(
-            $"[blue]{TerminalText.Escape(LocalizedStrings.InstallPage_OptionalGroupsHeader)}[/]");
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPage_OptionalGroupsHeader)}[/]");
         _ui.Text.WriteBlankLine();
     }
 
     public void WriteOptionalGroup(OptionalGroupPreview group)
     {
-        _ui.Text.WriteMarkupLine($"[blue]{TerminalText.Escape(group.Name)}[/]");
+        _ui.Text.WriteMarkupLine($"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(group.Name)}[/]");
 
         if (!string.IsNullOrWhiteSpace(group.Description))
         {
-            _ui.Text.WriteMarkupLine($"  [grey]{TerminalText.Escape(group.Description)}[/]");
+            _ui.Text.WriteMarkupLine($"  [{TerminalTheme.Muted}]{TerminalText.Escape(group.Description)}[/]");
         }
     }
 
     public void WriteInstallPreview(InstallPreviewResult result, bool verboseLogging)
     {
-        _ui.Status.Write(LocalizedStrings.InstallPreview_DryRunStatus, "yellow");
+        _ui.Status.WritePreview(LocalizedStrings.InstallPreview_DryRunStatus);
 
         _ui.Summary.WriteRows(
             (LocalizedStrings.Summary_Mod, result.ModName),
@@ -74,7 +74,7 @@ internal sealed class InstallTerminalView
 
     public void WriteInstallResult(InstallModResult result, bool verboseLogging)
     {
-        _ui.Status.Write(LocalizedStrings.InstallResult_InstalledStatus, "green");
+        _ui.Status.WriteSuccess(LocalizedStrings.InstallResult_InstalledStatus);
         _ui.Summary.WriteRows(
             (LocalizedStrings.Summary_Mod, result.ModName),
             (LocalizedStrings.Summary_Version, result.ModVersion),
@@ -105,7 +105,8 @@ internal sealed class InstallTerminalView
         }
 
         _ui.Text.WriteBlankLine();
-        _ui.Text.WriteMarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallResult_OptionalContent)}[/]");
+        _ui.Text.WriteMarkupLine(
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallResult_OptionalContent)}[/]");
 
         foreach (string group in optionalGroups)
         {
@@ -121,12 +122,13 @@ internal sealed class InstallTerminalView
         }
 
         _ui.Text.WriteBlankLine();
-        _ui.Text.WriteMarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallPreview_Targets)}[/]");
+        _ui.Text.WriteMarkupLine(
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPreview_Targets)}[/]");
 
         foreach (InstallPreviewFileResult file in files)
         {
             _ui.Text.WriteMarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: [grey]{TerminalText.Escape(file.AssetsFilePath)}[/]");
+                $"- {TerminalText.Escape(file.Target)}: [{TerminalTheme.Muted}]{TerminalText.Escape(file.AssetsFilePath)}[/]");
         }
     }
 
@@ -138,13 +140,14 @@ internal sealed class InstallTerminalView
         }
 
         _ui.Text.WriteBlankLine();
-        _ui.Text.WriteMarkupLine("[blue]Details[/]");
+        _ui.Text.WriteMarkupLine(
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPreview_Details)}[/]");
 
         foreach (InstallPreviewFileResult file in files)
         {
             _ui.Text.WriteBlankLine();
             _ui.Text.WriteMarkupLine(
-                $"[blue]Target[/] {TerminalText.Escape(file.Target)}");
+                $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPreview_TargetLabel)}[/] {TerminalText.Escape(file.Target)}");
             WritePatchPreviewAssets(file.Preview);
         }
     }
@@ -157,14 +160,15 @@ internal sealed class InstallTerminalView
         }
 
         _ui.Text.WriteBlankLine();
-        _ui.Text.WriteMarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallResult_PatchedFiles)}[/]");
+        _ui.Text.WriteMarkupLine(
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallResult_PatchedFiles)}[/]");
 
         foreach (InstallModFileResult file in files)
         {
             _ui.Text.WriteMarkupLine(
                 $"- {TerminalText.Escape(file.Target)}: {FormatCount(file.AssetCount, LocalizedStrings.Summary_AssetUnit)}, {FormatCount(file.OperationCount, LocalizedStrings.Summary_OperationUnit)}");
             _ui.Text.WriteMarkupLine(
-                $"  [grey]{TerminalText.Escape(LocalizedStrings.InstallResult_Backup)}[/] {TerminalText.Escape(file.BackupPath)}");
+                $"  [{TerminalTheme.Muted}]{TerminalText.Escape(LocalizedStrings.InstallResult_Backup)}[/] {TerminalText.Escape(file.BackupPath)}");
         }
     }
 
@@ -176,7 +180,8 @@ internal sealed class InstallTerminalView
         }
 
         _ui.Text.WriteBlankLine();
-        _ui.Text.WriteMarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallResult_CopiedFiles)}[/]");
+        _ui.Text.WriteMarkupLine(
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallResult_CopiedFiles)}[/]");
 
         foreach (InstallCopiedFileResult copiedFile in copiedFiles)
         {
@@ -190,7 +195,7 @@ internal sealed class InstallTerminalView
         {
             _ui.Text.WriteBlankLine();
             _ui.Text.WriteMarkupLine(
-                $"[grey]Path ID {assetResult.Asset.PathId.ToString(CultureInfo.InvariantCulture)} ({TerminalText.Escape(assetResult.Asset.TypeName)})[/]");
+                $"[{TerminalTheme.Muted}]Path ID {assetResult.Asset.PathId.ToString(CultureInfo.InvariantCulture)} ({TerminalText.Escape(assetResult.Asset.TypeName)})[/]");
 
             foreach (PatchPreviewOperationResult operation in assetResult.Operations)
             {
@@ -215,7 +220,8 @@ internal sealed class InstallTerminalView
     private void WriteInstallTiming(InstallTimingResult timing)
     {
         _ui.Text.WriteBlankLine();
-        _ui.Text.WriteMarkupLine("[blue]Timing[/]");
+        _ui.Text.WriteMarkupLine(
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.Install_TimingHeader)}[/]");
         _ui.Summary.WriteRows(
             ("Read package", TerminalSummary.FormatElapsedSecondsWithUnit(timing.ReadPackage)),
             ("Prepare sources", TerminalSummary.FormatElapsedSecondsWithUnit(timing.PrepareSources)),

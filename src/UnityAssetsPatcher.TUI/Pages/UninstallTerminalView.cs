@@ -54,7 +54,7 @@ internal sealed class UninstallTerminalView
 
     public void WritePreview(InstallRecordSummary selected, UninstallPreviewResult preview)
     {
-        _ui.Status.Write(LocalizedStrings.UninstallPreview_Status, "yellow");
+        _ui.Status.WritePreview(LocalizedStrings.UninstallPreview_Status);
         _ui.Summary.WriteRows(
             (LocalizedStrings.Summary_Mod, selected.ModName),
             (LocalizedStrings.Summary_Version, selected.ModVersion),
@@ -72,7 +72,7 @@ internal sealed class UninstallTerminalView
 
     public void WriteResult(UninstallModResult result)
     {
-        _ui.Status.Write(LocalizedStrings.UninstallResult_Status, "green");
+        _ui.Status.WriteSuccess(LocalizedStrings.UninstallResult_Status);
         _ui.Summary.WriteRows(
             (LocalizedStrings.Summary_Mod, result.ModName),
             (LocalizedStrings.Summary_Version, result.ModVersion),
@@ -94,7 +94,7 @@ internal sealed class UninstallTerminalView
 
         _ui.Text.WriteBlankLine();
         _ui.Text.WriteMarkupLine(
-            $"[blue]{TerminalText.Escape(LocalizedStrings.UninstallPreview_FilesToRestore)}[/]");
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.UninstallPreview_FilesToRestore)}[/]");
 
         foreach (UninstallPreviewRestoredFileResult file in files)
         {
@@ -115,7 +115,7 @@ internal sealed class UninstallTerminalView
 
         _ui.Text.WriteBlankLine();
         _ui.Text.WriteMarkupLine(
-            $"[blue]{TerminalText.Escape(LocalizedStrings.UninstallPreview_PayloadFilesToDelete)}[/]");
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.UninstallPreview_PayloadFilesToDelete)}[/]");
 
         foreach (UninstallPreviewDeletedFileResult file in files)
         {
@@ -136,12 +136,12 @@ internal sealed class UninstallTerminalView
 
         _ui.Text.WriteBlankLine();
         _ui.Text.WriteMarkupLine(
-            $"[blue]{TerminalText.Escape(LocalizedStrings.UninstallResult_RestoredFiles)}[/]");
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.UninstallResult_RestoredFiles)}[/]");
 
         foreach (UninstallRestoredFileResult file in files)
         {
             _ui.Text.WriteMarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: [grey]{TerminalText.Escape(file.AssetsFilePath)}[/]");
+                $"- {TerminalText.Escape(file.Target)}: [{TerminalTheme.Muted}]{TerminalText.Escape(file.AssetsFilePath)}[/]");
         }
     }
 
@@ -154,7 +154,7 @@ internal sealed class UninstallTerminalView
 
         _ui.Text.WriteBlankLine();
         _ui.Text.WriteMarkupLine(
-            $"[blue]{TerminalText.Escape(LocalizedStrings.UninstallResult_DeletedPayloadFiles)}[/]");
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.UninstallResult_DeletedPayloadFiles)}[/]");
 
         foreach (UninstallDeletedFileResult file in files)
         {
