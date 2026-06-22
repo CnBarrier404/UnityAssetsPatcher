@@ -1,5 +1,6 @@
 using AssetsTools.NET;
 using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Core.IO;
 using AssetsToolsNetFileWriter = AssetsTools.NET.AssetsFileWriter;
 
 namespace UnityAssetsPatcher.AssetsTools;
@@ -58,7 +59,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
                 WriteSessionToFile(session, tempPath);
             }
 
-            File.Move(tempPath, outputPath, overwrite: true);
+            FileHelper.SafeMoveFile(tempPath, outputPath, overwrite: true);
         }
         finally
         {

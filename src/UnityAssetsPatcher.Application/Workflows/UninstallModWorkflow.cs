@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Modules;
+using UnityAssetsPatcher.Core.IO;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -151,7 +152,7 @@ public sealed class UninstallModWorkflow
         try
         {
             File.Copy(backupPath, tempPath, false);
-            File.Move(tempPath, assetsFilePath, true);
+            FileHelper.SafeMoveFile(tempPath, assetsFilePath, true);
         }
         finally
         {
