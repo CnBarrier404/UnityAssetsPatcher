@@ -5,8 +5,6 @@ namespace UnityAssetsPatcher.TUI.Framework;
 
 public sealed class TerminalSummary
 {
-    private const int LabelColumnWidth = 14;
-
     private readonly IAnsiConsole _console;
 
     public TerminalSummary(IAnsiConsole console)
@@ -16,11 +14,17 @@ public sealed class TerminalSummary
 
     public void WriteRows(params (string Label, string Value)[] rows)
     {
+        var grid = new Grid();
+
+        grid.AddColumn(new GridColumn().PadRight(2));
+        grid.AddColumn();
+
         foreach ((string label, string value) in rows)
         {
-            _console.MarkupLine(
-                $"[{TerminalTheme.Muted}]{TerminalText.Escape(TerminalDisplay.PadRight(label, LabelColumnWidth))}[/] {TerminalText.Escape(value)}");
+            grid.AddRow($"[{TerminalTheme.Muted}]{TerminalText.Escape(label)}[/]", TerminalText.Escape(value));
         }
+
+        _console.Write(grid);
     }
 
     public static string FormatCount(int count, string unit)
