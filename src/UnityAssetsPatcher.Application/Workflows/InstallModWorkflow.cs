@@ -46,6 +46,7 @@ public sealed class InstallModWorkflow
         using ModPackage package = ModPackage.Load(
             request.ZipFilePath,
             request.GameDirectory,
+            request.SelectedOptionalGroups,
             _manifestReader,
             _gameDirectoryResolver,
             _openPackageArchive,
@@ -66,6 +67,7 @@ public sealed class InstallModWorkflow
                 package.Manifest.Author,
                 ToInstallPreviewFiles(patchPreview),
                 ToInstallCopyPreviewFiles(payloadPreview),
+                ToOptionalGroupPreviews(package.AvailableOptional),
                 ToInstallTiming(timings.Build()));
         }
         finally
@@ -80,6 +82,7 @@ public sealed class InstallModWorkflow
         using ModPackage package = ModPackage.Load(
             request.ZipFilePath,
             request.GameDirectory,
+            request.SelectedOptionalGroups,
             _manifestReader,
             _gameDirectoryResolver,
             _openPackageArchive,
@@ -104,8 +107,10 @@ public sealed class InstallModWorkflow
                 assetsBackupDirectory,
                 timings);
             PayloadCopyResult copiedFiles = ModPackage.CopyPayload(payloadPlan, timings);
+            IReadOnlyList<string> appliedOptionalGroups =
+                ResolveAppliedOptionalGroups(package, request.SelectedOptionalGroups);
             recordStore.Save(
-                CreateInstallRecord(package, patchApplyResult, copiedFiles),
+                CreateInstallRecord(package, patchApplyResult, copiedFiles, appliedOptionalGroups),
                 installDirectory);
 
             return new InstallModResult(
@@ -114,6 +119,7 @@ public sealed class InstallModWorkflow
                 package.Manifest.Author,
                 ToInstallModFiles(patchApplyResult),
                 ToInstallCopiedFiles(copiedFiles),
+                appliedOptionalGroups,
                 ToInstallTiming(timings.Build()));
         }
         finally
@@ -130,7 +136,8 @@ public sealed class InstallModWorkflow
     private static InstallRecord CreateInstallRecord(
         ModPackage package,
         PatchAssetApplyResult patchApplyResult,
-        PayloadCopyResult copiedFiles)
+        PayloadCopyResult copiedFiles,
+        IReadOnlyList<string> appliedOptionalGroups)
     {
         return new InstallRecord(
             Guid.NewGuid().ToString("N"),
@@ -156,13 +163,40 @@ public sealed class InstallModWorkflow
                     file.Source,
                     file.DestinationPath,
                     File.Exists(file.DestinationPath)))
-                .ToArray());
+                .ToArray())
+        {
+            OptionalGroups = appliedOptionalGroups.Count == 0 ? null : appliedOptionalGroups,
+        };
+    }
+
+    private static IReadOnlyList<string> ResolveAppliedOptionalGroups(
+        ModPackage package,
+        IReadOnlyList<string> selectedOptionalGroups)
+    {
+        if (selectedOptionalGroups.Count == 0)
+        {
+            return [];
+        }
+
+        var selected = new HashSet<string>(selectedOptionalGroups, StringComparer.OrdinalIgnoreCase);
+
+        return package.AvailableOptional
+            .Where(group => selected.Contains(group.Name))
+            .Select(group => group.Name)
+            .ToArray();
     }
 
     private static InstallPreviewFileResult[] ToInstallPreviewFiles(PatchAssetPreview preview)
     {
         return preview.Files
             .Select(file => new InstallPreviewFileResult(file.Target, file.AssetsFilePath, file.Preview))
+            .ToArray();
+    }
+
+    private static OptionalGroupPreview[] ToOptionalGroupPreviews(IReadOnlyList<ManifestOptionalGroup> groups)
+    {
+        return groups
+            .Select(group => new OptionalGroupPreview(group.Name, group.Description))
             .ToArray();
     }
 

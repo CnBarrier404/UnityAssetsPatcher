@@ -46,7 +46,8 @@ internal sealed class InstallTerminalPage : ITerminalPage
         _view.WriteAnalyzing();
 
         string? gameDirectory = null;
-        InstallPreviewResult? preview = TryPreviewInstall(zipFilePath, gameDirectory);
+        IReadOnlyList<string> selectedOptionalGroups = [];
+        InstallPreviewResult? preview = TryPreviewInstall(zipFilePath, gameDirectory, selectedOptionalGroups);
 
         if (preview is null)
         {
@@ -57,12 +58,33 @@ internal sealed class InstallTerminalPage : ITerminalPage
                 return TerminalPageResult.ReturnToMenu(false);
             }
 
-            preview = TryPreviewInstall(zipFilePath, gameDirectory);
+            preview = TryPreviewInstall(zipFilePath, gameDirectory, selectedOptionalGroups);
         }
 
         if (preview is null)
         {
             return TerminalPageResult.ReturnToMenu();
+        }
+
+        if (preview.OptionalGroups.Count > 0)
+        {
+            if (!TrySelectOptionalGroups(preview.OptionalGroups, out selectedOptionalGroups))
+            {
+                _view.WriteInstallCanceled();
+
+                return TerminalPageResult.ReturnToMenu();
+            }
+
+            if (selectedOptionalGroups.Count > 0)
+            {
+                _view.WriteAnalyzing();
+                preview = TryPreviewInstall(zipFilePath, gameDirectory, selectedOptionalGroups);
+
+                if (preview is null)
+                {
+                    return TerminalPageResult.ReturnToMenu();
+                }
+            }
         }
 
         _view.WriteInstallPreview(preview, _settings.VerboseOutput);
@@ -79,18 +101,60 @@ internal sealed class InstallTerminalPage : ITerminalPage
 
         _view.WriteBlankLine();
         InstallModResult result = _workflowService.Install(
-            new InstallModRequest(zipFilePath, gameDirectory, _installOptions.BackupDirectory));
+            new InstallModRequest(zipFilePath, gameDirectory, _installOptions.BackupDirectory)
+            {
+                SelectedOptionalGroups = selectedOptionalGroups,
+            });
         _view.WriteInstallResult(result, _settings.VerboseOutput);
 
         return TerminalPageResult.ReturnToMenu();
     }
 
-    private InstallPreviewResult? TryPreviewInstall(string zipFilePath, string? gameDirectory)
+    private bool TrySelectOptionalGroups(
+        IReadOnlyList<OptionalGroupPreview> groups,
+        out IReadOnlyList<string> selectedOptionalGroups)
+    {
+        _view.WriteOptionalGroupsHeader();
+
+        var chosen = new List<string>();
+
+        foreach (OptionalGroupPreview group in groups)
+        {
+            _view.WriteOptionalGroup(group);
+
+            switch (_input.ConfirmOptionalGroup())
+            {
+                case ConfirmChoice.Yes:
+                    chosen.Add(group.Name);
+                    break;
+                case ConfirmChoice.No:
+                    break;
+                default:
+                    selectedOptionalGroups = [];
+
+                    return false;
+            }
+
+            _view.WriteBlankLine();
+        }
+
+        selectedOptionalGroups = chosen;
+
+        return true;
+    }
+
+    private InstallPreviewResult? TryPreviewInstall(
+        string zipFilePath,
+        string? gameDirectory,
+        IReadOnlyList<string> selectedOptionalGroups)
     {
         try
         {
             return _workflowService.PreviewInstall(
-                new InstallPreviewRequest(zipFilePath, gameDirectory));
+                new InstallPreviewRequest(zipFilePath, gameDirectory)
+                {
+                    SelectedOptionalGroups = selectedOptionalGroups,
+                });
         }
         catch (DirectoryNotFoundException exception) when (gameDirectory is null)
         {

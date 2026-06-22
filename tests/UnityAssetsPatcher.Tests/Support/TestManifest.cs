@@ -58,6 +58,8 @@ internal static class TestManifest
             manifest["copyFiles"] = files?.DeepClone();
         }
 
+        CopyIfPresent(fragment, manifest, "optional");
+
         if (fragment.TryGetPropertyValue("targets", out JsonNode? targets))
         {
             manifest["targets"] = targets?.DeepClone();

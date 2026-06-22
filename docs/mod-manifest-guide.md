@@ -100,6 +100,7 @@ Mod.zip
 | `game`        | 否   | 游戏名。未手动选择游戏目录时，工具会尝试用它从 Steam 安装信息中解析游戏目录。如果存在，必须是非空字符串。 |
 | `copyFiles`   | 否   | 安装后需要复制到目标 assets 文件所在目录的 payload 文件。                                                 |
 | `targets`     | 是   | 要处理的目标 `.assets` 文件分组。                                                                         |
+| `optional`    | 否   | 附加内容分组。用户安装时可逐个选择是否应用，互不依赖、可自由组合。                                        |
 
 ### copyFiles
 
@@ -160,6 +161,47 @@ Mod.zip
 ```
 
 用于安装的 patch 必须至少包含 `set`、`add` 或 `replaceAsset` 之一。
+
+### optional
+
+`optional` 用来声明附加内容。`targets` 是 Mod 的主体内容，安装时一定会应用；`optional` 中的每个分组则由用户在安装时**逐个选择是否应用**。各分组互不依赖、可自由组合。
+
+每个分组的结构和 Mod 主体一致：可以包含自己的 `targets`（补丁）和 `copyFiles`（payload）。
+
+```json
+"optional": [
+  {
+    "name": "高清贴图",
+    "description": "把贴图替换为 4K 版本",
+    "targets": [
+      {
+        "file": "sharedassets1.assets",
+        "patches": [
+          {
+            "type": "Material",
+            "match": { "m_Name": "Skin" },
+            "replaceAsset": {
+              "fromFile": "extras/skin_4k.assets",
+              "matchField": "m_Name"
+            }
+          }
+        ]
+      }
+    ],
+    "copyFiles": [
+      { "source": "extras/skin_4k.resource" }
+    ]
+  }
+]
+```
+
+规则：
+
+- `name` 必填、非空，且各分组之间必须唯一（忽略大小写）。
+- `description` 可选，会在询问用户时一并展示，建议简要说明该附加内容的效果。
+- `targets` 和 `copyFiles` 都是可选的，但每个分组至少要包含其中之一。其内部结构、字段规则与 Mod 主体完全相同。
+- 被选中的分组会与主体内容合并后再统一预览和安装。因此同一个目标 assets 文件上，主体与附加内容不能混用 `replaceAsset` 与字段级 `set`/`add`（见 `replaceAsset` 的组合限制）。
+- 所有 `copyFiles` 都复制到同一个目录，因此主体与被选中分组之间的 payload 文件名必须互不相同。
 
 ## Patch 规则
 
@@ -400,13 +442,16 @@ Mod.zip
 
 1. 读取 zip 中唯一的 `manifest.json`。
 2. 如果没有手动选择游戏目录，尝试使用 `game` 从 Steam 安装信息中解析游戏目录。
-3. 根据 `targets[].file` 在游戏目录下定位目标 assets 文件。
-4. 生成 dry run 预览，展示目标文件、命中的 asset、将执行的变更和 payload 文件状态。
-5. 用户确认后，先检查 payload 目标文件是否可用，再写入 assets 文件。
-6. 覆盖原始 assets 文件前，在程序目录的 `backup` 文件夹创建备份。
-7. 写入 assets 文件成功后，复制 `copyFiles` 中声明的 payload 文件。
+3. 如果声明了 `optional`，逐个展示分组的 `name` 和 `description`，由用户选择是否应用；被选中的分组会与主体内容合并。在该确认环节按 Esc 会放弃整个安装。
+4. 根据 `targets[].file`（含被选中分组的目标）在游戏目录下定位目标 assets 文件。
+5. 生成 dry run 预览，展示目标文件、命中的 asset、将执行的变更和 payload 文件状态。
+6. 用户确认后，先检查 payload 目标文件是否可用，再写入 assets 文件。
+7. 覆盖原始 assets 文件前，在程序目录的 `backup` 文件夹创建备份。
+8. 写入 assets 文件成功后，复制 `copyFiles` 中声明的 payload 文件。
 
 预览不会写入 assets 文件，也不会复制 payload 文件。
+
+本次应用的附加内容分组名会写入安装记录 `record.json`（未选择时不写该字段），安装结果输出中也会列出，便于事后确认这次安装包含了哪些附加内容。
 
 ### Mod 卸载
 

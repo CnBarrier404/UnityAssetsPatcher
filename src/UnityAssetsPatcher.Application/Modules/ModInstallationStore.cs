@@ -114,7 +114,11 @@ public sealed record InstallRecord(
     string? PackagePath,
     string GameDirectory,
     IReadOnlyList<InstallRecordPatchedFile> PatchedFiles,
-    IReadOnlyList<InstallRecordCopiedFile> CopiedFiles);
+    IReadOnlyList<InstallRecordCopiedFile> CopiedFiles)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? OptionalGroups { get; init; }
+}
 
 public enum InstallRecordStatus
 {

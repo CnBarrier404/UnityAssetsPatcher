@@ -60,6 +60,11 @@ public sealed class TerminalPrompts
 
     public bool Confirm(string prompt)
     {
+        return ConfirmOrCancel(prompt) == ConfirmChoice.Yes;
+    }
+
+    public ConfirmChoice ConfirmOrCancel(string prompt)
+    {
         while (true)
         {
             _text.WriteConfirmationLabel(prompt);
@@ -67,7 +72,7 @@ public sealed class TerminalPrompts
 
             if (input is null)
             {
-                return false;
+                return ConfirmChoice.Canceled;
             }
 
             string normalized = input.Trim().ToLowerInvariant();
@@ -75,12 +80,12 @@ public sealed class TerminalPrompts
             if (normalized.Length == 0 ||
                 normalized is "n" or "no")
             {
-                return false;
+                return ConfirmChoice.No;
             }
 
             if (normalized is "y" or "yes")
             {
-                return true;
+                return ConfirmChoice.Yes;
             }
 
             _text.WriteError(LocalizedStrings.Prompt_YesNoChoiceError);

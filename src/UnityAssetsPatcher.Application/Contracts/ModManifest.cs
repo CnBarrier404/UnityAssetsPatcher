@@ -9,6 +9,13 @@ public sealed record ModManifest(
     string? Description,
     string? Game,
     IReadOnlyList<ManifestFile> Files,
+    IReadOnlyList<ManifestPatch> Patches,
+    IReadOnlyList<ManifestOptionalGroup> Optional);
+
+public sealed record ManifestOptionalGroup(
+    string Name,
+    string? Description,
+    IReadOnlyList<ManifestFile> Files,
     IReadOnlyList<ManifestPatch> Patches);
 
 public sealed record ManifestFile(string Source);

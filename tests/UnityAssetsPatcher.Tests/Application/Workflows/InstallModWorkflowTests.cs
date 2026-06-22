@@ -1039,6 +1039,238 @@ public sealed class InstallModWorkflowTests
         }
     }
 
+    /// <summary>
+    /// Verifies that preview reports declared optional groups and that selecting one merges its target into the plan.
+    /// </summary>
+    [Fact]
+    public void Preview_WhenManifestHasOptionalGroups_ReportsGroupsAndMergesSelected()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string basePath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string optionalPath = Path.Combine(targetDirectory, "sharedassets1.assets");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(basePath, "original");
+        File.WriteAllText(optionalPath, "original");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "targets": [
+                {
+                  "file": "sharedassets0.assets",
+                  "patches": [
+                    { "type": "Camera", "match": { "field of view": 90.0 }, "set": { "m_CullingMask.m_Bits": { "from": 3211820983, "to": 931037111 } } }
+                  ]
+                }
+              ],
+              "optional": [
+                {
+                  "name": "Bonus camera",
+                  "description": "Patches a second file",
+                  "targets": [
+                    {
+                      "file": "sharedassets1.assets",
+                      "patches": [
+                        { "type": "Camera", "match": { "field of view": 90.0 }, "set": { "m_CullingMask.m_Bits": { "from": 3211820983, "to": 931037111 } } }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        AssetsFieldInfo fieldTree = new("Camera", "Camera", null,
+        [
+            new AssetsFieldInfo("field of view", "float", "90.0", []),
+            new AssetsFieldInfo("m_CullingMask", "BitField", null,
+            [
+                new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+            ]),
+        ]);
+        var assetsFileService = new StubAssetsFileService(
+            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [basePath] = [new AssetsInfo(4, 20, "Camera", 128)],
+                [optionalPath] = [new AssetsInfo(5, 20, "Camera", 128)],
+            },
+            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            {
+                [(basePath, 4)] = fieldTree,
+                [(optionalPath, 5)] = fieldTree,
+            });
+        var workflow = CreateWorkflow(assetsFileService);
+
+        try
+        {
+            InstallPreviewResult basePreview = workflow.Preview(
+                new InstallPreviewRequest(zipPath, gameDirectory));
+
+            OptionalGroupPreview group = Assert.Single(basePreview.OptionalGroups);
+            Assert.Equal("Bonus camera", group.Name);
+            Assert.Equal("Patches a second file", group.Description);
+            Assert.Single(basePreview.Files);
+
+            InstallPreviewResult mergedPreview = workflow.Preview(
+                new InstallPreviewRequest(zipPath, gameDirectory)
+                {
+                    SelectedOptionalGroups = ["Bonus camera"],
+                });
+
+            Assert.Equal(2, mergedPreview.Files.Count);
+            Assert.Contains(mergedPreview.Files, file => file.Target == "sharedassets1.assets");
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that installing selected optional content records the applied groups in the result and record.json.
+    /// </summary>
+    [Fact]
+    public void Install_WhenOptionalGroupSelected_RecordsAppliedGroups()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(Path.Combine(targetDirectory, "sharedassets0.assets"), "original");
+        File.WriteAllText(Path.Combine(targetDirectory, "sharedassets1.assets"), "original");
+        WriteOptionalContentZip(zipPath);
+        var assetsFileService = CreateCullingMaskCameraReader();
+        var workflow = CreateWorkflow(assetsFileService);
+
+        try
+        {
+            InstallModResult result = workflow.Install(
+                new InstallModRequest(zipPath, gameDirectory, backupDirectory)
+                {
+                    SelectedOptionalGroups = ["bonus CAMERA"],
+                });
+
+            Assert.Equal(["Bonus camera"], result.OptionalGroups);
+            Assert.Equal(2, result.Files.Count);
+            string recordJson = ReadInstallRecordJson(backupDirectory);
+            Assert.Contains("\"optionalGroups\"", recordJson);
+            Assert.Contains("Bonus camera", recordJson);
+        }
+        finally
+        {
+            CleanUp(zipPath, gameDirectory, backupDirectory);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that installing without optional selection omits the optionalGroups field from record.json.
+    /// </summary>
+    [Fact]
+    public void Install_WhenNoOptionalSelected_OmitsOptionalGroupsFromRecord()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(Path.Combine(targetDirectory, "sharedassets0.assets"), "original");
+        File.WriteAllText(Path.Combine(targetDirectory, "sharedassets1.assets"), "original");
+        WriteOptionalContentZip(zipPath);
+        var workflow = CreateWorkflow(CreateCullingMaskCameraReader());
+
+        try
+        {
+            InstallModResult result = workflow.Install(
+                new InstallModRequest(zipPath, gameDirectory, backupDirectory));
+
+            Assert.Empty(result.OptionalGroups);
+            Assert.Single(result.Files);
+            Assert.DoesNotContain("optionalGroups", ReadInstallRecordJson(backupDirectory));
+        }
+        finally
+        {
+            CleanUp(zipPath, gameDirectory, backupDirectory);
+        }
+    }
+
+    private static void WriteOptionalContentZip(string zipPath)
+    {
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "targets": [
+                {
+                  "file": "sharedassets0.assets",
+                  "patches": [
+                    { "type": "Camera", "match": { "field of view": 90.0 }, "set": { "m_CullingMask.m_Bits": { "from": 3211820983, "to": 931037111 } } }
+                  ]
+                }
+              ],
+              "optional": [
+                {
+                  "name": "Bonus camera",
+                  "targets": [
+                    {
+                      "file": "sharedassets1.assets",
+                      "patches": [
+                        { "type": "Camera", "match": { "field of view": 90.0 }, "set": { "m_CullingMask.m_Bits": { "from": 3211820983, "to": 931037111 } } }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+    }
+
+    private static StubAssetsFileService CreateCullingMaskCameraReader()
+    {
+        return new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    [
+                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                    ]),
+                ]),
+            });
+    }
+
+    private static string ReadInstallRecordJson(string backupDirectory)
+    {
+        string recordPath = Directory
+            .EnumerateFiles(backupDirectory, "record.json", SearchOption.AllDirectories)
+            .Single();
+
+        return File.ReadAllText(recordPath);
+    }
+
+    private static void CleanUp(string zipPath, string gameDirectory, string backupDirectory)
+    {
+        File.Delete(zipPath);
+
+        if (Directory.Exists(gameDirectory))
+        {
+            Directory.Delete(gameDirectory, true);
+        }
+
+        if (Directory.Exists(backupDirectory))
+        {
+            Directory.Delete(backupDirectory, true);
+        }
+    }
+
     private static AssetsFieldInfo CreateAudioClipFieldTree(string name)
     {
         return new AssetsFieldInfo(

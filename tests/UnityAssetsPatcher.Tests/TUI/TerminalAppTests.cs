@@ -391,6 +391,137 @@ public sealed class TerminalAppTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Run_WhenOptionalContentAccepted_InstallsBaseAndOptional()
+    {
+        string zipPath = CreateOptionalContentZip();
+        string gameDirectory = CreateGameDirectory("sharedassets0.assets");
+        string optionalTargetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets1.assets");
+        File.WriteAllText(optionalTargetPath, "original");
+        string baseTargetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets0.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InstallMod);
+        console.Input.PushTextWithEnter(zipPath);
+        console.Input.PushTextWithEnter(gameDirectory);
+        console.Input.PushTextWithEnter("y");
+        console.Input.PushTextWithEnter("y");
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            string text = console.Output;
+            Assert.True(exitCode == 0, console.Output);
+            Assert.Contains("This mod includes optional content:", text);
+            Assert.Contains("Bonus content", text);
+            Assert.Contains("Adds extra stuff", text);
+            Assert.Contains("Apply this optional content?", text);
+            Assert.Contains("INSTALLED", text);
+            Assert.Contains("Optional content", text);
+            Assert.Equal("patched", File.ReadAllText(baseTargetPath));
+            Assert.Equal("patched", File.ReadAllText(optionalTargetPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            Directory.Delete(gameDirectory, true);
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Run_WhenOptionalContentDeclined_InstallsBaseOnly()
+    {
+        string zipPath = CreateOptionalContentZip();
+        string gameDirectory = CreateGameDirectory("sharedassets0.assets");
+        string optionalTargetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets1.assets");
+        File.WriteAllText(optionalTargetPath, "original");
+        string baseTargetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets0.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InstallMod);
+        console.Input.PushTextWithEnter(zipPath);
+        console.Input.PushTextWithEnter(gameDirectory);
+        console.Input.PushTextWithEnter("n");
+        console.Input.PushTextWithEnter("y");
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            string text = console.Output;
+            Assert.True(exitCode == 0, console.Output);
+            Assert.Contains("Apply this optional content?", text);
+            Assert.Contains("INSTALLED", text);
+            Assert.Equal("patched", File.ReadAllText(baseTargetPath));
+            Assert.Equal("original", File.ReadAllText(optionalTargetPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            Directory.Delete(gameDirectory, true);
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Run_WhenOptionalContentEscaped_AbortsInstall()
+    {
+        string zipPath = CreateOptionalContentZip();
+        string gameDirectory = CreateGameDirectory("sharedassets0.assets");
+        string optionalTargetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets1.assets");
+        File.WriteAllText(optionalTargetPath, "original");
+        string baseTargetPath = Path.Combine(gameDirectory, "Game_Data", "sharedassets0.assets");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InstallMod);
+        console.Input.PushTextWithEnter(zipPath);
+        console.Input.PushTextWithEnter(gameDirectory);
+        console.Input.PushKey(ConsoleKey.Escape);
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        TerminalApp app = CreateApp(CreateCameraReader(), backupDirectory, console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            string text = console.Output;
+            Assert.True(exitCode == 0, console.Output);
+            Assert.Contains("Apply this optional content?", text);
+            Assert.Contains("Install canceled.", text);
+            Assert.DoesNotContain("INSTALLED", text);
+            Assert.DoesNotContain("Apply these changes?", text);
+            Assert.Equal("original", File.ReadAllText(baseTargetPath));
+            Assert.Equal("original", File.ReadAllText(optionalTargetPath));
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            Directory.Delete(gameDirectory, true);
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
     private enum MainMenuOption
     {
         InstallMod,
@@ -587,6 +718,40 @@ public sealed class TerminalAppTests : IDisposable
                       "field": "field of view",
                       "from": 90.0,
                       "to": 75.0
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+        return zipPath;
+    }
+
+    private static string CreateOptionalContentZip()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "targets": [
+                {
+                  "file": "sharedassets0.assets",
+                  "patches": [
+                    { "type": "Camera", "match": { "field of view": 90.0 }, "set": { "field of view": { "from": 90.0, "to": 75.0 } } }
+                  ]
+                }
+              ],
+              "optional": [
+                {
+                  "name": "Bonus content",
+                  "description": "Adds extra stuff",
+                  "targets": [
+                    {
+                      "file": "sharedassets1.assets",
+                      "patches": [
+                        { "type": "Camera", "match": { "field of view": 90.0 }, "set": { "field of view": { "from": 90.0, "to": 75.0 } } }
+                      ]
                     }
                   ]
                 }

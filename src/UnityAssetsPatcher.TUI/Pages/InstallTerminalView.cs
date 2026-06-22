@@ -35,6 +35,24 @@ internal sealed class InstallTerminalView
         _ui.Text.WriteBlankLine();
     }
 
+    public void WriteOptionalGroupsHeader()
+    {
+        _ui.Text.WriteBlankLine();
+        _ui.Text.WriteMarkupLine(
+            $"[blue]{TerminalText.Escape(LocalizedStrings.InstallPage_OptionalGroupsHeader)}[/]");
+        _ui.Text.WriteBlankLine();
+    }
+
+    public void WriteOptionalGroup(OptionalGroupPreview group)
+    {
+        _ui.Text.WriteMarkupLine($"[blue]{TerminalText.Escape(group.Name)}[/]");
+
+        if (!string.IsNullOrWhiteSpace(group.Description))
+        {
+            _ui.Text.WriteMarkupLine($"  [grey]{TerminalText.Escape(group.Description)}[/]");
+        }
+    }
+
     public void WriteInstallPreview(InstallPreviewResult result, bool verboseLogging)
     {
         _ui.Status.Write(LocalizedStrings.InstallPreview_DryRunStatus, "yellow");
@@ -71,10 +89,27 @@ internal sealed class InstallTerminalView
 
         WriteInstallResultTargets(result.Files);
         WriteInstallResultPayloads(result.CopiedFiles);
+        WriteInstallResultOptionalGroups(result.OptionalGroups);
 
         if (verboseLogging)
         {
             WriteInstallTiming(result.Timing);
+        }
+    }
+
+    private void WriteInstallResultOptionalGroups(IReadOnlyList<string> optionalGroups)
+    {
+        if (optionalGroups.Count == 0)
+        {
+            return;
+        }
+
+        _ui.Text.WriteBlankLine();
+        _ui.Text.WriteMarkupLine($"[blue]{TerminalText.Escape(LocalizedStrings.InstallResult_OptionalContent)}[/]");
+
+        foreach (string group in optionalGroups)
+        {
+            _ui.Text.WriteMarkupLine($"- {TerminalText.Escape(group)}");
         }
     }
 

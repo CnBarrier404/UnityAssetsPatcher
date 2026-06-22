@@ -25,4 +25,9 @@ internal sealed class InstallTerminalInput
     {
         return _prompts.Confirm(LocalizedStrings.InstallPage_ApplyTheseChangesPrompt);
     }
+
+    public ConfirmChoice ConfirmOptionalGroup()
+    {
+        return _prompts.ConfirmOrCancel(LocalizedStrings.InstallPage_ApplyOptionalGroupPrompt);
+    }
 }

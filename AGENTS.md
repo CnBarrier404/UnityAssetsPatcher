@@ -66,6 +66,7 @@ Install and uninstall both perform a preview first and only write after confirma
 - `ModInstallationStore` persists install records as `record.json` files in timestamped backup directories, tracking `Installed`/`Uninstalled` status for uninstall support.
 - `GameDirectoryResolver` resolves a game's install directory by scanning Steam library roots for `appmanifest_*.acf` files matching the game name, parsing VDF key-value format.
 - `ModPackage` extracts source assets files from the mod zip into a temp directory when patches use `replaceAsset`, and cleans up on dispose.
+- A manifest `optional` array declares opt-in content groups. `ModPackage.Load` merges the base manifest with the caller-selected groups via `ModManifest.SelectOptional` (a pure function) before extracting sources, so downstream planning only ever sees the effective `Patches`/`Files`. The install preview reports `AvailableOptional`; the TUI asks per group and aborts on Esc. Applied group names are recorded on `InstallRecord.OptionalGroups` (omitted from record.json when none) and returned in `InstallModResult.OptionalGroups`.
 
 ## Coding Guidelines
 

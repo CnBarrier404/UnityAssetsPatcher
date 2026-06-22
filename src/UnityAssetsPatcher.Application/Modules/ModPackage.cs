@@ -21,6 +21,8 @@ public sealed class ModPackage : IDisposable
 {
     public IReadOnlyDictionary<string, string> SourceAssetsPaths { get; }
     public ModManifest Manifest { get; }
+    public IReadOnlyList<ManifestOptionalGroup> AvailableOptional { get; }
+
     private ZipArchive Archive { get; }
     public string GameDirectory { get; }
     public string PackagePath { get; }
@@ -31,6 +33,7 @@ public sealed class ModPackage : IDisposable
         string packagePath,
         ZipArchive archive,
         ModManifest manifest,
+        IReadOnlyList<ManifestOptionalGroup> availableOptional,
         string gameDirectory,
         IReadOnlyDictionary<string, string> sourceAssetsPaths,
         string? temporaryDirectory)
@@ -38,6 +41,7 @@ public sealed class ModPackage : IDisposable
         PackagePath = packagePath;
         Archive = archive;
         Manifest = manifest;
+        AvailableOptional = availableOptional;
         GameDirectory = gameDirectory;
         SourceAssetsPaths = sourceAssetsPaths;
         _temporaryDirectory = temporaryDirectory;
@@ -46,6 +50,7 @@ public sealed class ModPackage : IDisposable
     public static ModPackage Load(
         string modPackagePath,
         string? gameDirectory,
+        IReadOnlyList<string> selectedOptionalGroups,
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive,
@@ -64,7 +69,7 @@ public sealed class ModPackage : IDisposable
 
         try
         {
-            ModManifest modManifest = timings.MeasureReadPackage(() =>
+            ModManifest fullManifest = timings.MeasureReadPackage(() =>
             {
                 archive = openPackageArchive(modPackageFullPath);
 
@@ -73,7 +78,9 @@ public sealed class ModPackage : IDisposable
                 return manifestReader.Load(manifestElement);
             });
 
-            string gameDirectoryPath = ResolveGameDirectory(gameDirectory, modManifest, gameDirectoryResolver);
+            ModManifest effectiveManifest = fullManifest.SelectOptional(selectedOptionalGroups);
+
+            string gameDirectoryPath = ResolveGameDirectory(gameDirectory, effectiveManifest, gameDirectoryResolver);
 
             if (archive is null)
             {
@@ -84,14 +91,15 @@ public sealed class ModPackage : IDisposable
 
             (var sourceAssetsPaths, string? temporaryDirectory) =
                 timings.MeasurePrepareSources(() =>
-                    ExtractSourceAssets(modPackageFullPath, modManifest, sourceArchive));
+                    ExtractSourceAssets(modPackageFullPath, effectiveManifest, sourceArchive));
 
             archive = null;
 
             return new ModPackage(
                 modPackageFullPath,
                 sourceArchive,
-                modManifest,
+                effectiveManifest,
+                fullManifest.Optional,
                 gameDirectoryPath,
                 sourceAssetsPaths,
                 temporaryDirectory);

@@ -15,8 +15,9 @@ public static class ModManifestParser
         string? game = ReadOptionalNonEmptyMetadataString(manifestElement, "game");
         var files = ReadOptionalCopyFiles(manifestElement);
         var patches = ReadTargets(manifestElement);
+        var optional = ReadOptionalGroups(manifestElement);
 
-        return new ModManifest(name, author, version, description, game, files, patches);
+        return new ModManifest(name, author, version, description, game, files, patches, optional);
     }
 
     public static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadMatchGroups(JsonElement patchElement)
@@ -123,6 +124,69 @@ public static class ModManifestParser
         return patches.Count == 0
             ? throw new InvalidOperationException("Manifest 'targets' array cannot be empty.")
             : patches.ToArray();
+    }
+
+    private static ManifestOptionalGroup[] ReadOptionalGroups(JsonElement manifestElement)
+    {
+        if (!JsonUtils.TryReadProperty(manifestElement, "optional", JsonValueKind.Array,
+                out JsonElement optionalElement))
+        {
+            return [];
+        }
+
+        var groups = new List<ManifestOptionalGroup>();
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (JsonElement groupElement in optionalElement.EnumerateArray())
+        {
+            ManifestOptionalGroup group = ReadOptionalGroup(groupElement);
+
+            if (!names.Add(group.Name))
+            {
+                throw new InvalidOperationException(
+                    $"Manifest optional group names must be unique (case-insensitive): '{group.Name}'.");
+            }
+
+            groups.Add(group);
+        }
+
+        return groups.ToArray();
+    }
+
+    private static ManifestOptionalGroup ReadOptionalGroup(JsonElement groupElement)
+    {
+        if (groupElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("Each optional entry must be an object.");
+        }
+
+        string name = ReadRequiredString(groupElement, "name", "Manifest optional group");
+        string? description =
+            JsonUtils.ReadOptionalStringProperty(groupElement, "description", "Manifest optional group");
+        var patches = ReadOptionalTargets(groupElement);
+        var files = ReadOptionalCopyFiles(groupElement);
+
+        return patches.Length == 0 && files.Length == 0
+            ? throw new InvalidOperationException(
+                $"Manifest optional group '{name}' must contain at least one target patch or copyFiles entry.")
+            : new ManifestOptionalGroup(name, description, files, patches);
+    }
+
+    private static ManifestPatch[] ReadOptionalTargets(JsonElement groupElement)
+    {
+        if (!JsonUtils.TryReadProperty(groupElement, "targets", JsonValueKind.Array, out JsonElement targetsElement))
+        {
+            return [];
+        }
+
+        var patches = new List<ManifestPatch>();
+
+        foreach (JsonElement targetElement in targetsElement.EnumerateArray())
+        {
+            patches.AddRange(ReadTargetGroup(targetElement));
+        }
+
+        return patches.ToArray();
     }
 
     private static ManifestPatch[] ReadTargetGroup(JsonElement targetElement)

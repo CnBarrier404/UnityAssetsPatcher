@@ -9,6 +9,7 @@ public sealed record InstallModResult(
     string ModAuthor,
     IReadOnlyList<InstallModFileResult> Files,
     IReadOnlyList<InstallCopiedFileResult> CopiedFiles,
+    IReadOnlyList<string> OptionalGroups,
     InstallTimingResult Timing);
 
 public sealed record InstallModFileResult(
@@ -26,7 +27,10 @@ public sealed record InstallPreviewResult(
     string ModAuthor,
     IReadOnlyList<InstallPreviewFileResult> Files,
     IReadOnlyList<InstallCopyFilePreviewResult> CopiedFiles,
+    IReadOnlyList<OptionalGroupPreview> OptionalGroups,
     InstallTimingResult Timing);
+
+public sealed record OptionalGroupPreview(string Name, string? Description);
 
 public sealed record InstallTimingResult(
     TimeSpan ReadPackage,
