@@ -62,7 +62,8 @@ public sealed class TerminalPrompts
             .InstructionsText(
                 $"[{TerminalTheme.Muted}]{TerminalText.Escape(LocalizedStrings.Prompt_MultiSelectionInstructions)}[/]")
             .NotRequired()
-            .PageSize(pageSize);
+            .PageSize(pageSize)
+            .HighlightStyle(Style.Parse(TerminalTheme.Selection));
 
         foreach (string choice in choices)
         {

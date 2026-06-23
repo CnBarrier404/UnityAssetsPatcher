@@ -2,23 +2,23 @@ namespace UnityAssetsPatcher.TUI.Framework;
 
 public sealed class TerminalTheme
 {
-    public static string Title => "bold blue";
+    public static string Title => "bold #61afef";
 
-    public static string Muted => "grey";
+    public static string Muted => "#5c6370";
 
-    public static string Label => "blue";
+    public static string Label => "#61afef";
 
-    public static string SectionHeader => "bold blue";
+    public static string SectionHeader => "bold #56b6c2";
 
-    public static string Selection => "cyan";
+    public static string Selection => "bold #c678dd";
 
-    public static string Warning => "yellow";
+    public static string Warning => "#e5c07b";
 
-    public static string Error => "red";
+    public static string Error => "#e06c75";
 
-    public static string StatusPreview => "bold yellow";
+    public static string StatusPreview => "bold #e5c07b";
 
-    public static string StatusSuccess => "bold green";
+    public static string StatusSuccess => "bold #98c379";
 
     public static TerminalTheme Default { get; } = new();
 }
