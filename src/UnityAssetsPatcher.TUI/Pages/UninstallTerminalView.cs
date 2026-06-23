@@ -43,7 +43,7 @@ internal sealed class UninstallTerminalView
         bool clear)
     {
         _ui.Layout.ShowPage(title, description, clear: clear);
-        _ui.List.WriteDescribedChoiceList(
+        _ui.List.WriteDescribedList(
             installed
                 .Select(record => new TerminalChoiceDisplay(
                     $"{record.ModName} {record.ModVersion}",

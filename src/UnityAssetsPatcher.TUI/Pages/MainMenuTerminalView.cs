@@ -15,7 +15,7 @@ internal sealed class MainMenuTerminalView
     public void WriteMainMenu(IReadOnlyList<ITerminalPage> pages, int selectedIndex, bool clear)
     {
         _ui.Layout.ShowPage(LocalizedStrings.MainMenu_Title, clear: clear);
-        _ui.List.WriteDescribedChoiceList(
+        _ui.List.WriteDescribedList(
             pages.Select(page => new TerminalChoiceDisplay(page.Title, page.Description)).ToArray(),
             selectedIndex);
     }

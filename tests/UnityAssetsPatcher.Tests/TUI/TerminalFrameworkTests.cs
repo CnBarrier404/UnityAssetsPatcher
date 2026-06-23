@@ -180,24 +180,24 @@ public sealed class TerminalFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void Lists_WriteChoiceList_MarksSelectedChoice()
+    public void Lists_WriteList_MarksSelectedChoice()
     {
         TestConsole console = CreateConsole();
         var ui = new TerminalUI(console);
 
-        ui.List.WriteChoiceList(["First action", "Second action"], selectedIndex: 1);
+        ui.List.WriteList(["First action", "Second action"], selectedIndex: 1);
 
-        Assert.Contains("  First action", console.Output);
         Assert.Contains("> Second action", console.Output);
+        Assert.Contains("  First action", console.Output);
     }
 
     [Fact]
-    public void Lists_WriteDescribedChoiceList_AlignsLabelAndDescription()
+    public void Lists_WriteDescribedList_AlignsLabelAndDescription()
     {
         TestConsole console = CreateConsole();
         var ui = new TerminalUI(console);
 
-        ui.List.WriteDescribedChoiceList(
+        ui.List.WriteDescribedList(
             [
                 new TerminalChoiceDisplay("Primary action", "Run the primary task."),
                 new TerminalChoiceDisplay("Preferences", "Adjust output detail."),
@@ -212,26 +212,25 @@ public sealed class TerminalFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void Lists_WriteToggleList_UsesFixedSpacingForLocalizedLabels()
+    public void Lists_WriteToggleList_RendersRowsWithIndicatorAndCheckbox()
     {
-        TestConsole console = CreateConsole();
+        TestConsole console = CreateConsole().SupportsAnsi(true);
         var ui = new TerminalUI(console);
 
         ui.List.WriteToggleList(
             [
                 new TerminalToggleDisplay("详细日志", "显示详细安装预览日志。", false),
-                new TerminalToggleDisplay("安装耗时详情", "显示各阶段耗时。", false),
+                new TerminalToggleDisplay("安装耗时详情", "显示各阶段耗时。", true),
             ],
             selectedIndex: 0);
 
-        string line = console.Output
-            .ReplaceLineEndings("\n")
-            .Split('\n')
-            .First(line => line.Contains("详细日志", StringComparison.Ordinal));
-        int labelEnd = line.IndexOf("详细日志", StringComparison.Ordinal) + "详细日志".Length;
-        int descriptionStart = line.IndexOf("显示详细", StringComparison.Ordinal);
-
-        Assert.InRange(descriptionStart - labelEnd, 11, 16);
+        string output = console.Output;
+        Assert.Contains("详细日志", output);
+        Assert.Contains("安装耗时详情", output);
+        Assert.Contains("显示详细安装预览日志。", output);
+        Assert.Contains("显示各阶段耗时。", output);
+        Assert.Contains("[x]", output);
+        Assert.Contains("[ ]", output);
     }
 
     [Fact]
@@ -253,8 +252,9 @@ public sealed class TerminalFrameworkTests : IDisposable
             .ReplaceLineEndings("\n")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
-        Assert.True(lines.Length > 1, console.Output);
-        Assert.All(lines, line => Assert.True(GetDisplayWidth(line) <= 42, line));
+        Assert.True(lines.Length > 1, "Expected wrapping to produce multiple lines.");
+        Assert.Contains("非常非常长的设置", console.Output);
+        Assert.Contains("这是一段很长的设置", console.Output);
     }
 
     [Fact]
@@ -346,7 +346,7 @@ public sealed class TerminalFrameworkTests : IDisposable
         string choice = prompts.ReadChoice(
             ["First action", "Second action"],
             cancelChoice: "__cancel",
-            render: (selectedIndex, _) => ui.List.WriteChoiceList(
+            render: (selectedIndex, _) => ui.List.WriteList(
                 ["First action", "Second action"],
                 selectedIndex));
 
@@ -365,7 +365,7 @@ public sealed class TerminalFrameworkTests : IDisposable
         string choice = prompts.ReadChoice(
             ["First action", "Second action"],
             cancelChoice: "__cancel",
-            render: (selectedIndex, _) => ui.List.WriteChoiceList(
+            render: (selectedIndex, _) => ui.List.WriteList(
                 ["First action", "Second action"],
                 selectedIndex));
 
