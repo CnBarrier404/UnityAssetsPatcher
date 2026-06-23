@@ -1,6 +1,5 @@
 {
   "InstallPage_AnalyzingMod": "Analyzing mod...",
-  "InstallPage_ApplyOptionalGroupPrompt": "Apply this optional content?",
   "InstallPage_ApplyTheseChangesPrompt": "Apply these changes?",
   "InstallPage_ChangingOperationCountsFormat": "{0} changing, {1} skipped",
   "InstallPage_Description": "Analyze the mod first, then confirm before writing files",
@@ -33,6 +32,7 @@
   "Prompt_LabelMustBeGreaterThanZeroFormat": "{0} must be greater than 0.",
   "Prompt_LabelMustBeIntegerFormat": "{0} must be an integer.",
   "Prompt_LabelRequiredFormat": "{0} is required.",
+  "Prompt_MultiSelectionInstructions": "Space to toggle select, Enter to submit",
   "SelectionPrompt_InitialSelectedIndexOutOfRange": "Initial selected index must reference an available option.",
   "SelectionPrompt_OptionCountOutOfRange": "Option count must be greater than 0.",
   "SettingsPage_ConfigureOutputDetailsDescription": "Configure output detail.",

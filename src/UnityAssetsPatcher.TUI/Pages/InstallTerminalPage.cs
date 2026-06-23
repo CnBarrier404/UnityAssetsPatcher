@@ -68,12 +68,7 @@ internal sealed class InstallTerminalPage : ITerminalPage
 
         if (preview.OptionalGroups.Count > 0)
         {
-            if (!TrySelectOptionalGroups(preview.OptionalGroups, out selectedOptionalGroups))
-            {
-                _view.WriteInstallCanceled();
-
-                return TerminalPageResult.ReturnToMenu();
-            }
+            selectedOptionalGroups = _input.ReadOptionalGroups(preview.OptionalGroups);
 
             if (selectedOptionalGroups.Count > 0)
             {
@@ -108,39 +103,6 @@ internal sealed class InstallTerminalPage : ITerminalPage
         _view.WriteInstallResult(result, _settings.VerboseOutput);
 
         return TerminalPageResult.ReturnToMenu();
-    }
-
-    private bool TrySelectOptionalGroups(
-        IReadOnlyList<OptionalGroupPreview> groups,
-        out IReadOnlyList<string> selectedOptionalGroups)
-    {
-        _view.WriteOptionalGroupsHeader();
-
-        var chosen = new List<string>();
-
-        foreach (OptionalGroupPreview group in groups)
-        {
-            _view.WriteOptionalGroup(group);
-
-            switch (_input.ConfirmOptionalGroup())
-            {
-                case ConfirmChoice.Yes:
-                    chosen.Add(group.Name);
-                    break;
-                case ConfirmChoice.No:
-                    break;
-                default:
-                    selectedOptionalGroups = [];
-
-                    return false;
-            }
-
-            _view.WriteBlankLine();
-        }
-
-        selectedOptionalGroups = chosen;
-
-        return true;
     }
 
     private InstallPreviewResult? TryPreviewInstall(

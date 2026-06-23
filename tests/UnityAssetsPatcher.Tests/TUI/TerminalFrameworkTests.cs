@@ -229,7 +229,7 @@ public sealed class TerminalFrameworkTests : IDisposable
         Assert.Contains("安装耗时详情", output);
         Assert.Contains("显示详细安装预览日志。", output);
         Assert.Contains("显示各阶段耗时。", output);
-        Assert.Contains("[x]", output);
+        Assert.Contains("[X]", output);
         Assert.Contains("[ ]", output);
     }
 

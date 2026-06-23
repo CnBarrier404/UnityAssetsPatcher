@@ -52,6 +52,26 @@ public sealed class TerminalPrompts
         return _selectionPrompt.ReadSelection(optionCount, initialSelectedIndex, render, acceptKey);
     }
 
+    public IReadOnlyList<string> ReadMultiChoice(
+        IReadOnlyList<string> choices,
+        string title,
+        int pageSize = 10)
+    {
+        var prompt = new MultiSelectionPrompt<string>()
+            .Title($"[{TerminalTheme.Label}]{TerminalText.Escape(title)}[/]")
+            .InstructionsText(
+                $"[{TerminalTheme.Muted}]{TerminalText.Escape(LocalizedStrings.Prompt_MultiSelectionInstructions)}[/]")
+            .NotRequired()
+            .PageSize(pageSize);
+
+        foreach (string choice in choices)
+        {
+            prompt.AddChoice(choice);
+        }
+
+        return _console.Prompt(prompt);
+    }
+
     public string? ReadExistingDirectoryPath(string label)
     {
         return ReadExistingPath(label, Directory.Exists,
@@ -63,7 +83,7 @@ public sealed class TerminalPrompts
         return ConfirmOrCancel(prompt) == ConfirmChoice.Yes;
     }
 
-    public ConfirmChoice ConfirmOrCancel(string prompt)
+    private ConfirmChoice ConfirmOrCancel(string prompt)
     {
         _console.Cursor.Show(false);
         _text.WriteConfirmationLabel(prompt);
@@ -93,18 +113,16 @@ public sealed class TerminalPrompts
 
             char choice = char.ToLowerInvariant(key.KeyChar);
 
-            if (choice == 'y')
+            switch (choice)
             {
-                _console.Write(new Text($"y{Environment.NewLine}"));
+                case 'y':
+                    _console.Write(new Text($"y{Environment.NewLine}"));
 
-                return ConfirmChoice.Yes;
-            }
+                    return ConfirmChoice.Yes;
+                case 'n':
+                    _console.Write(new Text($"n{Environment.NewLine}"));
 
-            if (choice == 'n')
-            {
-                _console.Write(new Text($"n{Environment.NewLine}"));
-
-                return ConfirmChoice.No;
+                    return ConfirmChoice.No;
             }
         }
     }

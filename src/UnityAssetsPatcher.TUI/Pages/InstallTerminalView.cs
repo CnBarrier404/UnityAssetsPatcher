@@ -35,24 +35,6 @@ internal sealed class InstallTerminalView
         _ui.Text.WriteBlankLine();
     }
 
-    public void WriteOptionalGroupsHeader()
-    {
-        _ui.Text.WriteBlankLine();
-        _ui.Text.WriteMarkupLine(
-            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPage_OptionalGroupsHeader)}[/]");
-        _ui.Text.WriteBlankLine();
-    }
-
-    public void WriteOptionalGroup(OptionalGroupPreview group)
-    {
-        _ui.Text.WriteMarkupLine($"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(group.Name)}[/]");
-
-        if (!string.IsNullOrWhiteSpace(group.Description))
-        {
-            _ui.Text.WriteMarkupLine($"  [{TerminalTheme.Muted}]{TerminalText.Escape(group.Description)}[/]");
-        }
-    }
-
     public void WriteInstallPreview(InstallPreviewResult result, bool verboseLogging)
     {
         _ui.Status.WritePreview(LocalizedStrings.InstallPreview_DryRunStatus);

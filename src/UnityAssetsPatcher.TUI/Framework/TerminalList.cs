@@ -71,7 +71,7 @@ public sealed class TerminalList
         {
             (string name, string descCell, bool enabled) = toggles[i];
             char indicator = i == selectedIndex ? '>' : ' ';
-            string checkbox = enabled ? "[x]" : "[ ]";
+            string checkbox = enabled ? "[X]" : "[ ]";
             string labelCell = $"{indicator} {checkbox} {name}";
 
             table.AddRow(
