@@ -12,16 +12,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
     private readonly Dictionary<string, AssetsFileSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<AssetsInfo>> _assetsInfo = new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly Dictionary<string, Dictionary<long, AssetsFieldInfo>> _fieldTrees =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    public AssetsFileReader(string tpkFilePath)
-        : this(new AssetsToolsContext(tpkFilePath), ownsContext: true) { }
-
-    internal AssetsFileReader(AssetsToolsContext context)
-        : this(context, ownsContext: false) { }
-
-    private AssetsFileReader(AssetsToolsContext context, bool ownsContext)
+    public AssetsFileReader(AssetsToolsContext context, bool ownsContext = true)
     {
         _context = context;
         _ownsContext = ownsContext;
@@ -44,23 +35,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 
     public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
     {
-        string fullPath = Path.GetFullPath(assetsFilePath);
-
-        if (!_fieldTrees.TryGetValue(fullPath, out var assetsFileFields))
-        {
-            assetsFileFields = [];
-            _fieldTrees.Add(fullPath, assetsFileFields);
-        }
-
-        if (assetsFileFields.TryGetValue(pathId, out AssetsFieldInfo? fieldTree))
-        {
-            return fieldTree;
-        }
-
-        fieldTree = ReadSessionAssetsFieldInfo(GetSession(fullPath), pathId);
-        assetsFileFields.Add(pathId, fieldTree);
-
-        return fieldTree;
+        return ReadSessionAssetsFieldInfo(GetSession(Path.GetFullPath(assetsFilePath)), pathId);
     }
 
     public void Dispose()
@@ -81,7 +56,6 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 
         _sessions.Clear();
         _assetsInfo.Clear();
-        _fieldTrees.Clear();
 
         if (_ownsContext)
         {

@@ -152,6 +152,8 @@ internal sealed class AssetQueryContext
     private readonly Dictionary<string, IReadOnlyList<AssetsInfo>>
         _assetsByType = new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly Dictionary<long, AssetsFieldInfo> _fieldTrees = new();
+
     public AssetQueryContext(IAssetsFileReader assetsReader, string assetsFilePath)
     {
         _assetsReader = assetsReader;
@@ -178,6 +180,14 @@ internal sealed class AssetQueryContext
 
     public AssetsFieldInfo ReadAssetsFieldInfo(long pathId)
     {
-        return _assetsReader.ReadAssetsFieldInfo(_assetsFilePath, pathId);
+        if (_fieldTrees.TryGetValue(pathId, out AssetsFieldInfo? fieldTree))
+        {
+            return fieldTree;
+        }
+
+        fieldTree = _assetsReader.ReadAssetsFieldInfo(_assetsFilePath, pathId);
+        _fieldTrees.Add(pathId, fieldTree);
+
+        return fieldTree;
     }
 }

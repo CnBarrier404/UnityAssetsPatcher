@@ -14,7 +14,7 @@ public sealed class AssetsFileReaderTests
     [Fact]
     public void ReadAssetsInfoAndFieldInfo_WhenRealAssetsFileExists_ReturnsAssetData()
     {
-        var reader = new AssetsFileReader(GetRealTpkFilePath());
+        var reader = new AssetsFileReader(new AssetsToolsContext(GetRealTpkFilePath()));
 
         var assets = reader.ReadAssetsInfo(GetRealAssetsFilePath());
         AssetsInfo asset = Assert.Single(assets.Take(1));
@@ -33,7 +33,7 @@ public sealed class AssetsFileReaderTests
     [Fact]
     public void ReadAssetsInfoAndFieldInfo_WhenReaderInstanceIsReused_ReturnsAssetData()
     {
-        using var reader = new AssetsFileReader(GetRealTpkFilePath());
+        using var reader = new AssetsFileReader(new AssetsToolsContext(GetRealTpkFilePath()));
 
         var assets = reader.ReadAssetsInfo(GetRealAssetsFilePath());
         AssetsInfo asset = Assert.Single(assets.Take(1));
@@ -51,7 +51,7 @@ public sealed class AssetsFileReaderTests
     public void ReadAssetSummaries_WhenAssetsFileDoesNotExist_ThrowsClearError()
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        var service = new AssetsFileReader("AssetsRipper.tpk");
+        var service = new AssetsFileReader(new AssetsToolsContext("AssetsRipper.tpk"));
 
         var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssetsInfo(missingAssetsFile));
 
@@ -66,7 +66,7 @@ public sealed class AssetsFileReaderTests
     {
         string existingAssetsFile = Path.GetTempFileName();
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        var service = new AssetsFileReader(missingTpkFile);
+        var service = new AssetsFileReader(new AssetsToolsContext(missingTpkFile));
 
         try
         {
@@ -83,7 +83,7 @@ public sealed class AssetsFileReaderTests
     [Fact]
     public void Dispose_WhenSessionDisposeFails_ClearsSessionCacheAndRethrows()
     {
-        var reader = new AssetsFileReader(GetRealTpkFilePath());
+        var reader = new AssetsFileReader(new AssetsToolsContext(GetRealTpkFilePath()));
         IDictionary sessions = GetPrivateDictionary(reader, "_sessions");
         sessions.Add(GetRealAssetsFilePath(), null);
 

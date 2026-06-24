@@ -13,7 +13,8 @@ public sealed class AssetsToolsAccessScopeFactory : IAssetsAccessScopeFactory, I
 
     public IAssetsAccessScope CreateScope()
     {
-        return new AssetsToolsAccessScope(new AssetsFileReader(Context), new AssetsFileWriter(Context));
+        return new AssetsToolsAccessScope(new AssetsFileReader(Context, ownsContext: false),
+            new AssetsFileWriter(Context));
     }
 
     public void Dispose()
