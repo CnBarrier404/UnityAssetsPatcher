@@ -1,4 +1,5 @@
 using System.Text.Json;
+using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Contracts;
@@ -101,3 +102,20 @@ public sealed record InstallRecordSummary(
     string ModVersion,
     string GameDirectory,
     DateTimeOffset InstalledAt);
+
+public sealed record PatchAssetPreview(IReadOnlyList<PatchAssetPreviewFile> Files);
+
+public sealed record PatchAssetPreviewFile(string Target, string AssetsFilePath, PatchPreviewResult Preview);
+
+public sealed record PatchAssetPlan(IReadOnlyList<PatchAssetFilePlan> Files);
+
+public sealed record PatchAssetFilePlan(string Target, string AssetsFilePath, PatchFileWritePlan PatchPlan);
+
+public sealed record PatchAssetApplyResult(IReadOnlyList<PatchAssetAppliedFile> Files);
+
+public sealed record PatchAssetAppliedFile(
+    string Target,
+    string AssetsFilePath,
+    string BackupPath,
+    int AssetCount,
+    int OperationCount);

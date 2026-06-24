@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using UnityAssetsPatcher.Application.Contracts;
 
-namespace UnityAssetsPatcher.Application.Modules;
+namespace UnityAssetsPatcher.Application;
 
 public sealed class ModInstallationStore
 {

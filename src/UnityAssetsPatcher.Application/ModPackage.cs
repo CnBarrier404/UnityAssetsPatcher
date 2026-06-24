@@ -3,7 +3,7 @@ using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 
-namespace UnityAssetsPatcher.Application.Modules;
+namespace UnityAssetsPatcher.Application;
 
 public sealed record PayloadPlan(string PackagePath, ZipArchive PackageArchive, IReadOnlyList<PayloadFilePlan> Files);
 

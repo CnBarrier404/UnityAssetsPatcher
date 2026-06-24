@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace UnityAssetsPatcher.Application.Modules;
+namespace UnityAssetsPatcher.Application;
 
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

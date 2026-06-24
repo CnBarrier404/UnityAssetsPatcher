@@ -1,41 +1,38 @@
 using System.IO.Compression;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Modules;
+using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InstallModWorkflow
 {
-    private readonly PatchPlanner _patchPlanner;
-    private readonly PatchAssetApplier _patchAssetApplier;
+    private readonly PatchPlanBuilder _patchPlanBuilder;
+    private readonly PatchOutputWriter _patchOutputWriter;
     private readonly IAssetsAccessScope _assets;
     private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly Func<string, ZipArchive> _openPackageArchive;
-    private readonly ManifestPatchOperationValidator _patchOperationValidator;
     private readonly TargetAssetResolver _targetAssetResolver;
     private readonly ModInstallationStoreFactory _recordStoreFactory;
 
     public InstallModWorkflow(
-        PatchPlanner patchPlanner,
-        PatchAssetApplier patchAssetApplier,
+        PatchPlanBuilder patchPlanBuilder,
+        PatchOutputWriter patchOutputWriter,
         IAssetsAccessScope assets,
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive,
-        ManifestPatchOperationValidator patchOperationValidator,
         TargetAssetResolver targetAssetResolver,
         ModInstallationStoreFactory recordStoreFactory)
     {
-        _patchPlanner = patchPlanner;
-        _patchAssetApplier = patchAssetApplier;
+        _patchPlanBuilder = patchPlanBuilder;
+        _patchOutputWriter = patchOutputWriter;
         _assets = assets;
         _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
         _openPackageArchive = openPackageArchive;
-        _patchOperationValidator = patchOperationValidator;
         _targetAssetResolver = targetAssetResolver;
         _recordStoreFactory = recordStoreFactory;
     }
@@ -58,7 +55,20 @@ public sealed class InstallModWorkflow
             PayloadPlan payloadPlan = package.PlanPayload(
                 targets,
                 requireAvailableDestination: false);
-            PatchAssetPreview patchPreview = _patchPlanner.Preview(package, targets, timings);
+
+            var patchFiles = timings.MeasureAnalyzeChanges(() => targets.Targets
+                .Select(target =>
+                {
+                    PatchPreviewResult preview = _patchPlanBuilder.CreatePreview(
+                        target.AssetsFilePath,
+                        target.Patches,
+                        package.SourceAssetsPaths);
+
+                    return new PatchAssetPreviewFile(target.Name, target.AssetsFilePath, preview);
+                })
+                .ToArray());
+            var patchPreview = new PatchAssetPreview(patchFiles);
+
             PayloadPreview payloadPreview = ModPackage.PreviewPayload(payloadPlan);
 
             return new InstallPreviewResult(
@@ -90,22 +100,59 @@ public sealed class InstallModWorkflow
 
         try
         {
-            _patchOperationValidator.Execute(package.Manifest);
+            PatchOperationRules.ValidateModManifest(package.Manifest);
 
             TargetAssetSet targets = _targetAssetResolver.Execute(package.GameDirectory, package.Manifest, timings);
             PayloadPlan payloadPlan = package.PlanPayload(
                 targets,
                 requireAvailableDestination: true);
-            PatchAssetPlan patchPlan = _patchPlanner.Plan(package, targets, timings);
+
+            var patchPlanFiles = timings.MeasureAnalyzeChanges(() => targets.Targets
+                .Select(target =>
+                {
+                    PatchFileWritePlan patchPlan = _patchPlanBuilder.CreateRequiredWritePlan(
+                        target.AssetsFilePath,
+                        target.Patches,
+                        package.SourceAssetsPaths);
+
+                    return new PatchAssetFilePlan(target.Name, target.AssetsFilePath, patchPlan);
+                })
+                .ToArray());
+            var patchPlan = new PatchAssetPlan(patchPlanFiles);
+
             ModInstallationStore recordStore = _recordStoreFactory.Create(request.BackupDirectory);
             string installDirectory =
                 recordStore.CreateInstallDirectory(package.Manifest.Name, package.Manifest.Version);
             string assetsBackupDirectory = Path.Combine(installDirectory, "assets");
             ReleaseReadResources();
-            PatchAssetApplyResult patchApplyResult = _patchAssetApplier.Execute(
-                patchPlan,
-                assetsBackupDirectory,
-                timings);
+
+            var patchApplyFiles = timings.MeasureApplyPatches(() => patchPlan.Files
+                .Select(file =>
+                {
+                    PatchApplyResult result = _patchOutputWriter.Write(
+                        file.AssetsFilePath,
+                        null,
+                        assetsBackupDirectory,
+                        file.PatchPlan);
+
+                    return new { File = file, Result = result };
+                })
+                .Where(item => item.Result.OperationCount != 0)
+                .Select(item =>
+                {
+                    string backupPath = item.Result.BackupPath ??
+                                        throw new InvalidOperationException("Patch write did not create a backup.");
+
+                    return new PatchAssetAppliedFile(
+                        item.File.Target,
+                        item.Result.OutputPath,
+                        backupPath,
+                        item.Result.AssetCount,
+                        item.Result.OperationCount);
+                })
+                .ToArray());
+            var patchApplyResult = new PatchAssetApplyResult(patchApplyFiles);
+
             PayloadCopyResult copiedFiles = ModPackage.CopyPayload(payloadPlan, timings);
             IReadOnlyList<string> appliedOptionalGroups =
                 ResolveAppliedOptionalGroups(package, request.SelectedOptionalGroups);

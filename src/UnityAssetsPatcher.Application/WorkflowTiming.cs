@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace UnityAssetsPatcher.Application.Modules;
+namespace UnityAssetsPatcher.Application;
 
 public sealed class WorkflowTiming
 {

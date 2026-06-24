@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace UnityAssetsPatcher.Application.Modules;
+namespace UnityAssetsPatcher.Application;
 
 public sealed class GameDirectoryResolver
 {

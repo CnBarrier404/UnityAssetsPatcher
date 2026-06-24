@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using UnityAssetsPatcher.Application.Modules;
+using UnityAssetsPatcher.Application;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Modules;

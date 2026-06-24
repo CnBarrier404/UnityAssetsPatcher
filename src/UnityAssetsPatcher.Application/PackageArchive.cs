@@ -1,6 +1,6 @@
 ﻿using System.IO.Compression;
 
-namespace UnityAssetsPatcher.Application.Modules;
+namespace UnityAssetsPatcher.Application;
 
 public static class PackageArchive
 {

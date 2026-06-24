@@ -1,5 +1,4 @@
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Modules;
 using UnityAssetsPatcher.Core.IO;
 
 namespace UnityAssetsPatcher.Application.Workflows;

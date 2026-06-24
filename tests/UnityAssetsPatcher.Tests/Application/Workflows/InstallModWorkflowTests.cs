@@ -1,7 +1,7 @@
 using System.IO.Compression;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Modules;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
@@ -1307,12 +1307,11 @@ public sealed class InstallModWorkflowTests
         Func<string, ZipArchive> openPackageArchive)
     {
         var factory = new InstallModWorkflowFactory(
-            new PatchPlannerFactory(new PatchPlanBuilderFactory(new AssetQueryServiceFactory())),
-            new PatchAssetApplierFactory(new PatchOutputWriterFactory()),
+            new PatchPlanBuilderFactory(new AssetQueryServiceFactory()),
+            new PatchOutputWriterFactory(),
             new ModManifestReader(),
             gameDirectoryResolver,
             openPackageArchive,
-            new ManifestPatchOperationValidator(),
             new TargetAssetResolver(),
             new ModInstallationStoreFactory());
 

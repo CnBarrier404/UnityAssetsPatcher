@@ -1,6 +1,6 @@
 ﻿using UnityAssetsPatcher.Application.Contracts;
 
-namespace UnityAssetsPatcher.Application.Modules;
+namespace UnityAssetsPatcher.Application;
 
 public sealed class TargetAssetResolver
 {
@@ -63,4 +63,13 @@ public sealed class TargetAssetResolver
 
         return resolvedTargets;
     }
+}
+
+public sealed record TargetAsset(string Name, string AssetsFilePath, IReadOnlyList<ManifestPatch> Patches);
+
+public sealed record TargetAssetSet(IReadOnlyList<TargetAsset> Targets)
+{
+    public IReadOnlyList<string> AssetsFilePaths { get; } = Targets
+        .Select(target => target.AssetsFilePath)
+        .ToArray();
 }

@@ -34,4 +34,15 @@ public static class PatchOperationRules
                 "Manifest 'replaceFrom' operations cannot be combined with 'set' or 'add' operations for the same assets file.");
         }
     }
+
+    public static void ValidateModManifest(ModManifest manifest)
+    {
+        if (HasPatchOperations(manifest.Patches))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
+    }
 }
