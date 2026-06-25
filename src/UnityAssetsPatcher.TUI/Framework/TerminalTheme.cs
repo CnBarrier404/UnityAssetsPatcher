@@ -10,7 +10,7 @@ public sealed class TerminalTheme
 
     public static string SectionHeader => "bold #56b6c2";
 
-    public static string Selection => "bold #c678dd";
+    public static string Selection => "#c678dd";
 
     public static string Warning => "#e5c07b";
 

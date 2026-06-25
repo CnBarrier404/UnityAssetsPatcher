@@ -47,7 +47,9 @@ public sealed class TerminalList
                 i == selectedIndex
                     ? $"[{TerminalTheme.Selection}]{TerminalText.Escape(labelCell)}[/]"
                     : TerminalText.Escape(labelCell),
-                $"[{TerminalTheme.Muted}]{TerminalText.Escape(descCell)}[/]");
+                i == selectedIndex
+                    ? $"[{TerminalTheme.Selection}]{TerminalText.Escape(descCell)}[/]"
+                    : $"[{TerminalTheme.Muted}]{TerminalText.Escape(descCell)}[/]");
 
             if (i < choices.Count - 1)
             {
@@ -78,7 +80,9 @@ public sealed class TerminalList
                 i == selectedIndex
                     ? $"[{TerminalTheme.Selection}]{TerminalText.Escape(labelCell)}[/]"
                     : TerminalText.Escape(labelCell),
-                $"[{TerminalTheme.Muted}]{TerminalText.Escape(descCell)}[/]");
+                i == selectedIndex
+                    ? $"[{TerminalTheme.Selection}]{TerminalText.Escape(descCell)}[/]"
+                    : $"[{TerminalTheme.Muted}]{TerminalText.Escape(descCell)}[/]");
 
             if (i < toggles.Count - 1)
             {
