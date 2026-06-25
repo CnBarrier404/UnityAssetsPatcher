@@ -33,7 +33,7 @@ public sealed class TerminalTable
         {
             if (row.Count != columns.Count)
             {
-                throw new ArgumentException(@"Every table row must have the same number of cells as the table columns.",
+                throw new ArgumentException("Every table row must have the same number of cells as the table columns.",
                     nameof(rows));
             }
 

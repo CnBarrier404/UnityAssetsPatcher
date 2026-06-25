@@ -8,7 +8,7 @@ public readonly record struct TerminalToggleDisplay(string Name, string Descript
 
 public sealed class TerminalList
 {
-    private const int ColumnWidth = 25;
+    private const int ColumnWidth = 35;
 
     private readonly IAnsiConsole _console;
 
