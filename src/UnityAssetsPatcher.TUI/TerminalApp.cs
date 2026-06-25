@@ -29,6 +29,10 @@ public sealed class TerminalApp
         {
             _ui.Text.WriteError(exception.Message);
 
+            // TODO: a temp solution, needs refactor
+            _ui.Text.WriteBlankLine();
+            _console.Input.ReadKey(intercept: true);
+
             return 1;
         }
         finally

@@ -70,7 +70,9 @@ internal sealed class TerminalNavigator
         catch (Exception exception)
         {
             _ui.Text.WriteError(exception.Message);
-            return TerminalPageResult.ReturnToMenu();
+            _prompts.WaitForKey();
+
+            return TerminalPageResult.ReturnToMenu(false);
         }
     }
 }
