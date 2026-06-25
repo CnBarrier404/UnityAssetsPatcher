@@ -1,4 +1,5 @@
 using System.Text.Json;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Core.Assets;
 
@@ -11,7 +12,7 @@ public sealed record InstallModResult(
     IReadOnlyList<InstallModFileResult> Files,
     IReadOnlyList<InstallCopiedFileResult> CopiedFiles,
     IReadOnlyList<string> OptionalGroups,
-    InstallTimingResult Timing);
+    TimingSnapshot Timing);
 
 public sealed record InstallModFileResult(
     string Target,
@@ -29,18 +30,9 @@ public sealed record InstallPreviewResult(
     IReadOnlyList<InstallPreviewFileResult> Files,
     IReadOnlyList<InstallCopyFilePreviewResult> CopiedFiles,
     IReadOnlyList<OptionalGroupPreview> OptionalGroups,
-    InstallTimingResult Timing);
+    TimingSnapshot Timing);
 
 public sealed record OptionalGroupPreview(string Name, string? Description);
-
-public sealed record InstallTimingResult(
-    TimeSpan ReadPackage,
-    TimeSpan PrepareSources,
-    TimeSpan FindGameFiles,
-    TimeSpan AnalyzeChanges,
-    TimeSpan? ApplyPatches,
-    TimeSpan? CopyFiles,
-    TimeSpan Elapsed);
 
 public sealed record InstallPreviewFileResult(
     string Target,

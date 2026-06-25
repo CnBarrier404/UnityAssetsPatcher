@@ -4,9 +4,9 @@ namespace UnityAssetsPatcher.Application;
 
 public sealed class TargetAssetResolver
 {
-    public TargetAssetSet Execute(string gameDirectory, ModManifest manifest, WorkflowTiming timings)
+    public TargetAssetSet Execute(string gameDirectory, ModManifest manifest, StepTimer timings)
     {
-        var targetPaths = timings.MeasureFindGameFiles(() => ResolveTargetPaths(
+        var targetPaths = timings.Measure("find-game-files", () => ResolveTargetPaths(
             gameDirectory,
             manifest.Patches.Select(patch => patch.AssetsFileName)));
 

@@ -39,7 +39,7 @@ public sealed class InstallModWorkflow
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
     {
-        var timings = new WorkflowTiming();
+        var timings = new StepTimer();
         using ModPackage package = ModPackage.Load(
             request.ZipFilePath,
             request.GameDirectory,
@@ -56,7 +56,7 @@ public sealed class InstallModWorkflow
                 targets,
                 requireAvailableDestination: false);
 
-            var patchFiles = timings.MeasureAnalyzeChanges(() => targets.Targets
+            var patchFiles = timings.Measure("analyze-changes", () => targets.Targets
                 .Select(target =>
                 {
                     PatchPreviewResult preview = _patchPlanBuilder.CreatePreview(
@@ -78,7 +78,7 @@ public sealed class InstallModWorkflow
                 ToInstallPreviewFiles(patchPreview),
                 ToInstallCopyPreviewFiles(payloadPreview),
                 ToOptionalGroupPreviews(package.AvailableOptional),
-                ToInstallTiming(timings.Build()));
+                timings.BuildSnapshot());
         }
         finally
         {
@@ -88,7 +88,7 @@ public sealed class InstallModWorkflow
 
     public InstallModResult Install(InstallModRequest request)
     {
-        var timings = new WorkflowTiming();
+        var timings = new StepTimer();
         using ModPackage package = ModPackage.Load(
             request.ZipFilePath,
             request.GameDirectory,
@@ -107,7 +107,7 @@ public sealed class InstallModWorkflow
                 targets,
                 requireAvailableDestination: true);
 
-            var patchPlanFiles = timings.MeasureAnalyzeChanges(() => targets.Targets
+            var patchPlanFiles = timings.Measure("analyze-changes", () => targets.Targets
                 .Select(target =>
                 {
                     PatchFileWritePlan patchPlan = _patchPlanBuilder.CreateRequiredWritePlan(
@@ -126,7 +126,7 @@ public sealed class InstallModWorkflow
             string assetsBackupDirectory = Path.Combine(installDirectory, "assets");
             ReleaseReadResources();
 
-            var patchApplyFiles = timings.MeasureApplyPatches(() => patchPlan.Files
+            var patchApplyFiles = timings.Measure("apply-patches", () => patchPlan.Files
                 .Select(file =>
                 {
                     PatchApplyResult result = _patchOutputWriter.Write(
@@ -167,7 +167,7 @@ public sealed class InstallModWorkflow
                 ToInstallModFiles(patchApplyResult),
                 ToInstallCopiedFiles(copiedFiles),
                 appliedOptionalGroups,
-                ToInstallTiming(timings.Build()));
+                timings.BuildSnapshot());
         }
         finally
         {
@@ -271,17 +271,5 @@ public sealed class InstallModWorkflow
         return result.Files
             .Select(file => new InstallCopiedFileResult(file.Source, file.DestinationPath))
             .ToArray();
-    }
-
-    private static InstallTimingResult ToInstallTiming(WorkflowTimingSnapshot timing)
-    {
-        return new InstallTimingResult(
-            timing.ReadPackage,
-            timing.PrepareSources,
-            timing.FindGameFiles,
-            timing.AnalyzeChanges,
-            timing.ApplyPatches,
-            timing.CopyFiles,
-            timing.Elapsed);
     }
 }

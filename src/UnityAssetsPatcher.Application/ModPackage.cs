@@ -54,7 +54,7 @@ public sealed class ModPackage : IDisposable
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive,
-        WorkflowTiming timings)
+        StepTimer timings)
     {
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
 
@@ -69,7 +69,7 @@ public sealed class ModPackage : IDisposable
 
         try
         {
-            ModManifest fullManifest = timings.MeasureReadPackage(() =>
+            ModManifest fullManifest = timings.Measure("read-package", () =>
             {
                 archive = openPackageArchive(modPackageFullPath);
 
@@ -90,7 +90,7 @@ public sealed class ModPackage : IDisposable
             ZipArchive sourceArchive = archive;
 
             (var sourceAssetsPaths, string? temporaryDirectory) =
-                timings.MeasurePrepareSources(() =>
+                timings.Measure("prepare-sources", () =>
                     ExtractSourceAssets(modPackageFullPath, effectiveManifest, sourceArchive));
 
             archive = null;
@@ -149,9 +149,9 @@ public sealed class ModPackage : IDisposable
         return new PayloadPreview(files);
     }
 
-    public static PayloadCopyResult CopyPayload(PayloadPlan plan, WorkflowTiming timings)
+    public static PayloadCopyResult CopyPayload(PayloadPlan plan, StepTimer timings)
     {
-        return timings.MeasureCopyFiles(() =>
+        return timings.Measure("copy-files", () =>
         {
             if (plan.Files.Count == 0)
             {

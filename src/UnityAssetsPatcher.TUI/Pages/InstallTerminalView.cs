@@ -1,4 +1,5 @@
 using System.Globalization;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
@@ -199,24 +200,21 @@ internal sealed class InstallTerminalView
         return TerminalSummary.FormatCount(count, unit);
     }
 
-    private void WriteInstallTiming(InstallTimingResult timing)
+    private void WriteInstallTiming(TimingSnapshot snapshot)
     {
         _ui.Text.WriteBlankLine();
         _ui.Text.WriteMarkupLine(
             $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.Install_TimingHeader)}[/]");
         _ui.Summary.WriteRows(
-            ("Read package", TerminalSummary.FormatElapsedSecondsWithUnit(timing.ReadPackage)),
-            ("Prepare sources", TerminalSummary.FormatElapsedSecondsWithUnit(timing.PrepareSources)),
-            ("Find game files", TerminalSummary.FormatElapsedSecondsWithUnit(timing.FindGameFiles)),
-            ("Analyze changes", TerminalSummary.FormatElapsedSecondsWithUnit(timing.AnalyzeChanges)),
-            ("Apply patches", FormatTimingStage(timing.ApplyPatches)),
-            ("Copy files", FormatTimingStage(timing.CopyFiles)));
+            snapshot.Steps
+                .Select(step => (FormatStepName(step.Name), TerminalSummary.FormatElapsedSecondsWithUnit(step.Elapsed)))
+                .ToArray());
     }
 
-    private static string FormatTimingStage(TimeSpan? elapsed)
+    private static string FormatStepName(string step)
     {
-        return elapsed is null
-            ? "skipped"
-            : TerminalSummary.FormatElapsedSecondsWithUnit(elapsed.Value);
+        string[] words = step.Split('-', '_');
+        words[0] = char.ToUpper(words[0][0]) + words[0][1..];
+        return string.Join(' ', words);
     }
 }
