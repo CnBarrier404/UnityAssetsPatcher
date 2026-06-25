@@ -292,10 +292,10 @@ public sealed class InstallModWorkflowTests
     }
 
     /// <summary>
-    /// Verifies that one install pass reuses the same opened zip for manifest, replacement sources, payload planning, and payload copy.
+    /// Verifies that install closes the package after loading and reopens it only when payload files are copied.
     /// </summary>
     [Fact]
-    public void Install_WhenZipHasReplacementSourcesAndPayload_OpensPackageOnce()
+    public void Install_WhenZipHasReplacementSourcesAndPayload_ReopensPackageForPayloadCopy()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -388,7 +388,7 @@ public sealed class InstallModWorkflowTests
             Assert.Single(result.Files);
             Assert.Single(result.CopiedFiles);
             Assert.Equal("payload", File.ReadAllText(copiedPath));
-            Assert.Equal(1, openCount);
+            Assert.Equal(2, openCount);
         }
         finally
         {
@@ -1284,14 +1284,14 @@ public sealed class InstallModWorkflowTests
 
     private static InstallModWorkflow CreateWorkflow(StubAssetsFileService assetsFileService)
     {
-        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(), PackageArchive.OpenRead);
+        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(), ZipFile.OpenRead);
     }
 
     private static InstallModWorkflow CreateWorkflow(
         StubAssetsFileService assetsFileService,
         IEnumerable<string> steamRoots)
     {
-        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(steamRoots), PackageArchive.OpenRead);
+        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(steamRoots), ZipFile.OpenRead);
     }
 
     private static InstallModWorkflow CreateWorkflow(

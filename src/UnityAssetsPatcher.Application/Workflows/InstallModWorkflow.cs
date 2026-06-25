@@ -42,17 +42,17 @@ public sealed class InstallModWorkflow
         var timings = new StepTimer();
         using ModPackage package = ModPackage.Load(
             request.ZipFilePath,
-            request.GameDirectory,
             request.SelectedOptionalGroups,
             _manifestReader,
-            _gameDirectoryResolver,
             _openPackageArchive,
             timings);
 
         try
         {
-            TargetAssetSet targets = _targetAssetResolver.Execute(package.GameDirectory, package.Manifest, timings);
-            PayloadPlan payloadPlan = package.PlanPayload(
+            string gameDirectory = ResolveGameDirectory(request.GameDirectory, package.Manifest);
+            TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
+            var payloadFiles = PlanPayload(
+                package,
                 targets,
                 requireAvailableDestination: false);
 
@@ -69,14 +69,14 @@ public sealed class InstallModWorkflow
                 .ToArray());
             var patchPreview = new PatchAssetPreview(patchFiles);
 
-            PayloadPreview payloadPreview = ModPackage.PreviewPayload(payloadPlan);
+            var payloadPreview = PreviewPayload(payloadFiles);
 
             return new InstallPreviewResult(
                 package.Manifest.Name,
                 package.Manifest.Version,
                 package.Manifest.Author,
                 ToInstallPreviewFiles(patchPreview),
-                ToInstallCopyPreviewFiles(payloadPreview),
+                payloadPreview,
                 ToOptionalGroupPreviews(package.AvailableOptional),
                 timings.BuildSnapshot());
         }
@@ -91,10 +91,8 @@ public sealed class InstallModWorkflow
         var timings = new StepTimer();
         using ModPackage package = ModPackage.Load(
             request.ZipFilePath,
-            request.GameDirectory,
             request.SelectedOptionalGroups,
             _manifestReader,
-            _gameDirectoryResolver,
             _openPackageArchive,
             timings);
 
@@ -102,8 +100,10 @@ public sealed class InstallModWorkflow
         {
             PatchOperationRules.ValidateModManifest(package.Manifest);
 
-            TargetAssetSet targets = _targetAssetResolver.Execute(package.GameDirectory, package.Manifest, timings);
-            PayloadPlan payloadPlan = package.PlanPayload(
+            string gameDirectory = ResolveGameDirectory(request.GameDirectory, package.Manifest);
+            TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
+            var payloadFiles = PlanPayload(
+                package,
                 targets,
                 requireAvailableDestination: true);
 
@@ -153,11 +153,11 @@ public sealed class InstallModWorkflow
                 .ToArray());
             var patchApplyResult = new PatchAssetApplyResult(patchApplyFiles);
 
-            PayloadCopyResult copiedFiles = ModPackage.CopyPayload(payloadPlan, timings);
-            IReadOnlyList<string> appliedOptionalGroups =
+            var copiedFiles = CopyPayload(package, payloadFiles, timings);
+            var appliedOptionalGroups =
                 ResolveAppliedOptionalGroups(package, request.SelectedOptionalGroups);
             recordStore.Save(
-                CreateInstallRecord(package, patchApplyResult, copiedFiles, appliedOptionalGroups),
+                CreateInstallRecord(package, gameDirectory, patchApplyResult, copiedFiles, appliedOptionalGroups),
                 installDirectory);
 
             return new InstallModResult(
@@ -165,7 +165,7 @@ public sealed class InstallModWorkflow
                 package.Manifest.Version,
                 package.Manifest.Author,
                 ToInstallModFiles(patchApplyResult),
-                ToInstallCopiedFiles(copiedFiles),
+                copiedFiles,
                 appliedOptionalGroups,
                 timings.BuildSnapshot());
         }
@@ -182,8 +182,9 @@ public sealed class InstallModWorkflow
 
     private static InstallRecord CreateInstallRecord(
         ModPackage package,
+        string gameDirectory,
         PatchAssetApplyResult patchApplyResult,
-        PayloadCopyResult copiedFiles,
+        IReadOnlyList<InstallCopiedFileResult> copiedFiles,
         IReadOnlyList<string> appliedOptionalGroups)
     {
         return new InstallRecord(
@@ -195,7 +196,7 @@ public sealed class InstallModWorkflow
             package.Manifest.Version,
             package.Manifest.Author,
             package.PackagePath,
-            package.GameDirectory,
+            gameDirectory,
             patchApplyResult.Files
                 .Select(file => new InstallRecordPatchedFile(
                     file.Target,
@@ -205,7 +206,7 @@ public sealed class InstallModWorkflow
                     file.AssetCount,
                     file.OperationCount))
                 .ToArray(),
-            copiedFiles.Files
+            copiedFiles
                 .Select(file => new InstallRecordCopiedFile(
                     file.Source,
                     file.DestinationPath,
@@ -233,6 +234,119 @@ public sealed class InstallModWorkflow
             .ToArray();
     }
 
+    private string ResolveGameDirectory(string? gameDirectory, ModManifest manifest)
+    {
+        if (!string.IsNullOrWhiteSpace(gameDirectory))
+        {
+            string fullGameDirectory = Path.GetFullPath(gameDirectory);
+
+            return Directory.Exists(fullGameDirectory)
+                ? fullGameDirectory
+                : throw new DirectoryNotFoundException($"Game directory not found: {fullGameDirectory}");
+        }
+
+        if (string.IsNullOrWhiteSpace(manifest.Game))
+        {
+            throw new DirectoryNotFoundException(
+                "Game directory was not provided and manifest does not contain a 'game' property.");
+        }
+
+        string? resolvedDirectory = _gameDirectoryResolver.Resolve(manifest.Game);
+
+        return resolvedDirectory ?? throw new DirectoryNotFoundException(
+            $"Game directory could not be resolved for manifest game: {manifest.Game}");
+    }
+
+    private static (string Source, string DestinationPath)[] PlanPayload(
+        ModPackage package,
+        TargetAssetSet targets,
+        bool requireAvailableDestination)
+    {
+        if (package.Manifest.Files.Count == 0)
+        {
+            return [];
+        }
+
+        string payloadDirectory = ResolvePayloadDirectory(targets.AssetsFilePaths);
+        var files = new List<(string Source, string DestinationPath)>();
+
+        foreach (ManifestFile file in package.Manifest.Files)
+        {
+            string entryPath = file.Source.Replace('\\', '/');
+
+            string fileName = Path.GetFileName(entryPath.Replace('/', Path.DirectorySeparatorChar));
+
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                throw new InvalidOperationException($"Payload source must name a file: {entryPath}");
+            }
+
+            string destinationPath = Path.Combine(payloadDirectory, fileName);
+
+            if (requireAvailableDestination && File.Exists(destinationPath))
+            {
+                throw new IOException($"Payload file already exists: {destinationPath}");
+            }
+
+            files.Add((entryPath, destinationPath));
+        }
+
+        return files.ToArray();
+    }
+
+    private static InstallCopyFilePreviewResult[] PreviewPayload(
+        IReadOnlyList<(string Source, string DestinationPath)> files)
+    {
+        return files
+            .Select(file => new InstallCopyFilePreviewResult(
+                file.Source,
+                file.DestinationPath,
+                !File.Exists(file.DestinationPath)))
+            .ToArray();
+    }
+
+    private static InstallCopiedFileResult[] CopyPayload(
+        ModPackage package,
+        IReadOnlyList<(string Source, string DestinationPath)> files,
+        StepTimer timings)
+    {
+        return timings.Measure("copy-files", () =>
+        {
+            if (files.Count == 0)
+            {
+                return [];
+            }
+
+            var results = new List<InstallCopiedFileResult>();
+
+            foreach ((string source, string destinationPath) in files)
+            {
+                package.CopyEntryToFile(source, destinationPath);
+                results.Add(new InstallCopiedFileResult(source, destinationPath));
+            }
+
+            return results.ToArray();
+        });
+    }
+
+    private static string ResolvePayloadDirectory(IEnumerable<string> targetAssetsFilePaths)
+    {
+        string[] targetDirectories = targetAssetsFilePaths
+            .Select(path => Path.GetDirectoryName(Path.GetFullPath(path)) ??
+                            throw new InvalidOperationException(
+                                $"Cannot resolve directory for assets file: {path}"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return targetDirectories.Length switch
+        {
+            1 => targetDirectories[0],
+            0 => throw new InvalidOperationException("Payload files require at least one patch target."),
+            _ => throw new InvalidOperationException(
+                "Payload files require all patch targets to resolve to the same directory.")
+        };
+    }
+
     private static InstallPreviewFileResult[] ToInstallPreviewFiles(PatchAssetPreview preview)
     {
         return preview.Files
@@ -247,13 +361,6 @@ public sealed class InstallModWorkflow
             .ToArray();
     }
 
-    private static InstallCopyFilePreviewResult[] ToInstallCopyPreviewFiles(PayloadPreview preview)
-    {
-        return preview.Files
-            .Select(file => new InstallCopyFilePreviewResult(file.Source, file.DestinationPath, file.WillCopy))
-            .ToArray();
-    }
-
     private static InstallModFileResult[] ToInstallModFiles(PatchAssetApplyResult result)
     {
         return result.Files
@@ -263,13 +370,6 @@ public sealed class InstallModWorkflow
                 file.BackupPath,
                 file.AssetCount,
                 file.OperationCount))
-            .ToArray();
-    }
-
-    private static InstallCopiedFileResult[] ToInstallCopiedFiles(PayloadCopyResult result)
-    {
-        return result.Files
-            .Select(file => new InstallCopiedFileResult(file.Source, file.DestinationPath))
             .ToArray();
     }
 }

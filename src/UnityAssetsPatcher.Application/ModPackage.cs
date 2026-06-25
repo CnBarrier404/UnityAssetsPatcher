@@ -5,54 +5,39 @@ using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.Application;
 
-public sealed record PayloadPlan(string PackagePath, ZipArchive PackageArchive, IReadOnlyList<PayloadFilePlan> Files);
-
-public sealed record PayloadFilePlan(string Source, string DestinationPath);
-
-public sealed record PayloadPreview(IReadOnlyList<PayloadFilePreview> Files);
-
-public sealed record PayloadFilePreview(string Source, string DestinationPath, bool WillCopy);
-
-public sealed record PayloadCopyResult(IReadOnlyList<PayloadCopiedFile> Files);
-
-public sealed record PayloadCopiedFile(string Source, string DestinationPath);
-
 public sealed class ModPackage : IDisposable
 {
+    public IReadOnlyList<ManifestOptionalGroup> AvailableOptional { get; }
     public IReadOnlyDictionary<string, string> SourceAssetsPaths { get; }
     public ModManifest Manifest { get; }
-    public IReadOnlyList<ManifestOptionalGroup> AvailableOptional { get; }
-
-    private ZipArchive Archive { get; }
-    public string GameDirectory { get; }
     public string PackagePath { get; }
 
+    private readonly Func<string, ZipArchive> _openPackageArchive;
     private readonly string? _temporaryDirectory;
+
+    private const long MaxModPackageExtractionSize = 2L * 1024L * 1024L * 1024L; // 2GB
+    private const int CopyBufferSize = 81920;
 
     private ModPackage(
         string packagePath,
-        ZipArchive archive,
         ModManifest manifest,
         IReadOnlyList<ManifestOptionalGroup> availableOptional,
-        string gameDirectory,
         IReadOnlyDictionary<string, string> sourceAssetsPaths,
+        Func<string, ZipArchive> openPackageArchive,
         string? temporaryDirectory)
     {
         PackagePath = packagePath;
-        Archive = archive;
         Manifest = manifest;
         AvailableOptional = availableOptional;
-        GameDirectory = gameDirectory;
         SourceAssetsPaths = sourceAssetsPaths;
+        _openPackageArchive = openPackageArchive;
         _temporaryDirectory = temporaryDirectory;
     }
 
     public static ModPackage Load(
         string modPackagePath,
-        string? gameDirectory,
         IReadOnlyList<string> selectedOptionalGroups,
         ModManifestReader manifestReader,
-        GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive,
         StepTimer timings)
     {
@@ -60,16 +45,14 @@ public sealed class ModPackage : IDisposable
 
         ZipArchive? archive = null;
 
-        bool modPackageExists = File.Exists(modPackageFullPath);
-
-        if (!modPackageExists)
+        if (!File.Exists(modPackageFullPath))
         {
-            throw new FileNotFoundException($"Mod zip file not found: {modPackageFullPath}", modPackageFullPath);
+            throw new FileNotFoundException($"Mod not found: {modPackageFullPath}");
         }
 
         try
         {
-            ModManifest fullManifest = timings.Measure("read-package", () =>
+            ModManifest manifest = timings.Measure("read-package", () =>
             {
                 archive = openPackageArchive(modPackageFullPath);
 
@@ -78,30 +61,23 @@ public sealed class ModPackage : IDisposable
                 return manifestReader.Load(manifestElement);
             });
 
-            ModManifest effectiveManifest = fullManifest.SelectOptional(selectedOptionalGroups);
-
-            string gameDirectoryPath = ResolveGameDirectory(gameDirectory, effectiveManifest, gameDirectoryResolver);
+            ModManifest effectiveManifest = manifest.SelectOptional(selectedOptionalGroups);
 
             if (archive is null)
             {
-                throw new InvalidOperationException("Package archive was not opened while reading the manifest.");
+                throw new InvalidOperationException("Mod package was not opened while reading the manifest.");
             }
-
-            ZipArchive sourceArchive = archive;
 
             (var sourceAssetsPaths, string? temporaryDirectory) =
                 timings.Measure("prepare-sources", () =>
-                    ExtractSourceAssets(modPackageFullPath, effectiveManifest, sourceArchive));
-
-            archive = null;
+                    ExtractSourceAssets(modPackageFullPath, effectiveManifest, archive));
 
             return new ModPackage(
                 modPackageFullPath,
-                sourceArchive,
                 effectiveManifest,
-                fullManifest.Optional,
-                gameDirectoryPath,
+                manifest.Optional,
                 sourceAssetsPaths,
+                openPackageArchive,
                 temporaryDirectory);
         }
         finally
@@ -110,69 +86,11 @@ public sealed class ModPackage : IDisposable
         }
     }
 
-    public PayloadPlan PlanPayload(TargetAssetSet targets, bool requireAvailableDestination)
+    public void CopyEntryToFile(string source, string destinationPath)
     {
-        if (Manifest.Files.Count == 0)
-        {
-            return new PayloadPlan(PackagePath, Archive, []);
-        }
-
-        string payloadDirectory = ResolvePayloadDirectory(targets.AssetsFilePaths);
-        var files = new List<PayloadFilePlan>();
-
-        foreach (ManifestFile file in Manifest.Files)
-        {
-            string entryPath = PackageArchive.NormalizeEntryPath(file.Source);
-            PackageArchive.FindFileEntry(Archive, entryPath, PackagePath);
-            string destinationPath = Path.Combine(payloadDirectory, PackageArchive.GetFileName(entryPath));
-
-            if (requireAvailableDestination && File.Exists(destinationPath))
-            {
-                throw new IOException($"Payload file already exists: {destinationPath}");
-            }
-
-            files.Add(new PayloadFilePlan(entryPath, destinationPath));
-        }
-
-        return new PayloadPlan(PackagePath, Archive, files);
-    }
-
-    public static PayloadPreview PreviewPayload(PayloadPlan plan)
-    {
-        var files = plan.Files
-            .Select(file => new PayloadFilePreview(
-                file.Source,
-                file.DestinationPath,
-                !File.Exists(file.DestinationPath)))
-            .ToArray();
-
-        return new PayloadPreview(files);
-    }
-
-    public static PayloadCopyResult CopyPayload(PayloadPlan plan, StepTimer timings)
-    {
-        return timings.Measure("copy-files", () =>
-        {
-            if (plan.Files.Count == 0)
-            {
-                return new PayloadCopyResult([]);
-            }
-
-            var results = new List<PayloadCopiedFile>();
-
-            foreach (PayloadFilePlan file in plan.Files)
-            {
-                ZipArchiveEntry entry =
-                    PackageArchive.FindFileEntry(plan.PackageArchive, file.Source, plan.PackagePath);
-                PackageArchive.CopyEntryToNewFile(
-                    entry,
-                    file.DestinationPath,
-                    PackageArchive.MaxEntryUncompressedBytes);
-                results.Add(new PayloadCopiedFile(file.Source, file.DestinationPath));
-            }
-
-            return new PayloadCopyResult(results);
-        });
+        using ZipArchive archive = _openPackageArchive(PackagePath);
+        ZipArchiveEntry entry = FindFileEntry(archive, source.Replace('\\', '/'), PackagePath);
+        CopyEntryToNewFile(entry, destinationPath);
     }
 
     public void Dispose()
@@ -181,8 +99,6 @@ public sealed class ModPackage : IDisposable
         {
             Directory.Delete(_temporaryDirectory, recursive: true);
         }
-
-        Archive.Dispose();
     }
 
     private static (IReadOnlyDictionary<string, string> Paths, string? TemporaryDirectory) ExtractSourceAssets(
@@ -193,7 +109,7 @@ public sealed class ModPackage : IDisposable
         string[] replacementSources = manifest.Patches
             .Select(patch => patch.ReplaceFrom?.AssetsFilePath)
             .OfType<string>()
-            .Select(PackageArchive.NormalizeEntryPath)
+            .Select(source => source.Replace('\\', '/'))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -210,12 +126,10 @@ public sealed class ModPackage : IDisposable
 
             foreach (string source in replacementSources)
             {
-                ZipArchiveEntry entry = PackageArchive.FindFileEntry(archive, source, packagePath);
-                string destinationPath = PackageArchive.ResolveUnderDirectory(temporaryDirectory, source);
-                PackageArchive.CopyEntryToNewFile(
-                    entry,
-                    destinationPath,
-                    PackageArchive.MaxEntryUncompressedBytes);
+                ZipArchiveEntry entry = FindFileEntry(archive, source, packagePath);
+                string destinationPath = ResolveUnderDirectory(temporaryDirectory, source);
+
+                CopyEntryToNewFile(entry, destinationPath);
                 paths[source] = destinationPath;
             }
 
@@ -232,47 +146,98 @@ public sealed class ModPackage : IDisposable
         }
     }
 
-    private static string ResolveGameDirectory(
-        string? gameDirectory,
-        ModManifest manifest,
-        GameDirectoryResolver gameDirectoryResolver)
+    private static ZipArchiveEntry FindFileEntry(ZipArchive archive, string source, string packagePath)
     {
-        if (!string.IsNullOrWhiteSpace(gameDirectory))
-        {
-            string fullGameDirectory = Path.GetFullPath(gameDirectory);
-
-            return Directory.Exists(fullGameDirectory)
-                ? fullGameDirectory
-                : throw new DirectoryNotFoundException($"Game directory not found: {fullGameDirectory}");
-        }
-
-        if (string.IsNullOrWhiteSpace(manifest.Game))
-        {
-            throw new DirectoryNotFoundException(
-                "Game directory was not provided and manifest does not contain a 'game' property.");
-        }
-
-        string? resolvedDirectory = gameDirectoryResolver.Resolve(manifest.Game);
-
-        return resolvedDirectory ?? throw new DirectoryNotFoundException(
-            $"Game directory could not be resolved for manifest game: {manifest.Game}");
-    }
-
-    private static string ResolvePayloadDirectory(IEnumerable<string> targetAssetsFilePaths)
-    {
-        string[] targetDirectories = targetAssetsFilePaths
-            .Select(path => Path.GetDirectoryName(Path.GetFullPath(path)) ??
-                            throw new InvalidOperationException(
-                                $"Cannot resolve directory for assets file: {path}"))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var matches = archive.Entries
+            .Where(entry => !string.IsNullOrEmpty(entry.Name) &&
+                            string.Equals(entry.FullName, source, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        return targetDirectories.Length switch
+        return matches.Length switch
         {
-            1 => targetDirectories[0],
-            0 => throw new InvalidOperationException("Payload files require at least one patch target."),
-            _ => throw new InvalidOperationException(
-                "Payload files require all patch targets to resolve to the same directory.")
+            1 => matches[0],
+            0 => throw new FileNotFoundException(
+                $"Zip payload file not found: {source} in {packagePath}",
+                source),
+            _ => throw new InvalidOperationException($"Zip payload file matched multiple entries: {source}")
         };
+    }
+
+    private static string ResolveUnderDirectory(string rootDirectory, string relativePath)
+    {
+        string fullRootDirectory = Path.GetFullPath(rootDirectory);
+        string fullPath = Path.GetFullPath(Path.Combine(
+            fullRootDirectory,
+            relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        string rootWithSeparator = fullRootDirectory.EndsWith(Path.DirectorySeparatorChar)
+            ? fullRootDirectory
+            : fullRootDirectory + Path.DirectorySeparatorChar;
+
+        if (!fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Zip payload source cannot escape its extraction directory: {relativePath}");
+        }
+
+        return fullPath;
+    }
+
+    private static void CopyEntryToNewFile(ZipArchiveEntry entry, string destinationPath)
+    {
+        string? destinationDirectory = Path.GetDirectoryName(destinationPath);
+
+        if (entry.Length > MaxModPackageExtractionSize)
+        {
+            throw CreateEntryTooLargeException(entry, entry.Length);
+        }
+
+        if (!string.IsNullOrEmpty(destinationDirectory))
+        {
+            Directory.CreateDirectory(destinationDirectory);
+        }
+
+        string tempPath = Path.Combine(
+            string.IsNullOrEmpty(destinationDirectory) ? Directory.GetCurrentDirectory() : destinationDirectory,
+            $".{Path.GetFileName(destinationPath)}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            using (Stream input = entry.Open())
+            using (FileStream output = File.Create(tempPath))
+            {
+                byte[] buffer = new byte[CopyBufferSize];
+                long copiedBytes = 0;
+                int bytesRead;
+
+                while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    if (copiedBytes > MaxModPackageExtractionSize - bytesRead)
+                    {
+                        throw CreateEntryTooLargeException(entry, copiedBytes + bytesRead);
+                    }
+
+                    output.Write(buffer, 0, bytesRead);
+                    copiedBytes += bytesRead;
+                }
+            }
+
+            File.Move(tempPath, destinationPath, overwrite: false);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+
+    private static InvalidOperationException CreateEntryTooLargeException(
+        ZipArchiveEntry entry,
+        long entryBytes)
+    {
+        return new InvalidOperationException(
+            $"Zip entry exceeds the maximum allowed uncompressed size: {entry.FullName} " +
+            $"({entryBytes} bytes > {MaxModPackageExtractionSize} bytes).");
     }
 }

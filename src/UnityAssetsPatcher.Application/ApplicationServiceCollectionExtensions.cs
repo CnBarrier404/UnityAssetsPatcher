@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using System.IO.Compression;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 
@@ -15,7 +15,7 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddSingleton<ModManifestReader>();
         services.AddSingleton(_ => new GameDirectoryResolver());
-        services.AddSingleton<Func<string, System.IO.Compression.ZipArchive>>(_ => PackageArchive.OpenRead);
+        services.AddSingleton<Func<string, ZipArchive>>(_ => ZipFile.OpenRead);
         services.AddSingleton<TargetAssetResolver>();
         services.AddSingleton<ModInstallationStoreFactory>();
         services.AddSingleton<AssetQueryServiceFactory>();
