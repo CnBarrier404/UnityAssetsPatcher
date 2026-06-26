@@ -53,8 +53,7 @@ public sealed class InstallModWorkflow
             TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
             var payloadFiles = PlanPayload(
                 package,
-                targets,
-                requireAvailableDestination: false);
+                targets);
 
             var patchFiles = timings.Measure("analyze-changes", () => targets.Targets
                 .Select(target =>
@@ -104,8 +103,7 @@ public sealed class InstallModWorkflow
             TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
             var payloadFiles = PlanPayload(
                 package,
-                targets,
-                requireAvailableDestination: true);
+                targets);
 
             var patchPlanFiles = timings.Measure("analyze-changes", () => targets.Targets
                 .Select(target =>
@@ -259,8 +257,7 @@ public sealed class InstallModWorkflow
 
     private static (string Source, string DestinationPath)[] PlanPayload(
         ModPackage package,
-        TargetAssetSet targets,
-        bool requireAvailableDestination)
+        TargetAssetSet targets)
     {
         if (package.Manifest.Files.Count == 0)
         {
@@ -282,11 +279,6 @@ public sealed class InstallModWorkflow
             }
 
             string destinationPath = Path.Combine(payloadDirectory, fileName);
-
-            if (requireAvailableDestination && File.Exists(destinationPath))
-            {
-                throw new IOException($"Payload file already exists: {destinationPath}");
-            }
 
             files.Add((entryPath, destinationPath));
         }
@@ -321,7 +313,16 @@ public sealed class InstallModWorkflow
 
             foreach ((string source, string destinationPath) in files)
             {
-                package.CopyEntryToFile(source, destinationPath);
+                try
+                {
+                    package.CopyEntryToFile(source, destinationPath);
+                }
+                catch (IOException ex) when (File.Exists(destinationPath))
+                {
+                    throw new IOException(
+                        $"Payload file was created by another process during installation: {destinationPath}", ex);
+                }
+
                 results.Add(new InstallCopiedFileResult(source, destinationPath));
             }
 

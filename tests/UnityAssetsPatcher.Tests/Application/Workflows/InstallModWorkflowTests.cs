@@ -1271,6 +1271,116 @@ public sealed class InstallModWorkflowTests
         }
     }
 
+    /// <summary>
+    /// Verifies that install throws a clear race condition error when a payload file already exists
+    /// at the destination path during the copy phase.
+    /// </summary>
+    [Fact]
+    public void Install_WhenPayloadFileExistsAtDestination_ThrowsRaceConditionError()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string payloadPath = Path.Combine(targetDirectory, "modassets.resource");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(Path.Combine(targetDirectory, "sharedassets4.assets"), "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(TestManifest.CreateJson(
+                    """
+                    {
+                      "name": "Test Mod",
+                      "author": "UnityAssetsPatcher.Tests",
+                      "version": "1.0.0",
+                      "files": [
+                        {
+                          "source": "resources/modassets.resource"
+                        }
+                      ],
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "Camera",
+                          "include": [
+                            {
+                              "field of view": 90.0
+                            }
+                          ],
+                          "set": [
+                            {
+                              "field": "m_CullingMask.m_Bits",
+                              "from": 3211820983,
+                              "to": 931037111
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """));
+            }
+
+            ZipArchiveEntry payloadEntry = archive.CreateEntry("resources/modassets.resource");
+            using StreamWriter payloadWriter = new(payloadEntry.Open());
+            payloadWriter.Write("payload");
+        }
+
+        var assetsFileService = new StubAssetsFileService(
+            [new AssetsInfo(4, 20, "Camera", 128)],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [4] = new("Camera", "Camera", null,
+                [
+                    new AssetsFieldInfo("field of view", "float", "90.0", []),
+                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    [
+                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                    ]),
+                ]),
+            });
+
+        int openCount = 0;
+        ZipArchive OpenPackageArchiveWithDelay(string packagePath)
+        {
+            openCount++;
+
+            if (openCount == 2)
+            {
+                File.WriteAllText(payloadPath, "created by another process");
+            }
+
+            return ZipFile.OpenRead(packagePath);
+        }
+
+        var workflow = CreateWorkflow(assetsFileService, OpenPackageArchiveWithDelay);
+
+        try
+        {
+            var exception = Assert.Throws<IOException>(() =>
+                workflow.Install(new InstallModRequest(zipPath, gameDirectory, backupDirectory)));
+
+            Assert.Contains("Payload file was created by another process", exception.Message);
+            Assert.Contains("modassets.resource", exception.Message);
+        }
+        finally
+        {
+            File.Delete(zipPath);
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
     private static AssetsFieldInfo CreateAudioClipFieldTree(string name)
     {
         return new AssetsFieldInfo(

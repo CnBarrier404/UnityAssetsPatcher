@@ -60,8 +60,6 @@ public sealed class UninstallModWorkflow
             throw new InvalidOperationException("Install record is not currently installed.");
         }
 
-        ValidateFiles(record);
-
         string uninstallDirectory = Path.Combine(request.InstallDirectory, "uninstall");
         Directory.CreateDirectory(uninstallDirectory);
         var restoredFiles = new List<UninstallRestoredFileResult>();
@@ -69,8 +67,35 @@ public sealed class UninstallModWorkflow
         foreach (InstallRecordPatchedFile file in record.PatchedFiles)
         {
             string uninstallBackupPath = CreateUniqueFilePath(uninstallDirectory, file.AssetsFilePath);
-            File.Copy(file.AssetsFilePath, uninstallBackupPath, false);
-            RestoreBackup(file.BackupPath, file.AssetsFilePath);
+
+            try
+            {
+                File.Copy(file.AssetsFilePath, uninstallBackupPath, false);
+            }
+            catch (FileNotFoundException)
+            {
+                throw new FileNotFoundException(
+                    $"Assets file was deleted during uninstall: {file.AssetsFilePath}",
+                    file.AssetsFilePath);
+            }
+            catch (IOException ex)
+            {
+                throw new IOException(
+                    $"Failed to backup assets file during uninstall: {file.AssetsFilePath}",
+                    ex);
+            }
+
+            try
+            {
+                RestoreBackup(file.BackupPath, file.AssetsFilePath);
+            }
+            catch (FileNotFoundException)
+            {
+                throw new FileNotFoundException(
+                    $"Backup file was deleted during uninstall: {file.BackupPath}",
+                    file.BackupPath);
+            }
+
             restoredFiles.Add(new UninstallRestoredFileResult(
                 file.Target,
                 file.AssetsFilePath,
@@ -119,26 +144,6 @@ public sealed class UninstallModWorkflow
             record.ModAuthor,
             restoredFiles,
             deletedFiles);
-    }
-
-    private static void ValidateFiles(InstallRecord record)
-    {
-        foreach (InstallRecordPatchedFile file in record.PatchedFiles)
-        {
-            if (!File.Exists(file.AssetsFilePath))
-            {
-                throw new FileNotFoundException(
-                    $"Installed assets file not found: {file.AssetsFilePath}",
-                    file.AssetsFilePath);
-            }
-
-            if (!File.Exists(file.BackupPath))
-            {
-                throw new FileNotFoundException(
-                    $"Install backup file not found: {file.BackupPath}",
-                    file.BackupPath);
-            }
-        }
     }
 
     private static void RestoreBackup(string backupPath, string assetsFilePath)

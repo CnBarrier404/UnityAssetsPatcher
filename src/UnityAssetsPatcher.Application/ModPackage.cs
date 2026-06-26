@@ -221,7 +221,15 @@ public sealed class ModPackage : IDisposable
                 }
             }
 
-            File.Move(tempPath, destinationPath, overwrite: false);
+            try
+            {
+                File.Move(tempPath, destinationPath, overwrite: false);
+            }
+            catch (IOException) when (File.Exists(destinationPath))
+            {
+                throw new IOException(
+                    $"Payload file was created by another process during installation: {destinationPath}");
+            }
         }
         finally
         {

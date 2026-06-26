@@ -143,4 +143,130 @@ public sealed class UninstallModWorkflowTests
             }
         }
     }
+
+    [Fact]
+    public void Uninstall_WhenAssetsFileDeletedDuringUninstall_ThrowsRaceConditionError()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        string installAssetsDirectory = Path.Combine(installDirectory, "assets");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string backupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
+        Directory.CreateDirectory(targetDirectory);
+        Directory.CreateDirectory(installAssetsDirectory);
+        File.WriteAllText(targetPath, "patched");
+        File.WriteAllText(backupPath, "original");
+
+        var record = new InstallRecord(
+            "install-1",
+            InstallRecordStatus.Installed,
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            null,
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            gameDirectory,
+            [
+                new InstallRecordPatchedFile(
+                    "sharedassets0.assets",
+                    targetPath,
+                    backupPath,
+                    null,
+                    1,
+                    1),
+            ],
+            []);
+        var store = new ModInstallationStore(backupDirectory);
+        store.Save(record, installDirectory);
+        var workflow = new UninstallModWorkflow(store);
+
+        try
+        {
+            File.Delete(targetPath);
+
+            var exception = Assert.Throws<FileNotFoundException>(() =>
+                workflow.Uninstall(new UninstallModRequest(installDirectory)));
+
+            Assert.Contains("Assets file was deleted during uninstall", exception.Message);
+            Assert.Contains("sharedassets0.assets", exception.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Uninstall_WhenBackupFileDeletedDuringUninstall_ThrowsRaceConditionError()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        string installAssetsDirectory = Path.Combine(installDirectory, "assets");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string backupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
+        Directory.CreateDirectory(targetDirectory);
+        Directory.CreateDirectory(installAssetsDirectory);
+        File.WriteAllText(targetPath, "patched");
+        File.WriteAllText(backupPath, "original");
+
+        var record = new InstallRecord(
+            "install-1",
+            InstallRecordStatus.Installed,
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            null,
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            gameDirectory,
+            [
+                new InstallRecordPatchedFile(
+                    "sharedassets0.assets",
+                    targetPath,
+                    backupPath,
+                    null,
+                    1,
+                    1),
+            ],
+            []);
+        var store = new ModInstallationStore(backupDirectory);
+        store.Save(record, installDirectory);
+        var workflow = new UninstallModWorkflow(store);
+
+        try
+        {
+            File.Delete(backupPath);
+
+            var exception = Assert.Throws<FileNotFoundException>(() =>
+                workflow.Uninstall(new UninstallModRequest(installDirectory)));
+
+            Assert.Contains("Backup file was deleted during uninstall", exception.Message);
+            Assert.Contains("sharedassets0.assets", exception.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
 }
