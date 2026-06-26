@@ -69,14 +69,15 @@ public sealed class ModInstallationStore
         }
 
         return Directory.EnumerateFiles(_backupDirectory, RecordFileName, SearchOption.AllDirectories)
-            .Select(path => new
+            .Select(path => Path.GetDirectoryName(path) ??
+                            throw new InvalidOperationException(
+                                $"Cannot resolve install record directory: {path}"))
+            .Where(dir => LoadStatus(dir) == InstallRecordStatus.Installed)
+            .Select(dir => new
             {
-                InstallDirectory = Path.GetDirectoryName(path) ??
-                                   throw new InvalidOperationException(
-                                       $"Cannot resolve install record directory: {path}"),
-                Record = Load(Path.GetDirectoryName(path)!)
+                InstallDirectory = dir,
+                Record = Load(dir)
             })
-            .Where(item => item.Record.Status == InstallRecordStatus.Installed)
             .OrderByDescending(item => item.Record.InstalledAt)
             .Select(item => new InstallRecordSummary(
                 item.InstallDirectory,
@@ -87,7 +88,26 @@ public sealed class ModInstallationStore
             .ToArray();
     }
 
-    public static string GetRecordPath(string installDirectory)
+    private static InstallRecordStatus LoadStatus(string installDirectory)
+    {
+        string recordPath = GetRecordPath(installDirectory);
+        using FileStream stream = File.OpenRead(recordPath);
+        using JsonDocument document = JsonDocument.Parse(stream);
+
+        string statusString = document.RootElement.GetProperty("status").GetString()
+                              ?? throw new InvalidOperationException(
+                                  $"Status field missing in: {recordPath}");
+
+        return statusString switch
+        {
+            "installed" => InstallRecordStatus.Installed,
+            "uninstalled" => InstallRecordStatus.Uninstalled,
+            _ => throw new InvalidOperationException(
+                $"Unknown status '{statusString}' in: {recordPath}")
+        };
+    }
+
+    private static string GetRecordPath(string installDirectory)
     {
         return Path.Combine(installDirectory, RecordFileName);
     }
