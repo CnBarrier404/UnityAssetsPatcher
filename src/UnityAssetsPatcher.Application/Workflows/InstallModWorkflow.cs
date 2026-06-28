@@ -15,7 +15,6 @@ public sealed class InstallModWorkflow
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly Func<string, ZipArchive> _openPackageArchive;
     private readonly TargetAssetResolver _targetAssetResolver;
-    private readonly ModInstallationStoreFactory _recordStoreFactory;
 
     public InstallModWorkflow(
         PatchPlanBuilder patchPlanBuilder,
@@ -24,8 +23,7 @@ public sealed class InstallModWorkflow
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive,
-        TargetAssetResolver targetAssetResolver,
-        ModInstallationStoreFactory recordStoreFactory)
+        TargetAssetResolver targetAssetResolver)
     {
         _patchPlanBuilder = patchPlanBuilder;
         _patchOutputWriter = patchOutputWriter;
@@ -34,7 +32,6 @@ public sealed class InstallModWorkflow
         _gameDirectoryResolver = gameDirectoryResolver;
         _openPackageArchive = openPackageArchive;
         _targetAssetResolver = targetAssetResolver;
-        _recordStoreFactory = recordStoreFactory;
     }
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
@@ -118,7 +115,7 @@ public sealed class InstallModWorkflow
                 .ToArray());
             var patchPlan = new PatchAssetPlan(patchPlanFiles);
 
-            ModInstallationStore recordStore = _recordStoreFactory.Create(request.BackupDirectory);
+            var recordStore = new ModInstallationStore(request.BackupDirectory);
             string installDirectory =
                 recordStore.CreateInstallDirectory(package.Manifest.Name, package.Manifest.Version);
             string assetsBackupDirectory = Path.Combine(installDirectory, "assets");

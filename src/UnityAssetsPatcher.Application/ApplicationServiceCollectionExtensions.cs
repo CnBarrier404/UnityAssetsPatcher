@@ -17,17 +17,11 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton(_ => new GameDirectoryResolver());
         services.AddSingleton<Func<string, ZipArchive>>(_ => ZipFile.OpenRead);
         services.AddSingleton<TargetAssetResolver>();
-        services.AddSingleton<ModInstallationStoreFactory>();
-        services.AddSingleton<AssetQueryServiceFactory>();
-        services.AddSingleton<PatchPlanBuilderFactory>();
-        services.AddSingleton<PatchOutputWriterFactory>();
-        services.AddSingleton<IInstallModWorkflowFactory, InstallModWorkflowFactory>();
-        services.AddSingleton<IUninstallModWorkflowFactory, UninstallModWorkflowFactory>();
+        services.AddSingleton<WorkflowFactory>();
         services.AddSingleton<IWorkflowService>(provider => new WorkflowService(
             provider.GetRequiredService<IAssetsAccessScopeFactory>(),
             backupDirectory,
-            provider.GetRequiredService<IInstallModWorkflowFactory>(),
-            provider.GetRequiredService<IUninstallModWorkflowFactory>()));
+            provider.GetRequiredService<WorkflowFactory>()));
 
         return services;
     }

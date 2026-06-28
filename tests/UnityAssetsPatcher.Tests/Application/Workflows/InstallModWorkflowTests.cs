@@ -2,6 +2,7 @@ using System.IO.Compression;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
@@ -1344,6 +1345,7 @@ public sealed class InstallModWorkflowTests
             });
 
         int openCount = 0;
+
         ZipArchive OpenPackageArchiveWithDelay(string packagePath)
         {
             openCount++;
@@ -1416,15 +1418,16 @@ public sealed class InstallModWorkflowTests
         GameDirectoryResolver gameDirectoryResolver,
         Func<string, ZipArchive> openPackageArchive)
     {
-        var factory = new InstallModWorkflowFactory(
-            new PatchPlanBuilderFactory(new AssetQueryServiceFactory()),
-            new PatchOutputWriterFactory(),
+        var assetQueryService = new AssetQueryService(assetsFileService);
+        return new InstallModWorkflow(
+            new PatchPlanBuilder(
+                new FieldPatchPlanBuilder(assetQueryService),
+                new ReplacementPlanBuilder(assetQueryService)),
+            new PatchOutputWriter(assetsFileService),
+            assetsFileService,
             new ModManifestReader(),
             gameDirectoryResolver,
             openPackageArchive,
-            new TargetAssetResolver(),
-            new ModInstallationStoreFactory());
-
-        return factory.Create(assetsFileService);
+            new TargetAssetResolver());
     }
 }

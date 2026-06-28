@@ -8,30 +8,26 @@ public sealed class WorkflowService : IWorkflowService
 {
     private readonly IAssetsAccessScopeFactory _assetsScopeFactory;
     private readonly string _backupDirectory;
-    private readonly IInstallModWorkflowFactory _installWorkflowFactory;
-    private readonly IUninstallModWorkflowFactory _uninstallWorkflowFactory;
+    private readonly WorkflowFactory _workflowFactory;
 
-    public WorkflowService(
+    internal WorkflowService(
         IAssetsAccessScopeFactory assetsScopeFactory,
         string backupDirectory,
-        IInstallModWorkflowFactory installWorkflowFactory,
-        IUninstallModWorkflowFactory uninstallWorkflowFactory)
+        WorkflowFactory workflowFactory)
     {
         ArgumentNullException.ThrowIfNull(assetsScopeFactory);
         ArgumentNullException.ThrowIfNull(backupDirectory);
-        ArgumentNullException.ThrowIfNull(installWorkflowFactory);
-        ArgumentNullException.ThrowIfNull(uninstallWorkflowFactory);
+        ArgumentNullException.ThrowIfNull(workflowFactory);
 
         _assetsScopeFactory = assetsScopeFactory;
         _backupDirectory = backupDirectory;
-        _installWorkflowFactory = installWorkflowFactory;
-        _uninstallWorkflowFactory = uninstallWorkflowFactory;
+        _workflowFactory = workflowFactory;
     }
 
     public InstallPreviewResult PreviewInstall(InstallPreviewRequest request)
     {
         using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
-        InstallModWorkflow workflow = _installWorkflowFactory.Create(assets);
+        InstallModWorkflow workflow = _workflowFactory.CreateInstallWorkflow(assets);
 
         return workflow.Preview(request);
     }
@@ -39,28 +35,28 @@ public sealed class WorkflowService : IWorkflowService
     public InstallModResult Install(InstallModRequest request)
     {
         using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
-        InstallModWorkflow workflow = _installWorkflowFactory.Create(assets);
+        InstallModWorkflow workflow = _workflowFactory.CreateInstallWorkflow(assets);
 
         return workflow.Install(request);
     }
 
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
     {
-        UninstallModWorkflow workflow = _uninstallWorkflowFactory.Create(_backupDirectory);
+        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow(_backupDirectory);
 
         return workflow.ListInstalled();
     }
 
     public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request)
     {
-        UninstallModWorkflow workflow = _uninstallWorkflowFactory.Create(_backupDirectory);
+        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow(_backupDirectory);
 
         return workflow.Preview(request);
     }
 
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
-        UninstallModWorkflow workflow = _uninstallWorkflowFactory.Create(_backupDirectory);
+        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow(_backupDirectory);
 
         return workflow.Uninstall(request);
     }
