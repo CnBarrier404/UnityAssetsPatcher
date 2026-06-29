@@ -14,8 +14,9 @@ public sealed class ModPackage : IDisposable
 
     private readonly Func<string, ZipArchive> _openPackageArchive;
     private readonly string? _temporaryDirectory;
+    private long _reservedExtractionBytes;
 
-    private const long MaxModPackageExtractionSize = 2L * 1024L * 1024L * 1024L; // 2GB
+    private const long MaxTotalModPackageExtractionSize = 10L * 1024L * 1024L * 1024L; // 10GB
     private const int CopyBufferSize = 81920;
 
     private ModPackage(
@@ -24,7 +25,8 @@ public sealed class ModPackage : IDisposable
         IReadOnlyList<ManifestOptionalGroup> availableOptional,
         IReadOnlyDictionary<string, string> sourceAssetsPaths,
         Func<string, ZipArchive> openPackageArchive,
-        string? temporaryDirectory)
+        string? temporaryDirectory,
+        long reservedExtractionBytes)
     {
         PackagePath = packagePath;
         Manifest = manifest;
@@ -32,6 +34,7 @@ public sealed class ModPackage : IDisposable
         SourceAssetsPaths = sourceAssetsPaths;
         _openPackageArchive = openPackageArchive;
         _temporaryDirectory = temporaryDirectory;
+        _reservedExtractionBytes = reservedExtractionBytes;
     }
 
     public static ModPackage Load(
@@ -42,6 +45,7 @@ public sealed class ModPackage : IDisposable
         StepTimer timings)
     {
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
+        long reservedExtractionBytes = 0;
 
         ZipArchive? archive = null;
 
@@ -70,7 +74,7 @@ public sealed class ModPackage : IDisposable
 
             (var sourceAssetsPaths, string? temporaryDirectory) =
                 timings.Measure("prepare-sources", () =>
-                    ExtractSourceAssets(modPackageFullPath, effectiveManifest, archive));
+                    ExtractSourceAssets(modPackageFullPath, effectiveManifest, archive, ref reservedExtractionBytes));
 
             return new ModPackage(
                 modPackageFullPath,
@@ -78,7 +82,8 @@ public sealed class ModPackage : IDisposable
                 manifest.Optional,
                 sourceAssetsPaths,
                 openPackageArchive,
-                temporaryDirectory);
+                temporaryDirectory,
+                reservedExtractionBytes);
         }
         finally
         {
@@ -90,7 +95,7 @@ public sealed class ModPackage : IDisposable
     {
         using ZipArchive archive = _openPackageArchive(PackagePath);
         ZipArchiveEntry entry = FindFileEntry(archive, source.Replace('\\', '/'), PackagePath);
-        CopyEntryToNewFile(entry, destinationPath);
+        CopyEntryToNewFile(entry, destinationPath, ref _reservedExtractionBytes);
     }
 
     public void Dispose()
@@ -104,7 +109,8 @@ public sealed class ModPackage : IDisposable
     private static (IReadOnlyDictionary<string, string> Paths, string? TemporaryDirectory) ExtractSourceAssets(
         string packagePath,
         ModManifest manifest,
-        ZipArchive archive)
+        ZipArchive archive,
+        ref long reservedExtractionBytes)
     {
         string[] replacementSources = manifest.Patches
             .Select(patch => patch.ReplaceFrom?.AssetsFilePath)
@@ -129,7 +135,7 @@ public sealed class ModPackage : IDisposable
                 ZipArchiveEntry entry = FindFileEntry(archive, source, packagePath);
                 string destinationPath = ResolveUnderDirectory(temporaryDirectory, source);
 
-                CopyEntryToNewFile(entry, destinationPath);
+                CopyEntryToNewFile(entry, destinationPath, ref reservedExtractionBytes);
                 paths[source] = destinationPath;
             }
 
@@ -182,14 +188,16 @@ public sealed class ModPackage : IDisposable
         return fullPath;
     }
 
-    private static void CopyEntryToNewFile(ZipArchiveEntry entry, string destinationPath)
+    private static void CopyEntryToNewFile(
+        ZipArchiveEntry entry,
+        string destinationPath,
+        ref long reservedExtractionBytes)
     {
         string? destinationDirectory = Path.GetDirectoryName(destinationPath);
 
-        if (entry.Length > MaxModPackageExtractionSize)
-        {
-            throw CreateEntryTooLargeException(entry, entry.Length);
-        }
+        long declaredBytes = entry.Length;
+        long reservedOverageBytes = 0;
+        ReserveExtractionBytes(entry, declaredBytes, ref reservedExtractionBytes);
 
         if (!string.IsNullOrEmpty(destinationDirectory))
         {
@@ -211,13 +219,14 @@ public sealed class ModPackage : IDisposable
 
                 while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
                 {
-                    if (copiedBytes > MaxModPackageExtractionSize - bytesRead)
-                    {
-                        throw CreateEntryTooLargeException(entry, copiedBytes + bytesRead);
-                    }
-
-                    output.Write(buffer, 0, bytesRead);
                     copiedBytes += bytesRead;
+                    ReserveOverageIfNeeded(
+                        entry,
+                        declaredBytes,
+                        copiedBytes,
+                        ref reservedOverageBytes,
+                        ref reservedExtractionBytes);
+                    output.Write(buffer, 0, bytesRead);
                 }
             }
 
@@ -240,12 +249,44 @@ public sealed class ModPackage : IDisposable
         }
     }
 
-    private static InvalidOperationException CreateEntryTooLargeException(
+    private static void ReserveOverageIfNeeded(
         ZipArchiveEntry entry,
-        long entryBytes)
+        long declaredBytes,
+        long copiedBytes,
+        ref long reservedOverageBytes,
+        ref long reservedExtractionBytes)
+    {
+        long overageBytes = copiedBytes - declaredBytes;
+
+        if (overageBytes <= reservedOverageBytes)
+        {
+            return;
+        }
+
+        long additionalBytes = overageBytes - reservedOverageBytes;
+        ReserveExtractionBytes(entry, additionalBytes, ref reservedExtractionBytes);
+        reservedOverageBytes += additionalBytes;
+    }
+
+    private static void ReserveExtractionBytes(
+        ZipArchiveEntry entry,
+        long bytes,
+        ref long reservedExtractionBytes)
+    {
+        if (reservedExtractionBytes > MaxTotalModPackageExtractionSize - bytes)
+        {
+            throw CreateTotalExtractionTooLargeException(entry, reservedExtractionBytes + bytes);
+        }
+
+        reservedExtractionBytes += bytes;
+    }
+
+    private static InvalidOperationException CreateTotalExtractionTooLargeException(
+        ZipArchiveEntry entry,
+        long totalBytes)
     {
         return new InvalidOperationException(
-            $"Zip entry exceeds the maximum allowed uncompressed size: {entry.FullName} " +
-            $"({entryBytes} bytes > {MaxModPackageExtractionSize} bytes).");
+            $"Zip package exceeds the maximum allowed total uncompressed size while extracting {entry.FullName}: " +
+            $"{totalBytes} bytes > {MaxTotalModPackageExtractionSize} bytes.");
     }
 }
