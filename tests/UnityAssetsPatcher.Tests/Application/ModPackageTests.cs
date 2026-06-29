@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Text;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Manifests;
@@ -12,7 +11,49 @@ public sealed class ModPackageTests
     private const long SixGiB = 6L * 1024L * 1024L * 1024L;
 
     [Fact]
-    public void Load_WhenSourceAssetEntriesExceedTotalExtractionLimit_Throws()
+    public void Open_WhenOptionalGroupSelectedWithDifferentCase_ReportsCanonicalAppliedGroupName()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+
+        TestManifest.WriteZip(
+            zipPath,
+            """
+            {
+              "patches": [
+                {
+                  "target": "sharedassets0.assets",
+                  "type": "AudioClip",
+                  "include": [ { "m_Name": "Clip A" } ]
+                }
+              ],
+              "optional": [
+                {
+                  "name": "Bonus camera",
+                  "description": "Adds a camera payload.",
+                  "copyFiles": [ { "source": "payload/camera.resource" } ]
+                }
+              ]
+            }
+            """);
+
+        try
+        {
+            using ModPackage package = ModPackage.Open(
+                zipPath,
+                ["bonus CAMERA"],
+                new ModManifestReader(),
+                new StepTimer());
+
+            Assert.Equal(["Bonus camera"], package.AppliedOptionalGroups);
+        }
+        finally
+        {
+            File.Delete(zipPath);
+        }
+    }
+
+    [Fact]
+    public void Open_WhenSourceAssetEntriesExceedTotalExtractionLimit_Throws()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
 
@@ -45,11 +86,10 @@ public sealed class ModPackageTests
         try
         {
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                ModPackage.Load(
+                ModPackage.Open(
                     zipPath,
                     [],
                     new ModManifestReader(),
-                    ZipFile.OpenRead,
                     new StepTimer()));
 
             Assert.Contains("Zip package exceeds the maximum allowed total uncompressed size", exception.Message);
@@ -62,7 +102,7 @@ public sealed class ModPackageTests
     }
 
     [Fact]
-    public void CopyEntryToFile_WhenPreviousSourceExtractionConsumesLimit_Throws()
+    public void CopyPayloadFile_WhenPreviousPatchSourceExtractionConsumesLimit_Throws()
     {
         string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
         string destinationDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -90,15 +130,14 @@ public sealed class ModPackageTests
 
         try
         {
-            using ModPackage package = ModPackage.Load(
+            using ModPackage package = ModPackage.Open(
                 zipPath,
                 [],
                 new ModManifestReader(),
-                ZipFile.OpenRead,
                 new StepTimer());
 
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                package.CopyEntryToFile("resources/payload.resource", destinationPath));
+                package.CopyPayloadFile("resources/payload.resource", destinationPath));
 
             Assert.Contains("Zip package exceeds the maximum allowed total uncompressed size", exception.Message);
             Assert.Contains("resources/payload.resource", exception.Message);

@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Core.Assets;
@@ -9,18 +8,15 @@ internal sealed class WorkflowFactory
 {
     private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
-    private readonly Func<string, ZipArchive> _openPackageArchive;
     private readonly TargetAssetResolver _targetAssetResolver;
 
     public WorkflowFactory(
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
-        Func<string, ZipArchive> openPackageArchive,
         TargetAssetResolver targetAssetResolver)
     {
         _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
-        _openPackageArchive = openPackageArchive;
         _targetAssetResolver = targetAssetResolver;
     }
 
@@ -32,7 +28,6 @@ internal sealed class WorkflowFactory
             assets,
             _manifestReader,
             _gameDirectoryResolver,
-            _openPackageArchive,
             _targetAssetResolver);
     }
 

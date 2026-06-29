@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using System.IO.Compression;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
@@ -15,7 +14,6 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddSingleton<ModManifestReader>();
         services.AddSingleton(_ => new GameDirectoryResolver());
-        services.AddSingleton<Func<string, ZipArchive>>(_ => ZipFile.OpenRead);
         services.AddSingleton<TargetAssetResolver>();
         services.AddSingleton<WorkflowFactory>();
         services.AddSingleton<IWorkflowService>(provider => new WorkflowService(

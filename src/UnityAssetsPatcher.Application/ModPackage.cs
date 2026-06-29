@@ -7,45 +7,45 @@ namespace UnityAssetsPatcher.Application;
 
 public sealed class ModPackage : IDisposable
 {
-    public IReadOnlyList<ManifestOptionalGroup> AvailableOptional { get; }
-    public IReadOnlyDictionary<string, string> SourceAssetsPaths { get; }
+    public IReadOnlyDictionary<string, string> PatchSourcePaths { get; }
+    public IReadOnlyList<ManifestOptionalGroup> OptionalGroups { get; }
+    public IReadOnlyList<string> AppliedOptionalGroups { get; }
     public ModManifest Manifest { get; }
     public string PackagePath { get; }
 
-    private readonly Func<string, ZipArchive> _openPackageArchive;
+    private readonly ModPackageArchive _archive;
     private readonly string? _temporaryDirectory;
-    private long _reservedExtractionBytes;
-
-    private const long MaxTotalModPackageExtractionSize = 10L * 1024L * 1024L * 1024L; // 10GB
-    private const int CopyBufferSize = 81920;
+    private long _reservedUncompressedBytes;
 
     private ModPackage(
         string packagePath,
         ModManifest manifest,
-        IReadOnlyList<ManifestOptionalGroup> availableOptional,
-        IReadOnlyDictionary<string, string> sourceAssetsPaths,
-        Func<string, ZipArchive> openPackageArchive,
+        IReadOnlyList<ManifestOptionalGroup> optionalGroups,
+        IReadOnlyList<string> appliedOptionalGroups,
+        IReadOnlyDictionary<string, string> patchSourcePaths,
+        ModPackageArchive archive,
         string? temporaryDirectory,
-        long reservedExtractionBytes)
+        long reservedUncompressedBytes)
     {
         PackagePath = packagePath;
         Manifest = manifest;
-        AvailableOptional = availableOptional;
-        SourceAssetsPaths = sourceAssetsPaths;
-        _openPackageArchive = openPackageArchive;
+        OptionalGroups = optionalGroups;
+        AppliedOptionalGroups = appliedOptionalGroups;
+        PatchSourcePaths = patchSourcePaths;
+        _archive = archive;
         _temporaryDirectory = temporaryDirectory;
-        _reservedExtractionBytes = reservedExtractionBytes;
+        _reservedUncompressedBytes = reservedUncompressedBytes;
     }
 
-    public static ModPackage Load(
+    public static ModPackage Open(
         string modPackagePath,
         IReadOnlyList<string> selectedOptionalGroups,
         ModManifestReader manifestReader,
-        Func<string, ZipArchive> openPackageArchive,
         StepTimer timings)
     {
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
-        long reservedExtractionBytes = 0;
+        long reservedUncompressedBytes = 0;
+        var packageArchive = new ModPackageArchive(modPackageFullPath);
 
         ZipArchive? archive = null;
 
@@ -58,7 +58,7 @@ public sealed class ModPackage : IDisposable
         {
             ModManifest manifest = timings.Measure("read-package", () =>
             {
-                archive = openPackageArchive(modPackageFullPath);
+                archive = packageArchive.OpenRead();
 
                 JsonElement manifestElement = ModManifestJsonReader.ReadFromZipArchive(archive, modPackageFullPath);
 
@@ -66,24 +66,26 @@ public sealed class ModPackage : IDisposable
             });
 
             ModManifest effectiveManifest = manifest.SelectOptional(selectedOptionalGroups);
+            string[] appliedOptionalGroups = ResolveAppliedOptionalGroups(manifest.Optional, selectedOptionalGroups);
 
             if (archive is null)
             {
                 throw new InvalidOperationException("Mod package was not opened while reading the manifest.");
             }
 
-            (var sourceAssetsPaths, string? temporaryDirectory) =
+            (var patchSourcePaths, string? temporaryDirectory) =
                 timings.Measure("prepare-sources", () =>
-                    ExtractSourceAssets(modPackageFullPath, effectiveManifest, archive, ref reservedExtractionBytes));
+                    ExtractPatchSources(packageArchive, effectiveManifest, archive, ref reservedUncompressedBytes));
 
             return new ModPackage(
                 modPackageFullPath,
                 effectiveManifest,
                 manifest.Optional,
-                sourceAssetsPaths,
-                openPackageArchive,
+                appliedOptionalGroups,
+                patchSourcePaths,
+                packageArchive,
                 temporaryDirectory,
-                reservedExtractionBytes);
+                reservedUncompressedBytes);
         }
         finally
         {
@@ -91,11 +93,12 @@ public sealed class ModPackage : IDisposable
         }
     }
 
-    public void CopyEntryToFile(string source, string destinationPath)
+    public void CopyPayloadFile(string source, string destinationPath)
     {
-        using ZipArchive archive = _openPackageArchive(PackagePath);
-        ZipArchiveEntry entry = FindFileEntry(archive, source.Replace('\\', '/'), PackagePath);
-        CopyEntryToNewFile(entry, destinationPath, ref _reservedExtractionBytes);
+        using ZipArchive archive = _archive.OpenRead();
+        ZipArchiveEntry entry = _archive.FindRequiredFileEntry(archive, source);
+
+        ModPackageArchive.CopyEntryToNewFile(entry, destinationPath, ref _reservedUncompressedBytes);
     }
 
     public void Dispose()
@@ -106,11 +109,28 @@ public sealed class ModPackage : IDisposable
         }
     }
 
-    private static (IReadOnlyDictionary<string, string> Paths, string? TemporaryDirectory) ExtractSourceAssets(
-        string packagePath,
+    private static string[] ResolveAppliedOptionalGroups(
+        IReadOnlyList<ManifestOptionalGroup> optionalGroups,
+        IReadOnlyList<string> selectedOptionalGroups)
+    {
+        if (selectedOptionalGroups.Count == 0)
+        {
+            return [];
+        }
+
+        var selected = new HashSet<string>(selectedOptionalGroups, StringComparer.OrdinalIgnoreCase);
+
+        return optionalGroups
+            .Where(group => selected.Contains(group.Name))
+            .Select(group => group.Name)
+            .ToArray();
+    }
+
+    private static (IReadOnlyDictionary<string, string> Paths, string? TemporaryDirectory) ExtractPatchSources(
+        ModPackageArchive packageArchive,
         ModManifest manifest,
         ZipArchive archive,
-        ref long reservedExtractionBytes)
+        ref long reservedUncompressedBytes)
     {
         string[] replacementSources = manifest.Patches
             .Select(patch => patch.ReplaceFrom?.AssetsFilePath)
@@ -132,10 +152,10 @@ public sealed class ModPackage : IDisposable
 
             foreach (string source in replacementSources)
             {
-                ZipArchiveEntry entry = FindFileEntry(archive, source, packagePath);
+                ZipArchiveEntry entry = packageArchive.FindRequiredFileEntry(archive, source);
                 string destinationPath = ResolveUnderDirectory(temporaryDirectory, source);
 
-                CopyEntryToNewFile(entry, destinationPath, ref reservedExtractionBytes);
+                ModPackageArchive.CopyEntryToNewFile(entry, destinationPath, ref reservedUncompressedBytes);
                 paths[source] = destinationPath;
             }
 
@@ -150,23 +170,6 @@ public sealed class ModPackage : IDisposable
 
             throw;
         }
-    }
-
-    private static ZipArchiveEntry FindFileEntry(ZipArchive archive, string source, string packagePath)
-    {
-        var matches = archive.Entries
-            .Where(entry => !string.IsNullOrEmpty(entry.Name) &&
-                            string.Equals(entry.FullName, source, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-
-        return matches.Length switch
-        {
-            1 => matches[0],
-            0 => throw new FileNotFoundException(
-                $"Zip payload file not found: {source} in {packagePath}",
-                source),
-            _ => throw new InvalidOperationException($"Zip payload file matched multiple entries: {source}")
-        };
     }
 
     private static string ResolveUnderDirectory(string rootDirectory, string relativePath)
@@ -186,107 +189,5 @@ public sealed class ModPackage : IDisposable
         }
 
         return fullPath;
-    }
-
-    private static void CopyEntryToNewFile(
-        ZipArchiveEntry entry,
-        string destinationPath,
-        ref long reservedExtractionBytes)
-    {
-        string? destinationDirectory = Path.GetDirectoryName(destinationPath);
-
-        long declaredBytes = entry.Length;
-        long reservedOverageBytes = 0;
-        ReserveExtractionBytes(entry, declaredBytes, ref reservedExtractionBytes);
-
-        if (!string.IsNullOrEmpty(destinationDirectory))
-        {
-            Directory.CreateDirectory(destinationDirectory);
-        }
-
-        string tempPath = Path.Combine(
-            string.IsNullOrEmpty(destinationDirectory) ? Directory.GetCurrentDirectory() : destinationDirectory,
-            $".{Path.GetFileName(destinationPath)}.{Guid.NewGuid():N}.tmp");
-
-        try
-        {
-            using (Stream input = entry.Open())
-            using (FileStream output = File.Create(tempPath))
-            {
-                byte[] buffer = new byte[CopyBufferSize];
-                long copiedBytes = 0;
-                int bytesRead;
-
-                while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    copiedBytes += bytesRead;
-                    ReserveOverageIfNeeded(
-                        entry,
-                        declaredBytes,
-                        copiedBytes,
-                        ref reservedOverageBytes,
-                        ref reservedExtractionBytes);
-                    output.Write(buffer, 0, bytesRead);
-                }
-            }
-
-            try
-            {
-                File.Move(tempPath, destinationPath, overwrite: false);
-            }
-            catch (IOException) when (File.Exists(destinationPath))
-            {
-                throw new IOException(
-                    $"Payload file was created by another process during installation: {destinationPath}");
-            }
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
-        }
-    }
-
-    private static void ReserveOverageIfNeeded(
-        ZipArchiveEntry entry,
-        long declaredBytes,
-        long copiedBytes,
-        ref long reservedOverageBytes,
-        ref long reservedExtractionBytes)
-    {
-        long overageBytes = copiedBytes - declaredBytes;
-
-        if (overageBytes <= reservedOverageBytes)
-        {
-            return;
-        }
-
-        long additionalBytes = overageBytes - reservedOverageBytes;
-        ReserveExtractionBytes(entry, additionalBytes, ref reservedExtractionBytes);
-        reservedOverageBytes += additionalBytes;
-    }
-
-    private static void ReserveExtractionBytes(
-        ZipArchiveEntry entry,
-        long bytes,
-        ref long reservedExtractionBytes)
-    {
-        if (reservedExtractionBytes > MaxTotalModPackageExtractionSize - bytes)
-        {
-            throw CreateTotalExtractionTooLargeException(entry, reservedExtractionBytes + bytes);
-        }
-
-        reservedExtractionBytes += bytes;
-    }
-
-    private static InvalidOperationException CreateTotalExtractionTooLargeException(
-        ZipArchiveEntry entry,
-        long totalBytes)
-    {
-        return new InvalidOperationException(
-            $"Zip package exceeds the maximum allowed total uncompressed size while extracting {entry.FullName}: " +
-            $"{totalBytes} bytes > {MaxTotalModPackageExtractionSize} bytes.");
     }
 }

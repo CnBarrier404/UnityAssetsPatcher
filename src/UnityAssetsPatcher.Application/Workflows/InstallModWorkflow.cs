@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
@@ -13,7 +12,6 @@ public sealed class InstallModWorkflow
     private readonly IAssetsAccessScope _assets;
     private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
-    private readonly Func<string, ZipArchive> _openPackageArchive;
     private readonly TargetAssetResolver _targetAssetResolver;
 
     public InstallModWorkflow(
@@ -22,7 +20,6 @@ public sealed class InstallModWorkflow
         IAssetsAccessScope assets,
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
-        Func<string, ZipArchive> openPackageArchive,
         TargetAssetResolver targetAssetResolver)
     {
         _patchPlanBuilder = patchPlanBuilder;
@@ -30,18 +27,16 @@ public sealed class InstallModWorkflow
         _assets = assets;
         _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
-        _openPackageArchive = openPackageArchive;
         _targetAssetResolver = targetAssetResolver;
     }
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
     {
         var timings = new StepTimer();
-        using ModPackage package = ModPackage.Load(
+        using ModPackage package = ModPackage.Open(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             _manifestReader,
-            _openPackageArchive,
             timings);
 
         try
@@ -58,7 +53,7 @@ public sealed class InstallModWorkflow
                     PatchPreviewResult preview = _patchPlanBuilder.CreatePreview(
                         target.AssetsFilePath,
                         target.Patches,
-                        package.SourceAssetsPaths);
+                        package.PatchSourcePaths);
 
                     return new PatchAssetPreviewFile(target.Name, target.AssetsFilePath, preview);
                 })
@@ -73,7 +68,7 @@ public sealed class InstallModWorkflow
                 package.Manifest.Author,
                 ToInstallPreviewFiles(patchPreview),
                 payloadPreview,
-                ToOptionalGroupPreviews(package.AvailableOptional),
+                ToOptionalGroupPreviews(package.OptionalGroups),
                 timings.BuildSnapshot());
         }
         finally
@@ -85,11 +80,10 @@ public sealed class InstallModWorkflow
     public InstallModResult Install(InstallModRequest request)
     {
         var timings = new StepTimer();
-        using ModPackage package = ModPackage.Load(
+        using ModPackage package = ModPackage.Open(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             _manifestReader,
-            _openPackageArchive,
             timings);
 
         try
@@ -108,7 +102,7 @@ public sealed class InstallModWorkflow
                     PatchFileWritePlan patchPlan = _patchPlanBuilder.CreateRequiredWritePlan(
                         target.AssetsFilePath,
                         target.Patches,
-                        package.SourceAssetsPaths);
+                        package.PatchSourcePaths);
 
                     return new PatchAssetFilePlan(target.Name, target.AssetsFilePath, patchPlan);
                 })
@@ -149,10 +143,13 @@ public sealed class InstallModWorkflow
             var patchApplyResult = new PatchAssetApplyResult(patchApplyFiles);
 
             var copiedFiles = CopyPayload(package, payloadFiles, timings);
-            var appliedOptionalGroups =
-                ResolveAppliedOptionalGroups(package, request.SelectedOptionalGroups);
             recordStore.Save(
-                CreateInstallRecord(package, gameDirectory, patchApplyResult, copiedFiles, appliedOptionalGroups),
+                CreateInstallRecord(
+                    package,
+                    gameDirectory,
+                    patchApplyResult,
+                    copiedFiles,
+                    package.AppliedOptionalGroups),
                 installDirectory);
 
             return new InstallModResult(
@@ -161,7 +158,7 @@ public sealed class InstallModWorkflow
                 package.Manifest.Author,
                 ToInstallModFiles(patchApplyResult),
                 copiedFiles,
-                appliedOptionalGroups,
+                package.AppliedOptionalGroups,
                 timings.BuildSnapshot());
         }
         finally
@@ -210,23 +207,6 @@ public sealed class InstallModWorkflow
         {
             OptionalGroups = appliedOptionalGroups.Count == 0 ? null : appliedOptionalGroups,
         };
-    }
-
-    private static IReadOnlyList<string> ResolveAppliedOptionalGroups(
-        ModPackage package,
-        IReadOnlyList<string> selectedOptionalGroups)
-    {
-        if (selectedOptionalGroups.Count == 0)
-        {
-            return [];
-        }
-
-        var selected = new HashSet<string>(selectedOptionalGroups, StringComparer.OrdinalIgnoreCase);
-
-        return package.AvailableOptional
-            .Where(group => selected.Contains(group.Name))
-            .Select(group => group.Name)
-            .ToArray();
     }
 
     private string ResolveGameDirectory(string? gameDirectory, ModManifest manifest)
@@ -312,7 +292,7 @@ public sealed class InstallModWorkflow
             {
                 try
                 {
-                    package.CopyEntryToFile(source, destinationPath);
+                    package.CopyPayloadFile(source, destinationPath);
                 }
                 catch (IOException ex) when (File.Exists(destinationPath))
                 {

@@ -370,16 +370,7 @@ public sealed class InstallModWorkflowTests
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
                 [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
             });
-        int openCount = 0;
-
-        ZipArchive OpenPackageArchive(string packagePath)
-        {
-            openCount++;
-
-            return ZipFile.OpenRead(packagePath);
-        }
-
-        var workflow = CreateWorkflow(assetsFileService, OpenPackageArchive);
+        var workflow = CreateWorkflow(assetsFileService);
 
         try
         {
@@ -389,7 +380,6 @@ public sealed class InstallModWorkflowTests
             Assert.Single(result.Files);
             Assert.Single(result.CopiedFiles);
             Assert.Equal("payload", File.ReadAllText(copiedPath));
-            Assert.Equal(2, openCount);
         }
         finally
         {
@@ -1344,21 +1334,9 @@ public sealed class InstallModWorkflowTests
                 ]),
             });
 
-        int openCount = 0;
+        File.WriteAllText(payloadPath, "created by another process");
 
-        ZipArchive OpenPackageArchiveWithDelay(string packagePath)
-        {
-            openCount++;
-
-            if (openCount == 2)
-            {
-                File.WriteAllText(payloadPath, "created by another process");
-            }
-
-            return ZipFile.OpenRead(packagePath);
-        }
-
-        var workflow = CreateWorkflow(assetsFileService, OpenPackageArchiveWithDelay);
+        var workflow = CreateWorkflow(assetsFileService);
 
         try
         {
@@ -1396,27 +1374,19 @@ public sealed class InstallModWorkflowTests
 
     private static InstallModWorkflow CreateWorkflow(StubAssetsFileService assetsFileService)
     {
-        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(), ZipFile.OpenRead);
+        return CreateWorkflow(assetsFileService, new GameDirectoryResolver());
     }
 
     private static InstallModWorkflow CreateWorkflow(
         StubAssetsFileService assetsFileService,
         IEnumerable<string> steamRoots)
     {
-        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(steamRoots), ZipFile.OpenRead);
+        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(steamRoots));
     }
 
     private static InstallModWorkflow CreateWorkflow(
         StubAssetsFileService assetsFileService,
-        Func<string, ZipArchive> openPackageArchive)
-    {
-        return CreateWorkflow(assetsFileService, new GameDirectoryResolver(), openPackageArchive);
-    }
-
-    private static InstallModWorkflow CreateWorkflow(
-        StubAssetsFileService assetsFileService,
-        GameDirectoryResolver gameDirectoryResolver,
-        Func<string, ZipArchive> openPackageArchive)
+        GameDirectoryResolver gameDirectoryResolver)
     {
         var assetQueryService = new AssetQueryService(assetsFileService);
         return new InstallModWorkflow(
@@ -1427,7 +1397,6 @@ public sealed class InstallModWorkflowTests
             assetsFileService,
             new ModManifestReader(),
             gameDirectoryResolver,
-            openPackageArchive,
             new TargetAssetResolver());
     }
 }
