@@ -1,25 +1,24 @@
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Core.IO;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class UninstallModWorkflow
 {
-    private readonly ModInstallationStore _recordStore;
+    private readonly ModBackupStore _backupStore;
 
-    public UninstallModWorkflow(ModInstallationStore recordStore)
+    public UninstallModWorkflow(ModBackupStore backupStore)
     {
-        _recordStore = recordStore;
+        _backupStore = backupStore;
     }
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
     {
-        return _recordStore.ListInstalled();
+        return _backupStore.ListInstalled();
     }
 
     public UninstallPreviewResult Preview(UninstallPreviewRequest request)
     {
-        InstallRecord record = _recordStore.Load(request.InstallDirectory);
+        InstallRecord record = _backupStore.Load(request.InstallDirectory);
 
         if (record.Status != InstallRecordStatus.Installed)
         {
@@ -53,7 +52,7 @@ public sealed class UninstallModWorkflow
 
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
-        InstallRecord record = _recordStore.Load(request.InstallDirectory);
+        InstallRecord record = _backupStore.Load(request.InstallDirectory);
 
         if (record.Status != InstallRecordStatus.Installed)
         {
@@ -66,11 +65,11 @@ public sealed class UninstallModWorkflow
 
         foreach (InstallRecordPatchedFile file in record.PatchedFiles)
         {
-            string uninstallBackupPath = CreateUniqueFilePath(uninstallDirectory, file.AssetsFilePath);
+            string uninstallBackupPath;
 
             try
             {
-                File.Copy(file.AssetsFilePath, uninstallBackupPath, false);
+                uninstallBackupPath = ModBackupStore.BackupFile(file.AssetsFilePath, uninstallDirectory);
             }
             catch (FileNotFoundException)
             {
@@ -87,7 +86,7 @@ public sealed class UninstallModWorkflow
 
             try
             {
-                RestoreBackup(file.BackupPath, file.AssetsFilePath);
+                ModBackupStore.RestoreFile(file.BackupPath, file.AssetsFilePath);
             }
             catch (FileNotFoundException)
             {
@@ -136,7 +135,7 @@ public sealed class UninstallModWorkflow
                 .Select(file => file with { Exists = File.Exists(file.DestinationPath) })
                 .ToArray(),
         };
-        _recordStore.Save(updated, request.InstallDirectory);
+        _backupStore.Save(updated, request.InstallDirectory);
 
         return new UninstallModResult(
             record.ModName,
@@ -144,40 +143,5 @@ public sealed class UninstallModWorkflow
             record.ModAuthor,
             restoredFiles,
             deletedFiles);
-    }
-
-    private static void RestoreBackup(string backupPath, string assetsFilePath)
-    {
-        string directory = Path.GetDirectoryName(Path.GetFullPath(assetsFilePath)) ??
-                           throw new InvalidOperationException(
-                               $"Cannot resolve assets file directory: {assetsFilePath}");
-        string tempPath = Path.Combine(directory, $"{Path.GetFileName(assetsFilePath)}.{Guid.NewGuid():N}.tmp");
-
-        try
-        {
-            File.Copy(backupPath, tempPath, false);
-            FileHelper.SafeMoveFile(tempPath, assetsFilePath, true);
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
-        }
-    }
-
-    private static string CreateUniqueFilePath(string directory, string originalPath)
-    {
-        string fileName = Path.GetFileNameWithoutExtension(originalPath);
-        string extension = Path.GetExtension(originalPath);
-        string candidate = Path.Combine(directory, $"{fileName}{extension}");
-
-        for (int index = 1; File.Exists(candidate); index++)
-        {
-            candidate = Path.Combine(directory, $"{fileName}.{index}{extension}");
-        }
-
-        return candidate;
     }
 }

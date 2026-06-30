@@ -1,17 +1,17 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Core.IO;
 
 namespace UnityAssetsPatcher.Application;
 
-public sealed class ModInstallationStore
+public sealed class ModBackupStore
 {
-    public const string RecordFileName = "record.json";
-
+    private const string RecordFileName = "record.json";
     private readonly string _backupDirectory;
     private readonly Func<DateTimeOffset> _now;
 
-    public ModInstallationStore(string backupDirectory, Func<DateTimeOffset>? now = null)
+    public ModBackupStore(string backupDirectory, Func<DateTimeOffset>? now = null)
     {
         ArgumentNullException.ThrowIfNull(backupDirectory);
 
@@ -37,6 +37,36 @@ public sealed class ModInstallationStore
         Directory.CreateDirectory(candidate);
 
         return candidate;
+    }
+
+    public static string BackupFile(string sourcePath, string backupDirectory)
+    {
+        Directory.CreateDirectory(backupDirectory);
+
+        string backupPath = Path.Combine(backupDirectory, Path.GetFileName(sourcePath));
+        File.Copy(sourcePath, backupPath, false);
+
+        return backupPath;
+    }
+
+    public static void RestoreFile(string backupPath, string targetPath)
+    {
+        string directory = Path.GetDirectoryName(Path.GetFullPath(targetPath)) ??
+                           throw new InvalidOperationException($"Cannot resolve assets file directory: {targetPath}");
+        string tempPath = Path.Combine(directory, $"{Path.GetFileName(targetPath)}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            File.Copy(backupPath, tempPath, false);
+            FileHelper.SafeMoveFile(tempPath, targetPath, true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
     }
 
     public void Save(InstallRecord record, string installDirectory)

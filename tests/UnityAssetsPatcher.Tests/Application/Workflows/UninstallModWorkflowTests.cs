@@ -39,7 +39,7 @@ public sealed class UninstallModWorkflowTests
                     1),
             ],
             []);
-        var store = new ModInstallationStore(backupDirectory);
+        var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
         var workflow = new UninstallModWorkflow(store);
 
@@ -107,7 +107,7 @@ public sealed class UninstallModWorkflowTests
             [
                 new InstallRecordCopiedFile("resources/modassets.resource", payloadPath, true),
             ]);
-        var store = new ModInstallationStore(backupDirectory);
+        var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
         var workflow = new UninstallModWorkflow(store);
 
@@ -179,7 +179,7 @@ public sealed class UninstallModWorkflowTests
                     1),
             ],
             []);
-        var store = new ModInstallationStore(backupDirectory);
+        var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
         var workflow = new UninstallModWorkflow(store);
 
@@ -242,7 +242,7 @@ public sealed class UninstallModWorkflowTests
                     1),
             ],
             []);
-        var store = new ModInstallationStore(backupDirectory);
+        var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
         var workflow = new UninstallModWorkflow(store);
 

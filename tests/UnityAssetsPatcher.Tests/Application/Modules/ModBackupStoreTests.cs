@@ -4,13 +4,13 @@ using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Modules;
 
-public sealed class ModInstallationStoreTests
+public sealed class ModBackupStoreTests
 {
     [Fact]
     public void CreateInstallDirectory_RemovesWhitespaceAndInvalidCharactersFromModNameAndVersion()
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        var store = new ModInstallationStore(
+        var store = new ModBackupStore(
             backupDirectory,
             () => new DateTimeOffset(2026, 6, 18, 14, 30, 22, TimeSpan.Zero));
 
@@ -36,7 +36,7 @@ public sealed class ModInstallationStoreTests
     public void CreateInstallDirectory_WhenNameCollides_AppendsUniqueSuffix()
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        var store = new ModInstallationStore(
+        var store = new ModBackupStore(
             backupDirectory,
             () => new DateTimeOffset(2026, 6, 18, 14, 30, 22, TimeSpan.Zero));
 
@@ -57,6 +57,59 @@ public sealed class ModInstallationStoreTests
             if (Directory.Exists(backupDirectory))
             {
                 Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void BackupFile_CopiesSourceWithOriginalFileName()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string sourcePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
+
+        try
+        {
+            Directory.CreateDirectory(backupDirectory);
+            File.WriteAllText(sourcePath, "patched");
+
+            string path = ModBackupStore.BackupFile(sourcePath, backupDirectory);
+
+            Assert.Equal(Path.Combine(backupDirectory, Path.GetFileName(sourcePath)), path);
+            Assert.Equal("patched", File.ReadAllText(path));
+        }
+        finally
+        {
+            File.Delete(sourcePath);
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void RestoreFile_ReplacesAssetsFile()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string backupPath = Path.Combine(directory, "backup.assets");
+        string assetsFilePath = Path.Combine(directory, "sharedassets0.assets");
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(backupPath, "original");
+            File.WriteAllText(assetsFilePath, "patched");
+
+            ModBackupStore.RestoreFile(backupPath, assetsFilePath);
+
+            Assert.Equal("original", File.ReadAllText(assetsFilePath));
+            Assert.Empty(Directory.EnumerateFiles(directory, "*.tmp"));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
             }
         }
     }

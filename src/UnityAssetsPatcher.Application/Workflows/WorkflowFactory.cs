@@ -37,13 +37,12 @@ internal sealed class WorkflowFactory
             new InstallPatchPlanner(patchPlanBuilder),
             new InstallPatchApplier(new PatchOutputWriter(assets.Writer), assetsReadResources),
             new InstallRecordBuilder(),
-            backupDirectory => new InstallRecordStore(backupDirectory),
             new InstallResultMapper());
     }
 
     public UninstallModWorkflow CreateUninstallWorkflow(string backupDirectory)
     {
-        return new UninstallModWorkflow(new ModInstallationStore(backupDirectory));
+        return new UninstallModWorkflow(new ModBackupStore(backupDirectory));
     }
 
     private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)

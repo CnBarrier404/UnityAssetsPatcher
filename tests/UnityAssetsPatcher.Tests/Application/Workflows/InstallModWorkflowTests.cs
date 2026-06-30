@@ -1443,7 +1443,6 @@ public sealed class InstallModWorkflowTests
             new InstallPatchPlanner(patchPlanBuilder),
             new InstallPatchApplier(new PatchOutputWriter(assetsFileService), assetsReadResources),
             new InstallRecordBuilder(),
-            backupDirectory => new InstallRecordStore(backupDirectory),
             new InstallResultMapper());
     }
 }

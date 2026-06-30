@@ -61,38 +61,14 @@ public sealed class InstallPatchApplier
     {
         foreach (InstallPatchAppliedFile file in result.Files.Reverse())
         {
-            RestoreBackup(file.BackupPath, file.AssetsFilePath);
-        }
-    }
-
-    private static void RestoreBackup(string backupPath, string assetsFilePath)
-    {
-        if (!File.Exists(backupPath))
-        {
-            throw new FileNotFoundException($"Install rollback backup not found: {backupPath}", backupPath);
-        }
-
-        string? directory = Path.GetDirectoryName(assetsFilePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        string temporaryPath = Path.Combine(
-            directory ?? Directory.GetCurrentDirectory(),
-            $".{Path.GetFileName(assetsFilePath)}.{Guid.NewGuid():N}.rollback.tmp");
-
-        try
-        {
-            File.Copy(backupPath, temporaryPath, true);
-            File.Move(temporaryPath, assetsFilePath, true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
+            if (!File.Exists(file.BackupPath))
             {
-                File.Delete(temporaryPath);
+                throw new FileNotFoundException(
+                    $"Install rollback backup not found: {file.BackupPath}",
+                    file.BackupPath);
             }
+
+            ModBackupStore.RestoreFile(file.BackupPath, file.AssetsFilePath);
         }
     }
 }

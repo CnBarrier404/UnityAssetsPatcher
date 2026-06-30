@@ -91,31 +91,7 @@ public sealed class PatchOutputWriter
 
     private static string? CreateBackupIfNeeded(WriteTarget target, string backupDirectory)
     {
-        if (!target.OverwritesInput)
-        {
-            return null;
-        }
-
-        Directory.CreateDirectory(backupDirectory);
-        string backupPath = CreateBackupPath(backupDirectory, target.AssetsFilePath);
-        File.Copy(target.AssetsFilePath, backupPath, false);
-
-        return backupPath;
-    }
-
-    private static string CreateBackupPath(string backupDirectory, string inputPath)
-    {
-        string fileName = Path.GetFileNameWithoutExtension(inputPath);
-        string extension = Path.GetExtension(inputPath);
-        string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
-        string candidate = Path.Combine(backupDirectory, $"{fileName}.{timestamp}{extension}");
-
-        for (int index = 1; File.Exists(candidate); index++)
-        {
-            candidate = Path.Combine(backupDirectory, $"{fileName}.{timestamp}.{index}{extension}");
-        }
-
-        return candidate;
+        return !target.OverwritesInput ? null : ModBackupStore.BackupFile(target.AssetsFilePath, backupDirectory);
     }
 
     private sealed record WriteTarget(string AssetsFilePath, string OutputPath, bool OverwritesInput);

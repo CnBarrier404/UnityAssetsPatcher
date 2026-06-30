@@ -15,7 +15,6 @@ public sealed class InstallModWorkflow
     private readonly InstallPatchPlanner _patchPlanner;
     private readonly InstallPatchApplier _patchApplier;
     private readonly InstallRecordBuilder _recordBuilder;
-    private readonly Func<string, InstallRecordStore> _recordStoreFactory;
     private readonly InstallResultMapper _resultMapper;
 
     public InstallModWorkflow(
@@ -29,7 +28,6 @@ public sealed class InstallModWorkflow
         InstallPatchPlanner patchPlanner,
         InstallPatchApplier patchApplier,
         InstallRecordBuilder recordBuilder,
-        Func<string, InstallRecordStore> recordStoreFactory,
         InstallResultMapper resultMapper)
     {
         _packageSource = packageSource;
@@ -42,7 +40,6 @@ public sealed class InstallModWorkflow
         _patchPlanner = patchPlanner;
         _patchApplier = patchApplier;
         _recordBuilder = recordBuilder;
-        _recordStoreFactory = recordStoreFactory;
         _resultMapper = resultMapper;
     }
 
@@ -79,8 +76,8 @@ public sealed class InstallModWorkflow
             var payloadPlan = _payloadPlanner.Plan(package.Manifest, targets);
             InstallPatchPlan patchPlan = _patchPlanner.CreateRequiredWritePlan(targets, package, timings);
 
-            InstallRecordStore recordStore = _recordStoreFactory(request.BackupDirectory);
-            InstallRecordPaths recordPaths = recordStore.CreateInstall(package);
+            var backupStore = new ModBackupStore(request.BackupDirectory);
+            InstallRecordPaths recordPaths = CreateRecordPaths(backupStore, package);
 
             InstallPatchApplyResult? patchApplyResult = null;
             IReadOnlyList<InstallChange> copiedFiles = [];
@@ -99,7 +96,7 @@ public sealed class InstallModWorkflow
                     copiedFiles,
                     package.AppliedOptionalGroups);
 
-                recordStore.Save(record, recordPaths);
+                backupStore.Save(record, recordPaths.InstallDirectory);
 
                 return _resultMapper.ToInstallResult(
                     package,
@@ -145,5 +142,16 @@ public sealed class InstallModWorkflow
         {
             Directory.Delete(recordPaths.InstallDirectory, true);
         }
+    }
+
+    private static InstallRecordPaths CreateRecordPaths(ModBackupStore backupStore, ModPackage package)
+    {
+        string installDirectory = backupStore.CreateInstallDirectory(
+            package.Manifest.Name,
+            package.Manifest.Version);
+
+        return new InstallRecordPaths(
+            installDirectory,
+            Path.Combine(installDirectory, "assets"));
     }
 }
