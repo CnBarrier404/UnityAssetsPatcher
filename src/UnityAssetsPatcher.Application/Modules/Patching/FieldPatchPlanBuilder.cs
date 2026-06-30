@@ -5,7 +5,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Core.Json;
 
-namespace UnityAssetsPatcher.Application.Patching;
+namespace UnityAssetsPatcher.Application.Modules.Patching;
 
 public sealed class FieldPatchPlanBuilder
 {

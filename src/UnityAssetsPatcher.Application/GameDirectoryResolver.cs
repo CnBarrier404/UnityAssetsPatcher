@@ -39,6 +39,29 @@ public sealed class GameDirectoryResolver
         return matches.Length == 1 ? matches[0] : null;
     }
 
+    public string ResolveRequired(string? gameDirectory, string? manifestGame)
+    {
+        if (!string.IsNullOrWhiteSpace(gameDirectory))
+        {
+            string fullGameDirectory = Path.GetFullPath(gameDirectory);
+
+            return Directory.Exists(fullGameDirectory)
+                ? fullGameDirectory
+                : throw new DirectoryNotFoundException($"Game directory not found: {fullGameDirectory}");
+        }
+
+        if (string.IsNullOrWhiteSpace(manifestGame))
+        {
+            throw new DirectoryNotFoundException(
+                "Game directory was not provided and manifest does not contain a 'game' property.");
+        }
+
+        string? resolvedDirectory = Resolve(manifestGame);
+
+        return resolvedDirectory ?? throw new DirectoryNotFoundException(
+            $"Game directory could not be resolved for manifest game: {manifestGame}");
+    }
+
     public static string[] CreateDefaultSteamRoots(IEnumerable<string> driveRoots)
     {
         var roots = new List<string>();

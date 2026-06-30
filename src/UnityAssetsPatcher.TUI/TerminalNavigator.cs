@@ -1,5 +1,5 @@
-using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Pages;
 
 namespace UnityAssetsPatcher.TUI;
 

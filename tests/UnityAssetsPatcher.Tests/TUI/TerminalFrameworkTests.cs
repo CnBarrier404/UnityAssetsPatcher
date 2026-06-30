@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using UnityAssetsPatcher.Application;
 using Spectre.Console.Testing;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.TUI;

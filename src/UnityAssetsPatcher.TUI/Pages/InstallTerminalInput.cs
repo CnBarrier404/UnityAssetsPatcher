@@ -1,4 +1,3 @@
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Pages;
@@ -27,7 +26,7 @@ internal sealed class InstallTerminalInput
         return _prompts.Confirm(LocalizedStrings.InstallPage_ApplyTheseChangesPrompt);
     }
 
-    public IReadOnlyList<string> ReadOptionalGroups(IReadOnlyList<OptionalGroupPreview> groups)
+    public IReadOnlyList<string> ReadOptionalGroups(IReadOnlyList<(string Name, string? Description)> groups)
     {
         return _prompts.ReadMultiChoice(
             groups.Select(group => group.Name).ToArray(),

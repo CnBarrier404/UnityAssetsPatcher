@@ -1,6 +1,6 @@
 using UnityAssetsPatcher.Application.Contracts;
 
-namespace UnityAssetsPatcher.Application.Patching;
+namespace UnityAssetsPatcher.Application.Modules.Patching;
 
 public static class PatchOperationRules
 {

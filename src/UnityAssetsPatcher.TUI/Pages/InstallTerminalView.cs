@@ -38,6 +38,8 @@ internal sealed class InstallTerminalView
 
     public void WriteInstallPreview(InstallPreviewResult result, bool verboseLogging)
     {
+        InstallChange[] patchChanges = GetPatchChanges(result.Changes);
+
         _ui.Status.WritePreview(LocalizedStrings.InstallPreview_DryRunStatus);
 
         _ui.Summary.WriteRows(
@@ -46,32 +48,35 @@ internal sealed class InstallTerminalView
             (LocalizedStrings.Summary_Author, result.ModAuthor),
             (LocalizedStrings.Summary_Elapsed, TerminalSummary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
 
-        WriteInstallPreviewTargets(result.Files);
+        WriteInstallPreviewTargets(patchChanges);
 
         if (verboseLogging)
         {
-            WriteInstallPreviewDetails(result.Files);
+            WriteInstallPreviewDetails(patchChanges);
             WriteInstallTiming(result.Timing);
         }
     }
 
     public void WriteInstallResult(InstallModResult result, bool verboseLogging)
     {
+        InstallChange[] patchChanges = GetPatchChanges(result.Changes);
+        InstallChange[] payloadChanges = GetPayloadChanges(result.Changes);
+
         _ui.Status.WriteSuccess(LocalizedStrings.InstallResult_InstalledStatus);
         _ui.Summary.WriteRows(
             (LocalizedStrings.Summary_Mod, result.ModName),
             (LocalizedStrings.Summary_Version, result.ModVersion),
-            (LocalizedStrings.InstallResult_PatchedFiles, result.Files.Count.ToString(CultureInfo.InvariantCulture)),
+            (LocalizedStrings.InstallResult_PatchedFiles, patchChanges.Length.ToString(CultureInfo.InvariantCulture)),
             (LocalizedStrings.InstallResult_CopiedFiles,
-                result.CopiedFiles.Count.ToString(CultureInfo.InvariantCulture)),
+                payloadChanges.Length.ToString(CultureInfo.InvariantCulture)),
             (LocalizedStrings.Summary_Assets,
-                result.Files.Sum(file => file.AssetCount).ToString(CultureInfo.InvariantCulture)),
+                patchChanges.Sum(file => file.AssetCount).ToString(CultureInfo.InvariantCulture)),
             (LocalizedStrings.Summary_Operations,
-                result.Files.Sum(file => file.OperationCount).ToString(CultureInfo.InvariantCulture)),
+                patchChanges.Sum(file => file.OperationCount).ToString(CultureInfo.InvariantCulture)),
             (LocalizedStrings.Summary_Elapsed, TerminalSummary.FormatElapsedSecondsWithUnit(result.Timing.Elapsed)));
 
-        WriteInstallResultTargets(result.Files);
-        WriteInstallResultPayloads(result.CopiedFiles);
+        WriteInstallResultTargets(patchChanges);
+        WriteInstallResultPayloads(payloadChanges);
         WriteInstallResultOptionalGroups(result.OptionalGroups);
 
         if (verboseLogging)
@@ -97,7 +102,7 @@ internal sealed class InstallTerminalView
         }
     }
 
-    private void WriteInstallPreviewTargets(IReadOnlyList<InstallPreviewFileResult> files)
+    private void WriteInstallPreviewTargets(IReadOnlyList<InstallChange> files)
     {
         if (files.Count == 0)
         {
@@ -108,14 +113,14 @@ internal sealed class InstallTerminalView
         _ui.Text.WriteMarkupLine(
             $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPreview_Targets)}[/]");
 
-        foreach (InstallPreviewFileResult file in files)
+        foreach (InstallChange file in files)
         {
             _ui.Text.WriteMarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: [{TerminalTheme.Muted}]{TerminalText.Escape(file.AssetsFilePath)}[/]");
+                $"- {TerminalText.Escape(file.Name)}: [{TerminalTheme.Muted}]{TerminalText.Escape(file.Path)}[/]");
         }
     }
 
-    private void WriteInstallPreviewDetails(IReadOnlyList<InstallPreviewFileResult> files)
+    private void WriteInstallPreviewDetails(IReadOnlyList<InstallChange> files)
     {
         if (files.Count == 0)
         {
@@ -126,16 +131,18 @@ internal sealed class InstallTerminalView
         _ui.Text.WriteMarkupLine(
             $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPreview_Details)}[/]");
 
-        foreach (InstallPreviewFileResult file in files)
+        foreach (InstallChange file in files)
         {
             _ui.Text.WriteBlankLine();
             _ui.Text.WriteMarkupLine(
-                $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPreview_TargetLabel)}[/] {TerminalText.Escape(file.Target)}");
-            WritePatchPreviewAssets(file.Preview);
+                $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallPreview_TargetLabel)}[/] {TerminalText.Escape(file.Name)}");
+            WritePatchPreviewAssets(file.Preview ??
+                                    throw new InvalidOperationException(
+                                        "Patch preview change is missing preview details."));
         }
     }
 
-    private void WriteInstallResultTargets(IReadOnlyList<InstallModFileResult> files)
+    private void WriteInstallResultTargets(IReadOnlyList<InstallChange> files)
     {
         if (files.Count == 0)
         {
@@ -146,16 +153,16 @@ internal sealed class InstallTerminalView
         _ui.Text.WriteMarkupLine(
             $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallResult_PatchedFiles)}[/]");
 
-        foreach (InstallModFileResult file in files)
+        foreach (InstallChange file in files)
         {
             _ui.Text.WriteMarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: {FormatCount(file.AssetCount, LocalizedStrings.Summary_AssetUnit)}, {FormatCount(file.OperationCount, LocalizedStrings.Summary_OperationUnit)}");
+                $"- {TerminalText.Escape(file.Name)}: {FormatCount(file.AssetCount, LocalizedStrings.Summary_AssetUnit)}, {FormatCount(file.OperationCount, LocalizedStrings.Summary_OperationUnit)}");
             _ui.Text.WriteMarkupLine(
-                $"  [{TerminalTheme.Muted}]{TerminalText.Escape(LocalizedStrings.InstallResult_Backup)}[/] {TerminalText.Escape(file.BackupPath)}");
+                $"  [{TerminalTheme.Muted}]{TerminalText.Escape(LocalizedStrings.InstallResult_Backup)}[/] {TerminalText.Escape(file.BackupPath ?? string.Empty)}");
         }
     }
 
-    private void WriteInstallResultPayloads(IReadOnlyList<InstallCopiedFileResult> copiedFiles)
+    private void WriteInstallResultPayloads(IReadOnlyList<InstallChange> copiedFiles)
     {
         if (copiedFiles.Count == 0)
         {
@@ -166,9 +173,9 @@ internal sealed class InstallTerminalView
         _ui.Text.WriteMarkupLine(
             $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.InstallResult_CopiedFiles)}[/]");
 
-        foreach (InstallCopiedFileResult copiedFile in copiedFiles)
+        foreach (InstallChange copiedFile in copiedFiles)
         {
-            _ui.Text.WriteMarkupLine($"- {TerminalText.Escape(Path.GetFileName(copiedFile.DestinationPath))}");
+            _ui.Text.WriteMarkupLine($"- {TerminalText.Escape(Path.GetFileName(copiedFile.Path))}");
         }
     }
 
@@ -198,6 +205,20 @@ internal sealed class InstallTerminalView
     private static string FormatCount(int count, string unit)
     {
         return TerminalSummary.FormatCount(count, unit);
+    }
+
+    private static InstallChange[] GetPatchChanges(IReadOnlyList<InstallChange> changes)
+    {
+        return changes
+            .Where(change => change.Kind == InstallChangeKind.Patch)
+            .ToArray();
+    }
+
+    private static InstallChange[] GetPayloadChanges(IReadOnlyList<InstallChange> changes)
+    {
+        return changes
+            .Where(change => change.Kind == InstallChangeKind.Payload)
+            .ToArray();
     }
 
     private void WriteInstallTiming(TimingSnapshot snapshot)

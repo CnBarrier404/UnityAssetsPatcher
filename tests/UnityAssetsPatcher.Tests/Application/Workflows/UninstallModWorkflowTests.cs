@@ -1,6 +1,6 @@
 using System.Text.Json;
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Workflows;
 using Xunit;
 

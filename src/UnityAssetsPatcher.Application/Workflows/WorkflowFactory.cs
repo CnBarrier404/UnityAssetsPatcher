@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Modules.Installation;
+using UnityAssetsPatcher.Application.Modules.Patching;
 using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
@@ -22,13 +23,22 @@ internal sealed class WorkflowFactory
 
     public InstallModWorkflow CreateInstallWorkflow(IAssetsAccessScope assets)
     {
+        PatchPlanBuilder patchPlanBuilder = CreatePatchPlanBuilder(assets.Reader);
+        var assetsReadResources = new InstallAssetsReadResources(assets);
+
         return new InstallModWorkflow(
-            CreatePatchPlanBuilder(assets.Reader),
-            new PatchOutputWriter(assets.Writer),
-            assets,
-            _manifestReader,
+            new InstallPackageSource(_manifestReader),
+            _targetAssetResolver,
             _gameDirectoryResolver,
-            _targetAssetResolver);
+            assetsReadResources,
+            new InstallPayloadPlanner(),
+            new InstallPayloadPreviewer(),
+            new InstallPayloadCopier(),
+            new InstallPatchPlanner(patchPlanBuilder),
+            new InstallPatchApplier(new PatchOutputWriter(assets.Writer), assetsReadResources),
+            new InstallRecordBuilder(),
+            backupDirectory => new InstallRecordStore(backupDirectory),
+            new InstallResultMapper());
     }
 
     public UninstallModWorkflow CreateUninstallWorkflow(string backupDirectory)

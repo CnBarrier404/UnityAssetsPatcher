@@ -2,7 +2,8 @@ using System.IO.Compression;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Modules.Installation;
+using UnityAssetsPatcher.Application.Modules.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
@@ -71,9 +72,9 @@ public sealed class InstallModWorkflowTests
 
             Assert.Equal("Test Mod", result.ModName);
             Assert.Equal("UnityAssetsPatcher.Tests", result.ModAuthor);
-            InstallModFileResult file = Assert.Single(result.Files);
-            Assert.Equal("sharedassets0.assets", file.Target);
-            Assert.Equal(targetPath, file.AssetsFilePath);
+            InstallChange file = SinglePatchChange(result);
+            Assert.Equal("sharedassets0.assets", file.Name);
+            Assert.Equal(targetPath, file.Path);
             Assert.StartsWith(backupDirectory, file.BackupPath, StringComparison.OrdinalIgnoreCase);
             Assert.Equal(1, file.AssetCount);
             Assert.Equal(1, file.OperationCount);
@@ -175,9 +176,9 @@ public sealed class InstallModWorkflowTests
             InstallModResult result = workflow.Install(
                 new InstallModRequest(zipPath, gameDirectory, backupDirectory));
 
-            InstallCopiedFileResult copiedFile = Assert.Single(result.CopiedFiles);
-            Assert.Equal("resources/modassets.resource", copiedFile.Source);
-            Assert.Equal(copiedPath, copiedFile.DestinationPath);
+            InstallChange copiedFile = SinglePayloadChange(result);
+            Assert.Equal("resources/modassets.resource", copiedFile.Name);
+            Assert.Equal(copiedPath, copiedFile.Path);
             Assert.Equal("payload", File.ReadAllText(copiedPath));
         }
         finally
@@ -268,7 +269,7 @@ public sealed class InstallModWorkflowTests
             InstallModResult result = workflow.Install(
                 new InstallModRequest(zipPath, gameDirectory, backupDirectory));
 
-            InstallModFileResult file = Assert.Single(result.Files);
+            InstallChange file = SinglePatchChange(result);
             Assert.Equal(1, file.AssetCount);
             Assert.Equal(1, file.OperationCount);
             AssetReplacement replacement = Assert.Single(assetsFileService.ReplacementPlan);
@@ -377,8 +378,8 @@ public sealed class InstallModWorkflowTests
             InstallModResult result = workflow.Install(
                 new InstallModRequest(zipPath, gameDirectory, backupDirectory));
 
-            Assert.Single(result.Files);
-            Assert.Single(result.CopiedFiles);
+            Assert.Single(PatchChanges(result.Changes));
+            Assert.Single(PayloadChanges(result.Changes));
             Assert.Equal("payload", File.ReadAllText(copiedPath));
         }
         finally
@@ -453,10 +454,10 @@ public sealed class InstallModWorkflowTests
 
             Assert.Equal("Test Mod", result.ModName);
             Assert.Equal("UnityAssetsPatcher.Tests", result.ModAuthor);
-            InstallPreviewFileResult file = Assert.Single(result.Files);
-            Assert.Equal("sharedassets0.assets", file.Target);
-            Assert.Equal(targetPath, file.AssetsFilePath);
-            PatchPreviewAssetResult asset = Assert.Single(file.Preview.Assets);
+            InstallChange file = SinglePatchChange(result);
+            Assert.Equal("sharedassets0.assets", file.Name);
+            Assert.Equal(targetPath, file.Path);
+            PatchPreviewAssetResult asset = Assert.Single(file.Preview!.Assets);
             Assert.Equal(4, asset.Asset.PathId);
             PatchPreviewOperationResult operation = Assert.Single(asset.Operations);
             Assert.True(operation.WillChange);
@@ -610,8 +611,8 @@ public sealed class InstallModWorkflowTests
             InstallPreviewResult result = workflow.Preview(
                 new InstallPreviewRequest(zipPath, null));
 
-            InstallPreviewFileResult file = Assert.Single(result.Files);
-            Assert.Equal(targetPath, file.AssetsFilePath);
+            InstallChange file = SinglePatchChange(result);
+            Assert.Equal(targetPath, file.Path);
         }
         finally
         {
@@ -737,9 +738,9 @@ public sealed class InstallModWorkflowTests
             InstallPreviewResult result = workflow.Preview(
                 new InstallPreviewRequest(zipPath, gameDirectory));
 
-            InstallCopyFilePreviewResult copiedFile = Assert.Single(result.CopiedFiles);
-            Assert.Equal("resources/modassets.resource", copiedFile.Source);
-            Assert.Equal(copiedPath, copiedFile.DestinationPath);
+            InstallChange copiedFile = SinglePayloadChange(result);
+            Assert.Equal("resources/modassets.resource", copiedFile.Name);
+            Assert.Equal(copiedPath, copiedFile.Path);
             Assert.True(copiedFile.WillCopy);
             Assert.False(File.Exists(copiedPath));
         }
@@ -1098,10 +1099,10 @@ public sealed class InstallModWorkflowTests
             InstallPreviewResult basePreview = workflow.Preview(
                 new InstallPreviewRequest(zipPath, gameDirectory));
 
-            OptionalGroupPreview group = Assert.Single(basePreview.OptionalGroups);
+            (string Name, string? Description) group = Assert.Single(basePreview.OptionalGroups);
             Assert.Equal("Bonus camera", group.Name);
             Assert.Equal("Patches a second file", group.Description);
-            Assert.Single(basePreview.Files);
+            Assert.Single(PatchChanges(basePreview.Changes));
 
             InstallPreviewResult mergedPreview = workflow.Preview(
                 new InstallPreviewRequest(zipPath, gameDirectory)
@@ -1109,8 +1110,8 @@ public sealed class InstallModWorkflowTests
                     SelectedOptionalGroups = ["Bonus camera"],
                 });
 
-            Assert.Equal(2, mergedPreview.Files.Count);
-            Assert.Contains(mergedPreview.Files, file => file.Target == "sharedassets1.assets");
+            Assert.Equal(2, PatchChanges(mergedPreview.Changes).Count);
+            Assert.Contains(PatchChanges(mergedPreview.Changes), file => file.Name == "sharedassets1.assets");
         }
         finally
         {
@@ -1148,7 +1149,7 @@ public sealed class InstallModWorkflowTests
                 });
 
             Assert.Equal(["Bonus camera"], result.OptionalGroups);
-            Assert.Equal(2, result.Files.Count);
+            Assert.Equal(2, PatchChanges(result.Changes).Count);
             string recordJson = ReadInstallRecordJson(backupDirectory);
             Assert.Contains("\"optionalGroups\"", recordJson);
             Assert.Contains("Bonus camera", recordJson);
@@ -1181,7 +1182,7 @@ public sealed class InstallModWorkflowTests
                 new InstallModRequest(zipPath, gameDirectory, backupDirectory));
 
             Assert.Empty(result.OptionalGroups);
-            Assert.Single(result.Files);
+            Assert.Single(PatchChanges(result.Changes));
             Assert.DoesNotContain("optionalGroups", ReadInstallRecordJson(backupDirectory));
         }
         finally
@@ -1372,6 +1373,40 @@ public sealed class InstallModWorkflowTests
             ]);
     }
 
+    private static InstallChange SinglePatchChange(InstallModResult result)
+    {
+        return Assert.Single(PatchChanges(result.Changes));
+    }
+
+    private static InstallChange SinglePatchChange(InstallPreviewResult result)
+    {
+        return Assert.Single(PatchChanges(result.Changes));
+    }
+
+    private static InstallChange SinglePayloadChange(InstallModResult result)
+    {
+        return Assert.Single(PayloadChanges(result.Changes));
+    }
+
+    private static InstallChange SinglePayloadChange(InstallPreviewResult result)
+    {
+        return Assert.Single(PayloadChanges(result.Changes));
+    }
+
+    private static IReadOnlyList<InstallChange> PatchChanges(IReadOnlyList<InstallChange> changes)
+    {
+        return changes
+            .Where(change => change.Kind == InstallChangeKind.Patch)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<InstallChange> PayloadChanges(IReadOnlyList<InstallChange> changes)
+    {
+        return changes
+            .Where(change => change.Kind == InstallChangeKind.Payload)
+            .ToArray();
+    }
+
     private static InstallModWorkflow CreateWorkflow(StubAssetsFileService assetsFileService)
     {
         return CreateWorkflow(assetsFileService, new GameDirectoryResolver());
@@ -1389,14 +1424,23 @@ public sealed class InstallModWorkflowTests
         GameDirectoryResolver gameDirectoryResolver)
     {
         var assetQueryService = new AssetQueryService(assetsFileService);
+        var patchPlanBuilder = new PatchPlanBuilder(
+            new FieldPatchPlanBuilder(assetQueryService),
+            new ReplacementPlanBuilder(assetQueryService));
+        var assetsReadResources = new InstallAssetsReadResources(assetsFileService);
+
         return new InstallModWorkflow(
-            new PatchPlanBuilder(
-                new FieldPatchPlanBuilder(assetQueryService),
-                new ReplacementPlanBuilder(assetQueryService)),
-            new PatchOutputWriter(assetsFileService),
-            assetsFileService,
-            new ModManifestReader(),
+            new InstallPackageSource(new ModManifestReader()),
+            new TargetAssetResolver(),
             gameDirectoryResolver,
-            new TargetAssetResolver());
+            assetsReadResources,
+            new InstallPayloadPlanner(),
+            new InstallPayloadPreviewer(),
+            new InstallPayloadCopier(),
+            new InstallPatchPlanner(patchPlanBuilder),
+            new InstallPatchApplier(new PatchOutputWriter(assetsFileService), assetsReadResources),
+            new InstallRecordBuilder(),
+            backupDirectory => new InstallRecordStore(backupDirectory),
+            new InstallResultMapper());
     }
 }
