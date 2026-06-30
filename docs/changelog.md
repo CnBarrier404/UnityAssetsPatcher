@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.2.0
+
+本次版本重点改进 Mod 安装体验、安装失败回滚能力和终端界面可读性。
+
+### 新增
+
+- Manifest 现在支持 `optional` 附加内容分组，安装时可以选择要应用的可选内容
+- 安装结果和安装记录会保存本次实际应用的附加内容，方便后续确认和卸载
+
+### 修复
+
+- 安装过程中如果部分补丁或文件复制失败，程序会回滚已经写入的内容，减少半安装状态
+- 覆盖 Assets 文件时会防止符号链接重定向，避免写入到预期目标之外的位置
+- 安装写入流程修复了部分 TOCTOU 竞态风险，目标检查和实际写入之间更加安全
+- Mod 包解压总大小限制现在会正确覆盖更多安装路径，避免压缩包绕过限制
+- 终端页面发生错误时会正确显示错误信息
+- Assets 字段树缓存现在限定在查询上下文生命周期内，避免跨查询复用导致结果不准确
+
+### 改进
+
+- 终端界面采用 One Dark 配色，并优化了列表列宽、选中项说明文本和确认提示交互
+- 可选内容选择改为多选提示，批量选择更直接
+- 列表和摘要渲染改用 Spectre 表格与网格，长内容展示更稳定
+- 安装记录读取会先按状态过滤，再反序列化完整记录，大量历史记录场景下更快
+- 安装工作流和备份存储结构经过整理，代码路径更清晰，后续维护更容易
+
+---
+
+This release focuses on mod installation usability, safer rollback behavior, and clearer terminal output.
+
+### Added
+
+- Manifests now support `optional` content groups, letting users choose optional content during installation
+- Installation results and records now store the optional content that was actually applied, making later verification and uninstall support clearer
+
+### Fixed
+
+- If part of an install fails while applying patches or copying files, the tool now rolls back already-written changes to reduce partial install states
+- Assets overwrite paths now defend against symlink redirection, preventing writes outside the intended target
+- Install writes now avoid several TOCTOU race risks between target validation and actual writes
+- Total mod package extraction limits now apply across more install paths, preventing packages from bypassing the configured cap
+- Terminal pages now show errors correctly when a page operation fails
+- Assets field tree caching is now scoped to the query context lifetime, avoiding inaccurate results from cross-query reuse
+
+### Improved
+
+- The terminal UI now uses a One Dark color palette and has improved list column widths, selected item descriptions, and confirmation prompts
+- Optional content selection now uses a multi-selection prompt for easier batch selection
+- List and summary rendering now use Spectre tables and grids for more stable long-content output
+- Install record loading filters by status before fully deserializing records, improving performance with many historical records
+- Install workflow orchestration and backup storage were consolidated, making the implementation easier to maintain
+
 ## v0.1.0
 
 欢迎体验 Unity Assets Patcher 的第一个正式版本！
