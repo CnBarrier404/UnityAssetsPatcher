@@ -68,7 +68,7 @@ jobs:
         run: dotnet restore ${{ env.SOLUTION_PATH }} --runtime ${{ env.RUNTIME_IDENTIFIER }}
 
       - name: Run tests
-        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-restore --runtime ${{ env.RUNTIME_IDENTIFIER }}
+        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
 
       - name: Publish executable
         shell: pwsh
@@ -77,9 +77,11 @@ jobs:
             --configuration Release `
             --runtime $env:RUNTIME_IDENTIFIER `
             --self-contained true `
+            --no-restore `
             --output "artifacts/publish/$env:RUNTIME_IDENTIFIER" `
             -p:JsonSerializerIsReflectionEnabledByDefault=false `
             -p:WarningsAsErrors=IL2026%3BIL3050 `
+            -p:PublishAot=true `
             -p:PublishSingleFile=true `
             -p:DebugType=none `
             -p:DebugSymbols=false `
@@ -216,7 +218,7 @@ jobs:
           path: artifacts
 
       - name: Create or update GitHub Release
-        uses: softprops/action-gh-release@v8
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
