@@ -18,23 +18,57 @@ public sealed class InstallPayloadCopier
 
             var results = new List<InstallChange>();
 
-            foreach (InstallPayloadFilePlan file in files)
+            try
+            {
+                foreach (InstallPayloadFilePlan file in files)
+                {
+                    try
+                    {
+                        package.CopyPayloadFile(file.Source, file.DestinationPath);
+                    }
+                    catch (IOException ex) when (File.Exists(file.DestinationPath))
+                    {
+                        throw new IOException(
+                            $"Payload file was created by another process during installation: {file.DestinationPath}",
+                            ex);
+                    }
+
+                    results.Add(new InstallChange(InstallChangeKind.Payload, file.Source, file.DestinationPath));
+                }
+
+                return results.ToArray();
+            }
+            catch (Exception ex) when (results.Count > 0)
             {
                 try
                 {
-                    package.CopyPayloadFile(file.Source, file.DestinationPath);
+                    Rollback(results);
                 }
-                catch (IOException ex) when (File.Exists(file.DestinationPath))
+                catch (Exception rollbackException)
                 {
-                    throw new IOException(
-                        $"Payload file was created by another process during installation: {file.DestinationPath}",
-                        ex);
+                    throw new InvalidOperationException(
+                        "Payload copy failed and rollback also failed.",
+                        new AggregateException(ex, rollbackException));
                 }
 
-                results.Add(new InstallChange(InstallChangeKind.Payload, file.Source, file.DestinationPath));
+                throw;
+            }
+        });
+    }
+
+    public static void Rollback(IReadOnlyList<InstallChange> copiedFiles)
+    {
+        foreach (InstallChange file in copiedFiles.Reverse())
+        {
+            if (file.Kind != InstallChangeKind.Payload)
+            {
+                continue;
             }
 
-            return results.ToArray();
-        });
+            if (File.Exists(file.Path))
+            {
+                File.Delete(file.Path);
+            }
+        }
     }
 }

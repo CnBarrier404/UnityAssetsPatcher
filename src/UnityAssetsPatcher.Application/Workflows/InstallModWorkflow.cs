@@ -82,29 +82,68 @@ public sealed class InstallModWorkflow
             InstallRecordStore recordStore = _recordStoreFactory(request.BackupDirectory);
             InstallRecordPaths recordPaths = recordStore.CreateInstall(package);
 
-            InstallPatchApplyResult patchApplyResult = _patchApplier.Apply(
-                patchPlan,
-                recordPaths,
-                timings);
-            var copiedFiles = _payloadCopier.Copy(package, payloadPlan, timings);
-            InstallRecord record = _recordBuilder.Build(
-                package,
-                gameDirectory,
-                patchApplyResult,
-                copiedFiles,
-                package.AppliedOptionalGroups);
+            InstallPatchApplyResult? patchApplyResult = null;
+            IReadOnlyList<InstallChange> copiedFiles = [];
 
-            recordStore.Save(record, recordPaths);
+            try
+            {
+                patchApplyResult = _patchApplier.Apply(
+                    patchPlan,
+                    recordPaths,
+                    timings);
+                copiedFiles = _payloadCopier.Copy(package, payloadPlan, timings);
+                InstallRecord record = _recordBuilder.Build(
+                    package,
+                    gameDirectory,
+                    patchApplyResult,
+                    copiedFiles,
+                    package.AppliedOptionalGroups);
 
-            return _resultMapper.ToInstallResult(
-                package,
-                patchApplyResult,
-                copiedFiles,
-                timings.BuildSnapshot());
+                recordStore.Save(record, recordPaths);
+
+                return _resultMapper.ToInstallResult(
+                    package,
+                    patchApplyResult,
+                    copiedFiles,
+                    timings.BuildSnapshot());
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    RollbackInstall(recordPaths, patchApplyResult, copiedFiles);
+                }
+                catch (Exception rollbackException)
+                {
+                    throw new InvalidOperationException(
+                        "Install failed and rollback also failed.",
+                        new AggregateException(ex, rollbackException));
+                }
+
+                throw;
+            }
         }
         finally
         {
             _assetsReadResources.Release();
+        }
+    }
+
+    private static void RollbackInstall(
+        InstallRecordPaths recordPaths,
+        InstallPatchApplyResult? patchApplyResult,
+        IReadOnlyList<InstallChange> copiedFiles)
+    {
+        InstallPayloadCopier.Rollback(copiedFiles);
+
+        if (patchApplyResult is not null)
+        {
+            InstallPatchApplier.Rollback(patchApplyResult);
+        }
+
+        if (Directory.Exists(recordPaths.InstallDirectory))
+        {
+            Directory.Delete(recordPaths.InstallDirectory, true);
         }
     }
 }

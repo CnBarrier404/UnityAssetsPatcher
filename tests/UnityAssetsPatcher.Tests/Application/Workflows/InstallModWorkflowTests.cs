@@ -1346,6 +1346,9 @@ public sealed class InstallModWorkflowTests
 
             Assert.Contains("Payload file was created by another process", exception.Message);
             Assert.Contains("modassets.resource", exception.Message);
+            Assert.Equal("original", File.ReadAllText(Path.Combine(targetDirectory, "sharedassets4.assets")));
+            Assert.Empty(Directory.EnumerateFiles(backupDirectory, "record.json", SearchOption.AllDirectories));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(backupDirectory));
         }
         finally
         {
