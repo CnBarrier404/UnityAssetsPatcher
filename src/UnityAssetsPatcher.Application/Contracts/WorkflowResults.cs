@@ -13,8 +13,7 @@ public sealed record UninstallModResult(
 public sealed record UninstallRestoredFileResult(
     string Target,
     string AssetsFilePath,
-    string InstallBackupPath,
-    string UninstallBackupPath);
+    string InstallBackupPath);
 
 public sealed record UninstallDeletedFileResult(string Source, string DestinationPath, bool Deleted);
 

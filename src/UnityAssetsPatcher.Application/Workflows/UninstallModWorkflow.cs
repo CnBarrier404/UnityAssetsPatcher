@@ -59,29 +59,15 @@ public sealed class UninstallModWorkflow
             throw new InvalidOperationException("Install record is not currently installed.");
         }
 
-        string uninstallDirectory = Path.Combine(request.InstallDirectory, "uninstall");
-        Directory.CreateDirectory(uninstallDirectory);
         var restoredFiles = new List<UninstallRestoredFileResult>();
 
         foreach (InstallRecordPatchedFile file in record.PatchedFiles)
         {
-            string uninstallBackupPath;
-
-            try
-            {
-                uninstallBackupPath = ModBackupStore.BackupFile(file.AssetsFilePath, uninstallDirectory);
-            }
-            catch (FileNotFoundException)
+            if (!File.Exists(file.AssetsFilePath))
             {
                 throw new FileNotFoundException(
                     $"Assets file was deleted during uninstall: {file.AssetsFilePath}",
                     file.AssetsFilePath);
-            }
-            catch (IOException ex)
-            {
-                throw new IOException(
-                    $"Failed to backup assets file during uninstall: {file.AssetsFilePath}",
-                    ex);
             }
 
             try
@@ -98,8 +84,7 @@ public sealed class UninstallModWorkflow
             restoredFiles.Add(new UninstallRestoredFileResult(
                 file.Target,
                 file.AssetsFilePath,
-                file.BackupPath,
-                uninstallBackupPath));
+                file.BackupPath));
         }
 
         var deletedFiles = new List<UninstallDeletedFileResult>();
@@ -116,26 +101,7 @@ public sealed class UninstallModWorkflow
             deletedFiles.Add(new UninstallDeletedFileResult(file.Source, file.DestinationPath, true));
         }
 
-        InstallRecord updated = record with
-        {
-            Status = InstallRecordStatus.Uninstalled,
-            UninstalledAt = DateTimeOffset.Now,
-            PatchedFiles = record.PatchedFiles
-                .Select(file =>
-                {
-                    UninstallRestoredFileResult restored = restoredFiles.Single(restoredFile => string.Equals(
-                        restoredFile.AssetsFilePath,
-                        file.AssetsFilePath,
-                        StringComparison.OrdinalIgnoreCase));
-
-                    return file with { UninstallBackupPath = restored.UninstallBackupPath };
-                })
-                .ToArray(),
-            CopiedFiles = record.CopiedFiles
-                .Select(file => file with { Exists = File.Exists(file.DestinationPath) })
-                .ToArray(),
-        };
-        _backupStore.Save(updated, request.InstallDirectory);
+        Directory.Delete(request.InstallDirectory, true);
 
         return new UninstallModResult(
             record.ModName,

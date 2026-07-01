@@ -332,10 +332,7 @@ public sealed class TerminalAppTests : IDisposable
             Assert.Contains("UNINSTALL PREVIEW", text);
             Assert.Contains("UNINSTALLED", text);
             Assert.Equal("original", File.ReadAllText(targetPath));
-            string recordPath = Directory
-                .EnumerateFiles(backupDirectory, "record.json", SearchOption.AllDirectories)
-                .Single();
-            Assert.Contains("\"status\": \"uninstalled\"", File.ReadAllText(recordPath));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(backupDirectory));
         }
         finally
         {

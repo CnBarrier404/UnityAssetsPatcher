@@ -183,7 +183,6 @@ public sealed record InstallRecordPatchedFile(
     string Target,
     string AssetsFilePath,
     string BackupPath,
-    string? UninstallBackupPath,
     int AssetCount,
     int OperationCount);
 

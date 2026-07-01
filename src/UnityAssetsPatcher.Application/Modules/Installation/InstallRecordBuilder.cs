@@ -26,7 +26,6 @@ public sealed class InstallRecordBuilder
                     file.Target,
                     file.AssetsFilePath,
                     file.BackupPath,
-                    null,
                     file.AssetCount,
                     file.OperationCount))
                 .ToArray(),

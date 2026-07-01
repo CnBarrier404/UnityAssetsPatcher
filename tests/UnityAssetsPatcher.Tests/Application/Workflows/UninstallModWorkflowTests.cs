@@ -1,4 +1,3 @@
-using System.Text.Json;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Workflows;
@@ -34,7 +33,6 @@ public sealed class UninstallModWorkflowTests
                     "sharedassets0.assets",
                     targetPath,
                     backupPath,
-                    null,
                     1,
                     1),
             ],
@@ -67,18 +65,16 @@ public sealed class UninstallModWorkflowTests
     }
 
     [Fact]
-    public void Uninstall_WhenRecordIsInstalled_RestoresAssetsDeletesPayloadAndMarksRecordUninstalled()
+    public void Uninstall_WhenRecordIsInstalled_RestoresAssetsDeletesPayloadAndDeletesInstallDirectory()
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
         string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
         string installAssetsDirectory = Path.Combine(installDirectory, "assets");
-        string uninstallDirectory = Path.Combine(installDirectory, "uninstall");
         string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
         string backupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
         string payloadPath = Path.Combine(targetDirectory, "modassets.resource");
-        string recordPath = Path.Combine(installDirectory, "record.json");
         Directory.CreateDirectory(targetDirectory);
         Directory.CreateDirectory(installAssetsDirectory);
         File.WriteAllText(targetPath, "patched");
@@ -100,7 +96,6 @@ public sealed class UninstallModWorkflowTests
                     "sharedassets0.assets",
                     targetPath,
                     backupPath,
-                    null,
                     1,
                     1),
             ],
@@ -118,17 +113,8 @@ public sealed class UninstallModWorkflowTests
             Assert.Equal("Better Audio Pack", result.ModName);
             Assert.Equal("original", File.ReadAllText(targetPath));
             Assert.False(File.Exists(payloadPath));
-            string uninstallBackup = Assert.Single(result.RestoredFiles).UninstallBackupPath;
-            Assert.StartsWith(uninstallDirectory, uninstallBackup, StringComparison.OrdinalIgnoreCase);
-            Assert.Equal("patched", File.ReadAllText(uninstallBackup));
-
-            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(recordPath));
-            Assert.Equal("uninstalled", document.RootElement.GetProperty("status").GetString());
-            Assert.True(document.RootElement.TryGetProperty("uninstalledAt", out JsonElement uninstalledAt));
-            Assert.False(string.IsNullOrWhiteSpace(uninstalledAt.GetString()));
-            Assert.Equal(
-                uninstallBackup,
-                document.RootElement.GetProperty("patchedFiles")[0].GetProperty("uninstallBackupPath").GetString());
+            Assert.Single(result.RestoredFiles);
+            Assert.False(Directory.Exists(installDirectory));
         }
         finally
         {
@@ -174,7 +160,6 @@ public sealed class UninstallModWorkflowTests
                     "sharedassets0.assets",
                     targetPath,
                     backupPath,
-                    null,
                     1,
                     1),
             ],
@@ -237,7 +222,6 @@ public sealed class UninstallModWorkflowTests
                     "sharedassets0.assets",
                     targetPath,
                     backupPath,
-                    null,
                     1,
                     1),
             ],
