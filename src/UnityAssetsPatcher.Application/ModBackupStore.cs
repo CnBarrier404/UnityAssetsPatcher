@@ -91,6 +91,13 @@ public sealed class ModBackupStore
                throw new InvalidOperationException($"Install record could not be read: {recordPath}");
     }
 
+    public static void DeleteRecord(string installDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(installDirectory);
+
+        File.Delete(GetRecordPath(installDirectory));
+    }
+
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
     {
         if (!Directory.Exists(_backupDirectory))

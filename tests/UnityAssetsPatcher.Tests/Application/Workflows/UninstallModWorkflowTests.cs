@@ -127,6 +127,74 @@ public sealed class UninstallModWorkflowTests
     }
 
     [Fact]
+    public void Uninstall_WhenInstallDirectoryCleanupFails_RemovesRecordFromInstalledList()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        string installAssetsDirectory = Path.Combine(installDirectory, "assets");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string backupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
+        string lockedPath = Path.Combine(installDirectory, "locked.tmp");
+        Directory.CreateDirectory(targetDirectory);
+        Directory.CreateDirectory(installAssetsDirectory);
+        File.WriteAllText(targetPath, "patched");
+        File.WriteAllText(backupPath, "original");
+        File.WriteAllText(lockedPath, "locked");
+
+        var record = new InstallRecord(
+            "install-1",
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            gameDirectory,
+            [
+                new InstallRecordPatchedFile(
+                    "sharedassets0.assets",
+                    targetPath,
+                    backupPath,
+                    1,
+                    1),
+            ],
+            []);
+        var store = new ModBackupStore(backupDirectory);
+        store.Save(record, installDirectory);
+        var workflow = new UninstallModWorkflow(store);
+
+        try
+        {
+            using FileStream _ = File.Open(
+                lockedPath,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+            Assert.ThrowsAny<Exception>(() =>
+                workflow.Uninstall(new UninstallModRequest(installDirectory)));
+
+            Assert.False(File.Exists(Path.Combine(installDirectory, "record.json")));
+            Assert.DoesNotContain(
+                workflow.ListInstalled(),
+                summary => summary.InstallDirectory == installDirectory);
+        }
+        finally
+        {
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
     public void Uninstall_WhenAssetsFileDeletedDuringUninstall_ThrowsRaceConditionError()
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());

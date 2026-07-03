@@ -55,6 +55,7 @@ public sealed class UninstallModWorkflow
         var restoredFiles = RestoreAssets(record.PatchedFiles);
         var deletedFiles = DeleteCopiedFiles(record.CopiedFiles);
 
+        ModBackupStore.DeleteRecord(request.InstallDirectory);
         Directory.Delete(request.InstallDirectory, true);
 
         return new UninstallModResult(

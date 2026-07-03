@@ -113,4 +113,41 @@ public sealed class ModBackupStoreTests
             }
         }
     }
+
+    [Fact]
+    public void DeleteRecord_RemovesInstallDirectoryFromInstalledList()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        var record = new InstallRecord(
+            "install-1",
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            @"C:\Games\Example",
+            [],
+            []);
+        var store = new ModBackupStore(backupDirectory);
+
+        try
+        {
+            store.Save(record, installDirectory);
+
+            ModBackupStore.DeleteRecord(installDirectory);
+
+            Assert.False(File.Exists(Path.Combine(installDirectory, "record.json")));
+            Assert.DoesNotContain(
+                store.ListInstalled(),
+                summary => summary.InstallDirectory == installDirectory);
+        }
+        finally
+        {
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+        }
+    }
 }
