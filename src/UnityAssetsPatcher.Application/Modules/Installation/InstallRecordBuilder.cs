@@ -13,9 +13,7 @@ public sealed class InstallRecordBuilder
     {
         return new InstallRecord(
             Guid.NewGuid().ToString("N"),
-            InstallRecordStatus.Installed,
             DateTimeOffset.Now,
-            null,
             package.Manifest.Name,
             package.Manifest.Version,
             package.Manifest.Author,

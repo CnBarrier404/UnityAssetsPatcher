@@ -102,7 +102,6 @@ public sealed class ModBackupStore
             .Select(path => Path.GetDirectoryName(path) ??
                             throw new InvalidOperationException(
                                 $"Cannot resolve install record directory: {path}"))
-            .Where(dir => LoadStatus(dir) == InstallRecordStatus.Installed)
             .Select(dir => new
             {
                 InstallDirectory = dir,
@@ -116,25 +115,6 @@ public sealed class ModBackupStore
                 item.Record.GameDirectory,
                 item.Record.InstalledAt))
             .ToArray();
-    }
-
-    private static InstallRecordStatus LoadStatus(string installDirectory)
-    {
-        string recordPath = GetRecordPath(installDirectory);
-        using FileStream stream = File.OpenRead(recordPath);
-        using JsonDocument document = JsonDocument.Parse(stream);
-
-        string statusString = document.RootElement.GetProperty("status").GetString()
-                              ?? throw new InvalidOperationException(
-                                  $"Status field missing in: {recordPath}");
-
-        return statusString switch
-        {
-            "installed" => InstallRecordStatus.Installed,
-            "uninstalled" => InstallRecordStatus.Uninstalled,
-            _ => throw new InvalidOperationException(
-                $"Unknown status '{statusString}' in: {recordPath}")
-        };
     }
 
     private static string GetRecordPath(string installDirectory)
@@ -155,9 +135,7 @@ public sealed class ModBackupStore
 
 public sealed record InstallRecord(
     string Id,
-    InstallRecordStatus Status,
     DateTimeOffset InstalledAt,
-    DateTimeOffset? UninstalledAt,
     string ModName,
     string ModVersion,
     string ModAuthor,
@@ -168,15 +146,6 @@ public sealed record InstallRecord(
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? OptionalGroups { get; init; }
-}
-
-public enum InstallRecordStatus
-{
-    [JsonStringEnumMemberName("installed")]
-    Installed,
-
-    [JsonStringEnumMemberName("uninstalled")]
-    Uninstalled,
 }
 
 public sealed record InstallRecordPatchedFile(

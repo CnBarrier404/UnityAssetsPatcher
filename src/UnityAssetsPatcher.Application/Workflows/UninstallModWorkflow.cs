@@ -21,11 +21,6 @@ public sealed class UninstallModWorkflow
     {
         InstallRecord record = _backupStore.Load(request.InstallDirectory);
 
-        if (record.Status != InstallRecordStatus.Installed)
-        {
-            throw new InvalidOperationException("Install record is not currently installed.");
-        }
-
         var restoredFiles = record.PatchedFiles
             .Select(file => new UninstallPreviewRestoredFileResult(
                 file.Target,
@@ -56,11 +51,6 @@ public sealed class UninstallModWorkflow
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
         InstallRecord record = _backupStore.Load(request.InstallDirectory);
-
-        if (record.Status != InstallRecordStatus.Installed)
-        {
-            throw new InvalidOperationException("Install record is not currently installed.");
-        }
 
         var restoredFiles = RestoreAssets(record.PatchedFiles);
         var deletedFiles = DeleteCopiedFiles(record.CopiedFiles);

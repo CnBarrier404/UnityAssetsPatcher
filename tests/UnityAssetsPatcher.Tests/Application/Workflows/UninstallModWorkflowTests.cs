@@ -20,9 +20,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(targetPath, "patched");
         var record = new InstallRecord(
             "install-1",
-            InstallRecordStatus.Installed,
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
-            null,
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
@@ -83,9 +81,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             "install-1",
-            InstallRecordStatus.Installed,
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
-            null,
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
@@ -147,9 +143,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             "install-1",
-            InstallRecordStatus.Installed,
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
-            null,
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
@@ -209,9 +203,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             "install-1",
-            InstallRecordStatus.Installed,
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
-            null,
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
@@ -274,9 +266,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             "install-1",
-            InstallRecordStatus.Installed,
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
-            null,
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
@@ -345,9 +335,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             "install-1",
-            InstallRecordStatus.Installed,
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
-            null,
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
@@ -416,9 +404,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             "install-1",
-            InstallRecordStatus.Installed,
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
-            null,
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
@@ -494,9 +480,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             "install-1",
-            InstallRecordStatus.Installed,
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
-            null,
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
