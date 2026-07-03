@@ -63,7 +63,7 @@ Install and uninstall both perform a preview first and only write after confirma
 - Patch targeting is selected by assets file name through `TargetAssetResolver`.
 - Install workflows may patch assets files and copy payload files from a mod package.
 - Preserve preview behavior: preview commands should analyze and print intended changes without writing assets files, copying payloads, restoring backups, deleting payloads, or updating install records.
-- `ModInstallationStore` persists install records as `record.json` files in timestamped backup directories, tracking `Installed`/`Uninstalled` status for uninstall support.
+- `ModBackupStore` persists install records as `record.json` files in timestamped backup directories. A record directory represents an installed mod; successful uninstall deletes that directory instead of writing an uninstalled status.
 - `GameDirectoryResolver` resolves a game's install directory by scanning Steam library roots for `appmanifest_*.acf` files matching the game name, parsing VDF key-value format.
 - `ModPackage` extracts source assets files from the mod zip into a temp directory when patches use `replaceAsset`, and cleans up on dispose.
 - A manifest `optional` array declares opt-in content groups. `ModPackage.Load` merges the base manifest with the caller-selected groups via `ModManifest.SelectOptional` (a pure function) before extracting sources, so downstream planning only ever sees the effective `Patches`/`Files`. The install preview reports `AvailableOptional`; the TUI asks per group and aborts on Esc. Applied group names are recorded on `InstallRecord.OptionalGroups` (omitted from record.json when none) and returned in `InstallModResult.OptionalGroups`.
@@ -90,9 +90,9 @@ Patch, install, and uninstall operations can modify real Unity game assets, so k
 - Validate current field values against manifest `from` values before writing `to` values.
 - Keep install and uninstall previews non-mutating.
 - For installs, require patch operations before applying and require payload copy destinations to be available before copying.
-- Before uninstalling, require the install record to be installed and validate that every patched assets file and install backup exists.
-- During uninstall, copy the current assets file into an `uninstall` backup directory before restoring the install backup.
-- Restore uninstall backups through a temporary file and clean it up on failure.
+- Before restoring patched assets during uninstall, validate that every patched assets file and install backup exists.
+- During uninstall, restore patched assets from their install backups. Keep per-attempt temporary rollback backups for already-restored assets so later restore failures can roll them back.
+- Restore assets through temporary files and clean them up on failure.
 - Delete copied payload files only when they still exist.
 
 ## Testing Expectations

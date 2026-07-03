@@ -35,7 +35,7 @@ The current release package is a self-contained `win-x64` single-file executable
 2. Choose `Uninstall Mod` from the main menu.
 3. Select the installation record to uninstall.
 4. Review the uninstall preview, including assets files to restore and payload files to delete.
-5. After confirmation, the tool saves the current assets file into an uninstall backup before restoring the backup created during installation.
+5. After confirmation, the tool restores patched assets from the backups created during installation and deletes copied payload files.
 
 Uninstall depends on the installation record and backup files. If the `backup` folder is deleted or moved, uninstall may no longer be possible.
 
@@ -95,7 +95,7 @@ This usually means the current field value does not match the manifest `from` va
 
 **Uninstall fails**
 
-Uninstall requires the install record, install backup, and current target file to exist. If the `backup` folder was deleted after installation, or game files were moved manually, uninstall may be refused.
+Uninstall requires the install record, install backup, and current target file to exist. If the `backup` folder was deleted after installation, or game files were moved manually, uninstall may be refused. If one assets restore fails after earlier files were restored, the tool uses temporary rollback backups to return those earlier files to their pre-uninstall state.
 
 **Payload file already exists**
 
