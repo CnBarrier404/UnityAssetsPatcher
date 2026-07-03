@@ -121,8 +121,8 @@ public sealed class ModPackage : IDisposable
         var selected = new HashSet<string>(selectedOptionalGroups, StringComparer.OrdinalIgnoreCase);
 
         return optionalGroups
-            .Where(group => selected.Contains(group.Name))
-            .Select(group => group.Name)
+            .Where(group => selected.Contains(group.Info.Name))
+            .Select(group => group.Info.Name)
             .ToArray();
     }
 

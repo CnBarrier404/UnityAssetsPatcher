@@ -50,7 +50,8 @@ public sealed class InstallModWorkflow
 
         try
         {
-            string gameDirectory = _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Game);
+            string gameDirectory =
+                _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Info.Game);
             TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
             var payloadPlan = _payloadPlanner.Plan(package.Manifest, targets);
             InstallPatchPreview patchPreview = _patchPlanner.CreatePreview(targets, package, timings);
@@ -71,8 +72,10 @@ public sealed class InstallModWorkflow
 
         try
         {
-            string gameDirectory = _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Game);
+            string gameDirectory =
+                _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Info.Game);
             TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
+
             var payloadPlan = _payloadPlanner.Plan(package.Manifest, targets);
             InstallPatchPlan patchPlan = _patchPlanner.CreateRequiredWritePlan(targets, package, timings);
 
@@ -147,8 +150,8 @@ public sealed class InstallModWorkflow
     private static InstallRecordPaths CreateRecordPaths(ModBackupStore backupStore, ModPackage package)
     {
         string installDirectory = backupStore.CreateInstallDirectory(
-            package.Manifest.Name,
-            package.Manifest.Version);
+            package.Manifest.Info.Name,
+            package.Manifest.Info.Version);
 
         return new InstallRecordPaths(
             installDirectory,

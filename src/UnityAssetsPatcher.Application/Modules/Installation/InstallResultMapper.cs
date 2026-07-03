@@ -10,7 +10,7 @@ public sealed class InstallResultMapper
         IReadOnlyList<InstallChange> payloadPreview,
         TimingSnapshot timing)
     {
-        InstallChange[] changes = patchPreview.Files
+        var changes = patchPreview.Files
             .Select(file => new InstallChange(
                 InstallChangeKind.Patch,
                 file.Target,
@@ -20,12 +20,12 @@ public sealed class InstallResultMapper
             .ToArray();
 
         return new InstallPreviewResult(
-            package.Manifest.Name,
-            package.Manifest.Version,
-            package.Manifest.Author,
+            package.Manifest.Info.Name,
+            package.Manifest.Info.Version,
+            package.Manifest.Info.Author,
             changes,
             package.OptionalGroups
-                .Select(group => (group.Name, group.Description))
+                .Select(group => (group.Info.Name, group.Info.Description))
                 .ToArray(),
             timing);
     }
@@ -36,7 +36,7 @@ public sealed class InstallResultMapper
         IReadOnlyList<InstallChange> copiedFiles,
         TimingSnapshot timing)
     {
-        InstallChange[] changes = patchApplyResult.Files
+        var changes = patchApplyResult.Files
             .Select(file => new InstallChange(
                 InstallChangeKind.Patch,
                 file.Target,
@@ -48,9 +48,9 @@ public sealed class InstallResultMapper
             .ToArray();
 
         return new InstallModResult(
-            package.Manifest.Name,
-            package.Manifest.Version,
-            package.Manifest.Author,
+            package.Manifest.Info.Name,
+            package.Manifest.Info.Version,
+            package.Manifest.Info.Author,
             changes,
             package.AppliedOptionalGroups,
             timing);

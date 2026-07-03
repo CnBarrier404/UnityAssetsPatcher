@@ -17,7 +17,14 @@ public static class ModManifestParser
         var patches = ReadTargets(manifestElement);
         var optional = ReadOptionalGroups(manifestElement);
 
-        return new ModManifest(name, author, version, description, game, files, patches, optional);
+        var info = new ModInfo(
+            Name: name,
+            Author: author,
+            Version: version,
+            Description: description,
+            Game: game);
+
+        return new ModManifest(info, files, patches, optional);
     }
 
     public static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadMatchGroups(JsonElement patchElement)
@@ -137,14 +144,13 @@ public static class ModManifestParser
         var groups = new List<ManifestOptionalGroup>();
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (JsonElement groupElement in optionalElement.EnumerateArray())
+        foreach (ManifestOptionalGroup group in optionalElement.EnumerateArray()
+                     .Select(ReadOptionalGroup))
         {
-            ManifestOptionalGroup group = ReadOptionalGroup(groupElement);
-
-            if (!names.Add(group.Name))
+            if (!names.Add(group.Info.Name))
             {
                 throw new InvalidOperationException(
-                    $"Manifest optional group names must be unique (case-insensitive): '{group.Name}'.");
+                    $"Manifest optional group names must be unique (case-insensitive): '{group.Info.Name}'.");
             }
 
             groups.Add(group);
@@ -169,7 +175,12 @@ public static class ModManifestParser
         return patches.Length == 0 && files.Length == 0
             ? throw new InvalidOperationException(
                 $"Manifest optional group '{name}' must contain at least one target patch or copyFiles entry.")
-            : new ManifestOptionalGroup(name, description, files, patches);
+            : new ManifestOptionalGroup(
+                new ModOptionalGroupInfo(
+                    Name: name,
+                    Description: description),
+                files,
+                patches);
     }
 
     private static ManifestPatch[] ReadOptionalTargets(JsonElement groupElement)

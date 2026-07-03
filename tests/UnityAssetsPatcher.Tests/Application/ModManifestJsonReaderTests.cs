@@ -85,8 +85,8 @@ public sealed class ModManifestJsonReaderTests
 
             ModManifest manifest = new ModManifestReader().Load(zipPath);
 
-            Assert.Equal("Test Mod", manifest.Name);
-            Assert.Equal("1.0.0", manifest.Version);
+            Assert.Equal("Test Mod", manifest.Info.Name);
+            Assert.Equal("1.0.0", manifest.Info.Version);
         }
         finally
         {

@@ -44,7 +44,7 @@ public sealed class ModManifestReaderTests
 
             ModManifest config = reader.Load(configPath);
 
-            Assert.Equal("Example Mod", config.Name);
+            Assert.Equal("Example Mod", config.Info.Name);
             Assert.Equal("sharedassets0.assets", Assert.Single(config.Patches).AssetsFileName);
         }
         finally
@@ -117,11 +117,11 @@ public sealed class ModManifestReaderTests
         {
             ModManifest config = new ModManifestReader().Load(configPath);
 
-            Assert.Equal("Example Mod", config.Name);
-            Assert.Equal("Author Name", config.Author);
-            Assert.Equal("1.0.0", config.Version);
-            Assert.Equal("Example description.", config.Description);
-            Assert.Null(config.Game);
+            Assert.Equal("Example Mod", config.Info.Name);
+            Assert.Equal("Author Name", config.Info.Author);
+            Assert.Equal("1.0.0", config.Info.Version);
+            Assert.Equal("Example description.", config.Info.Description);
+            Assert.Null(config.Info.Game);
             ManifestFile file = Assert.Single(config.Files);
             Assert.Equal("resources/modassets.resource", file.Source);
             Assert.Equal(2, config.Patches.Count);
@@ -183,7 +183,7 @@ public sealed class ModManifestReaderTests
         {
             ModManifest config = new ModManifestReader().Load(configPath);
 
-            Assert.Equal("Example Game", config.Game);
+            Assert.Equal("Example Game", config.Info.Game);
         }
         finally
         {
@@ -524,7 +524,7 @@ public sealed class ModManifestReaderTests
 
             ModManifest config = new ModManifestReader().Load(zipPath);
 
-            Assert.Equal("Example Mod", config.Name);
+            Assert.Equal("Example Mod", config.Info.Name);
             Assert.Equal("sharedassets0.assets", Assert.Single(config.Patches).AssetsFileName);
         }
         finally

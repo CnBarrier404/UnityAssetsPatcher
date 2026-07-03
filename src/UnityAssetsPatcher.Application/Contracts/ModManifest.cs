@@ -3,20 +3,24 @@ using System.Text.Json;
 namespace UnityAssetsPatcher.Application.Contracts;
 
 public sealed record ModManifest(
-    string Name,
-    string Author,
-    string Version,
-    string? Description,
-    string? Game,
+    ModInfo Info,
     IReadOnlyList<ManifestFile> Files,
     IReadOnlyList<ManifestPatch> Patches,
     IReadOnlyList<ManifestOptionalGroup> Optional);
 
-public sealed record ManifestOptionalGroup(
+public sealed record ModInfo(
     string Name,
+    string Author,
+    string Version,
     string? Description,
+    string? Game);
+
+public sealed record ManifestOptionalGroup(
+    ModOptionalGroupInfo Info,
     IReadOnlyList<ManifestFile> Files,
     IReadOnlyList<ManifestPatch> Patches);
+
+public sealed record ModOptionalGroupInfo(string Name, string? Description);
 
 public sealed record ManifestFile(string Source);
 

@@ -252,6 +252,38 @@ public sealed class ModManifestParserTests
     }
 
     /// <summary>
+    /// Verifies that top-level manifest metadata is parsed into ModInfo without swapping author and version.
+    /// </summary>
+    [Fact]
+    public void Parse_WhenManifestHasTopLevelMetadata_ReturnsInfoWithoutSwappingAuthorAndVersion()
+    {
+        ModManifest manifest = ParseManifest(
+            """
+            {
+              "name": "Example Mod",
+              "author": "Author Name",
+              "version": "1.0.0",
+              "description": "Example description.",
+              "game": "Example Game",
+              "targets": [
+                {
+                  "file": "sharedassets0.assets",
+                  "patches": [
+                    { "type": "Camera", "match": { "m_Name": "Main" } }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        Assert.Equal("Example Mod", manifest.Info.Name);
+        Assert.Equal("Author Name", manifest.Info.Author);
+        Assert.Equal("1.0.0", manifest.Info.Version);
+        Assert.Equal("Example description.", manifest.Info.Description);
+        Assert.Equal("Example Game", manifest.Info.Game);
+    }
+
+    /// <summary>
     /// Verifies that a manifest without an optional array yields an empty optional group list.
     /// </summary>
     [Fact]
@@ -301,8 +333,8 @@ public sealed class ModManifestParserTests
             """);
 
         ManifestOptionalGroup group = Assert.Single(manifest.Optional);
-        Assert.Equal("High-res textures", group.Name);
-        Assert.Equal("Replaces textures with 4K versions", group.Description);
+        Assert.Equal("High-res textures", group.Info.Name);
+        Assert.Equal("Replaces textures with 4K versions", group.Info.Description);
         ManifestPatch patch = Assert.Single(group.Patches);
         Assert.Equal("sharedassets1.assets", patch.AssetsFileName);
         ManifestFile file = Assert.Single(group.Files);

@@ -14,9 +14,9 @@ public sealed class InstallRecordBuilder
         return new InstallRecord(
             Guid.NewGuid().ToString("N"),
             DateTimeOffset.Now,
-            package.Manifest.Name,
-            package.Manifest.Version,
-            package.Manifest.Author,
+            package.Manifest.Info.Name,
+            package.Manifest.Info.Version,
+            package.Manifest.Info.Author,
             package.PackagePath,
             gameDirectory,
             patchApplyResult.Files

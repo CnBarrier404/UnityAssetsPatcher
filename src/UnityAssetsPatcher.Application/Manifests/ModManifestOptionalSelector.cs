@@ -14,7 +14,7 @@ public static class ModManifestOptionalSelector
             return manifest with { Optional = [] };
         }
 
-        var available = manifest.Optional.ToDictionary(group => group.Name, StringComparer.OrdinalIgnoreCase);
+        var available = manifest.Optional.ToDictionary(group => group.Info.Name, StringComparer.OrdinalIgnoreCase);
         var selectedGroups = new List<ManifestOptionalGroup>();
 
         foreach (string name in selectedNames)
@@ -27,10 +27,10 @@ public static class ModManifestOptionalSelector
             selectedGroups.Add(group);
         }
 
-        ManifestFile[] files = manifest.Files
+        var files = manifest.Files
             .Concat(selectedGroups.SelectMany(group => group.Files))
             .ToArray();
-        ManifestPatch[] patches = manifest.Patches
+        var patches = manifest.Patches
             .Concat(selectedGroups.SelectMany(group => group.Patches))
             .ToArray();
 
