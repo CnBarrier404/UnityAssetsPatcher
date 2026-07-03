@@ -52,6 +52,8 @@ public sealed class UninstallModWorkflow
     {
         InstallRecord record = _backupStore.Load(request.InstallDirectory);
 
+        ValidateUninstallAccess(record, request.InstallDirectory);
+
         var restoredFiles = RestoreAssets(record.PatchedFiles);
         var deletedFiles = DeleteCopiedFiles(record.CopiedFiles);
 
@@ -64,6 +66,32 @@ public sealed class UninstallModWorkflow
             record.ModAuthor,
             restoredFiles,
             deletedFiles);
+    }
+
+    private static void ValidateUninstallAccess(InstallRecord record, string installDirectory)
+    {
+        ValidateRestorableFiles(record.PatchedFiles);
+
+        foreach (InstallRecordPatchedFile file in record.PatchedFiles)
+        {
+            EnsureCanOpen(file.AssetsFilePath, FileAccess.ReadWrite, FileShare.None);
+            EnsureCanOpen(file.BackupPath, FileAccess.Read, FileShare.Read);
+        }
+
+        foreach (InstallRecordCopiedFile file in record.CopiedFiles)
+        {
+            if (File.Exists(file.DestinationPath))
+            {
+                EnsureCanOpen(file.DestinationPath, FileAccess.ReadWrite, FileShare.None);
+            }
+        }
+
+        EnsureCanOpen(Path.Combine(installDirectory, "record.json"), FileAccess.ReadWrite, FileShare.None);
+    }
+
+    private static void EnsureCanOpen(string path, FileAccess access, FileShare share)
+    {
+        using FileStream _ = File.Open(path, FileMode.Open, access, share);
     }
 
     private static List<UninstallRestoredFileResult> RestoreAssets(IReadOnlyList<InstallRecordPatchedFile> files)

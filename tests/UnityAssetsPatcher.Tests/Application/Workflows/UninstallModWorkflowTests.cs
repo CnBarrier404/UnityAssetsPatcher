@@ -195,6 +195,74 @@ public sealed class UninstallModWorkflowTests
     }
 
     [Fact]
+    public void Uninstall_WhenPayloadFileIsLocked_DoesNotRestoreAssetsOrDeleteRecord()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        string installAssetsDirectory = Path.Combine(installDirectory, "assets");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string backupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
+        string payloadPath = Path.Combine(targetDirectory, "modassets.resource");
+        Directory.CreateDirectory(targetDirectory);
+        Directory.CreateDirectory(installAssetsDirectory);
+        File.WriteAllText(targetPath, "patched");
+        File.WriteAllText(backupPath, "original");
+        File.WriteAllText(payloadPath, "payload");
+
+        var record = new InstallRecord(
+            "install-1",
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            gameDirectory,
+            [
+                new InstallRecordPatchedFile(
+                    "sharedassets0.assets",
+                    targetPath,
+                    backupPath,
+                    1,
+                    1),
+            ],
+            [
+                new InstallRecordCopiedFile("resources/modassets.resource", payloadPath, true),
+            ]);
+        var store = new ModBackupStore(backupDirectory);
+        store.Save(record, installDirectory);
+        var workflow = new UninstallModWorkflow(store);
+
+        try
+        {
+            using FileStream _ = File.Open(
+                payloadPath,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+            Assert.ThrowsAny<Exception>(() =>
+                workflow.Uninstall(new UninstallModRequest(installDirectory)));
+
+            Assert.Equal("patched", File.ReadAllText(targetPath));
+            Assert.True(File.Exists(Path.Combine(installDirectory, "record.json")));
+        }
+        finally
+        {
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
     public void Uninstall_WhenAssetsFileDeletedDuringUninstall_ThrowsRaceConditionError()
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -575,19 +643,18 @@ public sealed class UninstallModWorkflowTests
         var workflow = new UninstallModWorkflow(store);
 
         FileStream? restoreAttemptBackupLock = null;
+        FileStream? secondTargetLock = null;
         using var watcher = new FileSystemWatcher(targetDirectory, ".sharedassets0.assets.*.uninstall.tmp");
 
         watcher.EnableRaisingEvents = true;
-        watcher.Created += (_, args) => { restoreAttemptBackupLock ??= OpenExclusiveWhenReady(args.FullPath); };
+        watcher.Created += (_, args) =>
+        {
+            restoreAttemptBackupLock ??= OpenExclusiveWhenReady(args.FullPath);
+            secondTargetLock ??= OpenExclusiveWhenReady(secondTargetPath);
+        };
 
         try
         {
-            using FileStream _ = File.Open(
-                secondTargetPath,
-                FileMode.Open,
-                FileAccess.ReadWrite,
-                FileShare.None);
-
             var exception = Assert.Throws<AggregateException>(() =>
                 workflow.Uninstall(new UninstallModRequest(installDirectory)));
 
@@ -596,6 +663,7 @@ public sealed class UninstallModWorkflowTests
         finally
         {
             restoreAttemptBackupLock?.Dispose();
+            secondTargetLock?.Dispose();
 
             if (Directory.Exists(backupDirectory))
             {
