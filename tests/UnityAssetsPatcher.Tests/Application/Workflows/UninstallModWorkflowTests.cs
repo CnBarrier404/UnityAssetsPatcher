@@ -253,4 +253,328 @@ public sealed class UninstallModWorkflowTests
             }
         }
     }
+
+    [Fact]
+    public void Uninstall_WhenLaterBackupFileIsMissing_DoesNotRestoreEarlierAssetsFile()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        string installAssetsDirectory = Path.Combine(installDirectory, "assets");
+        string firstTargetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string firstBackupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
+        string secondTargetPath = Path.Combine(targetDirectory, "sharedassets1.assets");
+        string secondBackupPath = Path.Combine(installAssetsDirectory, "sharedassets1.assets");
+        Directory.CreateDirectory(targetDirectory);
+        Directory.CreateDirectory(installAssetsDirectory);
+        File.WriteAllText(firstTargetPath, "first patched");
+        File.WriteAllText(firstBackupPath, "first original");
+        File.WriteAllText(secondTargetPath, "second patched");
+
+        var record = new InstallRecord(
+            "install-1",
+            InstallRecordStatus.Installed,
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            null,
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            gameDirectory,
+            [
+                new InstallRecordPatchedFile(
+                    "sharedassets0.assets",
+                    firstTargetPath,
+                    firstBackupPath,
+                    1,
+                    1),
+                new InstallRecordPatchedFile(
+                    "sharedassets1.assets",
+                    secondTargetPath,
+                    secondBackupPath,
+                    1,
+                    1),
+            ],
+            []);
+        var store = new ModBackupStore(backupDirectory);
+        store.Save(record, installDirectory);
+        var workflow = new UninstallModWorkflow(store);
+
+        try
+        {
+            var exception = Assert.Throws<FileNotFoundException>(() =>
+                workflow.Uninstall(new UninstallModRequest(installDirectory)));
+
+            Assert.Contains("Backup file was deleted during uninstall", exception.Message);
+            Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
+            Assert.Equal("second patched", File.ReadAllText(secondTargetPath));
+            Assert.True(Directory.Exists(installDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Uninstall_WhenLaterAssetsFileIsMissing_DoesNotRestoreEarlierAssetsFile()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        string installAssetsDirectory = Path.Combine(installDirectory, "assets");
+        string firstTargetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string firstBackupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
+        string secondTargetPath = Path.Combine(targetDirectory, "sharedassets1.assets");
+        string secondBackupPath = Path.Combine(installAssetsDirectory, "sharedassets1.assets");
+        Directory.CreateDirectory(targetDirectory);
+        Directory.CreateDirectory(installAssetsDirectory);
+        File.WriteAllText(firstTargetPath, "first patched");
+        File.WriteAllText(firstBackupPath, "first original");
+        File.WriteAllText(secondBackupPath, "second original");
+
+        var record = new InstallRecord(
+            "install-1",
+            InstallRecordStatus.Installed,
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            null,
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            gameDirectory,
+            [
+                new InstallRecordPatchedFile(
+                    "sharedassets0.assets",
+                    firstTargetPath,
+                    firstBackupPath,
+                    1,
+                    1),
+                new InstallRecordPatchedFile(
+                    "sharedassets1.assets",
+                    secondTargetPath,
+                    secondBackupPath,
+                    1,
+                    1),
+            ],
+            []);
+        var store = new ModBackupStore(backupDirectory);
+        store.Save(record, installDirectory);
+        var workflow = new UninstallModWorkflow(store);
+
+        try
+        {
+            var exception = Assert.Throws<FileNotFoundException>(() =>
+                workflow.Uninstall(new UninstallModRequest(installDirectory)));
+
+            Assert.Contains("Assets file was deleted during uninstall", exception.Message);
+            Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
+            Assert.True(Directory.Exists(installDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Uninstall_WhenLaterAssetsFileIsLocked_RollsBackEarlierRestoredAssetsFile()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        string installAssetsDirectory = Path.Combine(installDirectory, "assets");
+        string firstTargetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string firstBackupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
+        string secondTargetPath = Path.Combine(targetDirectory, "sharedassets1.assets");
+        string secondBackupPath = Path.Combine(installAssetsDirectory, "sharedassets1.assets");
+        Directory.CreateDirectory(targetDirectory);
+        Directory.CreateDirectory(installAssetsDirectory);
+        File.WriteAllText(firstTargetPath, "first patched");
+        File.WriteAllText(firstBackupPath, "first original");
+        File.WriteAllText(secondTargetPath, "second patched");
+        File.WriteAllText(secondBackupPath, "second original");
+
+        var record = new InstallRecord(
+            "install-1",
+            InstallRecordStatus.Installed,
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            null,
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            gameDirectory,
+            [
+                new InstallRecordPatchedFile(
+                    "sharedassets0.assets",
+                    firstTargetPath,
+                    firstBackupPath,
+                    1,
+                    1),
+                new InstallRecordPatchedFile(
+                    "sharedassets1.assets",
+                    secondTargetPath,
+                    secondBackupPath,
+                    1,
+                    1),
+            ],
+            []);
+        var store = new ModBackupStore(backupDirectory);
+        store.Save(record, installDirectory);
+        var workflow = new UninstallModWorkflow(store);
+
+        try
+        {
+            using (FileStream _ = File.Open(
+                       secondTargetPath,
+                       FileMode.Open,
+                       FileAccess.ReadWrite,
+                       FileShare.None))
+            {
+                Assert.ThrowsAny<Exception>(() =>
+                    workflow.Uninstall(new UninstallModRequest(installDirectory)));
+            }
+
+            Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
+            Assert.Equal("second patched", File.ReadAllText(secondTargetPath));
+            Assert.True(Directory.Exists(installDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Uninstall_WhenRestoreAndRollbackBothFail_ReportsBothFailures()
+    {
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
+        string installAssetsDirectory = Path.Combine(installDirectory, "assets");
+        string firstTargetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+        string firstBackupPath = Path.Combine(installAssetsDirectory, "sharedassets0.assets");
+        string secondTargetPath = Path.Combine(targetDirectory, "sharedassets1.assets");
+        string secondBackupPath = Path.Combine(installAssetsDirectory, "sharedassets1.assets");
+        Directory.CreateDirectory(targetDirectory);
+        Directory.CreateDirectory(installAssetsDirectory);
+        File.WriteAllText(firstTargetPath, "first patched");
+        File.WriteAllText(firstBackupPath, new string('o', 8 * 1024 * 1024));
+        File.WriteAllText(secondTargetPath, "second patched");
+        File.WriteAllText(secondBackupPath, "second original");
+
+        var record = new InstallRecord(
+            "install-1",
+            InstallRecordStatus.Installed,
+            DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
+            null,
+            "Better Audio Pack",
+            "1.0.0",
+            "UnityAssetsPatcher.Tests",
+            null,
+            gameDirectory,
+            [
+                new InstallRecordPatchedFile(
+                    "sharedassets0.assets",
+                    firstTargetPath,
+                    firstBackupPath,
+                    1,
+                    1),
+                new InstallRecordPatchedFile(
+                    "sharedassets1.assets",
+                    secondTargetPath,
+                    secondBackupPath,
+                    1,
+                    1),
+            ],
+            []);
+
+        var store = new ModBackupStore(backupDirectory);
+        store.Save(record, installDirectory);
+        var workflow = new UninstallModWorkflow(store);
+
+        FileStream? restoreAttemptBackupLock = null;
+        using var watcher = new FileSystemWatcher(targetDirectory, ".sharedassets0.assets.*.uninstall.tmp");
+
+        watcher.EnableRaisingEvents = true;
+        watcher.Created += (_, args) => { restoreAttemptBackupLock ??= OpenExclusiveWhenReady(args.FullPath); };
+
+        try
+        {
+            using FileStream _ = File.Open(
+                secondTargetPath,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+            var exception = Assert.Throws<AggregateException>(() =>
+                workflow.Uninstall(new UninstallModRequest(installDirectory)));
+
+            Assert.True(exception.InnerExceptions.Count >= 2);
+        }
+        finally
+        {
+            restoreAttemptBackupLock?.Dispose();
+
+            if (Directory.Exists(backupDirectory))
+            {
+                Directory.Delete(backupDirectory, true);
+            }
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    private static FileStream OpenExclusiveWhenReady(string path)
+    {
+        for (int attempt = 0; attempt < 100; attempt++)
+        {
+            try
+            {
+                return File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(10);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Thread.Sleep(10);
+            }
+        }
+
+        return File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+    }
 }
