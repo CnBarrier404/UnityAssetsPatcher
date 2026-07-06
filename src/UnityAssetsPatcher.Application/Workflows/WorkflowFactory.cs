@@ -25,16 +25,18 @@ internal sealed class WorkflowFactory
     {
         PatchPlanBuilder patchPlanBuilder = CreatePatchPlanBuilder(assets.Reader);
         var assetsReadResources = new InstallAssetsReadResources(assets);
-
-        return new InstallModWorkflow(
+        var planBuilder = new InstallPlanBuilder(
             new InstallPackageSource(_manifestReader),
             _targetAssetResolver,
             _gameDirectoryResolver,
-            assetsReadResources,
             new InstallPayloadPlanner(),
+            new InstallPatchPlanner(patchPlanBuilder));
+
+        return new InstallModWorkflow(
+            planBuilder,
+            assetsReadResources,
             new InstallPayloadPreviewer(),
             new InstallPayloadCopier(),
-            new InstallPatchPlanner(patchPlanBuilder),
             new InstallPatchApplier(new PatchOutputWriter(assets.Writer), assetsReadResources),
             new InstallRecordBuilder(),
             new InstallResultMapper());

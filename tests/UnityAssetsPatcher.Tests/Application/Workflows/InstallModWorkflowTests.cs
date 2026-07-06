@@ -644,9 +644,8 @@ public sealed class InstallModWorkflowTests
               ]
             }
             """);
-        var workflow = CreateWorkflow(
-            new StubAssetsFileService([]),
-            []);
+        var assetsFileService = new StubAssetsFileService([]);
+        var workflow = CreateWorkflow(assetsFileService, []);
 
         try
         {
@@ -655,6 +654,7 @@ public sealed class InstallModWorkflowTests
 
             Assert.Contains("Game directory could not be resolved", exception.Message);
             Assert.Contains("Missing Game", exception.Message);
+            Assert.Equal(1, assetsFileService.DisposeCount);
         }
         finally
         {
@@ -808,6 +808,7 @@ public sealed class InstallModWorkflowTests
 
             Assert.Contains("matched multiple files", exception.Message);
             Assert.False(assetsFileService.WasCalled);
+            Assert.Equal(1, assetsFileService.DisposeCount);
         }
         finally
         {
@@ -1431,16 +1432,18 @@ public sealed class InstallModWorkflowTests
             new FieldPatchPlanBuilder(assetQueryService),
             new ReplacementPlanBuilder(assetQueryService));
         var assetsReadResources = new InstallAssetsReadResources(assetsFileService);
-
-        return new InstallModWorkflow(
+        var planBuilder = new InstallPlanBuilder(
             new InstallPackageSource(new ModManifestReader()),
             new TargetAssetResolver(),
             gameDirectoryResolver,
-            assetsReadResources,
             new InstallPayloadPlanner(),
+            new InstallPatchPlanner(patchPlanBuilder));
+
+        return new InstallModWorkflow(
+            planBuilder,
+            assetsReadResources,
             new InstallPayloadPreviewer(),
             new InstallPayloadCopier(),
-            new InstallPatchPlanner(patchPlanBuilder),
             new InstallPatchApplier(new PatchOutputWriter(assetsFileService), assetsReadResources),
             new InstallRecordBuilder(),
             new InstallResultMapper());

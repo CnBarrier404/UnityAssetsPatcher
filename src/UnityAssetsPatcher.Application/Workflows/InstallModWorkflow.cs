@@ -5,39 +5,27 @@ namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InstallModWorkflow
 {
-    private readonly InstallPackageSource _packageSource;
-    private readonly TargetAssetResolver _targetAssetResolver;
-    private readonly GameDirectoryResolver _gameDirectoryResolver;
+    private readonly InstallPlanBuilder _planBuilder;
     private readonly InstallAssetsReadResources _assetsReadResources;
-    private readonly InstallPayloadPlanner _payloadPlanner;
     private readonly InstallPayloadPreviewer _payloadPreviewer;
     private readonly InstallPayloadCopier _payloadCopier;
-    private readonly InstallPatchPlanner _patchPlanner;
     private readonly InstallPatchApplier _patchApplier;
     private readonly InstallRecordBuilder _recordBuilder;
     private readonly InstallResultMapper _resultMapper;
 
     public InstallModWorkflow(
-        InstallPackageSource packageSource,
-        TargetAssetResolver targetAssetResolver,
-        GameDirectoryResolver gameDirectoryResolver,
+        InstallPlanBuilder planBuilder,
         InstallAssetsReadResources assetsReadResources,
-        InstallPayloadPlanner payloadPlanner,
         InstallPayloadPreviewer payloadPreviewer,
         InstallPayloadCopier payloadCopier,
-        InstallPatchPlanner patchPlanner,
         InstallPatchApplier patchApplier,
         InstallRecordBuilder recordBuilder,
         InstallResultMapper resultMapper)
     {
-        _packageSource = packageSource;
-        _targetAssetResolver = targetAssetResolver;
-        _gameDirectoryResolver = gameDirectoryResolver;
+        _planBuilder = planBuilder;
         _assetsReadResources = assetsReadResources;
-        _payloadPlanner = payloadPlanner;
         _payloadPreviewer = payloadPreviewer;
         _payloadCopier = payloadCopier;
-        _patchPlanner = patchPlanner;
         _patchApplier = patchApplier;
         _recordBuilder = recordBuilder;
         _resultMapper = resultMapper;
@@ -46,18 +34,20 @@ public sealed class InstallModWorkflow
     public InstallPreviewResult Preview(InstallPreviewRequest request)
     {
         var timings = new StepTimer();
-        using ModPackage package = _packageSource.Open(request, timings);
 
         try
         {
-            string gameDirectory =
-                _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Info.Game);
-            TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
-            var payloadPlan = _payloadPlanner.Plan(package.Manifest, targets);
-            InstallPatchPreview patchPreview = _patchPlanner.CreatePreview(targets, package, timings);
-            var payloadPreview = _payloadPreviewer.Preview(payloadPlan);
+            using InstallPlanSession session = _planBuilder.BuildPreview(request, timings);
+            InstallPatchPreview patchPreview = session.Plan.PatchPreview
+                                               ?? throw new InvalidOperationException(
+                                                   "Preview plan does not contain a patch preview.");
+            var payloadPreview = _payloadPreviewer.Preview(session.Plan.PayloadFiles);
 
-            return _resultMapper.ToPreviewResult(package, patchPreview, payloadPreview, timings.BuildSnapshot());
+            return _resultMapper.ToPreviewResult(
+                session.Package,
+                patchPreview,
+                payloadPreview,
+                timings.BuildSnapshot());
         }
         finally
         {
@@ -68,19 +58,16 @@ public sealed class InstallModWorkflow
     public InstallModResult Install(InstallModRequest request)
     {
         var timings = new StepTimer();
-        using ModPackage package = _packageSource.Open(request, timings);
 
         try
         {
-            string gameDirectory =
-                _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Info.Game);
-            TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
-
-            var payloadPlan = _payloadPlanner.Plan(package.Manifest, targets);
-            InstallPatchPlan patchPlan = _patchPlanner.CreateRequiredWritePlan(targets, package, timings);
+            using InstallPlanSession session = _planBuilder.BuildInstall(request, timings);
+            InstallPatchPlan patchWritePlan = session.Plan.PatchWritePlan
+                                              ?? throw new InvalidOperationException(
+                                                  "Install plan does not contain a patch write plan.");
 
             var backupStore = new ModBackupStore(request.BackupDirectory);
-            InstallRecordPaths recordPaths = CreateRecordPaths(backupStore, package);
+            InstallRecordPaths recordPaths = CreateRecordPaths(backupStore, session.Package);
 
             InstallPatchApplyResult? patchApplyResult = null;
             IReadOnlyList<InstallChange> copiedFiles = [];
@@ -88,21 +75,21 @@ public sealed class InstallModWorkflow
             try
             {
                 patchApplyResult = _patchApplier.Apply(
-                    patchPlan,
+                    patchWritePlan,
                     recordPaths,
                     timings);
-                copiedFiles = _payloadCopier.Copy(package, payloadPlan, timings);
+                copiedFiles = _payloadCopier.Copy(session.Package, session.Plan.PayloadFiles, timings);
                 InstallRecord record = _recordBuilder.Build(
-                    package,
-                    gameDirectory,
+                    session.Package,
+                    session.Plan.GameDirectory,
                     patchApplyResult,
                     copiedFiles,
-                    package.AppliedOptionalGroups);
+                    session.Package.AppliedOptionalGroups);
 
                 backupStore.Save(record, recordPaths.InstallDirectory);
 
                 return _resultMapper.ToInstallResult(
-                    package,
+                    session.Package,
                     patchApplyResult,
                     copiedFiles,
                     timings.BuildSnapshot());
