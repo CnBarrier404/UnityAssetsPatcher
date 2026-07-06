@@ -6,28 +6,22 @@ namespace UnityAssetsPatcher.Application.Workflows;
 public sealed class InstallModWorkflow
 {
     private readonly InstallPlanBuilder _planBuilder;
+    private readonly InstallPlanExecutor _executor;
     private readonly InstallAssetsReadResources _assetsReadResources;
     private readonly InstallPayloadPreviewer _payloadPreviewer;
-    private readonly InstallPayloadCopier _payloadCopier;
-    private readonly InstallPatchApplier _patchApplier;
-    private readonly InstallRecordBuilder _recordBuilder;
     private readonly InstallResultMapper _resultMapper;
 
     public InstallModWorkflow(
         InstallPlanBuilder planBuilder,
+        InstallPlanExecutor executor,
         InstallAssetsReadResources assetsReadResources,
         InstallPayloadPreviewer payloadPreviewer,
-        InstallPayloadCopier payloadCopier,
-        InstallPatchApplier patchApplier,
-        InstallRecordBuilder recordBuilder,
         InstallResultMapper resultMapper)
     {
         _planBuilder = planBuilder;
+        _executor = executor;
         _assetsReadResources = assetsReadResources;
         _payloadPreviewer = payloadPreviewer;
-        _payloadCopier = payloadCopier;
-        _patchApplier = patchApplier;
-        _recordBuilder = recordBuilder;
         _resultMapper = resultMapper;
     }
 
@@ -62,86 +56,20 @@ public sealed class InstallModWorkflow
         try
         {
             using InstallPlanSession session = _planBuilder.BuildInstall(request, timings);
-            InstallPatchPlan patchWritePlan = session.Plan.PatchWritePlan
-                                              ?? throw new InvalidOperationException(
-                                                  "Install plan does not contain a patch write plan.");
+            InstallExecutionResult execution = _executor.Execute(
+                session,
+                request.BackupDirectory,
+                timings);
 
-            var backupStore = new ModBackupStore(request.BackupDirectory);
-            InstallRecordPaths recordPaths = CreateRecordPaths(backupStore, session.Package);
-
-            InstallPatchApplyResult? patchApplyResult = null;
-            IReadOnlyList<InstallChange> copiedFiles = [];
-
-            try
-            {
-                patchApplyResult = _patchApplier.Apply(
-                    patchWritePlan,
-                    recordPaths,
-                    timings);
-                copiedFiles = _payloadCopier.Copy(session.Package, session.Plan.PayloadFiles, timings);
-                InstallRecord record = _recordBuilder.Build(
-                    session.Package,
-                    session.Plan.GameDirectory,
-                    patchApplyResult,
-                    copiedFiles,
-                    session.Package.AppliedOptionalGroups);
-
-                backupStore.Save(record, recordPaths.InstallDirectory);
-
-                return _resultMapper.ToInstallResult(
-                    session.Package,
-                    patchApplyResult,
-                    copiedFiles,
-                    timings.BuildSnapshot());
-            }
-            catch (Exception ex)
-            {
-                try
-                {
-                    RollbackInstall(recordPaths, patchApplyResult, copiedFiles);
-                }
-                catch (Exception rollbackException)
-                {
-                    throw new InvalidOperationException(
-                        "Install failed and rollback also failed.",
-                        new AggregateException(ex, rollbackException));
-                }
-
-                throw;
-            }
+            return _resultMapper.ToInstallResult(
+                session.Package,
+                execution.PatchApplyResult,
+                execution.CopiedFiles,
+                timings.BuildSnapshot());
         }
         finally
         {
             _assetsReadResources.Release();
         }
-    }
-
-    private static void RollbackInstall(
-        InstallRecordPaths recordPaths,
-        InstallPatchApplyResult? patchApplyResult,
-        IReadOnlyList<InstallChange> copiedFiles)
-    {
-        InstallPayloadCopier.Rollback(copiedFiles);
-
-        if (patchApplyResult is not null)
-        {
-            InstallPatchApplier.Rollback(patchApplyResult);
-        }
-
-        if (Directory.Exists(recordPaths.InstallDirectory))
-        {
-            Directory.Delete(recordPaths.InstallDirectory, true);
-        }
-    }
-
-    private static InstallRecordPaths CreateRecordPaths(ModBackupStore backupStore, ModPackage package)
-    {
-        string installDirectory = backupStore.CreateInstallDirectory(
-            package.Manifest.Info.Name,
-            package.Manifest.Info.Version);
-
-        return new InstallRecordPaths(
-            installDirectory,
-            Path.Combine(installDirectory, "assets"));
     }
 }

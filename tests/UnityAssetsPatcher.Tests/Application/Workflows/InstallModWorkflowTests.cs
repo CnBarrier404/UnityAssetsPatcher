@@ -1438,14 +1438,16 @@ public sealed class InstallModWorkflowTests
             gameDirectoryResolver,
             new InstallPayloadPlanner(),
             new InstallPatchPlanner(patchPlanBuilder));
+        var executor = new InstallPlanExecutor(
+            new InstallPatchApplier(new PatchOutputWriter(assetsFileService), assetsReadResources),
+            new InstallPayloadCopier(),
+            new InstallRecordBuilder());
 
         return new InstallModWorkflow(
             planBuilder,
+            executor,
             assetsReadResources,
             new InstallPayloadPreviewer(),
-            new InstallPayloadCopier(),
-            new InstallPatchApplier(new PatchOutputWriter(assetsFileService), assetsReadResources),
-            new InstallRecordBuilder(),
             new InstallResultMapper());
     }
 }
