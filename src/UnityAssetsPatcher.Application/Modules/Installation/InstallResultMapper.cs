@@ -2,9 +2,9 @@ using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Modules.Installation;
 
-public sealed class InstallResultMapper
+public static class InstallResultMapper
 {
-    public InstallPreviewResult ToPreviewResult(
+    public static InstallPreviewResult ToPreviewResult(
         ModPackage package,
         InstallPatchPreview patchPreview,
         IReadOnlyList<InstallChange> payloadPreview,
@@ -30,7 +30,7 @@ public sealed class InstallResultMapper
             timing);
     }
 
-    public InstallModResult ToInstallResult(
+    public static InstallModResult ToInstallResult(
         ModPackage package,
         InstallPatchApplyResult patchApplyResult,
         IReadOnlyList<InstallChange> copiedFiles,

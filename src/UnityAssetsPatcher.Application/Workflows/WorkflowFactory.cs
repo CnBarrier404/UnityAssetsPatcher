@@ -24,24 +24,17 @@ internal sealed class WorkflowFactory
     public InstallModWorkflow CreateInstallWorkflow(IAssetsAccessScope assets)
     {
         PatchPlanBuilder patchPlanBuilder = CreatePatchPlanBuilder(assets.Reader);
-        var assetsReadResources = new InstallAssetsReadResources(assets);
-        var planBuilder = new InstallPlanBuilder(
-            new InstallPackageSource(_manifestReader),
+        var planner = new InstallPlanner(
+            _manifestReader,
             _targetAssetResolver,
             _gameDirectoryResolver,
-            new InstallPayloadPlanner(),
-            new InstallPatchPlanner(patchPlanBuilder));
-        var executor = new InstallPlanExecutor(
-            new InstallPatchApplier(new PatchOutputWriter(assets.Writer), assetsReadResources),
-            new InstallPayloadCopier(),
-            new InstallRecordBuilder());
+            patchPlanBuilder);
+        
+        var executor = new InstallExecutor(new PatchOutputWriter(assets.Writer), assets);
 
         return new InstallModWorkflow(
-            planBuilder,
-            executor,
-            assetsReadResources,
-            new InstallPayloadPreviewer(),
-            new InstallResultMapper());
+            planner,
+            executor);
     }
 
     public UninstallModWorkflow CreateUninstallWorkflow(string backupDirectory)

@@ -1431,23 +1431,15 @@ public sealed class InstallModWorkflowTests
         var patchPlanBuilder = new PatchPlanBuilder(
             new FieldPatchPlanBuilder(assetQueryService),
             new ReplacementPlanBuilder(assetQueryService));
-        var assetsReadResources = new InstallAssetsReadResources(assetsFileService);
-        var planBuilder = new InstallPlanBuilder(
-            new InstallPackageSource(new ModManifestReader()),
+        var planner = new InstallPlanner(
+            new ModManifestReader(),
             new TargetAssetResolver(),
             gameDirectoryResolver,
-            new InstallPayloadPlanner(),
-            new InstallPatchPlanner(patchPlanBuilder));
-        var executor = new InstallPlanExecutor(
-            new InstallPatchApplier(new PatchOutputWriter(assetsFileService), assetsReadResources),
-            new InstallPayloadCopier(),
-            new InstallRecordBuilder());
+            patchPlanBuilder);
+        var executor = new InstallExecutor(new PatchOutputWriter(assetsFileService), assetsFileService);
 
         return new InstallModWorkflow(
-            planBuilder,
-            executor,
-            assetsReadResources,
-            new InstallPayloadPreviewer(),
-            new InstallResultMapper());
+            planner,
+            executor);
     }
 }

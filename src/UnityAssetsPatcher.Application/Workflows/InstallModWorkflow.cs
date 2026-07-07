@@ -5,24 +5,15 @@ namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InstallModWorkflow
 {
-    private readonly InstallPlanBuilder _planBuilder;
-    private readonly InstallPlanExecutor _executor;
-    private readonly InstallAssetsReadResources _assetsReadResources;
-    private readonly InstallPayloadPreviewer _payloadPreviewer;
-    private readonly InstallResultMapper _resultMapper;
+    private readonly InstallPlanner _planner;
+    private readonly InstallExecutor _executor;
 
     public InstallModWorkflow(
-        InstallPlanBuilder planBuilder,
-        InstallPlanExecutor executor,
-        InstallAssetsReadResources assetsReadResources,
-        InstallPayloadPreviewer payloadPreviewer,
-        InstallResultMapper resultMapper)
+        InstallPlanner planner,
+        InstallExecutor executor)
     {
-        _planBuilder = planBuilder;
+        _planner = planner;
         _executor = executor;
-        _assetsReadResources = assetsReadResources;
-        _payloadPreviewer = payloadPreviewer;
-        _resultMapper = resultMapper;
     }
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
@@ -31,21 +22,20 @@ public sealed class InstallModWorkflow
 
         try
         {
-            using InstallPlanSession session = _planBuilder.BuildPreview(request, timings);
-            InstallPatchPreview patchPreview = session.Plan.PatchPreview
-                                               ?? throw new InvalidOperationException(
-                                                   "Preview plan does not contain a patch preview.");
-            var payloadPreview = _payloadPreviewer.Preview(session.Plan.PayloadFiles);
+            using InstallPlanSession session = _planner.BuildPreview(request, timings);
+            InstallPreviewPlan preview = session.Plan.Preview
+                                         ?? throw new InvalidOperationException(
+                                             "Install plan does not contain a preview plan.");
 
-            return _resultMapper.ToPreviewResult(
+            return InstallResultMapper.ToPreviewResult(
                 session.Package,
-                patchPreview,
-                payloadPreview,
+                preview.Patch,
+                preview.Payload,
                 timings.BuildSnapshot());
         }
         finally
         {
-            _assetsReadResources.Release();
+            _executor.ReleaseReadResources();
         }
     }
 
@@ -55,13 +45,14 @@ public sealed class InstallModWorkflow
 
         try
         {
-            using InstallPlanSession session = _planBuilder.BuildInstall(request, timings);
+            using InstallPlanSession session = _planner.BuildInstall(request, timings);
+
             InstallExecutionResult execution = _executor.Execute(
                 session,
                 request.BackupDirectory,
                 timings);
 
-            return _resultMapper.ToInstallResult(
+            return InstallResultMapper.ToInstallResult(
                 session.Package,
                 execution.PatchApplyResult,
                 execution.CopiedFiles,
@@ -69,7 +60,7 @@ public sealed class InstallModWorkflow
         }
         finally
         {
-            _assetsReadResources.Release();
+            _executor.ReleaseReadResources();
         }
     }
 }
