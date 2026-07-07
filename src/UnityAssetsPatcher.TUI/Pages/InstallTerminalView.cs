@@ -1,6 +1,6 @@
 using System.Globalization;
-using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 

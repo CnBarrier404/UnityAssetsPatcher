@@ -47,8 +47,8 @@ Install and uninstall both perform a preview first and only write after confirma
 - Domain workflow orchestration lives in `PatchAssetsWorkflow`, `InstallModWorkflow`, and `UninstallModWorkflow`, composed through `WorkflowFactory`.
 - `WorkflowFactory` manually composes workflow instances with their dependencies using the provided `IAssetsAccessScope`. The top-level `IWorkflowService`, `WorkflowFactory`, and `IAssetsAccessScopeFactory` are DI-managed singletons.
 - `IWorkflowService` / `WorkflowService` is the application facade that delegates to workflow instances via `WorkflowFactory`. Request and response types live in `Application/Contracts/` as `WorkflowRequests` and `WorkflowResults`.
-- Patch/install/uninstall behavior belongs under `src/UnityAssetsPatcher.Application`.
-- Reusable install steps such as package loading, target resolution, patch planning, payload planning, and copy/apply execution belong under `Application/Modules`.
+- Patch/install/uninstall behavior belongs under `src/UnityAssetsPatcher.Application/Installation`, `src/UnityAssetsPatcher.Application/Uninstallation`, and `src/UnityAssetsPatcher.Application/Patching`.
+- Reusable install steps such as package loading, target resolution, patch planning, payload planning, and copy/apply execution belong under `Application/Installation`.
 - Patch query, field patch planning, replacement planning, and output write coordination belong under `Application/Patching`.
 - Shared domain models and contracts belong under `src/UnityAssetsPatcher.Core`.
 - Keep AssetsTools.NET-specific behavior inside `src/UnityAssetsPatcher.AssetsTools`.

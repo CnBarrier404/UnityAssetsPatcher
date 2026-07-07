@@ -1,9 +1,8 @@
 using System.IO.Compression;
-using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Modules.Installation;
-using UnityAssetsPatcher.Application.Modules.Patching;
+using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;

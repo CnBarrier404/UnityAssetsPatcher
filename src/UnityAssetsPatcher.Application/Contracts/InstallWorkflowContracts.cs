@@ -1,3 +1,5 @@
+using UnityAssetsPatcher.Application.Installation;
+
 namespace UnityAssetsPatcher.Application.Contracts;
 
 public sealed record InstallModRequest(string ZipFilePath, string? GameDirectory, string BackupDirectory)

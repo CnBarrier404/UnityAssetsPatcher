@@ -1,7 +1,7 @@
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Modules.Installation;
-using UnityAssetsPatcher.Application.Modules.Patching;
-using UnityAssetsPatcher.Application.Modules.Uninstallation;
+using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;

@@ -1,6 +1,6 @@
-using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Modules.Uninstallation;
+using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Workflows;
 using Xunit;
 

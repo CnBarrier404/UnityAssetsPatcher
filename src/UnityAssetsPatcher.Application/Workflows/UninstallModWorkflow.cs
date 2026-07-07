@@ -1,5 +1,5 @@
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Modules.Uninstallation;
+using UnityAssetsPatcher.Application.Uninstallation;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 

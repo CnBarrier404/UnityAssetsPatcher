@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;

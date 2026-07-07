@@ -1,0 +1,193 @@
+using System.IO.Compression;
+using System.Text.Json;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
+
+namespace UnityAssetsPatcher.Application.Installation;
+
+public sealed class ModPackage : IDisposable
+{
+    public IReadOnlyDictionary<string, string> PatchSourcePaths { get; }
+    public IReadOnlyList<ManifestOptionalGroup> OptionalGroups { get; }
+    public IReadOnlyList<string> AppliedOptionalGroups { get; }
+    public ModManifest Manifest { get; }
+    public string PackagePath { get; }
+
+    private readonly ModPackageArchive _archive;
+    private readonly string? _temporaryDirectory;
+    private long _reservedUncompressedBytes;
+
+    private ModPackage(
+        string packagePath,
+        ModManifest manifest,
+        IReadOnlyList<ManifestOptionalGroup> optionalGroups,
+        IReadOnlyList<string> appliedOptionalGroups,
+        IReadOnlyDictionary<string, string> patchSourcePaths,
+        ModPackageArchive archive,
+        string? temporaryDirectory,
+        long reservedUncompressedBytes)
+    {
+        PackagePath = packagePath;
+        Manifest = manifest;
+        OptionalGroups = optionalGroups;
+        AppliedOptionalGroups = appliedOptionalGroups;
+        PatchSourcePaths = patchSourcePaths;
+        _archive = archive;
+        _temporaryDirectory = temporaryDirectory;
+        _reservedUncompressedBytes = reservedUncompressedBytes;
+    }
+
+    public static ModPackage Open(
+        string modPackagePath,
+        IReadOnlyList<string> selectedOptionalGroups,
+        ModManifestReader manifestReader,
+        StepTimer timings)
+    {
+        string modPackageFullPath = Path.GetFullPath(modPackagePath);
+        long reservedUncompressedBytes = 0;
+        var packageArchive = new ModPackageArchive(modPackageFullPath);
+
+        ZipArchive? archive = null;
+
+        if (!File.Exists(modPackageFullPath))
+        {
+            throw new FileNotFoundException($"Mod not found: {modPackageFullPath}");
+        }
+
+        try
+        {
+            ModManifest manifest = timings.Measure("read-package", () =>
+            {
+                archive = packageArchive.OpenRead();
+
+                JsonElement manifestElement = ModManifestJsonReader.ReadFromZipArchive(archive, modPackageFullPath);
+
+                return manifestReader.Load(manifestElement);
+            });
+
+            ModManifest effectiveManifest = manifest.SelectOptional(selectedOptionalGroups);
+            string[] appliedOptionalGroups = ResolveAppliedOptionalGroups(manifest.Optional, selectedOptionalGroups);
+
+            if (archive is null)
+            {
+                throw new InvalidOperationException("Mod package was not opened while reading the manifest.");
+            }
+
+            (var patchSourcePaths, string? temporaryDirectory) =
+                timings.Measure("prepare-sources", () =>
+                    ExtractPatchSources(packageArchive, effectiveManifest, archive, ref reservedUncompressedBytes));
+
+            return new ModPackage(
+                modPackageFullPath,
+                effectiveManifest,
+                manifest.Optional,
+                appliedOptionalGroups,
+                patchSourcePaths,
+                packageArchive,
+                temporaryDirectory,
+                reservedUncompressedBytes);
+        }
+        finally
+        {
+            archive?.Dispose();
+        }
+    }
+
+    public void CopyPayloadFile(string source, string destinationPath)
+    {
+        using ZipArchive archive = _archive.OpenRead();
+        ZipArchiveEntry entry = _archive.FindRequiredFileEntry(archive, source);
+
+        ModPackageArchive.CopyEntryToNewFile(entry, destinationPath, ref _reservedUncompressedBytes);
+    }
+
+    public void Dispose()
+    {
+        if (_temporaryDirectory is not null && Directory.Exists(_temporaryDirectory))
+        {
+            Directory.Delete(_temporaryDirectory, recursive: true);
+        }
+    }
+
+    private static string[] ResolveAppliedOptionalGroups(
+        IReadOnlyList<ManifestOptionalGroup> optionalGroups,
+        IReadOnlyList<string> selectedOptionalGroups)
+    {
+        if (selectedOptionalGroups.Count == 0)
+        {
+            return [];
+        }
+
+        var selected = new HashSet<string>(selectedOptionalGroups, StringComparer.OrdinalIgnoreCase);
+
+        return optionalGroups
+            .Where(group => selected.Contains(group.Info.Name))
+            .Select(group => group.Info.Name)
+            .ToArray();
+    }
+
+    private static (IReadOnlyDictionary<string, string> Paths, string? TemporaryDirectory) ExtractPatchSources(
+        ModPackageArchive packageArchive,
+        ModManifest manifest,
+        ZipArchive archive,
+        ref long reservedUncompressedBytes)
+    {
+        string[] replacementSources = manifest.Patches
+            .Select(patch => patch.ReplaceFrom?.AssetsFilePath)
+            .OfType<string>()
+            .Select(source => source.Replace('\\', '/'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (replacementSources.Length == 0)
+        {
+            return (new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), null);
+        }
+
+        string temporaryDirectory = Path.Combine(Path.GetTempPath(), $"UnityAssetsPatcher.{Guid.NewGuid():N}");
+
+        try
+        {
+            var paths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string source in replacementSources)
+            {
+                ZipArchiveEntry entry = packageArchive.FindRequiredFileEntry(archive, source);
+                string destinationPath = ResolveUnderDirectory(temporaryDirectory, source);
+
+                ModPackageArchive.CopyEntryToNewFile(entry, destinationPath, ref reservedUncompressedBytes);
+                paths[source] = destinationPath;
+            }
+
+            return (paths, temporaryDirectory);
+        }
+        catch
+        {
+            if (Directory.Exists(temporaryDirectory))
+            {
+                Directory.Delete(temporaryDirectory, recursive: true);
+            }
+
+            throw;
+        }
+    }
+
+    private static string ResolveUnderDirectory(string rootDirectory, string relativePath)
+    {
+        string fullRootDirectory = Path.GetFullPath(rootDirectory);
+        string fullPath = Path.GetFullPath(Path.Combine(
+            fullRootDirectory,
+            relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        string rootWithSeparator = fullRootDirectory.EndsWith(Path.DirectorySeparatorChar)
+            ? fullRootDirectory
+            : fullRootDirectory + Path.DirectorySeparatorChar;
+
+        if (!fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Zip payload source cannot escape its extraction directory: {relativePath}");
+        }
+
+        return fullPath;
+    }
+}
