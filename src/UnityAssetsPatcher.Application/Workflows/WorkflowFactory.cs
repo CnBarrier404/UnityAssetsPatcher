@@ -1,6 +1,7 @@
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Modules.Installation;
 using UnityAssetsPatcher.Application.Modules.Patching;
+using UnityAssetsPatcher.Application.Modules.Uninstallation;
 using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
@@ -29,7 +30,7 @@ internal sealed class WorkflowFactory
             _targetAssetResolver,
             _gameDirectoryResolver,
             patchPlanBuilder);
-        
+
         var executor = new InstallExecutor(new PatchOutputWriter(assets.Writer), assets);
 
         return new InstallModWorkflow(
@@ -39,7 +40,11 @@ internal sealed class WorkflowFactory
 
     public UninstallModWorkflow CreateUninstallWorkflow(string backupDirectory)
     {
-        return new UninstallModWorkflow(new ModBackupStore(backupDirectory));
+        var backupStore = new ModBackupStore(backupDirectory);
+
+        return new UninstallModWorkflow(
+            new UninstallPlanner(backupStore),
+            new UninstallExecutor());
     }
 
     private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)

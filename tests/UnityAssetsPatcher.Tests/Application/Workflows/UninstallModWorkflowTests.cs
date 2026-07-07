@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Modules.Uninstallation;
 using UnityAssetsPatcher.Application.Workflows;
 using Xunit;
 
@@ -37,7 +38,7 @@ public sealed class UninstallModWorkflowTests
             []);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -100,7 +101,7 @@ public sealed class UninstallModWorkflowTests
             ]);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -162,7 +163,7 @@ public sealed class UninstallModWorkflowTests
             []);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -232,7 +233,7 @@ public sealed class UninstallModWorkflowTests
             ]);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -296,7 +297,7 @@ public sealed class UninstallModWorkflowTests
             []);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -356,7 +357,7 @@ public sealed class UninstallModWorkflowTests
             []);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -425,7 +426,7 @@ public sealed class UninstallModWorkflowTests
             []);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -494,7 +495,7 @@ public sealed class UninstallModWorkflowTests
             []);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -563,7 +564,7 @@ public sealed class UninstallModWorkflowTests
             []);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         try
         {
@@ -640,7 +641,7 @@ public sealed class UninstallModWorkflowTests
 
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = new UninstallModWorkflow(store);
+        var workflow = CreateWorkflow(store);
 
         FileStream? restoreAttemptBackupLock = null;
         FileStream? secondTargetLock = null;
@@ -696,5 +697,10 @@ public sealed class UninstallModWorkflowTests
         }
 
         return File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+    }
+
+    private static UninstallModWorkflow CreateWorkflow(ModBackupStore store)
+    {
+        return new UninstallModWorkflow(new UninstallPlanner(store), new UninstallExecutor());
     }
 }
