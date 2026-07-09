@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Installation;

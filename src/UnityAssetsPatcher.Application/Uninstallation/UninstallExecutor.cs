@@ -1,6 +1,6 @@
 using System.Runtime.ExceptionServices;
+using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Installation;
 
 namespace UnityAssetsPatcher.Application.Uninstallation;
 

@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
-using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Backups;
 using Xunit;
 
-namespace UnityAssetsPatcher.Tests.Application.Installation;
+namespace UnityAssetsPatcher.Tests.Application.Backups;
 
 public sealed class ModBackupStoreTests
 {

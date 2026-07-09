@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.IO;
 
-namespace UnityAssetsPatcher.Application.Installation;
+namespace UnityAssetsPatcher.Application.Backups;
 
 public sealed class ModBackupStore
 {

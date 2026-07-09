@@ -1,3 +1,4 @@
+using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Core.Assets;
