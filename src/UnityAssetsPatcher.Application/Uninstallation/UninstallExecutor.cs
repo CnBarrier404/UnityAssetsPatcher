@@ -8,6 +8,11 @@ public sealed class UninstallExecutor
 {
     public UninstallExecutionResult Execute(UninstallPlan plan)
     {
+        UninstallPathValidator.ValidateRecordPaths(
+            plan.BackupDirectory,
+            plan.InstallDirectory,
+            plan.Record);
+
         ValidateUninstallAccess(plan.Record, plan.InstallDirectory);
 
         var restoredFiles = RestoreAssets(plan.Record.PatchedFiles);

@@ -19,7 +19,13 @@ public sealed class UninstallPlanner
 
     public UninstallPreviewPlan BuildPreview(UninstallPreviewRequest request)
     {
+        UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, request.InstallDirectory);
+
         InstallRecord record = _backupStore.Load(request.InstallDirectory);
+        UninstallPathValidator.ValidateRecordPaths(
+            _backupStore.BackupDirectory,
+            request.InstallDirectory,
+            record);
 
         var restoredFiles = record.PatchedFiles
             .Select(file => new UninstallPreviewRestoredFileResult(
@@ -44,9 +50,15 @@ public sealed class UninstallPlanner
 
     public UninstallPlan BuildUninstall(UninstallModRequest request)
     {
-        InstallRecord record = _backupStore.Load(request.InstallDirectory);
+        UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, request.InstallDirectory);
 
-        return new UninstallPlan(request.InstallDirectory, record);
+        InstallRecord record = _backupStore.Load(request.InstallDirectory);
+        UninstallPathValidator.ValidateRecordPaths(
+            _backupStore.BackupDirectory,
+            request.InstallDirectory,
+            record);
+
+        return new UninstallPlan(_backupStore.BackupDirectory, request.InstallDirectory, record);
     }
 }
 
@@ -56,4 +68,4 @@ public sealed record UninstallPreviewPlan(
     IReadOnlyList<UninstallPreviewRestoredFileResult> RestoredFiles,
     IReadOnlyList<UninstallPreviewDeletedFileResult> DeletedFiles);
 
-public sealed record UninstallPlan(string InstallDirectory, InstallRecord Record);
+public sealed record UninstallPlan(string BackupDirectory, string InstallDirectory, InstallRecord Record);

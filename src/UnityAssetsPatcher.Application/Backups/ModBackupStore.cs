@@ -7,31 +7,33 @@ namespace UnityAssetsPatcher.Application.Backups;
 
 public sealed class ModBackupStore
 {
-    private const string RecordFileName = "record.json";
-    private readonly string _backupDirectory;
+    public string BackupDirectory { get; }
+
     private readonly Func<DateTimeOffset> _now;
+
+    private const string RecordFileName = "record.json";
 
     public ModBackupStore(string backupDirectory, Func<DateTimeOffset>? now = null)
     {
         ArgumentNullException.ThrowIfNull(backupDirectory);
 
-        _backupDirectory = backupDirectory;
+        BackupDirectory = backupDirectory;
         _now = now ?? (() => DateTimeOffset.Now);
     }
 
     public string CreateInstallDirectory(string modName, string version)
     {
-        Directory.CreateDirectory(_backupDirectory);
+        Directory.CreateDirectory(BackupDirectory);
 
         string timestamp = _now().ToString("yyyyMMddHHmmss");
         string sanitizedName = SanitizePathSegment(modName, "UnknownMod");
         string sanitizedVersion = SanitizePathSegment(version, "UnknownVersion");
         string baseName = $"{timestamp}-{sanitizedName}-{sanitizedVersion}";
-        string candidate = Path.Combine(_backupDirectory, baseName);
+        string candidate = Path.Combine(BackupDirectory, baseName);
 
         for (int index = 1; Directory.Exists(candidate); index++)
         {
-            candidate = Path.Combine(_backupDirectory, $"{baseName}.{index}");
+            candidate = Path.Combine(BackupDirectory, $"{baseName}.{index}");
         }
 
         Directory.CreateDirectory(candidate);
@@ -100,12 +102,12 @@ public sealed class ModBackupStore
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
     {
-        if (!Directory.Exists(_backupDirectory))
+        if (!Directory.Exists(BackupDirectory))
         {
             return [];
         }
 
-        return Directory.EnumerateFiles(_backupDirectory, RecordFileName, SearchOption.AllDirectories)
+        return Directory.EnumerateFiles(BackupDirectory, RecordFileName, SearchOption.AllDirectories)
             .Select(path => Path.GetDirectoryName(path) ??
                             throw new InvalidOperationException(
                                 $"Cannot resolve install record directory: {path}"))
