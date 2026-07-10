@@ -1106,7 +1106,7 @@ public sealed class UninstallModWorkflowTests
             var exception = Assert.Throws<InvalidOperationException>(() =>
                 workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
 
-            Assert.Contains("Payload destination path must be inside the game directory", exception.Message);
+            Assert.Contains("Uninstall payload destination path must be inside its trusted directory", exception.Message);
             Assert.Equal("victim payload", File.ReadAllText(payloadPath));
             Assert.True(File.Exists(Path.Combine(installDirectory, "record.json")));
         }
