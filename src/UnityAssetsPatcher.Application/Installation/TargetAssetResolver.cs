@@ -18,11 +18,17 @@ public sealed class TargetAssetResolver
         return new TargetAssetSet(targets);
     }
 
-    private static Dictionary<string, string> ResolveTargetPaths(
+    public static Dictionary<string, string> ResolveTargetPaths(
         string gameDirectory,
         IEnumerable<string> targetNames)
     {
-        string fullGameDirectory = Path.GetFullPath(gameDirectory);
+        string fullGameDirectory = GetResolvedPath(gameDirectory);
+
+        if (!Directory.Exists(fullGameDirectory))
+        {
+            throw new DirectoryNotFoundException($"Game directory not found: {fullGameDirectory}");
+        }
+
         string[] distinctTargetNames = targetNames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var matchesByTarget = distinctTargetNames.ToDictionary(
             target => target,
@@ -30,13 +36,27 @@ public sealed class TargetAssetResolver
             StringComparer.OrdinalIgnoreCase);
         var targetNameSet = distinctTargetNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (string filePath in Directory.EnumerateFiles(fullGameDirectory, "*", SearchOption.AllDirectories))
+        var enumerationOptions = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint
+        };
+
+        foreach (string filePath in Directory.EnumerateFiles(fullGameDirectory, "*", enumerationOptions))
         {
             string fileName = Path.GetFileName(filePath);
 
             if (targetNameSet.Contains(fileName))
             {
-                matchesByTarget[fileName].Add(Path.GetFullPath(filePath));
+                string resolvedFilePath = GetResolvedPath(filePath);
+
+                if (!IsPathInsideDirectory(resolvedFilePath, fullGameDirectory))
+                {
+                    throw new InvalidOperationException(
+                        $"Target '{fileName}' resolved outside game directory: {filePath}");
+                }
+
+                matchesByTarget[fileName].Add(resolvedFilePath);
             }
         }
 
@@ -63,6 +83,53 @@ public sealed class TargetAssetResolver
 
         return resolvedTargets;
     }
+
+    public static string GetResolvedPath(string path)
+    {
+        string fullPath = Path.GetFullPath(path);
+        string root = Path.GetPathRoot(fullPath) ??
+                      throw new InvalidOperationException($"Cannot resolve path: {path}");
+        string resolvedPath = root;
+        string[] segments = fullPath[root.Length..]
+            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (string segment in segments)
+        {
+            resolvedPath = Path.Combine(resolvedPath, segment);
+            FileSystemInfo? entry = GetFileSystemInfo(resolvedPath);
+
+            if (entry?.LinkTarget is not null)
+            {
+                resolvedPath = entry.ResolveLinkTarget(returnFinalTarget: true)?.FullName ??
+                               throw new InvalidOperationException($"Cannot resolve path: {path}");
+            }
+        }
+
+        return Path.GetFullPath(resolvedPath);
+    }
+
+    public static bool IsPathInsideDirectory(string fullPath, string fullDirectory)
+    {
+        string directory = fullDirectory.TrimEnd(
+            Path.DirectorySeparatorChar,
+            Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+        return fullPath.StartsWith(directory, PathComparison);
+    }
+
+    public static FileSystemInfo? GetFileSystemInfo(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            return new DirectoryInfo(path);
+        }
+
+        return File.Exists(path) ? new FileInfo(path) : null;
+    }
+
+    private static StringComparison PathComparison =>
+        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 }
 
 public sealed record TargetAsset(string Name, string AssetsFilePath, IReadOnlyList<ManifestPatch> Patches);
