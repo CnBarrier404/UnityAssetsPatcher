@@ -148,7 +148,6 @@ public sealed class TerminalFrameworkTests : IDisposable
             .AddSingleton<IAssetsAccessScopeFactory>(new ThrowingAssetsAccessScopeFactory())
             .AddUnityAssetsPatcherApplication("backup")
             .AddUnityAssetsPatcherTUI(
-                "backup",
                 AppInfo.Default,
                 console)
             .BuildServiceProvider(new ServiceProviderOptions

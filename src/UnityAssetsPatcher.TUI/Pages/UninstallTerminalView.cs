@@ -24,10 +24,12 @@ internal sealed class UninstallTerminalView
         _ui.Text.WriteInfo(message);
     }
 
-    public void WriteCannotUninstallMissingFiles()
+    public void WriteCannotUninstall(UninstallPreviewResult preview)
     {
         _ui.Text.WriteBlankLine();
-        _ui.Text.WriteError(LocalizedStrings.UninstallPage_CannotUninstallMissingFiles);
+        _ui.Text.WriteError(preview.BlockingMods.Count > 0
+            ? LocalizedStrings.UninstallPage_CannotUninstallBlockingMods
+            : LocalizedStrings.UninstallPage_CannotUninstallMissingFiles);
     }
 
     public void WriteUninstallCanceled()
@@ -75,6 +77,25 @@ internal sealed class UninstallTerminalView
 
         WriteRestoredPreviewFiles(preview.RestoredFiles);
         WriteDeletedPreviewFiles(preview.DeletedFiles);
+        WriteBlockingMods(preview.BlockingMods);
+    }
+
+    private void WriteBlockingMods(IReadOnlyList<UninstallBlockingModResult> blockingMods)
+    {
+        if (blockingMods.Count == 0) return;
+
+        _ui.Text.WriteBlankLine();
+        _ui.Text.WriteMarkupLine(
+            $"[{TerminalTheme.SectionHeader}]{TerminalText.Escape(LocalizedStrings.UninstallPreview_BlockingMods)}[/]");
+        foreach (UninstallBlockingModResult mod in blockingMods)
+        {
+            _ui.Text.WriteMarkupLine($"- {TerminalText.Escape(mod.ModName)} {TerminalText.Escape(mod.ModVersion)} " +
+                                     $"[{TerminalTheme.Muted}]({TerminalText.Escape(mod.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture))})[/]");
+            foreach (string file in mod.OverlappingAssetsFiles)
+            {
+                _ui.Text.WriteMarkupLine($"  - {TerminalText.Escape(file)}");
+            }
+        }
     }
 
     public void WriteResult(UninstallModResult result)

@@ -5,6 +5,32 @@ using UnityAssetsPatcher.Core.IO;
 
 namespace UnityAssetsPatcher.Application.Backups;
 
+public sealed record InstallRecord(
+    int FormatVersion,
+    string GameInstanceFingerprint,
+    long InstallSequence,
+    string Id,
+    DateTimeOffset InstalledAt,
+    string ModName,
+    string ModVersion,
+    string ModAuthor,
+    string? GameName,
+    IReadOnlyList<InstallRecordPatchedFile> PatchedFiles,
+    IReadOnlyList<InstallRecordCopiedFile> CopiedFiles)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? OptionalGroups { get; init; }
+}
+
+public sealed record InstallRecordPatchedFile(
+    string Target,
+    string AssetsFileRelativePath,
+    string BackupRelativePath,
+    int AssetCount,
+    int OperationCount);
+
+public sealed record InstallRecordCopiedFile(string Source, string DestinationRelativePath);
+
 public sealed class ModBackupStore
 {
     public string BackupDirectory { get; }
@@ -76,6 +102,7 @@ public sealed class ModBackupStore
         ArgumentNullException.ThrowIfNull(record);
         ArgumentNullException.ThrowIfNull(installDirectory);
 
+        InstallRecordValidator.Validate(record);
         Directory.CreateDirectory(installDirectory);
         string recordPath = GetRecordPath(installDirectory);
         string json = JsonSerializer.Serialize(record, ModInstallationJsonContext.Default.InstallRecord);
@@ -89,8 +116,11 @@ public sealed class ModBackupStore
         string recordPath = GetRecordPath(installDirectory);
         using FileStream stream = File.OpenRead(recordPath);
 
-        return JsonSerializer.Deserialize(stream, ModInstallationJsonContext.Default.InstallRecord) ??
-               throw new InvalidOperationException($"Install record could not be read: {recordPath}");
+        InstallRecord record = JsonSerializer.Deserialize(stream, ModInstallationJsonContext.Default.InstallRecord) ??
+                               throw new InvalidOperationException($"Install record could not be read: {recordPath}");
+        InstallRecordValidator.Validate(record);
+
+        return record;
     }
 
     public static void DeleteRecord(string installDirectory)
@@ -102,21 +132,8 @@ public sealed class ModBackupStore
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
     {
-        if (!Directory.Exists(BackupDirectory))
-        {
-            return [];
-        }
-
-        return Directory.EnumerateFiles(BackupDirectory, RecordFileName, SearchOption.AllDirectories)
-            .Select(path => Path.GetDirectoryName(path) ??
-                            throw new InvalidOperationException(
-                                $"Cannot resolve install record directory: {path}"))
-            .Select(dir => new
-            {
-                InstallDirectory = dir,
-                Record = Load(dir)
-            })
-            .OrderByDescending(item => item.Record.InstalledAt)
+        return ListRecords()
+            .OrderByDescending(item => item.Record.InstallSequence)
             .Select(item => new InstallRecordSummary(
                 item.InstallDirectory,
                 item.Record.ModName,
@@ -125,6 +142,24 @@ public sealed class ModBackupStore
                 item.Record.InstalledAt))
             .ToArray();
     }
+
+    public IReadOnlyList<InstallRecordEntry> ListRecords()
+    {
+        if (!Directory.Exists(BackupDirectory)) return [];
+
+        var records = Directory
+            .EnumerateFiles(BackupDirectory, RecordFileName, SearchOption.AllDirectories)
+            .Select(path => Path.GetDirectoryName(path) ??
+                            throw new InvalidOperationException(
+                                $"Cannot resolve install record directory: {path}"))
+            .Select(dir => new InstallRecordEntry(dir, Load(dir)))
+            .ToArray();
+        InstallRecordValidator.ValidateAll(records.Select(entry => entry.Record));
+
+        return records;
+    }
+
+    public BackupOperationLock AcquireOperationLock() => BackupOperationLock.Acquire(BackupDirectory);
 
     private static string GetRecordPath(string installDirectory)
     {
@@ -141,26 +176,3 @@ public sealed class ModBackupStore
         return string.IsNullOrWhiteSpace(sanitized) ? fallback : sanitized;
     }
 }
-
-public sealed record InstallRecord(
-    string Id,
-    DateTimeOffset InstalledAt,
-    string ModName,
-    string ModVersion,
-    string ModAuthor,
-    string? GameName,
-    IReadOnlyList<InstallRecordPatchedFile> PatchedFiles,
-    IReadOnlyList<InstallRecordCopiedFile> CopiedFiles)
-{
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<string>? OptionalGroups { get; init; }
-}
-
-public sealed record InstallRecordPatchedFile(
-    string Target,
-    string AssetsFileRelativePath,
-    string BackupRelativePath,
-    int AssetCount,
-    int OperationCount);
-
-public sealed record InstallRecordCopiedFile(string Source, string DestinationRelativePath);

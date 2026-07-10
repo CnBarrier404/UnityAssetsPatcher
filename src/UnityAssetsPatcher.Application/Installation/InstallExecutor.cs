@@ -5,15 +5,32 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
+public sealed record InstallExecutionResult(
+    InstallPatchApplyResult PatchApplyResult,
+    IReadOnlyList<InstallChange> CopiedFiles);
+
+public sealed record InstallPatchApplyResult(IReadOnlyList<InstallPatchAppliedFile> Files);
+
+public sealed record InstallPatchAppliedFile(
+    string Target,
+    string AssetsFilePath,
+    string BackupPath,
+    int AssetCount,
+    int OperationCount);
+
+public sealed record InstallRecordPaths(string InstallDirectory, string AssetsBackupDirectory);
+
 public sealed class InstallExecutor
 {
     private readonly PatchOutputWriter _patchOutputWriter;
     private readonly IAssetsAccessScope _assets;
+    private readonly ModBackupStore _backupStore;
 
-    public InstallExecutor(PatchOutputWriter patchOutputWriter, IAssetsAccessScope assets)
+    public InstallExecutor(PatchOutputWriter patchOutputWriter, IAssetsAccessScope assets, ModBackupStore backupStore)
     {
         _patchOutputWriter = patchOutputWriter;
         _assets = assets;
+        _backupStore = backupStore;
     }
 
     public void ReleaseReadResources()
@@ -23,14 +40,12 @@ public sealed class InstallExecutor
 
     public InstallExecutionResult Execute(
         InstallPlanSession session,
-        string backupDirectory,
         StepTimer timings)
     {
         InstallWritePlan writePlan = session.Plan.Write
                                      ?? throw new InvalidOperationException(
                                          "Install plan does not contain a write plan.");
-        var backupStore = new ModBackupStore(backupDirectory);
-        InstallRecordPaths recordPaths = CreateRecordPaths(backupStore, session.Package);
+        InstallRecordPaths recordPaths = CreateRecordPaths(_backupStore, session.Package);
 
         InstallPatchApplyResult? patchApplyResult = null;
         IReadOnlyList<InstallChange> copiedFiles = [];
@@ -47,7 +62,7 @@ public sealed class InstallExecutor
                 copiedFiles,
                 session.Package.AppliedOptionalGroups);
 
-            backupStore.Save(record, recordPaths.InstallDirectory);
+            _backupStore.Save(record, recordPaths.InstallDirectory);
 
             return new InstallExecutionResult(patchApplyResult, copiedFiles);
         }
@@ -164,7 +179,7 @@ public sealed class InstallExecutor
         });
     }
 
-    private static InstallRecord BuildRecord(
+    private InstallRecord BuildRecord(
         ModPackage package,
         string gameDirectory,
         string installDirectory,
@@ -172,7 +187,13 @@ public sealed class InstallExecutor
         IReadOnlyList<InstallChange> copiedFiles,
         IReadOnlyList<string> appliedOptionalGroups)
     {
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(gameDirectory);
+        long sequence = InstallSequenceAllocator.Allocate(
+            _backupStore.ListRecords().Select(entry => entry.Record), fingerprint);
         return new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            fingerprint,
+            sequence,
             Guid.NewGuid().ToString("N"),
             DateTimeOffset.Now,
             package.Manifest.Info.Name,
@@ -256,18 +277,3 @@ public sealed class InstallExecutor
         return new InstallRecordPaths(installDirectory, Path.Combine(installDirectory, "assets"));
     }
 }
-
-public sealed record InstallExecutionResult(
-    InstallPatchApplyResult PatchApplyResult,
-    IReadOnlyList<InstallChange> CopiedFiles);
-
-public sealed record InstallPatchApplyResult(IReadOnlyList<InstallPatchAppliedFile> Files);
-
-public sealed record InstallPatchAppliedFile(
-    string Target,
-    string AssetsFilePath,
-    string BackupPath,
-    int AssetCount,
-    int OperationCount);
-
-public sealed record InstallRecordPaths(string InstallDirectory, string AssetsBackupDirectory);

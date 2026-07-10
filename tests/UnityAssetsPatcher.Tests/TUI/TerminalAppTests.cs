@@ -333,7 +333,9 @@ public sealed class TerminalAppTests : IDisposable
             Assert.Contains("UNINSTALL PREVIEW", text);
             Assert.Contains("UNINSTALLED", text);
             Assert.Equal("original", File.ReadAllText(targetPath));
-            Assert.Empty(Directory.EnumerateFileSystemEntries(backupDirectory));
+            Assert.Equal(
+                [Path.Combine(backupDirectory, ".operations.lock")],
+                Directory.EnumerateFileSystemEntries(backupDirectory));
         }
         finally
         {
@@ -562,7 +564,6 @@ public sealed class TerminalAppTests : IDisposable
             .AddSingleton<IAssetsAccessScopeFactory>(assetsScopeFactory)
             .AddUnityAssetsPatcherApplication(backupDirectory)
             .AddUnityAssetsPatcherTUI(
-                backupDirectory,
                 AppInfo.Default,
                 console)
             .BuildServiceProvider(new ServiceProviderOptions

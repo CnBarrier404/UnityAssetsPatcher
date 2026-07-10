@@ -2,7 +2,7 @@ using UnityAssetsPatcher.Application.Installation;
 
 namespace UnityAssetsPatcher.Application.Contracts;
 
-public sealed record InstallModRequest(string ZipFilePath, string? GameDirectory, string BackupDirectory)
+public sealed record InstallModRequest(string ZipFilePath, string? GameDirectory)
 {
     public IReadOnlyList<string> SelectedOptionalGroups { get; init; } = [];
 }

@@ -72,7 +72,7 @@ internal sealed class UninstallTerminalPage : ITerminalPage
 
         if (!preview.CanUninstall)
         {
-            _view.WriteCannotUninstallMissingFiles();
+            _view.WriteCannotUninstall(preview);
 
             return TerminalPageResult.ReturnToMenu();
         }

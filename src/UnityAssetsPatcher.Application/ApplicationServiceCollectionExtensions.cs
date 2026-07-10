@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
@@ -16,10 +17,10 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<ModManifestReader>();
         services.AddSingleton(_ => new GameDirectoryResolver());
         services.AddSingleton<TargetAssetResolver>();
+        services.AddSingleton(new ModBackupStore(backupDirectory));
         services.AddSingleton<WorkflowFactory>();
         services.AddSingleton<IWorkflowService>(provider => new WorkflowService(
             provider.GetRequiredService<IAssetsAccessScopeFactory>(),
-            backupDirectory,
             provider.GetRequiredService<WorkflowFactory>()));
 
         return services;

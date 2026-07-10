@@ -12,15 +12,18 @@ internal sealed class WorkflowFactory
     private readonly ModManifestReader _manifestReader;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly TargetAssetResolver _targetAssetResolver;
+    private readonly ModBackupStore _backupStore;
 
     public WorkflowFactory(
         ModManifestReader manifestReader,
         GameDirectoryResolver gameDirectoryResolver,
-        TargetAssetResolver targetAssetResolver)
+        TargetAssetResolver targetAssetResolver,
+        ModBackupStore backupStore)
     {
         _manifestReader = manifestReader;
         _gameDirectoryResolver = gameDirectoryResolver;
         _targetAssetResolver = targetAssetResolver;
+        _backupStore = backupStore;
     }
 
     public InstallModWorkflow CreateInstallWorkflow(IAssetsAccessScope assets)
@@ -32,20 +35,17 @@ internal sealed class WorkflowFactory
             _gameDirectoryResolver,
             patchPlanBuilder);
 
-        var executor = new InstallExecutor(new PatchOutputWriter(assets.Writer), assets);
+        var executor = new InstallExecutor(new PatchOutputWriter(assets.Writer), assets, _backupStore);
 
-        return new InstallModWorkflow(
-            planner,
-            executor);
+        return new InstallModWorkflow(planner, executor, _backupStore);
     }
 
-    public UninstallModWorkflow CreateUninstallWorkflow(string backupDirectory)
+    public UninstallModWorkflow CreateUninstallWorkflow()
     {
-        var backupStore = new ModBackupStore(backupDirectory);
-
         return new UninstallModWorkflow(
-            new UninstallPlanner(backupStore, _gameDirectoryResolver),
-            new UninstallExecutor());
+            new UninstallPlanner(_backupStore, _gameDirectoryResolver),
+            new UninstallExecutor(),
+            _backupStore);
     }
 
     private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)

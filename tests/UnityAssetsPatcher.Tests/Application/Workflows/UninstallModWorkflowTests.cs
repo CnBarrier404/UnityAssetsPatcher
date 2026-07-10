@@ -28,6 +28,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(backupPath, "original");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -80,6 +83,9 @@ public sealed class UninstallModWorkflowTests
         Directory.CreateDirectory(targetDirectory);
         File.WriteAllText(targetPath, "patched");
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -141,6 +147,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(payloadPath, "payload");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -204,6 +213,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(lockedPath, "locked");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -271,6 +283,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(payloadPath, "payload");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -336,6 +351,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(backupPath, "original");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -395,6 +413,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(backupPath, "original");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -457,6 +478,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(secondTargetPath, "second patched");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -525,6 +549,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(secondBackupPath, "second original");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -593,6 +620,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(secondBackupPath, "second original");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -668,6 +698,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(secondBackupPath, "second original");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -776,6 +809,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(backupPath, "escaped original");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -840,6 +876,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(backupPath, "original");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -907,6 +946,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(escapedPayloadPath, "victim payload");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -975,6 +1017,9 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(payloadPath, "victim payload");
 
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",
@@ -1040,6 +1085,9 @@ public sealed class UninstallModWorkflowTests
 
             File.WriteAllText(payloadPath, "victim payload");
             var record = new InstallRecord(
+                InstallRecordValidator.CurrentFormatVersion,
+                GameInstanceIdentity.CreateFingerprint(gameDirectory),
+                1,
                 "install-1",
                 DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
                 "Better Audio Pack",
@@ -1126,7 +1174,8 @@ public sealed class UninstallModWorkflowTests
     {
         return new UninstallModWorkflow(
             new UninstallPlanner(store, gameDirectoryResolver ?? new GameDirectoryResolver([])),
-            new UninstallExecutor());
+            new UninstallExecutor(),
+            store);
     }
 
     private static string RelativeToGame(string gameDirectory, string path)

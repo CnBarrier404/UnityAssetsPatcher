@@ -6,20 +6,16 @@ namespace UnityAssetsPatcher.Application.Workflows;
 public sealed class WorkflowService : IWorkflowService
 {
     private readonly IAssetsAccessScopeFactory _assetsScopeFactory;
-    private readonly string _backupDirectory;
     private readonly WorkflowFactory _workflowFactory;
 
     internal WorkflowService(
         IAssetsAccessScopeFactory assetsScopeFactory,
-        string backupDirectory,
         WorkflowFactory workflowFactory)
     {
         ArgumentNullException.ThrowIfNull(assetsScopeFactory);
-        ArgumentNullException.ThrowIfNull(backupDirectory);
         ArgumentNullException.ThrowIfNull(workflowFactory);
 
         _assetsScopeFactory = assetsScopeFactory;
-        _backupDirectory = backupDirectory;
         _workflowFactory = workflowFactory;
     }
 
@@ -41,21 +37,21 @@ public sealed class WorkflowService : IWorkflowService
 
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
     {
-        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow(_backupDirectory);
+        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow();
 
         return workflow.ListInstalled();
     }
 
     public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request)
     {
-        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow(_backupDirectory);
+        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow();
 
         return workflow.Preview(request);
     }
 
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
-        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow(_backupDirectory);
+        UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow();
 
         return workflow.Uninstall(request);
     }

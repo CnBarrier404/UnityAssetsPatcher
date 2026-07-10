@@ -10,11 +10,9 @@ public static class TerminalServiceCollectionExtensions
 {
     public static IServiceCollection AddUnityAssetsPatcherTUI(
         this IServiceCollection services,
-        string backupDirectory,
         AppInfo appInfo,
         IAnsiConsole console)
     {
-        services.AddSingleton(new TerminalInstallOptions(backupDirectory));
         services.AddSingleton(console);
         services.AddSingleton(_ => new TerminalUI(console, appInfo));
         services.AddSingleton(provider => new TerminalPrompts(

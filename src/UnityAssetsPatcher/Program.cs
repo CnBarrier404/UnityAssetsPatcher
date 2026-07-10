@@ -20,7 +20,6 @@ public static class Program
             .AddUnityAssetsPatcherAssetsTools(tpkFilePath)
             .AddUnityAssetsPatcherApplication(backupDirectory)
             .AddUnityAssetsPatcherTUI(
-                backupDirectory,
                 appInfo,
                 Spectre.Console.AnsiConsole.Console)
             .BuildServiceProvider(new ServiceProviderOptions

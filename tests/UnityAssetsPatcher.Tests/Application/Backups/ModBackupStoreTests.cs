@@ -120,6 +120,9 @@ public sealed class ModBackupStoreTests
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string installDirectory = Path.Combine(backupDirectory, "20260618143022-BetterAudioPack-1.0.0");
         var record = new InstallRecord(
+            InstallRecordValidator.CurrentFormatVersion,
+            "game-fingerprint",
+            1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
             "Better Audio Pack",

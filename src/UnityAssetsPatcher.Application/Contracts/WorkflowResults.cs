@@ -23,6 +23,7 @@ public sealed record UninstallPreviewResult(
     string ModAuthor,
     string GameDirectory,
     bool CanUninstall,
+    IReadOnlyList<UninstallBlockingModResult> BlockingMods,
     IReadOnlyList<UninstallPreviewRestoredFileResult> RestoredFiles,
     IReadOnlyList<UninstallPreviewDeletedFileResult> DeletedFiles);
 
@@ -34,6 +35,12 @@ public sealed record UninstallPreviewRestoredFileResult(
     bool BackupExists);
 
 public sealed record UninstallPreviewDeletedFileResult(string Source, string DestinationPath, bool Exists);
+
+public sealed record UninstallBlockingModResult(
+    string ModName,
+    string ModVersion,
+    DateTimeOffset InstalledAt,
+    IReadOnlyList<string> OverlappingAssetsFiles);
 
 public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
 

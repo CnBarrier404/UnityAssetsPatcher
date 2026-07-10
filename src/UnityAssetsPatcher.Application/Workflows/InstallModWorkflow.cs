@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Backups;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -7,13 +8,16 @@ public sealed class InstallModWorkflow
 {
     private readonly InstallPlanner _planner;
     private readonly InstallExecutor _executor;
+    private readonly ModBackupStore _backupStore;
 
     public InstallModWorkflow(
         InstallPlanner planner,
-        InstallExecutor executor)
+        InstallExecutor executor,
+        ModBackupStore backupStore)
     {
         _planner = planner;
         _executor = executor;
+        _backupStore = backupStore;
     }
 
     public InstallPreviewResult Preview(InstallPreviewRequest request)
@@ -45,12 +49,10 @@ public sealed class InstallModWorkflow
 
         try
         {
+            using BackupOperationLock operationLock = _backupStore.AcquireOperationLock();
             using InstallPlanSession session = _planner.BuildInstall(request, timings);
 
-            InstallExecutionResult execution = _executor.Execute(
-                session,
-                request.BackupDirectory,
-                timings);
+            InstallExecutionResult execution = _executor.Execute(session, timings);
 
             return InstallResultMapper.ToInstallResult(
                 session.Package,

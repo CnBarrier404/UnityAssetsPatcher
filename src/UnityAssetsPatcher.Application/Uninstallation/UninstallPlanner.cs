@@ -4,6 +4,20 @@ using UnityAssetsPatcher.Application.Installation;
 
 namespace UnityAssetsPatcher.Application.Uninstallation;
 
+public sealed record UninstallPreviewPlan(
+    InstallRecord Record,
+    string GameDirectory,
+    bool CanUninstall,
+    IReadOnlyList<BlockingInstallRecord> BlockingRecords,
+    IReadOnlyList<UninstallPreviewRestoredFileResult> RestoredFiles,
+    IReadOnlyList<UninstallPreviewDeletedFileResult> DeletedFiles);
+
+public sealed record UninstallPlan(
+    string BackupDirectory,
+    string InstallDirectory,
+    string GameDirectory,
+    InstallRecord Record);
+
 public sealed class UninstallPlanner
 {
     private readonly ModBackupStore _backupStore;
@@ -25,10 +39,14 @@ public sealed class UninstallPlanner
         UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, request.InstallDirectory);
 
         InstallRecord record = _backupStore.Load(request.InstallDirectory);
+        string gameDirectory = ResolveGameDirectory(request.GameDirectory, record);
+        ValidateGameInstance(record, gameDirectory);
+        var blockers = InstallLayerAnalyzer.FindBlockingRecords(
+            record, _backupStore.ListRecords());
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
             _backupStore.BackupDirectory,
             request.InstallDirectory,
-            ResolveGameDirectory(request.GameDirectory, record),
+            gameDirectory,
             record);
 
         var restoredFiles = paths.PatchedFiles
@@ -47,12 +65,14 @@ public sealed class UninstallPlanner
                 File.Exists(file.DestinationPath)))
             .ToArray();
 
-        bool canUninstall = restoredFiles.All(file => file is { TargetExists: true, BackupExists: true });
+        bool canUninstall = blockers.Count == 0 &&
+                            restoredFiles.All(file => file is { TargetExists: true, BackupExists: true });
 
         return new UninstallPreviewPlan(
             record,
             paths.GameDirectory,
             canUninstall,
+            blockers,
             restoredFiles,
             deletedFiles);
     }
@@ -62,6 +82,18 @@ public sealed class UninstallPlanner
         UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, request.InstallDirectory);
 
         InstallRecord record = _backupStore.Load(request.InstallDirectory);
+        ValidateGameInstance(record, request.GameDirectory);
+
+        var blockers = InstallLayerAnalyzer.FindBlockingRecords(
+            record, _backupStore.ListRecords());
+
+        if (blockers.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Cannot uninstall {record.ModName} because later installed mods depend on the same assets files: " +
+                string.Join(", ", blockers.Select(blocker => blocker.Entry.Record.ModName)));
+        }
+
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
             _backupStore.BackupDirectory,
             request.InstallDirectory,
@@ -75,6 +107,16 @@ public sealed class UninstallPlanner
             record);
     }
 
+    private static void ValidateGameInstance(InstallRecord record, string gameDirectory)
+    {
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(gameDirectory);
+        if (!string.Equals(record.GameInstanceFingerprint, fingerprint, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "The selected game directory does not match the install record game instance.");
+        }
+    }
+
     private string ResolveGameDirectory(string? requestedGameDirectory, InstallRecord record)
     {
         if (requestedGameDirectory is null && string.IsNullOrWhiteSpace(record.GameName))
@@ -86,16 +128,3 @@ public sealed class UninstallPlanner
         return _gameDirectoryResolver.ResolveRequired(requestedGameDirectory, record.GameName);
     }
 }
-
-public sealed record UninstallPreviewPlan(
-    InstallRecord Record,
-    string GameDirectory,
-    bool CanUninstall,
-    IReadOnlyList<UninstallPreviewRestoredFileResult> RestoredFiles,
-    IReadOnlyList<UninstallPreviewDeletedFileResult> DeletedFiles);
-
-public sealed record UninstallPlan(
-    string BackupDirectory,
-    string InstallDirectory,
-    string GameDirectory,
-    InstallRecord Record);

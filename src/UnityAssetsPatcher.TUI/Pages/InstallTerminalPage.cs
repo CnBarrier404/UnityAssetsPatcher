@@ -9,7 +9,6 @@ internal sealed class InstallTerminalPage : ITerminalPage
     public string Description => LocalizedStrings.MainMenu_InstallMod_Description;
 
     private readonly IWorkflowService _workflowService;
-    private readonly TerminalInstallOptions _installOptions;
     private readonly TerminalPageChrome _chrome;
     private readonly TerminalSettings _settings;
     private readonly InstallTerminalInput _input;
@@ -17,14 +16,12 @@ internal sealed class InstallTerminalPage : ITerminalPage
 
     public InstallTerminalPage(
         IWorkflowService workflowService,
-        TerminalInstallOptions installOptions,
         TerminalPageChrome chrome,
         TerminalSettings settings,
         InstallTerminalInput input,
         InstallTerminalView view)
     {
         _workflowService = workflowService;
-        _installOptions = installOptions;
         _chrome = chrome;
         _settings = settings;
         _input = input;
@@ -96,7 +93,7 @@ internal sealed class InstallTerminalPage : ITerminalPage
 
         _view.WriteBlankLine();
         InstallModResult result = _workflowService.Install(
-            new InstallModRequest(zipFilePath, gameDirectory, _installOptions.BackupDirectory)
+            new InstallModRequest(zipFilePath, gameDirectory)
             {
                 SelectedOptionalGroups = selectedOptionalGroups,
             });
