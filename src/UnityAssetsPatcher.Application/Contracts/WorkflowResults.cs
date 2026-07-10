@@ -31,10 +31,21 @@ public sealed record UninstallPreviewRestoredFileResult(
     string Target,
     string AssetsFilePath,
     string InstallBackupPath,
-    bool TargetExists,
-    bool BackupExists);
+    FileIntegrityStatus TargetStatus,
+    FileIntegrityStatus BackupStatus);
 
-public sealed record UninstallPreviewDeletedFileResult(string Source, string DestinationPath, bool Exists);
+public sealed record UninstallPreviewDeletedFileResult(
+    string Source,
+    string DestinationPath,
+    FileIntegrityStatus Status);
+
+public enum FileIntegrityStatus
+{
+    Matches,
+    Missing,
+    Modified,
+    Unreadable,
+}
 
 public sealed record UninstallBlockingModResult(
     string ModName,

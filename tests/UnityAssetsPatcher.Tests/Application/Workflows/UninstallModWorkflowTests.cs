@@ -43,7 +43,9 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1)
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath))
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -98,7 +100,9 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    TextIntegrity("original")),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -112,8 +116,8 @@ public sealed class UninstallModWorkflowTests
 
             Assert.False(result.CanUninstall);
             UninstallPreviewRestoredFileResult file = Assert.Single(result.RestoredFiles);
-            Assert.True(file.TargetExists);
-            Assert.False(file.BackupExists);
+            Assert.Equal(FileIntegrityStatus.Matches, file.TargetStatus);
+            Assert.Equal(FileIntegrityStatus.Missing, file.BackupStatus);
         }
         finally
         {
@@ -162,10 +166,13 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             [
-                new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath)),
+                new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
+                    FileIntegrity.Create(payloadPath)),
             ]);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
@@ -228,7 +235,9 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -298,10 +307,13 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             [
-                new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath)),
+                new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
+                    FileIntegrity.Create(payloadPath)),
             ]);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
@@ -366,7 +378,9 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -377,10 +391,10 @@ public sealed class UninstallModWorkflowTests
         {
             File.Delete(targetPath);
 
-            var exception = Assert.Throws<FileNotFoundException>(() =>
+            var exception = Assert.Throws<InvalidOperationException>(() =>
                 workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
 
-            Assert.Contains("Assets file was deleted during uninstall", exception.Message);
+            Assert.Contains("assets file is missing", exception.Message);
             Assert.Contains("sharedassets0.assets", exception.Message);
         }
         finally
@@ -428,7 +442,9 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -439,10 +455,10 @@ public sealed class UninstallModWorkflowTests
         {
             File.Delete(backupPath);
 
-            var exception = Assert.Throws<FileNotFoundException>(() =>
+            var exception = Assert.Throws<InvalidOperationException>(() =>
                 workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
 
-            Assert.Contains("Backup file was deleted during uninstall", exception.Message);
+            Assert.Contains("backup file is missing", exception.Message);
             Assert.Contains("sharedassets0.assets", exception.Message);
         }
         finally
@@ -493,13 +509,17 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, firstTargetPath),
                     RelativeToInstall(installDirectory, firstBackupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(firstTargetPath),
+                    FileIntegrity.Create(firstBackupPath)),
                 new InstallRecordPatchedFile(
                     "sharedassets1.assets",
                     RelativeToGame(gameDirectory, secondTargetPath),
                     RelativeToInstall(installDirectory, secondBackupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(secondTargetPath),
+                    TextIntegrity("second original")),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -508,10 +528,10 @@ public sealed class UninstallModWorkflowTests
 
         try
         {
-            var exception = Assert.Throws<FileNotFoundException>(() =>
+            var exception = Assert.Throws<InvalidOperationException>(() =>
                 workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
 
-            Assert.Contains("Backup file was deleted during uninstall", exception.Message);
+            Assert.Contains("backup file is missing", exception.Message);
             Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
             Assert.Equal("second patched", File.ReadAllText(secondTargetPath));
             Assert.True(Directory.Exists(installDirectory));
@@ -564,13 +584,17 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, firstTargetPath),
                     RelativeToInstall(installDirectory, firstBackupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(firstTargetPath),
+                    FileIntegrity.Create(firstBackupPath)),
                 new InstallRecordPatchedFile(
                     "sharedassets1.assets",
                     RelativeToGame(gameDirectory, secondTargetPath),
                     RelativeToInstall(installDirectory, secondBackupPath),
                     1,
-                    1),
+                    1,
+                    TextIntegrity("second patched"),
+                    FileIntegrity.Create(secondBackupPath)),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -579,10 +603,10 @@ public sealed class UninstallModWorkflowTests
 
         try
         {
-            var exception = Assert.Throws<FileNotFoundException>(() =>
+            var exception = Assert.Throws<InvalidOperationException>(() =>
                 workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
 
-            Assert.Contains("Assets file was deleted during uninstall", exception.Message);
+            Assert.Contains("assets file is missing", exception.Message);
             Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
             Assert.True(Directory.Exists(installDirectory));
         }
@@ -635,13 +659,17 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, firstTargetPath),
                     RelativeToInstall(installDirectory, firstBackupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(firstTargetPath),
+                    FileIntegrity.Create(firstBackupPath)),
                 new InstallRecordPatchedFile(
                     "sharedassets1.assets",
                     RelativeToGame(gameDirectory, secondTargetPath),
                     RelativeToInstall(installDirectory, secondBackupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(secondTargetPath),
+                    FileIntegrity.Create(secondBackupPath)),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -713,13 +741,17 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, firstTargetPath),
                     RelativeToInstall(installDirectory, firstBackupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(firstTargetPath),
+                    FileIntegrity.Create(firstBackupPath)),
                 new InstallRecordPatchedFile(
                     "sharedassets1.assets",
                     RelativeToGame(gameDirectory, secondTargetPath),
                     RelativeToInstall(installDirectory, secondBackupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(secondTargetPath),
+                    FileIntegrity.Create(secondBackupPath)),
             ],
             []);
 
@@ -824,7 +856,9 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -891,7 +925,9 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, escapedTargetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(escapedTargetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             []);
         var store = new ModBackupStore(backupDirectory);
@@ -961,11 +997,14 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             [
                 new InstallRecordCopiedFile("resources/modassets.resource",
-                    RelativeToGame(gameDirectory, escapedPayloadPath)),
+                    RelativeToGame(gameDirectory, escapedPayloadPath),
+                    FileIntegrity.Create(escapedPayloadPath)),
             ]);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
@@ -1032,10 +1071,13 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, targetPath),
                     RelativeToInstall(installDirectory, backupPath),
                     1,
-                    1),
+                    1,
+                    FileIntegrity.Create(targetPath),
+                    FileIntegrity.Create(backupPath)),
             ],
             [
-                new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath)),
+                new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
+                    FileIntegrity.Create(payloadPath)),
             ]);
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
@@ -1097,7 +1139,8 @@ public sealed class UninstallModWorkflowTests
                 [],
                 [
                     new InstallRecordCopiedFile("resources/modassets.resource",
-                        RelativeToGame(gameDirectory, payloadPath))
+                        RelativeToGame(gameDirectory, payloadPath),
+                        FileIntegrity.Create(payloadPath))
                 ]);
             var store = new ModBackupStore(backupDirectory);
             store.Save(record, installDirectory);
@@ -1106,7 +1149,8 @@ public sealed class UninstallModWorkflowTests
             var exception = Assert.Throws<InvalidOperationException>(() =>
                 workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
 
-            Assert.Contains("Uninstall payload destination path must be inside its trusted directory", exception.Message);
+            Assert.Contains("Uninstall payload destination path must be inside its trusted directory",
+                exception.Message);
             Assert.Equal("victim payload", File.ReadAllText(payloadPath));
             Assert.True(File.Exists(Path.Combine(installDirectory, "record.json")));
         }
@@ -1187,4 +1231,7 @@ public sealed class UninstallModWorkflowTests
     {
         return Path.GetRelativePath(installDirectory, path);
     }
+
+    private static FileIntegrity TextIntegrity(string contents) =>
+        FileIntegrity.Create(System.Text.Encoding.UTF8.GetBytes(contents));
 }

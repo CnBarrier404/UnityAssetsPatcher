@@ -14,6 +14,7 @@ public sealed class UninstallExecutor
             plan.GameDirectory,
             plan.Record);
 
+        UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
         ValidateUninstallAccess(paths, plan.InstallDirectory);
 
         var restoredFiles = RestoreAssets(paths.PatchedFiles);

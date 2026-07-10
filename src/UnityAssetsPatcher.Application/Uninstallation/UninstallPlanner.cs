@@ -54,19 +54,26 @@ public sealed class UninstallPlanner
                 file.Target,
                 file.AssetsFilePath,
                 file.BackupPath,
-                File.Exists(file.AssetsFilePath),
-                File.Exists(file.BackupPath)))
+                UninstallIntegrityInspector.Inspect(file.AssetsFilePath, file.InstalledFile),
+                UninstallIntegrityInspector.Inspect(file.BackupPath, file.BackupFile)))
             .ToArray();
 
         var deletedFiles = paths.CopiedFiles
             .Select(file => new UninstallPreviewDeletedFileResult(
                 file.Source,
                 file.DestinationPath,
-                File.Exists(file.DestinationPath)))
+                UninstallIntegrityInspector.Inspect(file.DestinationPath, file.InstalledFile)))
             .ToArray();
 
         bool canUninstall = blockers.Count == 0 &&
-                            restoredFiles.All(file => file is { TargetExists: true, BackupExists: true });
+                            restoredFiles.All(file =>
+                                file is
+                                {
+                                    TargetStatus: FileIntegrityStatus.Matches,
+                                    BackupStatus: FileIntegrityStatus.Matches,
+                                }) &&
+                            deletedFiles.All(file =>
+                                file.Status is FileIntegrityStatus.Matches or FileIntegrityStatus.Missing);
 
         return new UninstallPreviewPlan(
             record,
@@ -99,6 +106,8 @@ public sealed class UninstallPlanner
             request.InstallDirectory,
             request.GameDirectory,
             record);
+
+        UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
 
         return new UninstallPlan(
             _backupStore.BackupDirectory,

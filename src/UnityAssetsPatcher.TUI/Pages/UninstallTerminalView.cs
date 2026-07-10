@@ -29,7 +29,7 @@ internal sealed class UninstallTerminalView
         _ui.Text.WriteBlankLine();
         _ui.Text.WriteError(preview.BlockingMods.Count > 0
             ? LocalizedStrings.UninstallPage_CannotUninstallBlockingMods
-            : LocalizedStrings.UninstallPage_CannotUninstallMissingFiles);
+            : LocalizedStrings.UninstallPage_CannotUninstallIntegrityConflict);
     }
 
     public void WriteUninstallCanceled()
@@ -126,11 +126,12 @@ internal sealed class UninstallTerminalView
 
         foreach (UninstallPreviewRestoredFileResult file in files)
         {
-            string status = file is { TargetExists: true, BackupExists: true }
-                ? LocalizedStrings.UninstallPreview_Ready
-                : LocalizedStrings.UninstallPreview_MissingRequiredFile;
             _ui.Text.WriteMarkupLine(
-                $"- {TerminalText.Escape(file.Target)}: {TerminalText.Escape(status)}");
+                $"- {TerminalText.Escape(file.Target)}: " +
+                $"{TerminalText.Escape(LocalizedStrings.UninstallPreview_CurrentFile)} " +
+                $"{TerminalText.Escape(FormatIntegrityStatus(file.TargetStatus))}, " +
+                $"{TerminalText.Escape(LocalizedStrings.UninstallPreview_BackupFile)} " +
+                $"{TerminalText.Escape(FormatIntegrityStatus(file.BackupStatus))}");
         }
     }
 
@@ -147,13 +148,22 @@ internal sealed class UninstallTerminalView
 
         foreach (UninstallPreviewDeletedFileResult file in files)
         {
-            string status = file.Exists
+            string status = file.Status == FileIntegrityStatus.Matches
                 ? LocalizedStrings.UninstallPreview_WillDelete
-                : LocalizedStrings.UninstallPreview_AlreadyMissing;
+                : FormatIntegrityStatus(file.Status);
             _ui.Text.WriteMarkupLine(
                 $"- {TerminalText.Escape(Path.GetFileName(file.DestinationPath))}: {TerminalText.Escape(status)}");
         }
     }
+
+    private static string FormatIntegrityStatus(FileIntegrityStatus status) => status switch
+    {
+        FileIntegrityStatus.Matches => LocalizedStrings.UninstallPreview_Ready,
+        FileIntegrityStatus.Missing => LocalizedStrings.UninstallPreview_AlreadyMissing,
+        FileIntegrityStatus.Modified => LocalizedStrings.UninstallPreview_Modified,
+        FileIntegrityStatus.Unreadable => LocalizedStrings.UninstallPreview_Unreadable,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
+    };
 
     private void WriteRestoredResultFiles(IReadOnlyList<UninstallRestoredFileResult> files)
     {

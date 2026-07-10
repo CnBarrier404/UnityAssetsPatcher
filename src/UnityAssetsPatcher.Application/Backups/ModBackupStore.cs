@@ -27,9 +27,14 @@ public sealed record InstallRecordPatchedFile(
     string AssetsFileRelativePath,
     string BackupRelativePath,
     int AssetCount,
-    int OperationCount);
+    int OperationCount,
+    FileIntegrity InstalledFile,
+    FileIntegrity BackupFile);
 
-public sealed record InstallRecordCopiedFile(string Source, string DestinationRelativePath);
+public sealed record InstallRecordCopiedFile(
+    string Source,
+    string DestinationRelativePath,
+    FileIntegrity InstalledFile);
 
 public sealed class ModBackupStore
 {

@@ -206,13 +206,16 @@ public sealed class InstallExecutor
                     Path.GetRelativePath(gameDirectory, file.AssetsFilePath),
                     Path.GetRelativePath(installDirectory, file.BackupPath),
                     file.AssetCount,
-                    file.OperationCount))
+                    file.OperationCount,
+                    FileIntegrity.Create(file.AssetsFilePath),
+                    FileIntegrity.Create(file.BackupPath)))
                 .ToArray(),
             copiedFiles
                 .Where(file => file.Kind == InstallChangeKind.Payload)
                 .Select(file => new InstallRecordCopiedFile(
                     file.Name,
-                    Path.GetRelativePath(gameDirectory, file.Path)))
+                    Path.GetRelativePath(gameDirectory, file.Path),
+                    FileIntegrity.Create(file.Path)))
                 .ToArray())
         {
             OptionalGroups = appliedOptionalGroups.Count == 0 ? null : appliedOptionalGroups,

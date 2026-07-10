@@ -83,11 +83,19 @@ public sealed class InstallModWorkflowTests
             Assert.Equal("patched", File.ReadAllText(targetPath));
             Assert.True(File.Exists(file.BackupPath));
             string recordJson = ReadInstallRecordJson(backupDirectory);
-            Assert.Contains("\"formatVersion\": 1", recordJson);
+            Assert.Contains("\"formatVersion\": 2", recordJson);
+            Assert.Contains("\"installedFile\"", recordJson);
+            Assert.Contains("\"backupFile\"", recordJson);
+            Assert.Contains("\"sha256\"", recordJson);
+            Assert.Contains("\"length\"", recordJson);
             Assert.Contains("\"gameInstanceFingerprint\"", recordJson);
             Assert.Contains("\"installSequence\": 1", recordJson);
             Assert.DoesNotContain("\"gameDirectory\"", recordJson);
             Assert.DoesNotContain(targetPath, recordJson);
+            InstallRecord storedRecord = Assert.Single(new ModBackupStore(backupDirectory).ListRecords()).Record;
+            InstallRecordPatchedFile storedFile = Assert.Single(storedRecord.PatchedFiles);
+            Assert.Equal(FileIntegrity.Create(targetPath), storedFile.InstalledFile);
+            Assert.Equal(FileIntegrity.Create(file.BackupPath!), storedFile.BackupFile);
         }
         finally
         {

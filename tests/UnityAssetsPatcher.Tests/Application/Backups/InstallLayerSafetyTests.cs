@@ -40,9 +40,10 @@ public sealed class InstallLayerSafetyTests
 
     [Theory]
     [InlineData(0, "fingerprint", 1)]
-    [InlineData(2, "fingerprint", 1)]
-    [InlineData(1, "", 1)]
-    [InlineData(1, "fingerprint", 0)]
+    [InlineData(1, "fingerprint", 1)]
+    [InlineData(3, "fingerprint", 1)]
+    [InlineData(2, "", 1)]
+    [InlineData(2, "fingerprint", 0)]
     public void InstallRecordValidator_RejectsUnsupportedOrInvalidIdentity(
         int formatVersion,
         string fingerprint,
@@ -54,6 +55,22 @@ public sealed class InstallLayerSafetyTests
         };
 
         Assert.ThrowsAny<Exception>(() => InstallRecordValidator.Validate(record));
+    }
+
+    [Theory]
+    [InlineData(-1, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")]
+    [InlineData(0, "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")]
+    [InlineData(0, "not-a-sha256")]
+    public void InstallRecordValidator_RejectsInvalidFileIntegrity(long length, string sha256)
+    {
+        InstallRecord record = Record("a", "game", 1, "a.assets");
+        InstallRecordPatchedFile file = Assert.Single(record.PatchedFiles);
+        record = record with
+        {
+            PatchedFiles = [file with { InstalledFile = new FileIntegrity(length, sha256) }],
+        };
+
+        Assert.Throws<InvalidOperationException>(() => InstallRecordValidator.Validate(record));
     }
 
     [Fact]
@@ -184,7 +201,8 @@ public sealed class InstallLayerSafetyTests
             "tests",
             "Game",
             files.Select(file => new InstallRecordPatchedFile(
-                Path.GetFileName(file), file, Path.Combine("assets", Path.GetFileName(file)), 1, 1)).ToArray(),
+                Path.GetFileName(file), file, Path.Combine("assets", Path.GetFileName(file)), 1, 1,
+                EmptyIntegrity, EmptyIntegrity)).ToArray(),
             []);
     }
 
@@ -236,9 +254,14 @@ public sealed class InstallLayerSafetyTests
 
             store.Save(CreateScenarioRecord(
                 "first", "First Mod", 1, fingerprint, game, firstDirectory, firstAssets, firstBackup,
-                [new InstallRecordCopiedFile("first.payload", Path.GetRelativePath(game, payload))]), firstDirectory);
+                TextIntegrity("first"),
+                [
+                    new InstallRecordCopiedFile("first.payload", Path.GetRelativePath(game, payload),
+                        FileIntegrity.Create(payload))
+                ]), firstDirectory);
             store.Save(CreateScenarioRecord(
-                    "second", "Second Mod", 2, fingerprint, game, secondDirectory, secondAssets, secondBackup, []),
+                    "second", "Second Mod", 2, fingerprint, game, secondDirectory, secondAssets, secondBackup,
+                    TextIntegrity("second"), []),
                 secondDirectory);
 
             return new Scenario
@@ -273,6 +296,7 @@ public sealed class InstallLayerSafetyTests
             string installDirectory,
             string assetsPath,
             string backupPath,
+            FileIntegrity installedFile,
             IReadOnlyList<InstallRecordCopiedFile> copiedFiles)
         {
             return new InstallRecord(
@@ -291,9 +315,18 @@ public sealed class InstallLayerSafetyTests
                         Path.GetRelativePath(gameDirectory, assetsPath),
                         Path.GetRelativePath(installDirectory, backupPath),
                         1,
-                        1)
+                        1,
+                        installedFile,
+                        FileIntegrity.Create(backupPath))
                 ],
                 copiedFiles);
         }
     }
+
+    private static FileIntegrity EmptyIntegrity { get; } = new(
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+
+    private static FileIntegrity TextIntegrity(string contents) =>
+        FileIntegrity.Create(System.Text.Encoding.UTF8.GetBytes(contents));
 }
