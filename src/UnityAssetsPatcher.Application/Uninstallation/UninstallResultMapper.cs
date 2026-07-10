@@ -11,6 +11,7 @@ public static class UninstallResultMapper
             plan.Record.ModName,
             plan.Record.ModVersion,
             plan.Record.ModAuthor,
+            plan.GameDirectory,
             plan.CanUninstall,
             plan.RestoredFiles,
             plan.DeletedFiles);

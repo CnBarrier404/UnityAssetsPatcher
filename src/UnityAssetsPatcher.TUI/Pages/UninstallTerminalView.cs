@@ -19,6 +19,11 @@ internal sealed class UninstallTerminalView
         _ui.Text.WriteInfo(LocalizedStrings.UninstallPage_NoInstalledModsFound);
     }
 
+    public void WriteInfo(string message)
+    {
+        _ui.Text.WriteInfo(message);
+    }
+
     public void WriteCannotUninstallMissingFiles()
     {
         _ui.Text.WriteBlankLine();
@@ -47,7 +52,9 @@ internal sealed class UninstallTerminalView
             installed
                 .Select(record => new TerminalChoiceDisplay(
                     $"{record.ModName} {record.ModVersion}",
-                    $"{record.InstalledAt.LocalDateTime:g} | {record.GameDirectory}"))
+                    record.GameName is null
+                        ? record.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture)
+                        : $"{record.InstalledAt.LocalDateTime:g} | {record.GameName}"))
                 .ToArray(),
             selectedIndex);
     }
@@ -58,7 +65,7 @@ internal sealed class UninstallTerminalView
         _ui.Summary.WriteRows(
             (LocalizedStrings.Summary_Mod, selected.ModName),
             (LocalizedStrings.Summary_Version, selected.ModVersion),
-            (LocalizedStrings.UninstallSummary_GameDirectory, selected.GameDirectory),
+            (LocalizedStrings.UninstallSummary_GameDirectory, preview.GameDirectory),
             (LocalizedStrings.UninstallSummary_Installed,
                 selected.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture)),
             (LocalizedStrings.UninstallSummary_RestoredFiles,

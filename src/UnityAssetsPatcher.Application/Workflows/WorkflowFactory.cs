@@ -1,6 +1,6 @@
 using UnityAssetsPatcher.Application.Backups;
-using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Core.Assets;
@@ -44,7 +44,7 @@ internal sealed class WorkflowFactory
         var backupStore = new ModBackupStore(backupDirectory);
 
         return new UninstallModWorkflow(
-            new UninstallPlanner(backupStore),
+            new UninstallPlanner(backupStore, _gameDirectoryResolver),
             new UninstallExecutor());
     }
 

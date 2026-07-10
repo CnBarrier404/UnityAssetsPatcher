@@ -1,5 +1,5 @@
-using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Installation;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Installation;

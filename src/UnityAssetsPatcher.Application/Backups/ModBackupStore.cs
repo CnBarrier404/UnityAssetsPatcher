@@ -121,7 +121,7 @@ public sealed class ModBackupStore
                 item.InstallDirectory,
                 item.Record.ModName,
                 item.Record.ModVersion,
-                item.Record.GameDirectory,
+                item.Record.GameName,
                 item.Record.InstalledAt))
             .ToArray();
     }
@@ -148,8 +148,7 @@ public sealed record InstallRecord(
     string ModName,
     string ModVersion,
     string ModAuthor,
-    string? PackagePath,
-    string GameDirectory,
+    string? GameName,
     IReadOnlyList<InstallRecordPatchedFile> PatchedFiles,
     IReadOnlyList<InstallRecordCopiedFile> CopiedFiles)
 {
@@ -159,12 +158,9 @@ public sealed record InstallRecord(
 
 public sealed record InstallRecordPatchedFile(
     string Target,
-    string AssetsFilePath,
-    string BackupPath,
+    string AssetsFileRelativePath,
+    string BackupRelativePath,
     int AssetCount,
     int OperationCount);
 
-public sealed record InstallRecordCopiedFile(
-    string Source,
-    string DestinationPath,
-    bool Exists);
+public sealed record InstallRecordCopiedFile(string Source, string DestinationRelativePath);

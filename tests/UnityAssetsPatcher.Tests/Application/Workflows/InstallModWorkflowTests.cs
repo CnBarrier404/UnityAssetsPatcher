@@ -1,8 +1,8 @@
 using System.IO.Compression;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Core.Assets;
@@ -82,6 +82,10 @@ public sealed class InstallModWorkflowTests
             Assert.Equal(targetPath, assetsFileService.OutputPath);
             Assert.Equal("patched", File.ReadAllText(targetPath));
             Assert.True(File.Exists(file.BackupPath));
+            string recordJson = ReadInstallRecordJson(backupDirectory);
+            Assert.DoesNotContain("\"formatVersion\"", recordJson);
+            Assert.DoesNotContain("\"gameDirectory\"", recordJson);
+            Assert.DoesNotContain(targetPath, recordJson);
         }
         finally
         {

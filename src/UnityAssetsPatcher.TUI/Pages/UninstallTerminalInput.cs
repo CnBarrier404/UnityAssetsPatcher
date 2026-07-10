@@ -18,6 +18,11 @@ internal sealed class UninstallTerminalInput
         return _prompts.ReadChoiceIndex(installedModCount, 0, render);
     }
 
+    public string? ReadGameDirectory()
+    {
+        return _prompts.ReadExistingDirectoryPath(LocalizedStrings.InstallPage_GameDirectoryPrompt);
+    }
+
     public bool ConfirmUninstall()
     {
         return _prompts.Confirm(LocalizedStrings.UninstallPage_ConfirmPrompt);

@@ -8,15 +8,16 @@ public sealed class UninstallExecutor
 {
     public UninstallExecutionResult Execute(UninstallPlan plan)
     {
-        UninstallPathValidator.ValidateRecordPaths(
+        UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
             plan.BackupDirectory,
             plan.InstallDirectory,
+            plan.GameDirectory,
             plan.Record);
 
-        ValidateUninstallAccess(plan.Record, plan.InstallDirectory);
+        ValidateUninstallAccess(paths, plan.InstallDirectory);
 
-        var restoredFiles = RestoreAssets(plan.Record.PatchedFiles);
-        var deletedFiles = DeleteCopiedFiles(plan.Record.CopiedFiles);
+        var restoredFiles = RestoreAssets(paths.PatchedFiles);
+        var deletedFiles = DeleteCopiedFiles(paths.CopiedFiles);
 
         ModBackupStore.DeleteRecord(plan.InstallDirectory);
         Directory.Delete(plan.InstallDirectory, true);
@@ -24,17 +25,17 @@ public sealed class UninstallExecutor
         return new UninstallExecutionResult(restoredFiles, deletedFiles);
     }
 
-    private static void ValidateUninstallAccess(InstallRecord record, string installDirectory)
+    private static void ValidateUninstallAccess(UninstallResolvedPaths paths, string installDirectory)
     {
-        ValidateRestorableFiles(record.PatchedFiles);
+        ValidateRestorableFiles(paths.PatchedFiles);
 
-        foreach (InstallRecordPatchedFile file in record.PatchedFiles)
+        foreach (UninstallResolvedPatchedFile file in paths.PatchedFiles)
         {
             EnsureCanOpen(file.AssetsFilePath, FileAccess.ReadWrite, FileShare.None);
             EnsureCanOpen(file.BackupPath, FileAccess.Read, FileShare.Read);
         }
 
-        foreach (InstallRecordCopiedFile file in record.CopiedFiles)
+        foreach (UninstallResolvedCopiedFile file in paths.CopiedFiles)
         {
             if (File.Exists(file.DestinationPath))
             {
@@ -50,18 +51,18 @@ public sealed class UninstallExecutor
         using FileStream _ = File.Open(path, FileMode.Open, access, share);
     }
 
-    private static List<UninstallRestoredFileResult> RestoreAssets(IReadOnlyList<InstallRecordPatchedFile> files)
+    private static List<UninstallRestoredFileResult> RestoreAssets(IReadOnlyList<UninstallResolvedPatchedFile> files)
     {
         ValidateRestorableFiles(files);
 
         return RestorePatchedFiles(files);
     }
 
-    private static List<UninstallDeletedFileResult> DeleteCopiedFiles(IReadOnlyList<InstallRecordCopiedFile> files)
+    private static List<UninstallDeletedFileResult> DeleteCopiedFiles(IReadOnlyList<UninstallResolvedCopiedFile> files)
     {
         var deletedFiles = new List<UninstallDeletedFileResult>();
 
-        foreach (InstallRecordCopiedFile file in files)
+        foreach (UninstallResolvedCopiedFile file in files)
         {
             if (!File.Exists(file.DestinationPath))
             {
@@ -76,9 +77,9 @@ public sealed class UninstallExecutor
         return deletedFiles;
     }
 
-    private static void ValidateRestorableFiles(IReadOnlyList<InstallRecordPatchedFile> files)
+    private static void ValidateRestorableFiles(IReadOnlyList<UninstallResolvedPatchedFile> files)
     {
-        foreach (InstallRecordPatchedFile file in files)
+        foreach (UninstallResolvedPatchedFile file in files)
         {
             if (!File.Exists(file.AssetsFilePath))
             {
@@ -97,7 +98,7 @@ public sealed class UninstallExecutor
     }
 
     private static List<UninstallRestoredFileResult> RestorePatchedFiles(
-        IReadOnlyList<InstallRecordPatchedFile> files)
+        IReadOnlyList<UninstallResolvedPatchedFile> files)
     {
         var restoredFiles = new List<UninstallRestoredFileResult>();
         var restoreAttemptBackups = new List<RestoreAttemptBackup>();
@@ -105,7 +106,7 @@ public sealed class UninstallExecutor
 
         try
         {
-            foreach (InstallRecordPatchedFile file in files)
+            foreach (UninstallResolvedPatchedFile file in files)
             {
                 RestoreAttemptBackup restoreAttemptBackup = CreateRestoreAttemptBackup(file.AssetsFilePath);
                 restoreAttemptBackups.Add(restoreAttemptBackup);
@@ -134,7 +135,7 @@ public sealed class UninstallExecutor
         return new RestoreAttemptBackup(assetsFilePath, CreateRestoreAttemptBackupPath(assetsFilePath));
     }
 
-    private static void RestorePatchedFile(InstallRecordPatchedFile file, RestoreAttemptBackup restoreAttemptBackup)
+    private static void RestorePatchedFile(UninstallResolvedPatchedFile file, RestoreAttemptBackup restoreAttemptBackup)
     {
         try
         {

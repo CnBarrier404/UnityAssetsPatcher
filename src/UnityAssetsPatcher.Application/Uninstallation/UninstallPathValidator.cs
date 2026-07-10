@@ -17,71 +17,112 @@ public static class UninstallPathValidator
         }
     }
 
-    public static void ValidateRecordPaths(
+    public static UninstallResolvedPaths ResolveRecordPaths(
         string backupDirectory,
         string installDirectory,
+        string gameDirectory,
         InstallRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
 
         ValidateInstallDirectory(backupDirectory, installDirectory);
 
         string fullInstallDirectory = GetResolvedPath(installDirectory, "install directory");
-        string fullGameDirectory = GetResolvedPath(record.GameDirectory, "game directory");
+        string fullGameDirectory = GetExistingDirectoryPath(gameDirectory, "game directory");
 
-        foreach (InstallRecordPatchedFile file in record.PatchedFiles)
-        {
-            ValidatePatchedFile(fullInstallDirectory, fullGameDirectory, file);
-        }
+        var patchedFiles = record.PatchedFiles
+            .Select(file => ResolvePatchedFile(fullInstallDirectory, fullGameDirectory, file))
+            .ToArray();
 
-        foreach (InstallRecordCopiedFile file in record.CopiedFiles)
-        {
-            ValidateCopiedFile(fullGameDirectory, file);
-        }
+        var copiedFiles = record.CopiedFiles
+            .Select(file => ResolveCopiedFile(fullGameDirectory, file))
+            .ToArray();
+
+        return new UninstallResolvedPaths(fullGameDirectory, patchedFiles, copiedFiles);
     }
 
-    private static void ValidatePatchedFile(
+    private static UninstallResolvedPatchedFile ResolvePatchedFile(
         string fullInstallDirectory,
         string fullGameDirectory,
         InstallRecordPatchedFile file)
     {
-        string fullBackupPath = GetResolvedPath(file.BackupPath, "backup path");
-        string fullAssetsFilePath = GetResolvedPath(file.AssetsFilePath, "assets file path");
+        string backupPath = ResolveRelativePath(
+            fullInstallDirectory,
+            file.BackupRelativePath,
+            "backup path");
+        string assetsFilePath = ResolveRelativePath(
+            fullGameDirectory,
+            file.AssetsFileRelativePath,
+            "assets file path");
 
-        if (!IsPathInsideDirectory(fullBackupPath, fullInstallDirectory))
+        if (!FileNamesEqual(assetsFilePath, file.Target))
         {
             throw new InvalidOperationException(
-                $"Backup path must be inside the install directory: {file.BackupPath}");
+                $"Patched assets file name must match target file name: {file.AssetsFileRelativePath}");
         }
 
-        if (!IsPathInsideDirectory(fullAssetsFilePath, fullGameDirectory))
-        {
-            throw new InvalidOperationException(
-                $"Assets file path must be inside the game directory: {file.AssetsFilePath}");
-        }
-
-        if (!FileNamesEqual(file.AssetsFilePath, file.Target))
-        {
-            throw new InvalidOperationException(
-                $"Patched assets file name must match target file name: {file.AssetsFilePath}");
-        }
+        return new UninstallResolvedPatchedFile(
+            file.Target,
+            assetsFilePath,
+            backupPath,
+            file.AssetCount,
+            file.OperationCount);
     }
 
-    private static void ValidateCopiedFile(string fullGameDirectory, InstallRecordCopiedFile file)
+    private static UninstallResolvedCopiedFile ResolveCopiedFile(
+        string fullGameDirectory,
+        InstallRecordCopiedFile file)
     {
-        string fullDestinationPath = GetResolvedPath(file.DestinationPath, "payload destination path");
+        string destinationPath = ResolveRelativePath(
+            fullGameDirectory,
+            file.DestinationRelativePath,
+            "payload destination path");
 
-        if (!IsPathInsideDirectory(fullDestinationPath, fullGameDirectory))
+        if (!FileNamesEqual(destinationPath, file.Source))
         {
             throw new InvalidOperationException(
-                $"Payload destination path must be inside the game directory: {file.DestinationPath}");
+                $"Payload destination file name must match source file name: {file.DestinationRelativePath}");
         }
 
-        if (!FileNamesEqual(file.DestinationPath, file.Source))
+        return new UninstallResolvedCopiedFile(file.Source, destinationPath);
+    }
+
+    private static string ResolveRelativePath(string rootDirectory, string relativePath, string description)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath) ||
+            Path.IsPathRooted(relativePath) ||
+            Path.GetPathRoot(relativePath)?.Length > 0 ||
+            ContainsNavigationSegment(relativePath))
+        {
+            throw new InvalidOperationException($"Invalid uninstall {description}: {relativePath}");
+        }
+
+        string resolvedPath = GetResolvedPath(Path.Combine(rootDirectory, relativePath), description);
+
+        if (!IsPathInsideDirectory(resolvedPath, rootDirectory))
         {
             throw new InvalidOperationException(
-                $"Payload destination file name must match source file name: {file.DestinationPath}");
+                $"Uninstall {description} must be inside its trusted directory: {relativePath}");
         }
+
+        return resolvedPath;
+    }
+
+    private static bool ContainsNavigationSegment(string path)
+    {
+        return path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries)
+            .Any(segment => segment is "." or "..");
+    }
+
+    private static string GetExistingDirectoryPath(string path, string description)
+    {
+        string resolvedPath = GetResolvedPath(path, description);
+
+        return Directory.Exists(resolvedPath)
+            ? resolvedPath
+            : throw new DirectoryNotFoundException($"Game directory not found: {resolvedPath}");
     }
 
     private static bool IsPathInsideDirectory(string fullPath, string fullDirectory)
@@ -166,3 +207,17 @@ public static class UninstallPathValidator
     private static StringComparison PathComparison =>
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 }
+
+public sealed record UninstallResolvedPaths(
+    string GameDirectory,
+    IReadOnlyList<UninstallResolvedPatchedFile> PatchedFiles,
+    IReadOnlyList<UninstallResolvedCopiedFile> CopiedFiles);
+
+public sealed record UninstallResolvedPatchedFile(
+    string Target,
+    string AssetsFilePath,
+    string BackupPath,
+    int AssetCount,
+    int OperationCount);
+
+public sealed record UninstallResolvedCopiedFile(string Source, string DestinationPath);

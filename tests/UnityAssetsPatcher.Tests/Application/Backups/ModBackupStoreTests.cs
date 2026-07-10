@@ -125,8 +125,7 @@ public sealed class ModBackupStoreTests
             "Better Audio Pack",
             "1.0.0",
             "UnityAssetsPatcher.Tests",
-            null,
-            @"C:\Games\Example",
+            "Example Game",
             [],
             []);
         var store = new ModBackupStore(backupDirectory);

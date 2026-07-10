@@ -21,6 +21,7 @@ public sealed record UninstallPreviewResult(
     string ModName,
     string ModVersion,
     string ModAuthor,
+    string GameDirectory,
     bool CanUninstall,
     IReadOnlyList<UninstallPreviewRestoredFileResult> RestoredFiles,
     IReadOnlyList<UninstallPreviewDeletedFileResult> DeletedFiles);
@@ -53,5 +54,5 @@ public sealed record InstallRecordSummary(
     string InstallDirectory,
     string ModName,
     string ModVersion,
-    string GameDirectory,
+    string? GameName,
     DateTimeOffset InstalledAt);

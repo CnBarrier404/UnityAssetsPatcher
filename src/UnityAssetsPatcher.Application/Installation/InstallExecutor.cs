@@ -42,6 +42,7 @@ public sealed class InstallExecutor
             InstallRecord record = BuildRecord(
                 session.Package,
                 session.Plan.GameDirectory,
+                recordPaths.InstallDirectory,
                 patchApplyResult,
                 copiedFiles,
                 session.Package.AppliedOptionalGroups);
@@ -166,6 +167,7 @@ public sealed class InstallExecutor
     private static InstallRecord BuildRecord(
         ModPackage package,
         string gameDirectory,
+        string installDirectory,
         InstallPatchApplyResult patchApplyResult,
         IReadOnlyList<InstallChange> copiedFiles,
         IReadOnlyList<string> appliedOptionalGroups)
@@ -176,13 +178,12 @@ public sealed class InstallExecutor
             package.Manifest.Info.Name,
             package.Manifest.Info.Version,
             package.Manifest.Info.Author,
-            package.PackagePath,
-            gameDirectory,
+            package.Manifest.Info.Game,
             patchApplyResult.Files
                 .Select(file => new InstallRecordPatchedFile(
                     file.Target,
-                    file.AssetsFilePath,
-                    file.BackupPath,
+                    Path.GetRelativePath(gameDirectory, file.AssetsFilePath),
+                    Path.GetRelativePath(installDirectory, file.BackupPath),
                     file.AssetCount,
                     file.OperationCount))
                 .ToArray(),
@@ -190,8 +191,7 @@ public sealed class InstallExecutor
                 .Where(file => file.Kind == InstallChangeKind.Payload)
                 .Select(file => new InstallRecordCopiedFile(
                     file.Name,
-                    file.Path,
-                    File.Exists(file.Path)))
+                    Path.GetRelativePath(gameDirectory, file.Path)))
                 .ToArray())
         {
             OptionalGroups = appliedOptionalGroups.Count == 0 ? null : appliedOptionalGroups,

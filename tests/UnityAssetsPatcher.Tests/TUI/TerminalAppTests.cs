@@ -316,6 +316,7 @@ public sealed class TerminalAppTests : IDisposable
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.UninstallMod);
         console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter(gameDirectory);
         console.Input.PushKey(ConsoleKey.Y);
         ReturnToMainMenu(console);
         SelectMainMenuOption(console, MainMenuOption.Exit);
