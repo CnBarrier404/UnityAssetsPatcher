@@ -110,8 +110,25 @@ public sealed class ModBackupStore
         InstallRecordValidator.Validate(record);
         Directory.CreateDirectory(installDirectory);
         string recordPath = GetRecordPath(installDirectory);
-        string json = JsonSerializer.Serialize(record, ModInstallationJsonContext.Default.InstallRecord);
-        File.WriteAllText(recordPath, json);
+        string temporaryPath = $"{recordPath}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                       4096, FileOptions.WriteThrough))
+            {
+                JsonSerializer.Serialize(stream, record, ModInstallationJsonContext.Default.InstallRecord);
+                stream.Flush(true);
+            }
+
+            FileHelper.SafeMoveFile(temporaryPath, recordPath, true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
     }
 
     public InstallRecord Load(string installDirectory)
@@ -154,6 +171,8 @@ public sealed class ModBackupStore
 
         var records = Directory
             .EnumerateFiles(BackupDirectory, RecordFileName, SearchOption.AllDirectories)
+            .Where(path =>
+                !(Path.GetDirectoryName(path) ?? string.Empty).Contains(".quarantine-", StringComparison.Ordinal))
             .Select(path => Path.GetDirectoryName(path) ??
                             throw new InvalidOperationException(
                                 $"Cannot resolve install record directory: {path}"))
@@ -162,6 +181,164 @@ public sealed class ModBackupStore
         InstallRecordValidator.ValidateAll(records.Select(entry => entry.Record));
 
         return records;
+    }
+
+    public void RecoverPendingTransactions()
+    {
+        if (!Directory.Exists(BackupDirectory))
+        {
+            return;
+        }
+
+        foreach (string journalPath in Directory.EnumerateFiles(BackupDirectory, OperationJournalStore.FileName,
+                     SearchOption.AllDirectories).ToArray())
+        {
+            string directory = Path.GetDirectoryName(journalPath)!;
+
+            try
+            {
+                Recover(directory, OperationJournalStore.Load(directory));
+            }
+            catch (Exception exception)
+            {
+                Quarantine(directory, exception);
+            }
+        }
+
+        foreach (string recordPath in Directory.EnumerateFiles(BackupDirectory, RecordFileName,
+                         SearchOption.AllDirectories)
+                     .Where(path => !(Path.GetDirectoryName(path) ?? string.Empty).Contains(
+                         ".quarantine-", StringComparison.Ordinal))
+                     .ToArray())
+        {
+            string directory = Path.GetDirectoryName(recordPath)!;
+
+            try
+            {
+                _ = Load(directory);
+            }
+            catch (Exception exception)
+            {
+                Quarantine(directory, exception);
+            }
+        }
+    }
+
+    private static void Recover(string directory, OperationJournal journal)
+    {
+        if (journal.Kind == OperationKind.Install)
+        {
+            if (HasValidRecord(directory))
+            {
+                OperationJournalStore.Delete(directory);
+                return;
+            }
+
+            foreach (JournalPayloadFile file in journal.PayloadFiles.Reverse())
+            {
+                if (File.Exists(file.DestinationPath))
+                {
+                    File.Delete(file.DestinationPath);
+                }
+            }
+
+            foreach (JournalPatchedFile file in journal.PatchedFiles.Reverse())
+            {
+                if (File.Exists(file.BackupPath))
+                {
+                    RestoreFile(file.BackupPath, file.AssetsFilePath);
+                }
+            }
+
+            Directory.Delete(directory, true);
+            return;
+        }
+
+        if (journal.Phase == OperationPhase.Committed)
+        {
+            foreach (JournalPatchedFile file in journal.PatchedFiles)
+            {
+                if (file.RollbackPath is not null && File.Exists(file.RollbackPath))
+                {
+                    File.Delete(file.RollbackPath);
+                }
+            }
+
+            Directory.Delete(directory, true);
+            return;
+        }
+
+        foreach (JournalPatchedFile file in journal.PatchedFiles.Reverse())
+        {
+            if (file.RollbackPath is not null && File.Exists(file.RollbackPath))
+            {
+                RestoreFile(file.RollbackPath, file.AssetsFilePath);
+            }
+        }
+
+        foreach (JournalPayloadFile file in journal.PayloadFiles.Reverse())
+        {
+            if (file.StagingPath is not null && File.Exists(file.StagingPath) && !File.Exists(file.DestinationPath))
+            {
+                RestoreFile(file.StagingPath, file.DestinationPath);
+            }
+        }
+
+        foreach (JournalPatchedFile file in journal.PatchedFiles)
+        {
+            if (file.RollbackPath is not null && File.Exists(file.RollbackPath))
+            {
+                File.Delete(file.RollbackPath);
+            }
+        }
+
+        foreach (JournalPayloadFile file in journal.PayloadFiles)
+        {
+            if (file.StagingPath is not null && File.Exists(file.StagingPath))
+            {
+                File.Delete(file.StagingPath);
+            }
+        }
+
+        OperationJournalStore.Delete(directory);
+    }
+
+    private static bool HasValidRecord(string directory)
+    {
+        try
+        {
+            string path = GetRecordPath(directory);
+
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
+            using FileStream stream = File.OpenRead(path);
+
+            InstallRecord? record =
+                JsonSerializer.Deserialize(stream, ModInstallationJsonContext.Default.InstallRecord);
+
+            if (record is null)
+            {
+                return false;
+            }
+
+            InstallRecordValidator.Validate(record);
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void Quarantine(string directory, Exception exception)
+    {
+        string destination = $"{directory}.quarantine-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}";
+        Directory.Move(directory, destination);
+        File.WriteAllText(Path.Combine(destination, "recovery-error.txt"), exception.ToString());
     }
 
     public BackupOperationLock AcquireOperationLock() => BackupOperationLock.Acquire(BackupDirectory);

@@ -17,13 +17,132 @@ public sealed class UninstallExecutor
         UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
         ValidateUninstallAccess(paths, plan.InstallDirectory);
 
-        var restoredFiles = RestoreAssets(paths.PatchedFiles);
-        var deletedFiles = DeleteCopiedFiles(paths.CopiedFiles);
+        string stagingDirectory = Path.Combine(plan.InstallDirectory, ".uninstall-staging");
+        var patched = paths.PatchedFiles.Select((file, index) => new JournalPatchedFile(
+            file.AssetsFilePath, file.BackupPath, CreateRestoreAttemptBackupPath(file.AssetsFilePath))).ToArray();
+        var payload = paths.CopiedFiles.Select((file, index) => new JournalPayloadFile(
+            file.DestinationPath, Path.Combine(stagingDirectory, $"payload-{index}.rollback"))).ToArray();
+        var journal = new OperationJournal(
+            OperationJournalStore.CurrentFormatVersion, OperationKind.Uninstall, OperationPhase.Pending,
+            paths.GameDirectory, patched, payload);
+        OperationJournalStore.Save(plan.InstallDirectory, journal);
 
-        ModBackupStore.DeleteRecord(plan.InstallDirectory);
-        Directory.Delete(plan.InstallDirectory, true);
+        try
+        {
+            Directory.CreateDirectory(stagingDirectory);
+            for (int index = 0; index < paths.PatchedFiles.Count; index++)
+            {
+                File.Copy(paths.PatchedFiles[index].AssetsFilePath, patched[index].RollbackPath!, false);
+            }
 
-        return new UninstallExecutionResult(restoredFiles, deletedFiles);
+            for (int index = 0; index < paths.CopiedFiles.Count; index++)
+            {
+                if (File.Exists(paths.CopiedFiles[index].DestinationPath))
+                {
+                    File.Copy(paths.CopiedFiles[index].DestinationPath, payload[index].StagingPath!, false);
+                }
+            }
+
+            var restoredFiles = new List<UninstallRestoredFileResult>();
+
+            foreach (UninstallResolvedPatchedFile file in paths.PatchedFiles)
+            {
+                ModBackupStore.RestoreFile(file.BackupPath, file.AssetsFilePath);
+                restoredFiles.Add(new UninstallRestoredFileResult(file.Target, file.AssetsFilePath, file.BackupPath));
+            }
+
+            journal = journal with { Phase = OperationPhase.AssetsChanged };
+            OperationJournalStore.Save(plan.InstallDirectory, journal);
+
+            var deletedFiles = DeleteCopiedFiles(paths.CopiedFiles);
+            journal = journal with { Phase = OperationPhase.PayloadChanged };
+
+            OperationJournalStore.Save(plan.InstallDirectory, journal);
+
+            journal = journal with { Phase = OperationPhase.Committed };
+
+            OperationJournalStore.Save(plan.InstallDirectory, journal);
+            ModBackupStore.DeleteRecord(plan.InstallDirectory);
+
+            foreach (JournalPatchedFile file in patched)
+            {
+                if (File.Exists(file.RollbackPath))
+                {
+                    File.Delete(file.RollbackPath!);
+                }
+            }
+
+            Directory.Delete(plan.InstallDirectory, true);
+
+            return new UninstallExecutionResult(restoredFiles, deletedFiles);
+        }
+        catch (Exception failure)
+        {
+            if (journal.Phase == OperationPhase.Committed)
+            {
+                throw new AggregateException(
+                    "Uninstall committed but cleanup is incomplete; startup recovery will finish it.",
+                    failure,
+                    new InvalidOperationException("Committed uninstall cleanup remains pending."));
+            }
+
+            var recoveryFailures = new List<Exception>();
+
+            foreach (JournalPatchedFile file in patched.Reverse())
+            {
+                try
+                {
+                    if (File.Exists(file.RollbackPath))
+                    {
+                        ModBackupStore.RestoreFile(file.RollbackPath!, file.AssetsFilePath);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    recoveryFailures.Add(exception);
+                }
+            }
+
+            foreach (JournalPayloadFile file in payload.Reverse())
+            {
+                try
+                {
+                    if (File.Exists(file.StagingPath) && !File.Exists(file.DestinationPath))
+                    {
+                        ModBackupStore.RestoreFile(file.StagingPath!, file.DestinationPath);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    recoveryFailures.Add(exception);
+                }
+            }
+
+            if (recoveryFailures.Count != 0)
+            {
+                throw new AggregateException("Uninstall failed and one or more recovery steps also failed.",
+                    new[] { failure }.Concat(recoveryFailures));
+            }
+
+            foreach (JournalPatchedFile file in patched)
+            {
+                if (File.Exists(file.RollbackPath))
+                {
+                    File.Delete(file.RollbackPath!);
+                }
+            }
+
+            if (Directory.Exists(stagingDirectory))
+            {
+                Directory.Delete(stagingDirectory, true);
+            }
+
+            OperationJournalStore.Delete(plan.InstallDirectory);
+            ExceptionDispatchInfo.Capture(failure).Throw();
+
+            throw new AggregateException("Uninstall failed and one or more recovery steps also failed.",
+                new[] { failure }.Concat(recoveryFailures));
+        }
     }
 
     private static void ValidateUninstallAccess(UninstallResolvedPaths paths, string installDirectory)
@@ -52,13 +171,6 @@ public sealed class UninstallExecutor
         using FileStream _ = File.Open(path, FileMode.Open, access, share);
     }
 
-    private static List<UninstallRestoredFileResult> RestoreAssets(IReadOnlyList<UninstallResolvedPatchedFile> files)
-    {
-        ValidateRestorableFiles(files);
-
-        return RestorePatchedFiles(files);
-    }
-
     private static List<UninstallDeletedFileResult> DeleteCopiedFiles(IReadOnlyList<UninstallResolvedCopiedFile> files)
     {
         var deletedFiles = new List<UninstallDeletedFileResult>();
@@ -68,6 +180,7 @@ public sealed class UninstallExecutor
             if (!File.Exists(file.DestinationPath))
             {
                 deletedFiles.Add(new UninstallDeletedFileResult(file.Source, file.DestinationPath, false));
+
                 continue;
             }
 

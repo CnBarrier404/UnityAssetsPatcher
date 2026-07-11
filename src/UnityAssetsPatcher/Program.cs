@@ -3,6 +3,7 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI;
+using UnityAssetsPatcher.Application.Backups;
 
 namespace UnityAssetsPatcher;
 
@@ -28,6 +29,7 @@ public static class Program
                 ValidateScopes = true,
             });
 
+        serviceProvider.GetRequiredService<ModBackupStore>().RecoverPendingTransactions();
         var app = serviceProvider.GetRequiredService<TerminalApp>();
 
         return app.Run();

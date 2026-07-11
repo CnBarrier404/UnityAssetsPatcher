@@ -47,13 +47,20 @@ public sealed class InstallExecutor
                                          "Install plan does not contain a write plan.");
         InstallRecordPaths recordPaths = CreateRecordPaths(_backupStore, session.Package);
 
+        OperationJournal journal = CreateJournal(writePlan, session.Plan.GameDirectory, recordPaths);
+        OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
+
         InstallPatchApplyResult? patchApplyResult = null;
         IReadOnlyList<InstallChange> copiedFiles = [];
 
         try
         {
             patchApplyResult = ApplyPatches(writePlan.Patch, recordPaths, timings);
+            journal = journal with { Phase = OperationPhase.AssetsChanged };
+            OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
             copiedFiles = CopyPayloadFiles(session.Package, writePlan.PayloadFiles, timings);
+            journal = journal with { Phase = OperationPhase.PayloadChanged };
+            OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
             InstallRecord record = BuildRecord(
                 session.Package,
                 session.Plan.GameDirectory,
@@ -63,6 +70,9 @@ public sealed class InstallExecutor
                 session.Package.AppliedOptionalGroups);
 
             _backupStore.Save(record, recordPaths.InstallDirectory);
+            journal = journal with { Phase = OperationPhase.Committed };
+            OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
+            OperationJournalStore.Delete(recordPaths.InstallDirectory);
 
             return new InstallExecutionResult(patchApplyResult, copiedFiles);
         }
@@ -278,5 +288,21 @@ public sealed class InstallExecutor
             package.Manifest.Info.Version);
 
         return new InstallRecordPaths(installDirectory, Path.Combine(installDirectory, "assets"));
+    }
+
+    private static OperationJournal CreateJournal(
+        InstallWritePlan plan,
+        string gameDirectory,
+        InstallRecordPaths paths)
+    {
+        return new OperationJournal(
+            OperationJournalStore.CurrentFormatVersion,
+            OperationKind.Install,
+            OperationPhase.Pending,
+            Path.GetFullPath(gameDirectory),
+            plan.Patch.Files.Select(file => new JournalPatchedFile(
+                Path.GetFullPath(file.AssetsFilePath),
+                Path.Combine(paths.AssetsBackupDirectory, Path.GetFileName(file.AssetsFilePath)))).ToArray(),
+            plan.PayloadFiles.Select(file => new JournalPayloadFile(Path.GetFullPath(file.DestinationPath))).ToArray());
     }
 }

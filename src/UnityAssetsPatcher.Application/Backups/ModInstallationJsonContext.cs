@@ -7,4 +7,5 @@ namespace UnityAssetsPatcher.Application.Backups;
     WriteIndented = true,
     UseStringEnumConverter = true)]
 [JsonSerializable(typeof(InstallRecord))]
+[JsonSerializable(typeof(OperationJournal))]
 internal sealed partial class ModInstallationJsonContext : JsonSerializerContext;
