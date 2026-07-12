@@ -11,6 +11,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
     private readonly bool _ownsContext;
     private readonly Dictionary<string, AssetsFileSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<AssetsInfo>> _assetsInfo = new(StringComparer.OrdinalIgnoreCase);
+    private bool _disposed;
 
     public AssetsFileReader(AssetsToolsContext context, bool ownsContext = true)
     {
@@ -20,6 +21,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 
     public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         string fullPath = Path.GetFullPath(assetsFilePath);
 
         if (_assetsInfo.TryGetValue(fullPath, out var assets))
@@ -35,10 +37,33 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 
     public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         return ReadSessionAssetsFieldInfo(GetSession(Path.GetFullPath(assetsFilePath)), pathId);
     }
 
+    public void CloseReadSessions()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        CloseReadSessionsCore();
+    }
+
     public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        CloseReadSessionsCore();
+
+        if (_ownsContext)
+        {
+            _context.Dispose();
+        }
+    }
+
+    private void CloseReadSessionsCore()
     {
         ExceptionDispatchInfo? firstException = null;
 
@@ -56,18 +81,6 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 
         _sessions.Clear();
         _assetsInfo.Clear();
-
-        if (_ownsContext)
-        {
-            try
-            {
-                _context.Dispose();
-            }
-            catch (Exception exception)
-            {
-                firstException ??= ExceptionDispatchInfo.Capture(exception);
-            }
-        }
 
         firstException?.Throw();
     }

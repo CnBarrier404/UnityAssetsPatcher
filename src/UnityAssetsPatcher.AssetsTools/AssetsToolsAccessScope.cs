@@ -7,8 +7,7 @@ public sealed class AssetsToolsAccessScope : IAssetsAccessScope
     public IAssetsFileReader Reader { get; }
     public IAssetsFileWriter Writer { get; }
 
-    private readonly IDisposable? _disposableReader;
-    private bool _readResourcesReleased;
+    private bool _disposed;
 
     public AssetsToolsAccessScope(IAssetsFileReader reader, IAssetsFileWriter writer)
     {
@@ -17,23 +16,27 @@ public sealed class AssetsToolsAccessScope : IAssetsAccessScope
 
         Reader = reader;
         Writer = writer;
-        _disposableReader = reader as IDisposable;
     }
 
-    public void ReleaseReadResources()
+    public void CloseReadSessions()
     {
-        if (_readResourcesReleased)
-        {
-            return;
-        }
-
-        _readResourcesReleased = true;
-        _disposableReader?.Dispose();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        Reader.CloseReadSessions();
     }
 
     public void Dispose()
     {
-        ReleaseReadResources();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        if (Reader is IDisposable disposableReader)
+        {
+            disposableReader.Dispose();
+        }
 
         if (Writer is IDisposable disposableWriter)
         {

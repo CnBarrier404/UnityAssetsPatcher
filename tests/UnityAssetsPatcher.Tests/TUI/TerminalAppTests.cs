@@ -591,17 +591,17 @@ public sealed class TerminalAppTests : IDisposable
         public IAssetsFileReader Reader => assetsReader;
         public IAssetsFileWriter Writer => assetsWriter;
 
-        public void ReleaseReadResources()
+        public void CloseReadSessions()
         {
-            if (assetsReader is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
+            assetsReader.CloseReadSessions();
         }
 
         public void Dispose()
         {
-            ReleaseReadResources();
+            if (assetsReader is IDisposable disposableReader)
+            {
+                disposableReader.Dispose();
+            }
 
             if (!ReferenceEquals(assetsReader, assetsWriter) && assetsWriter is IDisposable disposableWriter)
             {

@@ -39,7 +39,7 @@ public sealed class InstallModWorkflow
         }
         finally
         {
-            _executor.ReleaseReadResources();
+            _executor.CloseReadSessions();
         }
     }
 
@@ -62,7 +62,7 @@ public sealed class InstallModWorkflow
         }
         finally
         {
-            _executor.ReleaseReadResources();
+            _executor.CloseReadSessions();
         }
     }
 }

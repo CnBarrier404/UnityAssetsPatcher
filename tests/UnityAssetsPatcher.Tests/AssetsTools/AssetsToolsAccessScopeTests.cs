@@ -42,16 +42,40 @@ public sealed class AssetsToolsAccessScopeTests
     }
 
     [Fact]
-    public void ReleaseReadResources_WhenCalledMultipleTimes_DisposesReaderOnce()
+    public void CloseReadSessions_WhenReaderIsUsedAgain_OpensANewReadableSession()
+    {
+        using var factory = new AssetsToolsAccessScopeFactory(GetRealTpkFilePath());
+        using IAssetsAccessScope scope = factory.CreateScope();
+
+        Assert.NotEmpty(scope.Reader.ReadAssetsInfo(GetRealAssetsFilePath()));
+
+        scope.CloseReadSessions();
+
+        Assert.NotEmpty(scope.Reader.ReadAssetsInfo(GetRealAssetsFilePath()));
+    }
+
+    [Fact]
+    public void Dispose_WhenReaderIsUsedAgain_ThrowsObjectDisposedException()
+    {
+        using var context = new AssetsToolsContext(GetRealTpkFilePath());
+        var reader = new AssetsFileReader(context, ownsContext: false);
+        reader.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => reader.ReadAssetsInfo(GetRealAssetsFilePath()));
+    }
+
+    [Fact]
+    public void CloseReadSessions_WhenCalledMultipleTimes_ForwardsEveryCallWithoutDisposingReader()
     {
         var reader = new DisposableAssetsReader();
         var writer = new DisposableAssetsWriter();
         using var scope = new AssetsToolsAccessScope(reader, writer);
 
-        scope.ReleaseReadResources();
-        scope.ReleaseReadResources();
+        scope.CloseReadSessions();
+        scope.CloseReadSessions();
 
-        Assert.Equal(1, reader.DisposeCount);
+        Assert.Equal(2, reader.CloseReadSessionsCount);
+        Assert.Equal(0, reader.DisposeCount);
         Assert.Equal(0, writer.DisposeCount);
     }
 
@@ -71,6 +95,7 @@ public sealed class AssetsToolsAccessScopeTests
     private sealed class DisposableAssetsReader : IAssetsFileReader, IDisposable
     {
         public int DisposeCount { get; private set; }
+        public int CloseReadSessionsCount { get; private set; }
 
         public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
         {
@@ -80,6 +105,11 @@ public sealed class AssetsToolsAccessScopeTests
         public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
         {
             throw new NotSupportedException();
+        }
+
+        public void CloseReadSessions()
+        {
+            CloseReadSessionsCount++;
         }
 
         public void Dispose()

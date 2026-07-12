@@ -37,7 +37,8 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     public string? OutputPath { get; private set; }
     public long? ReceivedPathId { get; private set; }
     public int DisposeCount { get; private set; }
-    public int? DisposeCountAtWrite { get; private set; }
+    public int CloseReadSessionsCount { get; private set; }
+    public int? CloseReadSessionsCountAtWrite { get; private set; }
     public int ReadAssetsInfoCallCount { get; private set; }
     public IReadOnlyList<AssetFieldPatch> Plan { get; private set; } = [];
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
@@ -81,7 +82,7 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
         WasCalled = true;
         InputPath = inputPath;
         OutputPath = outputPath;
-        DisposeCountAtWrite = DisposeCount;
+        CloseReadSessionsCountAtWrite = CloseReadSessionsCount;
         Plan = plan;
         File.WriteAllText(outputPath, "patched");
     }
@@ -91,7 +92,7 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
         WasCalled = true;
         InputPath = inputPath;
         OutputPath = outputPath;
-        DisposeCountAtWrite = DisposeCount;
+        CloseReadSessionsCountAtWrite = CloseReadSessionsCount;
         ReplacementPlan = plan;
         File.WriteAllText(outputPath, "patched");
     }
@@ -101,8 +102,8 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
         DisposeCount++;
     }
 
-    public void ReleaseReadResources()
+    public void CloseReadSessions()
     {
-        Dispose();
+        CloseReadSessionsCount++;
     }
 }

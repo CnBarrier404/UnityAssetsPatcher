@@ -539,7 +539,7 @@ public sealed class InstallModWorkflowTests
             workflow.Preview(new InstallPreviewRequest(zipPath, gameDirectory));
             workflow.Install(new InstallModRequest(zipPath, gameDirectory));
 
-            Assert.True(assetsFileService.DisposeCountAtWrite >= 2);
+            Assert.True(assetsFileService.CloseReadSessionsCountAtWrite >= 2);
         }
         finally
         {
@@ -668,7 +668,7 @@ public sealed class InstallModWorkflowTests
 
             Assert.Contains("Game directory could not be resolved", exception.Message);
             Assert.Contains("Missing Game", exception.Message);
-            Assert.Equal(1, assetsFileService.DisposeCount);
+            Assert.Equal(1, assetsFileService.CloseReadSessionsCount);
         }
         finally
         {
@@ -822,7 +822,7 @@ public sealed class InstallModWorkflowTests
 
             Assert.Contains("matched multiple files", exception.Message);
             Assert.False(assetsFileService.WasCalled);
-            Assert.Equal(1, assetsFileService.DisposeCount);
+            Assert.Equal(1, assetsFileService.CloseReadSessionsCount);
         }
         finally
         {

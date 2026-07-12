@@ -4,5 +4,5 @@ public interface IAssetsAccessScope : IDisposable
 {
     public IAssetsFileReader Reader { get; }
     public IAssetsFileWriter Writer { get; }
-    public void ReleaseReadResources();
+    public void CloseReadSessions();
 }

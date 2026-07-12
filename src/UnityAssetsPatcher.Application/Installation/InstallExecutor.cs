@@ -33,9 +33,9 @@ public sealed class InstallExecutor
         _backupStore = backupStore;
     }
 
-    public void ReleaseReadResources()
+    public void CloseReadSessions()
     {
-        _assets.ReleaseReadResources();
+        _assets.CloseReadSessions();
     }
 
     public InstallExecutionResult Execute(
@@ -97,7 +97,7 @@ public sealed class InstallExecutor
         InstallRecordPaths recordPaths,
         StepTimer timings)
     {
-        ReleaseReadResources();
+        CloseReadSessions();
 
         var appliedFiles = new List<InstallPatchAppliedFile>();
 
