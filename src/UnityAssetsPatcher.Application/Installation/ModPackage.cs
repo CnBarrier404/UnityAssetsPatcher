@@ -11,14 +11,12 @@ public sealed class ModPackage : IDisposable
     public IReadOnlyList<ManifestOptionalGroup> OptionalGroups { get; }
     public IReadOnlyList<string> AppliedOptionalGroups { get; }
     public ModManifest Manifest { get; }
-    public string PackagePath { get; }
 
     private readonly ModPackageArchive _archive;
     private readonly string? _temporaryDirectory;
     private long _reservedUncompressedBytes;
 
     private ModPackage(
-        string packagePath,
         ModManifest manifest,
         IReadOnlyList<ManifestOptionalGroup> optionalGroups,
         IReadOnlyList<string> appliedOptionalGroups,
@@ -27,7 +25,6 @@ public sealed class ModPackage : IDisposable
         string? temporaryDirectory,
         long reservedUncompressedBytes)
     {
-        PackagePath = packagePath;
         Manifest = manifest;
         OptionalGroups = optionalGroups;
         AppliedOptionalGroups = appliedOptionalGroups;
@@ -78,7 +75,6 @@ public sealed class ModPackage : IDisposable
                     ExtractPatchSources(packageArchive, effectiveManifest, archive, ref reservedUncompressedBytes));
 
             return new ModPackage(
-                modPackageFullPath,
                 effectiveManifest,
                 manifest.Optional,
                 appliedOptionalGroups,
@@ -121,8 +117,8 @@ public sealed class ModPackage : IDisposable
         var selected = new HashSet<string>(selectedOptionalGroups, StringComparer.OrdinalIgnoreCase);
 
         return optionalGroups
-            .Where(group => selected.Contains(group.Info.Name))
-            .Select(group => group.Info.Name)
+            .Where(group => selected.Contains(group.Name))
+            .Select(group => group.Name)
             .ToArray();
     }
 

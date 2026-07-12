@@ -35,22 +35,14 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     public bool WasCalled { get; private set; }
     public string? InputPath { get; private set; }
     public string? OutputPath { get; private set; }
-    public long? ReceivedPathId { get; private set; }
-    public int DisposeCount { get; private set; }
     public int CloseReadSessionsCount { get; private set; }
     public int? CloseReadSessionsCountAtWrite { get; private set; }
-    public int ReadAssetsInfoCallCount { get; private set; }
-    public IReadOnlyList<AssetFieldPatch> Plan { get; private set; } = [];
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
     public IAssetsFileReader Reader => this;
     public IAssetsFileWriter Writer => this;
 
-    private int ReadAssetsFieldInfoCallCount { get; set; }
-
     public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
     {
-        ReadAssetsInfoCallCount++;
-
         if (_resultsByPath.TryGetValue(assetsFilePath, out var result))
         {
             return result;
@@ -63,9 +55,6 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
 
     public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
     {
-        ReadAssetsFieldInfoCallCount++;
-        ReceivedPathId = pathId;
-
         if (_fieldTreesByPath.TryGetValue((assetsFilePath, pathId), out AssetsFieldInfo? fieldTreeByPath) ||
             _fieldTreesByPath.TryGetValue((Path.GetFileName(assetsFilePath), pathId), out fieldTreeByPath))
         {
@@ -83,7 +72,6 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
         InputPath = inputPath;
         OutputPath = outputPath;
         CloseReadSessionsCountAtWrite = CloseReadSessionsCount;
-        Plan = plan;
         File.WriteAllText(outputPath, "patched");
     }
 
@@ -97,10 +85,7 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
         File.WriteAllText(outputPath, "patched");
     }
 
-    public void Dispose()
-    {
-        DisposeCount++;
-    }
+    public void Dispose() { }
 
     public void CloseReadSessions()
     {

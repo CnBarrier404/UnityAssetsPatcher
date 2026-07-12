@@ -57,8 +57,6 @@ public sealed class ReplacementPlanBuilder
 
             assets.AddRange(from match in FindReplacementMatches(assetsFilePath, sourceAssetsFilePath, patch)
                 let operation = new PatchPreviewOperationResult("*", $"Path ID {match.Target.PathId}",
-                    JsonElementFactory.String(match.MatchValue),
-                    JsonElementFactory.String($"Path ID {match.Source.PathId} from {sourceAssetsFilePath}"),
                     match.MatchValue, $"Path ID {match.Source.PathId} from {sourceAssetsFilePath}", true)
                 select new PatchPreviewAssetResult(match.Target, [operation]));
         }
@@ -94,7 +92,7 @@ public sealed class ReplacementPlanBuilder
             var sourcePatch = new ManifestPatch(
                 Path.GetFileName(sourceAssetsFilePath),
                 patch.AssetTypeName,
-                [sourceIncludeGroup],
+                sourceIncludeGroup,
                 null,
                 null);
             var sourceMatches = _assetQueryService.FindMatches(sourceAssetsFilePath, sourcePatch)

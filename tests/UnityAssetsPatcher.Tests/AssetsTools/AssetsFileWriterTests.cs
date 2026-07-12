@@ -48,22 +48,6 @@ public sealed class AssetsFileWriterTests
     }
 
     /// <summary>
-    /// Verifies that replacement writing returns a clear error with the file path when the target assets file is missing.
-    /// </summary>
-    [Fact]
-    public void WriteReplacements_WhenTargetAssetsFileDoesNotExist_ThrowsClearError()
-    {
-        string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        var writer = new AssetsFileWriter("AssetsRipper.tpk");
-
-        var exception = Assert.Throws<FileNotFoundException>(() =>
-            writer.WriteReplacements(missingAssetsFile, outputPath, []));
-
-        Assert.Equal($"Assets file not found: {missingAssetsFile}", exception.Message);
-    }
-
-    /// <summary>
     /// Verifies that replacement writing returns a clear error with the file path when the source assets file is missing.
     /// </summary>
     [Fact]

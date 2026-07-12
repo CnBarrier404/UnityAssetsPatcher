@@ -51,7 +51,7 @@ public sealed class InstallModWorkflowTests
             }
             """);
         var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, 20, "Camera", 128)],
+            [new AssetsInfo(4, "Camera")],
             new Dictionary<long, AssetsFieldInfo>
             {
                 [4] = new("Camera", "Camera", null,
@@ -68,10 +68,9 @@ public sealed class InstallModWorkflowTests
         try
         {
             InstallModResult result = workflow.Install(
-                new InstallModRequest(zipPath, gameDirectory));
+                new InstallRequest(zipPath, gameDirectory));
 
             Assert.Equal("Test Mod", result.ModName);
-            Assert.Equal("UnityAssetsPatcher.Tests", result.ModAuthor);
             InstallChange file = SinglePatchChange(result);
             Assert.Equal("sharedassets0.assets", file.Name);
             Assert.Equal(targetPath, file.Path);
@@ -80,6 +79,7 @@ public sealed class InstallModWorkflowTests
             Assert.Equal(1, file.OperationCount);
             Assert.Equal(targetPath, assetsFileService.InputPath);
             Assert.Equal(targetPath, assetsFileService.OutputPath);
+            Assert.True(assetsFileService.CloseReadSessionsCountAtWrite >= 1);
             Assert.Equal("patched", File.ReadAllText(targetPath));
             Assert.True(File.Exists(file.BackupPath));
             string recordJson = ReadInstallRecordJson(backupDirectory);
@@ -171,7 +171,7 @@ public sealed class InstallModWorkflowTests
         }
 
         var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, 20, "Camera", 128)],
+            [new AssetsInfo(4, "Camera")],
             new Dictionary<long, AssetsFieldInfo>
             {
                 [4] = new("Camera", "Camera", null,
@@ -188,7 +188,7 @@ public sealed class InstallModWorkflowTests
         try
         {
             InstallModResult result = workflow.Install(
-                new InstallModRequest(zipPath, gameDirectory));
+                new InstallRequest(zipPath, gameDirectory));
 
             InstallChange copiedFile = SinglePayloadChange(result);
             Assert.Equal("resources/modassets.resource", copiedFile.Name);
@@ -264,11 +264,11 @@ public sealed class InstallModWorkflowTests
             {
                 [targetPath] =
                 [
-                    new AssetsInfo(100, 83, "AudioClip", 128),
+                    new AssetsInfo(100, "AudioClip"),
                 ],
                 ["modassets.assets"] =
                 [
-                    new AssetsInfo(200, 83, "AudioClip", 128),
+                    new AssetsInfo(200, "AudioClip"),
                 ],
             },
             new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
@@ -276,12 +276,12 @@ public sealed class InstallModWorkflowTests
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
                 [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
             });
-        var workflow = CreateWorkflow(assetsFileService);
+        var workflow = CreateWorkflow(assetsFileService, backupDirectory);
 
         try
         {
             InstallModResult result = workflow.Install(
-                new InstallModRequest(zipPath, gameDirectory));
+                new InstallRequest(zipPath, gameDirectory));
 
             InstallChange file = SinglePatchChange(result);
             Assert.Equal(1, file.AssetCount);
@@ -290,6 +290,9 @@ public sealed class InstallModWorkflowTests
             Assert.Equal(200, replacement.SourcePathId);
             Assert.Equal(100, replacement.TargetPathId);
             Assert.Equal("modassets.assets", Path.GetFileName(replacement.SourceAssetsFilePath));
+            Assert.StartsWith(Path.GetTempPath(), replacement.SourceAssetsFilePath,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("UnityAssetsPatcher.", replacement.SourceAssetsFilePath);
             Assert.Equal("patched", File.ReadAllText(targetPath));
         }
         finally
@@ -373,11 +376,11 @@ public sealed class InstallModWorkflowTests
             {
                 [targetPath] =
                 [
-                    new AssetsInfo(100, 83, "AudioClip", 128),
+                    new AssetsInfo(100, "AudioClip"),
                 ],
                 ["modassets.assets"] =
                 [
-                    new AssetsInfo(200, 83, "AudioClip", 128),
+                    new AssetsInfo(200, "AudioClip"),
                 ],
             },
             new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
@@ -385,12 +388,12 @@ public sealed class InstallModWorkflowTests
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
                 [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
             });
-        var workflow = CreateWorkflow(assetsFileService);
+        var workflow = CreateWorkflow(assetsFileService, backupDirectory);
 
         try
         {
             InstallModResult result = workflow.Install(
-                new InstallModRequest(zipPath, gameDirectory));
+                new InstallRequest(zipPath, gameDirectory));
 
             Assert.Single(PatchChanges(result.Changes));
             Assert.Single(PayloadChanges(result.Changes));
@@ -448,7 +451,7 @@ public sealed class InstallModWorkflowTests
             }
             """);
         var workflow = CreateWorkflow(new StubAssetsFileService(
-            [new AssetsInfo(4, 20, "Camera", 128)],
+            [new AssetsInfo(4, "Camera")],
             new Dictionary<long, AssetsFieldInfo>
             {
                 [4] = new("Camera", "Camera", null,
@@ -464,10 +467,9 @@ public sealed class InstallModWorkflowTests
         try
         {
             InstallPreviewResult result = workflow.Preview(
-                new InstallPreviewRequest(zipPath, gameDirectory));
+                new InstallRequest(zipPath, gameDirectory));
 
             Assert.Equal("Test Mod", result.ModName);
-            Assert.Equal("UnityAssetsPatcher.Tests", result.ModAuthor);
             InstallChange file = SinglePatchChange(result);
             Assert.Equal("sharedassets0.assets", file.Name);
             Assert.Equal(targetPath, file.Path);
@@ -485,73 +487,6 @@ public sealed class InstallModWorkflowTests
             if (Directory.Exists(gameDirectory))
             {
                 Directory.Delete(gameDirectory, true);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Verifies that reusing one workflow for preview and install still releases read resources before writing.
-    /// </summary>
-    [Fact]
-    public void Install_WhenSameWorkflowPreviewedFirst_ReleasesReadResourcesAgainBeforeWriting()
-    {
-        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
-        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
-        string targetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
-        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(targetDirectory);
-        File.WriteAllText(targetPath, "original");
-        TestManifest.WriteZip(
-            zipPath,
-            """
-            {
-              "patches": [
-                {
-                  "target": "sharedassets0.assets",
-                  "type": "Camera",
-                  "include": [
-                    {
-                      "field of view": 90.0
-                    }
-                  ],
-                  "set": [
-                    {
-                      "field": "field of view",
-                      "from": 90.0,
-                      "to": 75.0
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
-        var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, 20, "Camera", 128)],
-            new Dictionary<long, AssetsFieldInfo>
-            {
-                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
-            });
-        var workflow = CreateWorkflow(assetsFileService);
-
-        try
-        {
-            workflow.Preview(new InstallPreviewRequest(zipPath, gameDirectory));
-            workflow.Install(new InstallModRequest(zipPath, gameDirectory));
-
-            Assert.True(assetsFileService.CloseReadSessionsCountAtWrite >= 2);
-        }
-        finally
-        {
-            File.Delete(zipPath);
-            if (Directory.Exists(gameDirectory))
-            {
-                Directory.Delete(gameDirectory, true);
-            }
-
-            if (Directory.Exists(backupDirectory))
-            {
-                Directory.Delete(backupDirectory, true);
             }
         }
     }
@@ -606,7 +541,7 @@ public sealed class InstallModWorkflowTests
             """);
         var workflow = CreateWorkflow(
             new StubAssetsFileService(
-                [new AssetsInfo(4, 20, "Camera", 128)],
+                [new AssetsInfo(4, "Camera")],
                 new Dictionary<long, AssetsFieldInfo>
                 {
                     [4] = new("Camera", "Camera", null,
@@ -623,7 +558,7 @@ public sealed class InstallModWorkflowTests
         try
         {
             InstallPreviewResult result = workflow.Preview(
-                new InstallPreviewRequest(zipPath, null));
+                new InstallRequest(zipPath, null));
 
             InstallChange file = SinglePatchChange(result);
             Assert.Equal(targetPath, file.Path);
@@ -664,7 +599,7 @@ public sealed class InstallModWorkflowTests
         try
         {
             var exception = Assert.Throws<DirectoryNotFoundException>(() =>
-                workflow.Preview(new InstallPreviewRequest(zipPath, null)));
+                workflow.Preview(new InstallRequest(zipPath, null)));
 
             Assert.Contains("Game directory could not be resolved", exception.Message);
             Assert.Contains("Missing Game", exception.Message);
@@ -734,7 +669,7 @@ public sealed class InstallModWorkflowTests
         }
 
         var workflow = CreateWorkflow(new StubAssetsFileService(
-            [new AssetsInfo(4, 20, "Camera", 128)],
+            [new AssetsInfo(4, "Camera")],
             new Dictionary<long, AssetsFieldInfo>
             {
                 [4] = new("Camera", "Camera", null,
@@ -750,12 +685,11 @@ public sealed class InstallModWorkflowTests
         try
         {
             InstallPreviewResult result = workflow.Preview(
-                new InstallPreviewRequest(zipPath, gameDirectory));
+                new InstallRequest(zipPath, gameDirectory));
 
             InstallChange copiedFile = SinglePayloadChange(result);
             Assert.Equal("resources/modassets.resource", copiedFile.Name);
             Assert.Equal(copiedPath, copiedFile.Path);
-            Assert.True(copiedFile.WillCopy);
             Assert.False(File.Exists(copiedPath));
         }
         finally
@@ -808,114 +742,21 @@ public sealed class InstallModWorkflowTests
             }
             """);
         var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, 20, "Camera", 128)],
+            [new AssetsInfo(4, "Camera")],
             new Dictionary<long, AssetsFieldInfo>
             {
                 [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
             });
-        var workflow = CreateWorkflow(assetsFileService);
+        var workflow = CreateWorkflow(assetsFileService, backupDirectory);
 
         try
         {
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                workflow.Install(new InstallModRequest(zipPath, gameDirectory)));
+                workflow.Install(new InstallRequest(zipPath, gameDirectory)));
 
             Assert.Contains("matched multiple files", exception.Message);
             Assert.False(assetsFileService.WasCalled);
             Assert.Equal(1, assetsFileService.CloseReadSessionsCount);
-        }
-        finally
-        {
-            File.Delete(zipPath);
-            if (Directory.Exists(gameDirectory))
-            {
-                Directory.Delete(gameDirectory, true);
-            }
-
-            if (Directory.Exists(backupDirectory))
-            {
-                Directory.Delete(backupDirectory, true);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Verifies that replacement planning resolves source paths from the explicit source path map,
-    /// not from a fake manifest.json path or directory derivation.
-    /// </summary>
-    [Fact]
-    public void Install_WhenReplaceFromUsesZipEntry_SourcePathResolvedFromExplicitMap()
-    {
-        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
-        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
-        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
-        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(targetDirectory);
-        File.WriteAllText(targetPath, "original");
-
-        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-        {
-            ZipArchiveEntry manifestEntry = archive.CreateEntry("Mod/manifest.json");
-            using (StreamWriter writer = new(manifestEntry.Open()))
-            {
-                writer.Write(TestManifest.CreateJson(
-                    """
-                    {
-                      "name": "Test Mod",
-                      "author": "UnityAssetsPatcher.Tests",
-                      "version": "1.0.0",
-                      "patches": [
-                        {
-                          "target": "sharedassets4.assets",
-                          "type": "AudioClip",
-                          "include": [
-                            {
-                              "m_Name": "Example Clip"
-                            }
-                          ],
-                          "replaceFrom": {
-                            "assets": "resources/modassets.assets",
-                            "match": "m_Name"
-                          }
-                        }
-                      ]
-                    }
-                    """));
-            }
-
-            ZipArchiveEntry sourceAssetsEntry = archive.CreateEntry("resources/modassets.assets");
-            using StreamWriter sourceAssetsWriter = new(sourceAssetsEntry.Open());
-            sourceAssetsWriter.Write("source assets");
-        }
-
-        var assetsFileService = new StubAssetsFileService(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
-            {
-                [targetPath] =
-                [
-                    new AssetsInfo(100, 83, "AudioClip", 128),
-                ],
-                ["modassets.assets"] =
-                [
-                    new AssetsInfo(200, 83, "AudioClip", 128),
-                ],
-            },
-            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
-            {
-                [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
-                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
-            });
-        var workflow = CreateWorkflow(assetsFileService);
-
-        try
-        {
-            workflow.Install(new InstallModRequest(zipPath, gameDirectory));
-
-            AssetReplacement replacement = Assert.Single(assetsFileService.ReplacementPlan);
-            Assert.StartsWith(Path.GetTempPath(), replacement.SourceAssetsFilePath, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("UnityAssetsPatcher.", replacement.SourceAssetsFilePath);
-            Assert.EndsWith("modassets.assets", replacement.SourceAssetsFilePath);
         }
         finally
         {
@@ -1003,19 +844,19 @@ public sealed class InstallModWorkflowTests
             {
                 [targetPath] =
                 [
-                    new AssetsInfo(100, 83, "AudioClip", 128),
+                    new AssetsInfo(100, "AudioClip"),
                 ],
             },
             new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
             {
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
             });
-        var workflow = CreateWorkflow(assetsFileService);
+        var workflow = CreateWorkflow(assetsFileService, backupDirectory);
 
         try
         {
             Assert.ThrowsAny<Exception>(() =>
-                workflow.Install(new InstallModRequest(zipPath, gameDirectory)));
+                workflow.Install(new InstallRequest(zipPath, gameDirectory)));
 
             HashSet<string> after = Directory.GetDirectories(Path.GetTempPath(), "UnityAssetsPatcher.*")
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1099,8 +940,8 @@ public sealed class InstallModWorkflowTests
         var assetsFileService = new StubAssetsFileService(
             new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [basePath] = [new AssetsInfo(4, 20, "Camera", 128)],
-                [optionalPath] = [new AssetsInfo(5, 20, "Camera", 128)],
+                [basePath] = [new AssetsInfo(4, "Camera")],
+                [optionalPath] = [new AssetsInfo(5, "Camera")],
             },
             new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
             {
@@ -1112,7 +953,7 @@ public sealed class InstallModWorkflowTests
         try
         {
             InstallPreviewResult basePreview = workflow.Preview(
-                new InstallPreviewRequest(zipPath, gameDirectory));
+                new InstallRequest(zipPath, gameDirectory));
 
             (string Name, string? Description) group = Assert.Single(basePreview.OptionalGroups);
             Assert.Equal("Bonus camera", group.Name);
@@ -1120,7 +961,7 @@ public sealed class InstallModWorkflowTests
             Assert.Single(PatchChanges(basePreview.Changes));
 
             InstallPreviewResult mergedPreview = workflow.Preview(
-                new InstallPreviewRequest(zipPath, gameDirectory)
+                new InstallRequest(zipPath, gameDirectory)
                 {
                     SelectedOptionalGroups = ["Bonus camera"],
                 });
@@ -1158,7 +999,7 @@ public sealed class InstallModWorkflowTests
         try
         {
             InstallModResult result = workflow.Install(
-                new InstallModRequest(zipPath, gameDirectory)
+                new InstallRequest(zipPath, gameDirectory)
                 {
                     SelectedOptionalGroups = ["bonus CAMERA"],
                 });
@@ -1194,7 +1035,7 @@ public sealed class InstallModWorkflowTests
         try
         {
             InstallModResult result = workflow.Install(
-                new InstallModRequest(zipPath, gameDirectory));
+                new InstallRequest(zipPath, gameDirectory));
 
             Assert.Empty(result.OptionalGroups);
             Assert.Single(PatchChanges(result.Changes));
@@ -1240,7 +1081,7 @@ public sealed class InstallModWorkflowTests
     private static StubAssetsFileService CreateCullingMaskCameraReader()
     {
         return new StubAssetsFileService(
-            [new AssetsInfo(4, 20, "Camera", 128)],
+            [new AssetsInfo(4, "Camera")],
             new Dictionary<long, AssetsFieldInfo>
             {
                 [4] = new("Camera", "Camera", null,
@@ -1337,7 +1178,7 @@ public sealed class InstallModWorkflowTests
         }
 
         var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, 20, "Camera", 128)],
+            [new AssetsInfo(4, "Camera")],
             new Dictionary<long, AssetsFieldInfo>
             {
                 [4] = new("Camera", "Camera", null,
@@ -1357,7 +1198,7 @@ public sealed class InstallModWorkflowTests
         try
         {
             var exception = Assert.Throws<IOException>(() =>
-                workflow.Install(new InstallModRequest(zipPath, gameDirectory)));
+                workflow.Install(new InstallRequest(zipPath, gameDirectory)));
 
             Assert.Contains("Payload file was created by another process", exception.Message);
             Assert.Contains("modassets.resource", exception.Message);

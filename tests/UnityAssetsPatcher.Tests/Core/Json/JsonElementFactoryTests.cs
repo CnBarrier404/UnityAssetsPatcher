@@ -17,15 +17,6 @@ public sealed class JsonElementFactoryTests
     }
 
     [Fact]
-    public void Number_CreatesSignedIntegerValue()
-    {
-        JsonElement element = JsonElementFactory.Number(-12L);
-
-        Assert.Equal(JsonValueKind.Number, element.ValueKind);
-        Assert.Equal(-12, element.GetInt64());
-    }
-
-    [Fact]
     public void Array_CreatesArrayFromExistingElements()
     {
         JsonElement element = JsonElementFactory.Array(

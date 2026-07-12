@@ -101,11 +101,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
     private static AssetsInfo[] ReadSessionAssetsInfo(AssetsFileSession session)
     {
         return session.AssetsFile.Metadata.AssetInfos
-            .Select(info => new AssetsInfo(
-                info.PathId,
-                info.TypeId,
-                GetTypeName(info.TypeId),
-                info.ByteSize))
+            .Select(info => new AssetsInfo(info.PathId, GetTypeName(info.TypeId)))
             .ToArray();
     }
 

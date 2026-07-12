@@ -1,8 +1,6 @@
 {
   "InstallPage_AnalyzingMod": "Analyzing mod...",
   "InstallPage_ApplyTheseChangesPrompt": "Apply these changes?",
-  "InstallPage_ChangingOperationCountsFormat": "{0} changing, {1} skipped",
-  "InstallPage_Description": "Analyze the mod first, then confirm before writing files",
   "InstallPage_GameDirectoryPrompt": "Game directory",
   "InstallPage_InstallCanceled": "Install canceled.",
   "InstallPage_ModZipPathPrompt": "Mod zip path",
@@ -29,8 +27,6 @@
   "Prompt_ConfirmationChoiceHint": "y/N",
   "Prompt_DirectoryNotFoundFormat": "Directory not found: {0}",
   "Prompt_FileNotFoundFormat": "File not found: {0}",
-  "Prompt_LabelMustBeGreaterThanZeroFormat": "{0} must be greater than 0.",
-  "Prompt_LabelMustBeIntegerFormat": "{0} must be an integer.",
   "Prompt_LabelRequiredFormat": "{0} is required.",
   "Prompt_MultiSelectionInstructions": "Space to toggle select, Enter to submit",
   "SelectionPrompt_InitialSelectedIndexOutOfRange": "Initial selected index must reference an available option.",

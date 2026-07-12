@@ -68,7 +68,7 @@ internal sealed class UninstallTerminalPage : ITerminalPage
             return TerminalPageResult.ReturnToMenu();
         }
 
-        _view.WritePreview(selected, preview);
+        _view.WritePreview(preview);
 
         if (!preview.CanUninstall)
         {

@@ -38,11 +38,6 @@ public static class AssetFieldTypeNames
                string.Equals(typeName, "boolean", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static bool IsFloatingPoint(string typeName)
-    {
-        return IsFloat(typeName) || IsDouble(typeName);
-    }
-
     public static bool IsFloat(string typeName) =>
         string.Equals(typeName, "float", StringComparison.OrdinalIgnoreCase);
 

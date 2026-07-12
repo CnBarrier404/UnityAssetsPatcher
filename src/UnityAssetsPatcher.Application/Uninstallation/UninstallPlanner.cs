@@ -4,14 +4,6 @@ using UnityAssetsPatcher.Application.Installation;
 
 namespace UnityAssetsPatcher.Application.Uninstallation;
 
-public sealed record UninstallPreviewPlan(
-    InstallRecord Record,
-    string GameDirectory,
-    bool CanUninstall,
-    IReadOnlyList<BlockingInstallRecord> BlockingRecords,
-    IReadOnlyList<UninstallPreviewRestoredFileResult> RestoredFiles,
-    IReadOnlyList<UninstallPreviewDeletedFileResult> DeletedFiles);
-
 public sealed record UninstallPlan(
     string BackupDirectory,
     string InstallDirectory,
@@ -34,7 +26,7 @@ public sealed class UninstallPlanner
         return _backupStore.ListInstalled();
     }
 
-    public UninstallPreviewPlan BuildPreview(UninstallPreviewRequest request)
+    public UninstallPreviewResult BuildPreview(UninstallPreviewRequest request)
     {
         UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, request.InstallDirectory);
 
@@ -52,15 +44,12 @@ public sealed class UninstallPlanner
         var restoredFiles = paths.PatchedFiles
             .Select(file => new UninstallPreviewRestoredFileResult(
                 file.Target,
-                file.AssetsFilePath,
-                file.BackupPath,
                 UninstallIntegrityInspector.Inspect(file.AssetsFilePath, file.InstalledFile),
                 UninstallIntegrityInspector.Inspect(file.BackupPath, file.BackupFile)))
             .ToArray();
 
         var deletedFiles = paths.CopiedFiles
             .Select(file => new UninstallPreviewDeletedFileResult(
-                file.Source,
                 file.DestinationPath,
                 UninstallIntegrityInspector.Inspect(file.DestinationPath, file.InstalledFile)))
             .ToArray();
@@ -75,11 +64,17 @@ public sealed class UninstallPlanner
                             deletedFiles.All(file =>
                                 file.Status is FileIntegrityStatus.Matches or FileIntegrityStatus.Missing);
 
-        return new UninstallPreviewPlan(
-            record,
+        return new UninstallPreviewResult(
+            record.ModName,
+            record.ModVersion,
+            record.InstalledAt,
             paths.GameDirectory,
             canUninstall,
-            blockers,
+            blockers.Select(blocker => new UninstallBlockingModResult(
+                blocker.Record.ModName,
+                blocker.Record.ModVersion,
+                blocker.Record.InstalledAt,
+                blocker.OverlappingAssetsFiles)).ToArray(),
             restoredFiles,
             deletedFiles);
     }
@@ -98,7 +93,7 @@ public sealed class UninstallPlanner
         {
             throw new InvalidOperationException(
                 $"Cannot uninstall {record.ModName} because later installed mods depend on the same assets files: " +
-                string.Join(", ", blockers.Select(blocker => blocker.Entry.Record.ModName)));
+                string.Join(", ", blockers.Select(blocker => blocker.Record.ModName)));
         }
 
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(

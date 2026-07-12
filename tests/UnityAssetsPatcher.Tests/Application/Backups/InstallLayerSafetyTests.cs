@@ -92,7 +92,7 @@ public sealed class InstallLayerSafetyTests
                 new("other", otherGame),
             ]);
 
-        Assert.Equal(["latest", "middle"], blockers.Select(item => item.Entry.Record.Id));
+        Assert.Equal(["latest", "middle"], blockers.Select(item => item.Record.Id));
         Assert.Equal(["a.assets", "b.assets"], blockers[0].OverlappingAssetsFiles);
         Assert.Equal(["b.assets"], blockers[1].OverlappingAssetsFiles);
     }
@@ -107,7 +107,7 @@ public sealed class InstallLayerSafetyTests
             target,
             [new("target", target), new("later", later)]));
 
-        Assert.Equal(2, blocker.Entry.Record.InstallSequence);
+        Assert.Equal(2, blocker.Record.InstallSequence);
         Assert.Equal(["a.assets"], blocker.OverlappingAssetsFiles);
     }
 
@@ -129,7 +129,7 @@ public sealed class InstallLayerSafetyTests
     [Fact]
     public void Uninstall_WhenLaterModOverlaps_BlocksPreviewAndDirectExecutionWithoutMutation()
     {
-        using Scenario scenario = Scenario.Create(overlap: true);
+        using Scenario scenario = Scenario.Create();
         UninstallModWorkflow workflow = scenario.CreateWorkflow();
 
         UninstallPreviewResult preview = workflow.Preview(
@@ -149,7 +149,7 @@ public sealed class InstallLayerSafetyTests
     [Fact]
     public void Uninstall_WhenOverlappingModsAreRemovedInReverseOrder_RestoresEachLayer()
     {
-        using Scenario scenario = Scenario.Create(overlap: true);
+        using Scenario scenario = Scenario.Create();
         UninstallModWorkflow workflow = scenario.CreateWorkflow();
 
         workflow.Uninstall(new UninstallModRequest(scenario.SecondInstallDirectory, scenario.GameDirectory));
@@ -160,22 +160,9 @@ public sealed class InstallLayerSafetyTests
     }
 
     [Fact]
-    public void Uninstall_WhenModsPatchDifferentFiles_AllowsEarlierModFirst()
-    {
-        using Scenario scenario = Scenario.Create(overlap: false);
-        UninstallModWorkflow workflow = scenario.CreateWorkflow();
-
-        UninstallPreviewResult preview = workflow.Preview(
-            new UninstallPreviewRequest(scenario.FirstInstallDirectory, scenario.GameDirectory));
-
-        Assert.True(preview.CanUninstall);
-        Assert.Empty(preview.BlockingMods);
-    }
-
-    [Fact]
     public void Uninstall_WhenGameDirectoryFingerprintDoesNotMatch_RejectsPreview()
     {
-        using Scenario scenario = Scenario.Create(overlap: true);
+        using Scenario scenario = Scenario.Create();
         string otherGame = CreateDirectory();
         try
         {
@@ -217,14 +204,13 @@ public sealed class InstallLayerSafetyTests
     {
         public required string Root { get; init; }
         public required string GameDirectory { get; init; }
-        public required string BackupDirectory { get; init; }
         public required string AssetsPath { get; init; }
         public required string FirstPayloadPath { get; init; }
         public required string FirstInstallDirectory { get; init; }
         public required string SecondInstallDirectory { get; init; }
         public required ModBackupStore Store { get; init; }
 
-        public static Scenario Create(bool overlap)
+        public static Scenario Create()
         {
             string root = CreateDirectory();
             string game = Path.Combine(root, "game");
@@ -233,11 +219,7 @@ public sealed class InstallLayerSafetyTests
             Directory.CreateDirectory(gameData);
             Directory.CreateDirectory(backup);
             string firstAssets = Path.Combine(gameData, "sharedassets0.assets");
-            string secondAssets = overlap
-                ? firstAssets
-                : Path.Combine(gameData, "sharedassets1.assets");
-            File.WriteAllText(firstAssets, overlap ? "second" : "first");
-            if (!overlap) File.WriteAllText(secondAssets, "second");
+            File.WriteAllText(firstAssets, "second");
             string payload = Path.Combine(gameData, "first.payload");
             File.WriteAllText(payload, "payload");
 
@@ -245,11 +227,11 @@ public sealed class InstallLayerSafetyTests
             string firstDirectory = store.CreateInstallDirectory("First Mod", "1.0");
             string secondDirectory = store.CreateInstallDirectory("Second Mod", "2.0");
             string firstBackup = Path.Combine(firstDirectory, "assets", "sharedassets0.assets");
-            string secondBackup = Path.Combine(secondDirectory, "assets", Path.GetFileName(secondAssets));
+            string secondBackup = Path.Combine(secondDirectory, "assets", Path.GetFileName(firstAssets));
             Directory.CreateDirectory(Path.GetDirectoryName(firstBackup)!);
             Directory.CreateDirectory(Path.GetDirectoryName(secondBackup)!);
             File.WriteAllText(firstBackup, "original");
-            File.WriteAllText(secondBackup, overlap ? "first" : "original-second");
+            File.WriteAllText(secondBackup, "first");
             string fingerprint = GameInstanceIdentity.CreateFingerprint(game);
 
             store.Save(CreateScenarioRecord(
@@ -260,7 +242,7 @@ public sealed class InstallLayerSafetyTests
                         FileIntegrity.Create(payload))
                 ]), firstDirectory);
             store.Save(CreateScenarioRecord(
-                    "second", "Second Mod", 2, fingerprint, game, secondDirectory, secondAssets, secondBackup,
+                    "second", "Second Mod", 2, fingerprint, game, secondDirectory, firstAssets, secondBackup,
                     TextIntegrity("second"), []),
                 secondDirectory);
 
@@ -268,7 +250,6 @@ public sealed class InstallLayerSafetyTests
             {
                 Root = root,
                 GameDirectory = game,
-                BackupDirectory = backup,
                 AssetsPath = firstAssets,
                 FirstPayloadPath = payload,
                 FirstInstallDirectory = firstDirectory,

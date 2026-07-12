@@ -22,11 +22,6 @@ public sealed class TerminalText
         _console.MarkupLine($"[{TerminalTheme.Muted}]{Escape(message)}[/]");
     }
 
-    public void WriteWarning(string message)
-    {
-        _console.MarkupLine($"[{TerminalTheme.Warning}]{Escape(message)}[/]");
-    }
-
     public void WriteMarkupLine(string markup)
     {
         _console.MarkupLine(markup);

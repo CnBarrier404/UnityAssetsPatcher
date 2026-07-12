@@ -17,13 +17,6 @@ public sealed class TerminalList
         _console = console;
     }
 
-    public void WriteList(IReadOnlyList<string> names, int selectedIndex)
-    {
-        WriteDescribedList(
-            names.Select(name => new TerminalChoiceDisplay(name, string.Empty)).ToArray(),
-            selectedIndex);
-    }
-
     public void WriteDescribedList(
         IReadOnlyList<TerminalChoiceDisplay> choices,
         int selectedIndex,

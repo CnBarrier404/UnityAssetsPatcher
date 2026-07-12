@@ -19,7 +19,7 @@ public sealed class WorkflowService : IWorkflowService
         _workflowFactory = workflowFactory;
     }
 
-    public InstallPreviewResult PreviewInstall(InstallPreviewRequest request)
+    public InstallPreviewResult PreviewInstall(InstallRequest request)
     {
         using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
         InstallModWorkflow workflow = _workflowFactory.CreateInstallWorkflow(assets);
@@ -27,7 +27,7 @@ public sealed class WorkflowService : IWorkflowService
         return workflow.Preview(request);
     }
 
-    public InstallModResult Install(InstallModRequest request)
+    public InstallModResult Install(InstallRequest request)
     {
         using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
         InstallModWorkflow workflow = _workflowFactory.CreateInstallWorkflow(assets);

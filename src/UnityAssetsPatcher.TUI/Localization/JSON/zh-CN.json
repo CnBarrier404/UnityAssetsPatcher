@@ -1,8 +1,6 @@
 {
   "InstallPage_AnalyzingMod": "正在分析 Mod……",
   "InstallPage_ApplyTheseChangesPrompt": "是否应用这些更改？",
-  "InstallPage_ChangingOperationCountsFormat": "{0} 更改，{1} 跳过",
-  "InstallPage_Description": "先分析包内容，确认后再写入文件",
   "InstallPage_GameDirectoryPrompt": "游戏目录",
   "InstallPage_InstallCanceled": "已取消安装",
   "InstallPage_ModZipPathPrompt": "Mod zip 路径",
@@ -29,8 +27,6 @@
   "Prompt_ConfirmationChoiceHint": "y/N",
   "Prompt_DirectoryNotFoundFormat": "目录不存在：{0}",
   "Prompt_FileNotFoundFormat": "文件不存在：{0}",
-  "Prompt_LabelMustBeGreaterThanZeroFormat": "{0} 必须大于 0",
-  "Prompt_LabelMustBeIntegerFormat": "{0} 必须是整数",
   "Prompt_LabelRequiredFormat": "{0} 为必填项",
   "Prompt_MultiSelectionInstructions": "Space 开关选项 | Enter 确认",
   "SelectionPrompt_InitialSelectedIndexOutOfRange": "初始选中索引必须指向一个可用选项",

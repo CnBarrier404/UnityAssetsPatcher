@@ -9,51 +9,6 @@ namespace UnityAssetsPatcher.Tests.Application.Manifests;
 public sealed class ModManifestReaderTests
 {
     /// <summary>
-    /// Verifies that the manifest reader can load a manifest from a file path.
-    /// </summary>
-    [Fact]
-    public void Load_WhenPathProvided_ReturnsConfig()
-    {
-        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
-        File.WriteAllText(
-            configPath,
-            """
-            {
-              "name": "Example Mod",
-              "author": "Author Name",
-              "version": "1.0.0",
-              "targets": [
-                {
-                  "file": "sharedassets0.assets",
-                  "patches": [
-                    {
-                      "type": "Camera",
-                      "match": {
-                        "field of view": 90.0
-                      }
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
-
-        try
-        {
-            var reader = new ModManifestReader();
-
-            ModManifest config = reader.Load(configPath);
-
-            Assert.Equal("Example Mod", config.Info.Name);
-            Assert.Equal("sharedassets0.assets", Assert.Single(config.Patches).AssetsFileName);
-        }
-        finally
-        {
-            File.Delete(configPath);
-        }
-    }
-
-    /// <summary>
     /// Verifies that a manifest can carry mod metadata while using target groups for patch behavior.
     /// </summary>
     [Fact]
@@ -80,16 +35,21 @@ public sealed class ModManifestReaderTests
                     {
                       "type": "Camera",
                       "match": {
-                        "field of view": 90.0
+                        "field of view": 90.0,
+                        "m_Name": "Main Camera"
                       },
                       "set": {
                         "field of view": {
                           "from": 90.0,
                           "to": 75.0
+                        },
+                        "m_IsActive": {
+                          "from": false,
+                          "to": true
                         }
                       },
                       "add": {
-                        "m_ValidKeywords.Array": ["_EMISSION"]
+                        "m_ValidKeywords.Array": ["_EMISSION", "_SPECULAR"]
                       }
                     }
                   ]
@@ -117,11 +77,11 @@ public sealed class ModManifestReaderTests
         {
             ModManifest config = new ModManifestReader().Load(configPath);
 
-            Assert.Equal("Example Mod", config.Info.Name);
-            Assert.Equal("Author Name", config.Info.Author);
-            Assert.Equal("1.0.0", config.Info.Version);
-            Assert.Equal("Example description.", config.Info.Description);
-            Assert.Null(config.Info.Game);
+            Assert.Equal("Example Mod", config.Name);
+            Assert.Equal("Author Name", config.Author);
+            Assert.Equal("1.0.0", config.Version);
+            Assert.Equal("Example description.", config.Description);
+            Assert.Null(config.Game);
             ManifestFile file = Assert.Single(config.Files);
             Assert.Equal("resources/modassets.resource", file.Source);
             Assert.Equal(2, config.Patches.Count);
@@ -129,14 +89,20 @@ public sealed class ModManifestReaderTests
             ManifestPatch fieldPatch = config.Patches[0];
             Assert.Equal("sharedassets0.assets", fieldPatch.AssetsFileName);
             Assert.Equal("Camera", fieldPatch.AssetTypeName);
-            Assert.Equal(90.0, Assert.Single(fieldPatch.IncludeGroups).Single().Value.GetDouble());
-            ManifestSetOperation setOperation = Assert.Single(fieldPatch.SetOperations!);
+            Assert.Equal(2, fieldPatch.Match.Count);
+            Assert.Equal(90.0, fieldPatch.Match["field of view"].GetDouble());
+            Assert.Equal("Main Camera", fieldPatch.Match["m_Name"].GetString());
+            Assert.Equal(2, fieldPatch.SetOperations!.Count);
+            ManifestSetOperation setOperation = fieldPatch.SetOperations[0];
             Assert.Equal("field of view", setOperation.FieldPath);
             Assert.Equal(90.0, setOperation.From.GetDouble());
             Assert.Equal(75.0, setOperation.To.GetDouble());
+            Assert.Equal("m_IsActive", fieldPatch.SetOperations[1].FieldPath);
             ManifestAddOperation addOperation = Assert.Single(fieldPatch.AddOperations!);
             Assert.Equal("m_ValidKeywords.Array", addOperation.FieldPath);
-            Assert.Equal("_EMISSION", addOperation.Value.EnumerateArray().Single().GetString());
+            Assert.Equal(2, addOperation.Value.GetArrayLength());
+            Assert.Equal("_EMISSION", addOperation.Value[0].GetString());
+            Assert.Equal("_SPECULAR", addOperation.Value[1].GetString());
 
             ManifestPatch replacementPatch = config.Patches[1];
             Assert.Equal("sharedassets4.assets", replacementPatch.AssetsFileName);
@@ -183,7 +149,7 @@ public sealed class ModManifestReaderTests
         {
             ModManifest config = new ModManifestReader().Load(configPath);
 
-            Assert.Equal("Example Game", config.Info.Game);
+            Assert.Equal("Example Game", config.Game);
         }
         finally
         {
@@ -524,7 +490,7 @@ public sealed class ModManifestReaderTests
 
             ModManifest config = new ModManifestReader().Load(zipPath);
 
-            Assert.Equal("Example Mod", config.Info.Name);
+            Assert.Equal("Example Mod", config.Name);
             Assert.Equal("sharedassets0.assets", Assert.Single(config.Patches).AssetsFileName);
         }
         finally

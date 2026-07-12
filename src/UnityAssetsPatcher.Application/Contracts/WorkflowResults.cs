@@ -1,4 +1,3 @@
-using System.Text.Json;
 using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Contracts;
@@ -6,21 +5,19 @@ namespace UnityAssetsPatcher.Application.Contracts;
 public sealed record UninstallModResult(
     string ModName,
     string ModVersion,
-    string ModAuthor,
     IReadOnlyList<UninstallRestoredFileResult> RestoredFiles,
     IReadOnlyList<UninstallDeletedFileResult> DeletedFiles);
 
 public sealed record UninstallRestoredFileResult(
     string Target,
-    string AssetsFilePath,
-    string InstallBackupPath);
+    string AssetsFilePath);
 
-public sealed record UninstallDeletedFileResult(string Source, string DestinationPath, bool Deleted);
+public sealed record UninstallDeletedFileResult(string DestinationPath, bool Deleted);
 
 public sealed record UninstallPreviewResult(
     string ModName,
     string ModVersion,
-    string ModAuthor,
+    DateTimeOffset InstalledAt,
     string GameDirectory,
     bool CanUninstall,
     IReadOnlyList<UninstallBlockingModResult> BlockingMods,
@@ -29,13 +26,10 @@ public sealed record UninstallPreviewResult(
 
 public sealed record UninstallPreviewRestoredFileResult(
     string Target,
-    string AssetsFilePath,
-    string InstallBackupPath,
     FileIntegrityStatus TargetStatus,
     FileIntegrityStatus BackupStatus);
 
 public sealed record UninstallPreviewDeletedFileResult(
-    string Source,
     string DestinationPath,
     FileIntegrityStatus Status);
 
@@ -62,8 +56,6 @@ public sealed record PatchPreviewAssetResult(AssetsInfo Asset, IReadOnlyList<Pat
 public sealed record PatchPreviewOperationResult(
     string Path,
     string OldValue,
-    JsonElement From,
-    JsonElement To,
     string FromText,
     string ToText,
     bool WillChange);

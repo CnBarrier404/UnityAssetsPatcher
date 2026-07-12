@@ -66,8 +66,6 @@ public static class UninstallPathValidator
             file.Target,
             assetsFilePath,
             backupPath,
-            file.AssetCount,
-            file.OperationCount,
             file.InstalledFile,
             file.BackupFile);
     }
@@ -87,7 +85,7 @@ public static class UninstallPathValidator
                 $"Payload destination file name must match source file name: {file.DestinationRelativePath}");
         }
 
-        return new UninstallResolvedCopiedFile(file.Source, destinationPath, file.InstalledFile);
+        return new UninstallResolvedCopiedFile(destinationPath, file.InstalledFile);
     }
 
     private static string ResolveRelativePath(string rootDirectory, string relativePath, string description)
@@ -219,12 +217,9 @@ public sealed record UninstallResolvedPatchedFile(
     string Target,
     string AssetsFilePath,
     string BackupPath,
-    int AssetCount,
-    int OperationCount,
     FileIntegrity InstalledFile,
     FileIntegrity BackupFile);
 
 public sealed record UninstallResolvedCopiedFile(
-    string Source,
     string DestinationPath,
     FileIntegrity InstalledFile);

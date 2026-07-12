@@ -1,4 +1,3 @@
-using System.Runtime.ExceptionServices;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 
@@ -6,7 +5,7 @@ namespace UnityAssetsPatcher.Application.Uninstallation;
 
 public sealed class UninstallExecutor
 {
-    public UninstallExecutionResult Execute(UninstallPlan plan)
+    public UninstallModResult Execute(UninstallPlan plan)
     {
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
             plan.BackupDirectory,
@@ -18,7 +17,7 @@ public sealed class UninstallExecutor
         ValidateUninstallAccess(paths, plan.InstallDirectory);
 
         string stagingDirectory = Path.Combine(plan.InstallDirectory, ".uninstall-staging");
-        var patched = paths.PatchedFiles.Select((file, index) => new JournalPatchedFile(
+        var patched = paths.PatchedFiles.Select(file => new JournalPatchedFile(
             file.AssetsFilePath, file.BackupPath, CreateRestoreAttemptBackupPath(file.AssetsFilePath))).ToArray();
         var payload = paths.CopiedFiles.Select((file, index) => new JournalPayloadFile(
             file.DestinationPath, Path.Combine(stagingDirectory, $"payload-{index}.rollback"))).ToArray();
@@ -48,7 +47,7 @@ public sealed class UninstallExecutor
             foreach (UninstallResolvedPatchedFile file in paths.PatchedFiles)
             {
                 ModBackupStore.RestoreFile(file.BackupPath, file.AssetsFilePath);
-                restoredFiles.Add(new UninstallRestoredFileResult(file.Target, file.AssetsFilePath, file.BackupPath));
+                restoredFiles.Add(new UninstallRestoredFileResult(file.Target, file.AssetsFilePath));
             }
 
             journal = journal with { Phase = OperationPhase.AssetsChanged };
@@ -74,7 +73,11 @@ public sealed class UninstallExecutor
 
             Directory.Delete(plan.InstallDirectory, true);
 
-            return new UninstallExecutionResult(restoredFiles, deletedFiles);
+            return new UninstallModResult(
+                plan.Record.ModName,
+                plan.Record.ModVersion,
+                restoredFiles,
+                deletedFiles);
         }
         catch (Exception failure)
         {
@@ -138,10 +141,7 @@ public sealed class UninstallExecutor
             }
 
             OperationJournalStore.Delete(plan.InstallDirectory);
-            ExceptionDispatchInfo.Capture(failure).Throw();
-
-            throw new AggregateException("Uninstall failed and one or more recovery steps also failed.",
-                new[] { failure }.Concat(recoveryFailures));
+            throw;
         }
     }
 
@@ -179,13 +179,13 @@ public sealed class UninstallExecutor
         {
             if (!File.Exists(file.DestinationPath))
             {
-                deletedFiles.Add(new UninstallDeletedFileResult(file.Source, file.DestinationPath, false));
+                deletedFiles.Add(new UninstallDeletedFileResult(file.DestinationPath, false));
 
                 continue;
             }
 
             File.Delete(file.DestinationPath);
-            deletedFiles.Add(new UninstallDeletedFileResult(file.Source, file.DestinationPath, true));
+            deletedFiles.Add(new UninstallDeletedFileResult(file.DestinationPath, true));
         }
 
         return deletedFiles;
@@ -211,86 +211,6 @@ public sealed class UninstallExecutor
         }
     }
 
-    private static List<UninstallRestoredFileResult> RestorePatchedFiles(
-        IReadOnlyList<UninstallResolvedPatchedFile> files)
-    {
-        var restoredFiles = new List<UninstallRestoredFileResult>();
-        var restoreAttemptBackups = new List<RestoreAttemptBackup>();
-        var restoredBackups = new List<RestoreAttemptBackup>();
-
-        try
-        {
-            foreach (UninstallResolvedPatchedFile file in files)
-            {
-                RestoreAttemptBackup restoreAttemptBackup = CreateRestoreAttemptBackup(file.AssetsFilePath);
-                restoreAttemptBackups.Add(restoreAttemptBackup);
-
-                RestorePatchedFile(file, restoreAttemptBackup);
-
-                restoredBackups.Add(restoreAttemptBackup);
-                restoredFiles.Add(new UninstallRestoredFileResult(
-                    file.Target,
-                    file.AssetsFilePath,
-                    file.BackupPath));
-            }
-        }
-        catch (Exception exception)
-        {
-            ThrowWithRecoveryFailures(exception, restoredBackups, restoreAttemptBackups);
-        }
-
-        ThrowIfCleanupFails(DeleteRestoreAttemptBackups(restoreAttemptBackups));
-
-        return restoredFiles;
-    }
-
-    private static RestoreAttemptBackup CreateRestoreAttemptBackup(string assetsFilePath)
-    {
-        return new RestoreAttemptBackup(assetsFilePath, CreateRestoreAttemptBackupPath(assetsFilePath));
-    }
-
-    private static void RestorePatchedFile(UninstallResolvedPatchedFile file, RestoreAttemptBackup restoreAttemptBackup)
-    {
-        try
-        {
-            File.Copy(file.AssetsFilePath, restoreAttemptBackup.BackupPath, false);
-            ModBackupStore.RestoreFile(file.BackupPath, file.AssetsFilePath);
-        }
-        catch (FileNotFoundException exception) when (!File.Exists(file.AssetsFilePath))
-        {
-            throw new FileNotFoundException(
-                $"Assets file was deleted during uninstall: {file.AssetsFilePath}",
-                file.AssetsFilePath,
-                exception);
-        }
-        catch (FileNotFoundException exception)
-        {
-            throw new FileNotFoundException(
-                $"Backup file was deleted during uninstall: {file.BackupPath}",
-                file.BackupPath,
-                exception);
-        }
-    }
-
-    private static void ThrowWithRecoveryFailures(
-        Exception restoreFailure,
-        IReadOnlyList<RestoreAttemptBackup> restoredBackups,
-        IReadOnlyList<RestoreAttemptBackup> restoreAttemptBackups)
-    {
-        var failures = new List<Exception> { restoreFailure };
-        failures.AddRange(RollBackRestoredFiles(restoredBackups));
-        failures.AddRange(DeleteRestoreAttemptBackups(restoreAttemptBackups));
-
-        if (failures.Count == 1)
-        {
-            ExceptionDispatchInfo.Capture(restoreFailure).Throw();
-        }
-
-        throw new AggregateException(
-            "Uninstall failed and one or more recovery steps also failed.",
-            failures);
-    }
-
     private static string CreateRestoreAttemptBackupPath(string path)
     {
         string directory = Path.GetDirectoryName(Path.GetFullPath(path)) ??
@@ -305,64 +225,4 @@ public sealed class UninstallExecutor
 
         return candidate;
     }
-
-    private static List<Exception> RollBackRestoredFiles(IReadOnlyList<RestoreAttemptBackup> restoreAttemptBackups)
-    {
-        var failures = new List<Exception>();
-
-        for (int index = restoreAttemptBackups.Count - 1; index >= 0; index--)
-        {
-            RestoreAttemptBackup backup = restoreAttemptBackups[index];
-
-            try
-            {
-                ModBackupStore.RestoreFile(backup.BackupPath, backup.AssetsFilePath);
-            }
-            catch (Exception exception)
-            {
-                failures.Add(exception);
-            }
-        }
-
-        return failures;
-    }
-
-    private static List<Exception> DeleteRestoreAttemptBackups(
-        IReadOnlyList<RestoreAttemptBackup> restoreAttemptBackups)
-    {
-        var failures = new List<Exception>();
-
-        foreach (RestoreAttemptBackup backup in restoreAttemptBackups)
-        {
-            try
-            {
-                if (File.Exists(backup.BackupPath))
-                {
-                    File.Delete(backup.BackupPath);
-                }
-            }
-            catch (Exception exception)
-            {
-                failures.Add(exception);
-            }
-        }
-
-        return failures;
-    }
-
-    private static void ThrowIfCleanupFails(List<Exception> cleanupFailures)
-    {
-        if (cleanupFailures.Count > 0)
-        {
-            throw new AggregateException(
-                "Uninstall restored assets but failed to clean up one or more temporary restore backups.",
-                cleanupFailures);
-        }
-    }
-
-    private sealed record RestoreAttemptBackup(string AssetsFilePath, string BackupPath);
 }
-
-public sealed record UninstallExecutionResult(
-    IReadOnlyList<UninstallRestoredFileResult> RestoredFiles,
-    IReadOnlyList<UninstallDeletedFileResult> DeletedFiles);

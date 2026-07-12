@@ -1,4 +1,3 @@
-using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
 
@@ -20,17 +19,6 @@ public sealed class AssetQueryService
         return FindMatches(CreateContext(assetsFilePath), patch);
     }
 
-    public IReadOnlyList<AssetQueryMatch> FindMatches(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> patches)
-    {
-        AssetQueryContext context = CreateContext(assetsFilePath);
-
-        return patches
-            .SelectMany(patch => FindMatches(context, patch))
-            .ToArray();
-    }
-
     internal AssetQueryContext CreateContext(string assetsFilePath)
     {
         return new AssetQueryContext(_assetsReader, assetsFilePath);
@@ -48,15 +36,12 @@ public sealed class AssetQueryService
         foreach (AssetsInfo asset in ownerAssets)
         {
             AssetsFieldInfo fieldTree = context.ReadAssetsFieldInfo(asset.PathId);
-            var includeGroup =
-                patch.IncludeGroups.FirstOrDefault(group => AssetFieldMatcher.MatchesIncludeGroup(fieldTree, group));
-
-            if (includeGroup is null)
+            if (!AssetFieldMatcher.MatchesFields(fieldTree, patch.Match))
             {
                 continue;
             }
 
-            var ownerMatch = new AssetQueryMatch(asset, fieldTree, includeGroup);
+            var ownerMatch = new AssetQueryMatch(asset, fieldTree);
 
             if (patch.ComponentTypeName is not { } componentTypeName)
             {
@@ -100,7 +85,7 @@ public sealed class AssetQueryService
         {
             AssetsFieldInfo componentFieldTree =
                 context.ReadAssetsFieldInfo(componentAsset.PathId);
-            yield return new AssetQueryMatch(componentAsset, componentFieldTree, ownerMatch.IncludeGroup);
+            yield return new AssetQueryMatch(componentAsset, componentFieldTree);
         }
     }
 
@@ -133,8 +118,7 @@ public sealed class AssetQueryService
 
 public sealed record AssetQueryMatch(
     AssetsInfo Asset,
-    AssetsFieldInfo FieldTree,
-    IReadOnlyDictionary<string, JsonElement> IncludeGroup);
+    AssetsFieldInfo FieldTree);
 
 internal sealed class AssetQueryContext
 {

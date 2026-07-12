@@ -17,17 +17,10 @@ public static class ModManifestParser
         var patches = ReadTargets(manifestElement);
         var optional = ReadOptionalGroups(manifestElement);
 
-        var info = new ModInfo(
-            Name: name,
-            Author: author,
-            Version: version,
-            Description: description,
-            Game: game);
-
-        return new ModManifest(info, files, patches, optional);
+        return new ModManifest(name, author, version, description, game, files, patches, optional);
     }
 
-    public static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadMatchGroups(JsonElement patchElement)
+    private static IReadOnlyDictionary<string, JsonElement> ReadMatch(JsonElement patchElement)
     {
         JsonElement matchElement = JsonUtils.ReadRequiredProperty(
             patchElement,
@@ -35,12 +28,10 @@ public static class ModManifestParser
             JsonValueKind.Object,
             "Manifest patch");
 
-        var match = ReadFieldValueMap(matchElement, "Manifest patch match object");
-
-        return [match];
+        return ReadFieldValueMap(matchElement, "Manifest patch match object");
     }
 
-    public static ManifestSetOperation[]? ReadSetOperations(JsonElement patchElement)
+    private static ManifestSetOperation[]? ReadSetOperations(JsonElement patchElement)
     {
         if (!JsonUtils.TryReadProperty(patchElement, "set", JsonValueKind.Object, out JsonElement setElement))
         {
@@ -52,7 +43,7 @@ public static class ModManifestParser
             .ToArray();
     }
 
-    public static ManifestAddOperation[]? ReadAddOperations(JsonElement patchElement)
+    private static ManifestAddOperation[]? ReadAddOperations(JsonElement patchElement)
     {
         if (!JsonUtils.TryReadProperty(patchElement, "add", JsonValueKind.Object, out JsonElement addElement))
         {
@@ -147,10 +138,10 @@ public static class ModManifestParser
         foreach (ManifestOptionalGroup group in optionalElement.EnumerateArray()
                      .Select(ReadOptionalGroup))
         {
-            if (!names.Add(group.Info.Name))
+            if (!names.Add(group.Name))
             {
                 throw new InvalidOperationException(
-                    $"Manifest optional group names must be unique (case-insensitive): '{group.Info.Name}'.");
+                    $"Manifest optional group names must be unique (case-insensitive): '{group.Name}'.");
             }
 
             groups.Add(group);
@@ -176,9 +167,8 @@ public static class ModManifestParser
             ? throw new InvalidOperationException(
                 $"Manifest optional group '{name}' must contain at least one target patch or copyFiles entry.")
             : new ManifestOptionalGroup(
-                new ModOptionalGroupInfo(
-                    Name: name,
-                    Description: description),
+                name,
+                description,
                 files,
                 patches);
     }
@@ -231,13 +221,13 @@ public static class ModManifestParser
         }
 
         string assetTypeName = ReadAssetTypeName(patchElement);
-        var includeGroups = ReadMatchGroups(patchElement);
+        var match = ReadMatch(patchElement);
         var setOperations = ReadSetOperations(patchElement);
         var addOperations = ReadAddOperations(patchElement);
         ManifestReplaceFrom? replaceFrom = ReadOptionalReplaceAsset(patchElement);
         string? componentTypeName = ReadOptionalComponentTypeName(patchElement, assetTypeName, replaceFrom);
 
-        return new ManifestPatch(assetsFileName, assetTypeName, includeGroups, setOperations, addOperations,
+        return new ManifestPatch(assetsFileName, assetTypeName, match, setOperations, addOperations,
             replaceFrom, componentTypeName);
     }
 

@@ -5,20 +5,16 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
-public sealed record InstallExecutionResult(
-    InstallPatchApplyResult PatchApplyResult,
+internal sealed record InstallExecutionResult(
+    IReadOnlyList<InstallPatchAppliedFile> PatchedFiles,
     IReadOnlyList<InstallChange> CopiedFiles);
 
-public sealed record InstallPatchApplyResult(IReadOnlyList<InstallPatchAppliedFile> Files);
-
-public sealed record InstallPatchAppliedFile(
+internal sealed record InstallPatchAppliedFile(
     string Target,
     string AssetsFilePath,
     string BackupPath,
     int AssetCount,
     int OperationCount);
-
-public sealed record InstallRecordPaths(string InstallDirectory, string AssetsBackupDirectory);
 
 public sealed class InstallExecutor
 {
@@ -38,24 +34,22 @@ public sealed class InstallExecutor
         _assets.CloseReadSessions();
     }
 
-    public InstallExecutionResult Execute(
-        InstallPlanSession session,
+    internal InstallExecutionResult Execute(
+        InstallPlanSession<InstallWritePlan> session,
         StepTimer timings)
     {
-        InstallWritePlan writePlan = session.Plan.Write
-                                     ?? throw new InvalidOperationException(
-                                         "Install plan does not contain a write plan.");
+        InstallWritePlan writePlan = session.Plan;
         InstallRecordPaths recordPaths = CreateRecordPaths(_backupStore, session.Package);
 
-        OperationJournal journal = CreateJournal(writePlan, session.Plan.GameDirectory, recordPaths);
+        OperationJournal journal = CreateJournal(writePlan, recordPaths);
         OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
 
-        InstallPatchApplyResult? patchApplyResult = null;
+        IReadOnlyList<InstallPatchAppliedFile>? patchedFiles = null;
         IReadOnlyList<InstallChange> copiedFiles = [];
 
         try
         {
-            patchApplyResult = ApplyPatches(writePlan.Patch, recordPaths, timings);
+            patchedFiles = ApplyPatches(writePlan.PatchFiles, recordPaths, timings);
             journal = journal with { Phase = OperationPhase.AssetsChanged };
             OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
             copiedFiles = CopyPayloadFiles(session.Package, writePlan.PayloadFiles, timings);
@@ -63,9 +57,9 @@ public sealed class InstallExecutor
             OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
             InstallRecord record = BuildRecord(
                 session.Package,
-                session.Plan.GameDirectory,
+                writePlan.GameDirectory,
                 recordPaths.InstallDirectory,
-                patchApplyResult,
+                patchedFiles,
                 copiedFiles,
                 session.Package.AppliedOptionalGroups);
 
@@ -74,13 +68,13 @@ public sealed class InstallExecutor
             OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
             OperationJournalStore.Delete(recordPaths.InstallDirectory);
 
-            return new InstallExecutionResult(patchApplyResult, copiedFiles);
+            return new InstallExecutionResult(patchedFiles, copiedFiles);
         }
         catch (Exception ex)
         {
             try
             {
-                RollbackInstall(recordPaths, patchApplyResult, copiedFiles);
+                RollbackInstall(recordPaths, patchedFiles, copiedFiles);
             }
             catch (Exception rollbackException)
             {
@@ -92,8 +86,8 @@ public sealed class InstallExecutor
         }
     }
 
-    private InstallPatchApplyResult ApplyPatches(
-        InstallPatchPlan patchPlan,
+    private IReadOnlyList<InstallPatchAppliedFile> ApplyPatches(
+        IReadOnlyList<InstallPatchPlanFile> patchFiles,
         InstallRecordPaths recordPaths,
         StepTimer timings)
     {
@@ -105,7 +99,7 @@ public sealed class InstallExecutor
         {
             var files = timings.Measure("apply-patches", () =>
             {
-                appliedFiles.AddRange(from file in patchPlan.Files
+                appliedFiles.AddRange(from file in patchFiles
                     let result =
                         _patchOutputWriter.Write(file.AssetsFilePath, null, recordPaths.AssetsBackupDirectory,
                             file.PatchPlan)
@@ -118,13 +112,13 @@ public sealed class InstallExecutor
                 return appliedFiles.ToArray();
             });
 
-            return new InstallPatchApplyResult(files);
+            return files;
         }
         catch (Exception ex) when (appliedFiles.Count > 0)
         {
             try
             {
-                RollbackPatches(new InstallPatchApplyResult(appliedFiles));
+                RollbackPatches(appliedFiles);
             }
             catch (Exception rollbackException)
             {
@@ -193,7 +187,7 @@ public sealed class InstallExecutor
         ModPackage package,
         string gameDirectory,
         string installDirectory,
-        InstallPatchApplyResult patchApplyResult,
+        IReadOnlyList<InstallPatchAppliedFile> patchedFiles,
         IReadOnlyList<InstallChange> copiedFiles,
         IReadOnlyList<string> appliedOptionalGroups)
     {
@@ -206,11 +200,11 @@ public sealed class InstallExecutor
             sequence,
             Guid.NewGuid().ToString("N"),
             DateTimeOffset.Now,
-            package.Manifest.Info.Name,
-            package.Manifest.Info.Version,
-            package.Manifest.Info.Author,
-            package.Manifest.Info.Game,
-            patchApplyResult.Files
+            package.Manifest.Name,
+            package.Manifest.Version,
+            package.Manifest.Author,
+            package.Manifest.Game,
+            patchedFiles
                 .Select(file => new InstallRecordPatchedFile(
                     file.Target,
                     Path.GetRelativePath(gameDirectory, file.AssetsFilePath),
@@ -234,14 +228,14 @@ public sealed class InstallExecutor
 
     private static void RollbackInstall(
         InstallRecordPaths recordPaths,
-        InstallPatchApplyResult? patchApplyResult,
+        IReadOnlyList<InstallPatchAppliedFile>? patchedFiles,
         IReadOnlyList<InstallChange> copiedFiles)
     {
         RollbackPayloadFiles(copiedFiles);
 
-        if (patchApplyResult is not null)
+        if (patchedFiles is not null)
         {
-            RollbackPatches(patchApplyResult);
+            RollbackPatches(patchedFiles);
         }
 
         if (Directory.Exists(recordPaths.InstallDirectory))
@@ -250,9 +244,9 @@ public sealed class InstallExecutor
         }
     }
 
-    private static void RollbackPatches(InstallPatchApplyResult result)
+    private static void RollbackPatches(IReadOnlyList<InstallPatchAppliedFile> files)
     {
-        foreach (InstallPatchAppliedFile file in result.Files.Reverse())
+        foreach (InstallPatchAppliedFile file in files.Reverse())
         {
             if (!File.Exists(file.BackupPath))
             {
@@ -284,25 +278,26 @@ public sealed class InstallExecutor
     private static InstallRecordPaths CreateRecordPaths(ModBackupStore backupStore, ModPackage package)
     {
         string installDirectory = backupStore.CreateInstallDirectory(
-            package.Manifest.Info.Name,
-            package.Manifest.Info.Version);
+            package.Manifest.Name,
+            package.Manifest.Version);
 
         return new InstallRecordPaths(installDirectory, Path.Combine(installDirectory, "assets"));
     }
 
     private static OperationJournal CreateJournal(
         InstallWritePlan plan,
-        string gameDirectory,
         InstallRecordPaths paths)
     {
         return new OperationJournal(
             OperationJournalStore.CurrentFormatVersion,
             OperationKind.Install,
             OperationPhase.Pending,
-            Path.GetFullPath(gameDirectory),
-            plan.Patch.Files.Select(file => new JournalPatchedFile(
+            Path.GetFullPath(plan.GameDirectory),
+            plan.PatchFiles.Select(file => new JournalPatchedFile(
                 Path.GetFullPath(file.AssetsFilePath),
                 Path.Combine(paths.AssetsBackupDirectory, Path.GetFileName(file.AssetsFilePath)))).ToArray(),
             plan.PayloadFiles.Select(file => new JournalPayloadFile(Path.GetFullPath(file.DestinationPath))).ToArray());
     }
+
+    private sealed record InstallRecordPaths(string InstallDirectory, string AssetsBackupDirectory);
 }

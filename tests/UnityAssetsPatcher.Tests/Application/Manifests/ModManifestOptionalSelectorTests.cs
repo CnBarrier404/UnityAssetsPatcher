@@ -39,19 +39,6 @@ public sealed class ModManifestOptionalSelectorTests
     }
 
     /// <summary>
-    /// Verifies that selection matches optional group names case-insensitively.
-    /// </summary>
-    [Fact]
-    public void SelectOptional_WhenNameDiffersByCase_SelectsGroup()
-    {
-        ModManifest manifest = ParseManifest();
-
-        ModManifest effective = manifest.SelectOptional(["high-res TEXTURES"]);
-
-        Assert.Equal(2, effective.Patches.Count);
-    }
-
-    /// <summary>
     /// Verifies that selecting an unknown optional group name throws.
     /// </summary>
     [Fact]

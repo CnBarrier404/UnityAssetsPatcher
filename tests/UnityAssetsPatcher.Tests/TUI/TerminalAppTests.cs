@@ -95,7 +95,7 @@ public sealed class TerminalAppTests : IDisposable
     {
         TestConsole inner = CreateConsole().Height(24);
         var console = new RecordingCursorConsole(inner);
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Unity Assets Patcher", "dev"));
 
         ui.Layout.ShowPage("Main menu", shortcutHint: "Shortcuts");
 
@@ -108,7 +108,7 @@ public sealed class TerminalAppTests : IDisposable
     {
         TestConsole inner = CreateConsole().Width(20).Height(24);
         var console = new RecordingCursorConsole(inner);
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Unity Assets Patcher", "dev"));
 
         ui.Layout.WriteBottomFooterHint("Shortcuts");
 
@@ -121,7 +121,7 @@ public sealed class TerminalAppTests : IDisposable
     {
         TestConsole inner = CreateConsole().Width(20).Height(24);
         var console = new RecordingCursorConsole(inner);
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Unity Assets Patcher", "dev"));
 
         ui.Layout.ClearBottomFooterArea();
 
@@ -138,7 +138,7 @@ public sealed class TerminalAppTests : IDisposable
         TestConsole console = CreateConsole();
         console.Input.PushTextWithEnter("q");
         console.Input.PushTextWithEnter(assetsPath);
-        var prompts = new TerminalPrompts(console);
+        var prompts = new TerminalPrompts(console, new TerminalText(console));
 
         try
         {
@@ -564,7 +564,7 @@ public sealed class TerminalAppTests : IDisposable
             .AddSingleton<IAssetsAccessScopeFactory>(assetsScopeFactory)
             .AddUnityAssetsPatcherApplication(backupDirectory)
             .AddUnityAssetsPatcherTUI(
-                AppInfo.Default,
+                new AppInfo("Unity Assets Patcher", "dev"),
                 console)
             .BuildServiceProvider(new ServiceProviderOptions
             {
@@ -677,7 +677,7 @@ public sealed class TerminalAppTests : IDisposable
     private static StubAssetsFileService CreateCameraReader()
     {
         return new StubAssetsFileService(
-            [new AssetsInfo(50, 20, "Camera", 128)],
+            [new AssetsInfo(50, "Camera")],
             new Dictionary<long, AssetsFieldInfo>
             {
                 [50] = CameraFieldTree("90.0"),

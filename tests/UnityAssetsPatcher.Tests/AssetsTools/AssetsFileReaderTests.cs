@@ -9,25 +9,6 @@ namespace UnityAssetsPatcher.Tests.AssetsTools;
 public sealed class AssetsFileReaderTests
 {
     /// <summary>
-    /// Verifies that the reader can load a real Unity assets file through AssetsTools.NET.
-    /// </summary>
-    [Fact]
-    public void ReadAssetsInfoAndFieldInfo_WhenRealAssetsFileExists_ReturnsAssetData()
-    {
-        var reader = new AssetsFileReader(new AssetsToolsContext(GetRealTpkFilePath()));
-
-        var assets = reader.ReadAssetsInfo(GetRealAssetsFilePath());
-        AssetsInfo asset = Assert.Single(assets.Take(1));
-        AssetsFieldInfo fieldTree = reader.ReadAssetsFieldInfo(GetRealAssetsFilePath(), asset.PathId);
-
-        Assert.NotEmpty(assets);
-        Assert.NotEqual(0, asset.PathId);
-        Assert.False(string.IsNullOrWhiteSpace(asset.TypeName));
-        Assert.False(string.IsNullOrWhiteSpace(fieldTree.Name));
-        Assert.False(string.IsNullOrWhiteSpace(fieldTree.TypeName));
-    }
-
-    /// <summary>
     /// Verifies that one reader instance can reuse a real Unity assets file session.
     /// </summary>
     [Fact]
@@ -38,10 +19,18 @@ public sealed class AssetsFileReaderTests
         var assets = reader.ReadAssetsInfo(GetRealAssetsFilePath());
         AssetsInfo asset = Assert.Single(assets.Take(1));
         AssetsFieldInfo fieldTree = reader.ReadAssetsFieldInfo(GetRealAssetsFilePath(), asset.PathId);
+        var repeatedAssets = reader.ReadAssetsInfo(GetRealAssetsFilePath());
+        AssetsFieldInfo repeatedFieldTree = reader.ReadAssetsFieldInfo(GetRealAssetsFilePath(), asset.PathId);
 
         Assert.NotEmpty(assets);
         Assert.NotEqual(0, asset.PathId);
+        Assert.False(string.IsNullOrWhiteSpace(asset.TypeName));
         Assert.False(string.IsNullOrWhiteSpace(fieldTree.Name));
+        Assert.False(string.IsNullOrWhiteSpace(fieldTree.TypeName));
+        Assert.Equal(assets, repeatedAssets);
+        Assert.Equal(fieldTree.Name, repeatedFieldTree.Name);
+        Assert.Equal(fieldTree.TypeName, repeatedFieldTree.TypeName);
+        Assert.Equal(fieldTree.Children.Count, repeatedFieldTree.Children.Count);
     }
 
     /// <summary>

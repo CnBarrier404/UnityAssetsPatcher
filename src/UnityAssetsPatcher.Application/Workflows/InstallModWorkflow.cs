@@ -20,20 +20,18 @@ public sealed class InstallModWorkflow
         _backupStore = backupStore;
     }
 
-    public InstallPreviewResult Preview(InstallPreviewRequest request)
+    public InstallPreviewResult Preview(InstallRequest request)
     {
         var timings = new StepTimer();
 
         try
         {
-            using InstallPlanSession session = _planner.BuildPreview(request, timings);
-            InstallPreviewPlan preview = session.Plan.Preview
-                                         ?? throw new InvalidOperationException(
-                                             "Install plan does not contain a preview plan.");
+            using InstallPlanSession<InstallPreviewPlan> session = _planner.BuildPreview(request, timings);
+            InstallPreviewPlan preview = session.Plan;
 
             return InstallResultMapper.ToPreviewResult(
                 session.Package,
-                preview.Patch,
+                preview.PatchFiles,
                 preview.Payload,
                 timings.BuildSnapshot());
         }
@@ -43,20 +41,20 @@ public sealed class InstallModWorkflow
         }
     }
 
-    public InstallModResult Install(InstallModRequest request)
+    public InstallModResult Install(InstallRequest request)
     {
         var timings = new StepTimer();
 
         try
         {
             using BackupOperationLock operationLock = _backupStore.AcquireOperationLock();
-            using InstallPlanSession session = _planner.BuildInstall(request, timings);
+            using InstallPlanSession<InstallWritePlan> session = _planner.BuildInstall(request, timings);
 
             InstallExecutionResult execution = _executor.Execute(session, timings);
 
             return InstallResultMapper.ToInstallResult(
                 session.Package,
-                execution.PatchApplyResult,
+                execution.PatchedFiles,
                 execution.CopiedFiles,
                 timings.BuildSnapshot());
         }

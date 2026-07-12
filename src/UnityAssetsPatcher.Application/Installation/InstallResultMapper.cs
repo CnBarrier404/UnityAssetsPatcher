@@ -2,15 +2,15 @@ using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
-public static class InstallResultMapper
+internal static class InstallResultMapper
 {
     public static InstallPreviewResult ToPreviewResult(
         ModPackage package,
-        InstallPatchPreview patchPreview,
+        IReadOnlyList<InstallPatchPreviewFile> patchFiles,
         IReadOnlyList<InstallChange> payloadPreview,
         TimingSnapshot timing)
     {
-        var changes = patchPreview.Files
+        var changes = patchFiles
             .Select(file => new InstallChange(
                 InstallChangeKind.Patch,
                 file.Target,
@@ -20,23 +20,23 @@ public static class InstallResultMapper
             .ToArray();
 
         return new InstallPreviewResult(
-            package.Manifest.Info.Name,
-            package.Manifest.Info.Version,
-            package.Manifest.Info.Author,
+            package.Manifest.Name,
+            package.Manifest.Version,
+            package.Manifest.Author,
             changes,
             package.OptionalGroups
-                .Select(group => (group.Info.Name, group.Info.Description))
+                .Select(group => (group.Name, group.Description))
                 .ToArray(),
             timing);
     }
 
     public static InstallModResult ToInstallResult(
         ModPackage package,
-        InstallPatchApplyResult patchApplyResult,
+        IReadOnlyList<InstallPatchAppliedFile> patchedFiles,
         IReadOnlyList<InstallChange> copiedFiles,
         TimingSnapshot timing)
     {
-        var changes = patchApplyResult.Files
+        var changes = patchedFiles
             .Select(file => new InstallChange(
                 InstallChangeKind.Patch,
                 file.Target,
@@ -48,9 +48,8 @@ public static class InstallResultMapper
             .ToArray();
 
         return new InstallModResult(
-            package.Manifest.Info.Name,
-            package.Manifest.Info.Version,
-            package.Manifest.Info.Author,
+            package.Manifest.Name,
+            package.Manifest.Version,
             changes,
             package.AppliedOptionalGroups,
             timing);

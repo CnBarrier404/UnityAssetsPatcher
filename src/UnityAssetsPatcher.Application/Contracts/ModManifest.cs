@@ -3,31 +3,27 @@ using System.Text.Json;
 namespace UnityAssetsPatcher.Application.Contracts;
 
 public sealed record ModManifest(
-    ModInfo Info,
-    IReadOnlyList<ManifestFile> Files,
-    IReadOnlyList<ManifestPatch> Patches,
-    IReadOnlyList<ManifestOptionalGroup> Optional);
-
-public sealed record ModInfo(
     string Name,
     string Author,
     string Version,
     string? Description,
-    string? Game);
+    string? Game,
+    IReadOnlyList<ManifestFile> Files,
+    IReadOnlyList<ManifestPatch> Patches,
+    IReadOnlyList<ManifestOptionalGroup> Optional);
 
 public sealed record ManifestOptionalGroup(
-    ModOptionalGroupInfo Info,
+    string Name,
+    string? Description,
     IReadOnlyList<ManifestFile> Files,
     IReadOnlyList<ManifestPatch> Patches);
-
-public sealed record ModOptionalGroupInfo(string Name, string? Description);
 
 public sealed record ManifestFile(string Source);
 
 public sealed record ManifestPatch(
     string AssetsFileName,
     string AssetTypeName,
-    IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> IncludeGroups,
+    IReadOnlyDictionary<string, JsonElement> Match,
     IReadOnlyList<ManifestSetOperation>? SetOperations,
     IReadOnlyList<ManifestAddOperation>? AddOperations,
     ManifestReplaceFrom? ReplaceFrom = null,

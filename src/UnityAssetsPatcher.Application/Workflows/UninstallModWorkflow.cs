@@ -24,17 +24,13 @@ public sealed class UninstallModWorkflow
 
     public UninstallPreviewResult Preview(UninstallPreviewRequest request)
     {
-        UninstallPreviewPlan plan = _planner.BuildPreview(request);
-
-        return UninstallResultMapper.ToPreviewResult(plan);
+        return _planner.BuildPreview(request);
     }
 
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
         using BackupOperationLock operationLock = _backupStore.AcquireOperationLock();
         UninstallPlan plan = _planner.BuildUninstall(request);
-        UninstallExecutionResult execution = _executor.Execute(plan);
-
-        return UninstallResultMapper.ToUninstallResult(plan.Record, execution);
+        return _executor.Execute(plan);
     }
 }

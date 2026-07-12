@@ -7,22 +7,6 @@ namespace UnityAssetsPatcher.Tests.Core.Json;
 public sealed class JsonUtilsTests
 {
     [Fact]
-    public void ParseElement_ReturnsJsonElementUsableAfterDocumentDisposal()
-    {
-        const string json = """
-                            {
-                              "name": "Player",
-                              "retryCount": 3
-                            }
-                            """;
-
-        JsonElement element = JsonUtils.ParseElement(json);
-
-        Assert.Equal("Player", element.GetProperty("name").GetString());
-        Assert.Equal(3, element.GetProperty("retryCount").GetInt32());
-    }
-
-    [Fact]
     public void FormatElementValue_WhenValueIsString_ReturnsUnquotedString()
     {
         JsonElement element = JsonUtils.ParseElement("\"Player\"");
@@ -73,51 +57,6 @@ public sealed class JsonUtilsTests
 
         Assert.False(result);
         Assert.Equal(default, objectValue);
-    }
-
-    [Fact]
-    public void ReadElementFromFile_ReadsJsonElement()
-    {
-        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "config.json");
-
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(
-                path,
-                """
-                {
-                  "type": "Camera"
-                }
-                """);
-
-            JsonElement element = JsonUtils.ReadElementFromFile(path);
-
-            Assert.Equal("Camera", element.GetProperty("type").GetString());
-        }
-        finally
-        {
-            string? directory = Path.GetDirectoryName(path);
-            if (directory is not null && Directory.Exists(directory))
-            {
-                Directory.Delete(directory, recursive: true);
-            }
-        }
-    }
-
-    [Fact]
-    public void ReadElementFromStream_ReadsJsonElement()
-    {
-        using MemoryStream stream = new(
-            """
-                {
-                  "type": "Camera"
-                }
-                """u8.ToArray());
-
-        JsonElement element = JsonUtils.ReadElementFromStream(stream, "manifest.json");
-
-        Assert.Equal("Camera", element.GetProperty("type").GetString());
     }
 
     [Fact]

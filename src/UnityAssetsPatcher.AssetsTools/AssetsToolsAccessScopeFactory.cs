@@ -4,21 +4,21 @@ namespace UnityAssetsPatcher.AssetsTools;
 
 public sealed class AssetsToolsAccessScopeFactory : IAssetsAccessScopeFactory, IDisposable
 {
+    private readonly AssetsToolsContext _context;
+
     public AssetsToolsAccessScopeFactory(string tpkFilePath)
     {
-        Context = new AssetsToolsContext(tpkFilePath);
+        _context = new AssetsToolsContext(tpkFilePath);
     }
-
-    public AssetsToolsContext Context { get; }
 
     public IAssetsAccessScope CreateScope()
     {
-        return new AssetsToolsAccessScope(new AssetsFileReader(Context, ownsContext: false),
-            new AssetsFileWriter(Context));
+        return new AssetsToolsAccessScope(new AssetsFileReader(_context, ownsContext: false),
+            new AssetsFileWriter(_context));
     }
 
     public void Dispose()
     {
-        Context.Dispose();
+        _context.Dispose();
     }
 }

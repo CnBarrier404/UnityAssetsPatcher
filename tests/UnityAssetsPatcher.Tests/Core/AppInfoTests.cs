@@ -6,12 +6,12 @@ namespace UnityAssetsPatcher.Tests.Core;
 public sealed class AppInfoTests
 {
     [Fact]
-    public void FromAssembly_UsesInformationalVersionWithoutMetadata()
+    public void FromVersion_WhenVersionContainsMetadata_RemovesMetadata()
     {
-        AppInfo appInfo = AppInfo.FromAssembly("Example Tool", typeof(AppInfoTests).Assembly);
+        AppInfo appInfo = AppInfo.FromVersion("Example Tool", "v1.2.3+sha.1234");
 
         Assert.Equal("Example Tool", appInfo.Name);
-        Assert.DoesNotContain('+', appInfo.DisplayVersion);
+        Assert.Equal("v1.2.3", appInfo.DisplayVersion);
     }
 
     [Fact]

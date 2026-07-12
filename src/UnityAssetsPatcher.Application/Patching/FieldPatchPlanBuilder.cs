@@ -26,8 +26,6 @@ public sealed class FieldPatchPlanBuilder
                     .Select(operation => new PatchPreviewOperationResult(
                         operation.Path,
                         operation.OldValue,
-                        operation.From,
-                        operation.To,
                         JsonUtils.FormatElementValue(operation.From),
                         JsonUtils.FormatElementValue(operation.To),
                         operation.WillChange))
@@ -134,12 +132,12 @@ internal sealed class PatchValueResolver
     private long ResolvePathIdReference(string assetsFilePath, JsonElement resolver)
     {
         string type = ReadRequiredPathIdResolverString(resolver, "type");
-        var includeGroups = ReadPathIdResolverMatchGroups(resolver);
+        var match = ReadPathIdResolverMatch(resolver);
 
         var target = new ManifestPatch(
             Path.GetFileName(assetsFilePath),
             type,
-            includeGroups,
+            match,
             null,
             null);
         var matches = _assetQueryService.FindMatches(assetsFilePath, target)
@@ -187,7 +185,7 @@ internal sealed class PatchValueResolver
             : value;
     }
 
-    private static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> ReadPathIdResolverMatchGroups(
+    private static IReadOnlyDictionary<string, JsonElement> ReadPathIdResolverMatch(
         JsonElement resolver)
     {
         if (!resolver.TryGetProperty("match", out JsonElement matchElement) ||
@@ -201,7 +199,7 @@ internal sealed class PatchValueResolver
 
         return includeGroup.Count == 0
             ? throw new InvalidOperationException("Path ID reference match object cannot be empty.")
-            : [includeGroup];
+            : includeGroup;
     }
 }
 

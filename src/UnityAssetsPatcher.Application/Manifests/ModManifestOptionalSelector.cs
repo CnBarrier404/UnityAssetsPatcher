@@ -14,7 +14,7 @@ public static class ModManifestOptionalSelector
             return manifest with { Optional = [] };
         }
 
-        var available = manifest.Optional.ToDictionary(group => group.Info.Name, StringComparer.OrdinalIgnoreCase);
+        var available = manifest.Optional.ToDictionary(group => group.Name, StringComparer.OrdinalIgnoreCase);
         var selectedGroups = new List<ManifestOptionalGroup>();
 
         foreach (string name in selectedNames)

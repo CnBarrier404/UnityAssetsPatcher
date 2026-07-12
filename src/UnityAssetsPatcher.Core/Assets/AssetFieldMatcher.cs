@@ -5,10 +5,11 @@ namespace UnityAssetsPatcher.Core.Assets;
 
 public static class AssetFieldMatcher
 {
-    public static bool MatchesIncludeGroup(AssetsFieldInfo fieldTree,
-        IReadOnlyDictionary<string, JsonElement> includeGroup)
+    public static bool MatchesFields(
+        AssetsFieldInfo fieldTree,
+        IReadOnlyDictionary<string, JsonElement> expectedFields)
     {
-        foreach ((string path, JsonElement expectedValue) in includeGroup)
+        foreach ((string path, JsonElement expectedValue) in expectedFields)
         {
             AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, path);
 

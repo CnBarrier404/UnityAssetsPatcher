@@ -61,15 +61,15 @@ internal sealed class UninstallTerminalView
             selectedIndex);
     }
 
-    public void WritePreview(InstallRecordSummary selected, UninstallPreviewResult preview)
+    public void WritePreview(UninstallPreviewResult preview)
     {
         _ui.Status.WritePreview(LocalizedStrings.UninstallPreview_Status);
         _ui.Summary.WriteRows(
-            (LocalizedStrings.Summary_Mod, selected.ModName),
-            (LocalizedStrings.Summary_Version, selected.ModVersion),
+            (LocalizedStrings.Summary_Mod, preview.ModName),
+            (LocalizedStrings.Summary_Version, preview.ModVersion),
             (LocalizedStrings.UninstallSummary_GameDirectory, preview.GameDirectory),
             (LocalizedStrings.UninstallSummary_Installed,
-                selected.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture)),
+                preview.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture)),
             (LocalizedStrings.UninstallSummary_RestoredFiles,
                 preview.RestoredFiles.Count.ToString(CultureInfo.InvariantCulture)),
             (LocalizedStrings.UninstallSummary_PayloadFiles,

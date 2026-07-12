@@ -2,7 +2,7 @@ namespace UnityAssetsPatcher.Application.Backups;
 
 public sealed record InstallRecordEntry(string InstallDirectory, InstallRecord Record);
 
-public sealed record BlockingInstallRecord(InstallRecordEntry Entry, IReadOnlyList<string> OverlappingAssetsFiles);
+public sealed record BlockingInstallRecord(InstallRecord Record, IReadOnlyList<string> OverlappingAssetsFiles);
 
 public static class InstallLayerAnalyzer
 {
@@ -26,7 +26,7 @@ public static class InstallLayerAnalyzer
             .Where(entry => entry.Record.GameInstanceFingerprint == target.GameInstanceFingerprint &&
                             entry.Record.InstallSequence > target.InstallSequence)
             .Select(entry => new BlockingInstallRecord(
-                entry,
+                entry.Record,
                 entry.Record.PatchedFiles
                     .Select(file => NormalizeRelativePath(file.AssetsFileRelativePath))
                     .Where(targetFiles.Contains)
@@ -34,7 +34,7 @@ public static class InstallLayerAnalyzer
                     .OrderBy(path => path, PathComparer)
                     .ToArray()))
             .Where(blocker => blocker.OverlappingAssetsFiles.Count > 0)
-            .OrderByDescending(blocker => blocker.Entry.Record.InstallSequence)
+            .OrderByDescending(blocker => blocker.Record.InstallSequence)
             .ToArray();
     }
 }

@@ -2,12 +2,7 @@ using UnityAssetsPatcher.Application.Installation;
 
 namespace UnityAssetsPatcher.Application.Contracts;
 
-public sealed record InstallModRequest(string ZipFilePath, string? GameDirectory)
-{
-    public IReadOnlyList<string> SelectedOptionalGroups { get; init; } = [];
-}
-
-public sealed record InstallPreviewRequest(string ZipFilePath, string? GameDirectory)
+public sealed record InstallRequest(string ZipFilePath, string? GameDirectory)
 {
     public IReadOnlyList<string> SelectedOptionalGroups { get; init; } = [];
 }
@@ -15,7 +10,6 @@ public sealed record InstallPreviewRequest(string ZipFilePath, string? GameDirec
 public sealed record InstallModResult(
     string ModName,
     string ModVersion,
-    string ModAuthor,
     IReadOnlyList<InstallChange> Changes,
     IReadOnlyList<string> OptionalGroups,
     TimingSnapshot Timing);
@@ -39,7 +33,6 @@ public sealed record InstallChange(
     string Name,
     string Path,
     PatchPreviewResult? Preview = null,
-    bool WillCopy = false,
     string? BackupPath = null,
     int AssetCount = 0,
     int OperationCount = 0);

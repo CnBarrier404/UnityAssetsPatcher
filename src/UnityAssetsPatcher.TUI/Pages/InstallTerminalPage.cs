@@ -93,7 +93,7 @@ internal sealed class InstallTerminalPage : ITerminalPage
 
         _view.WriteBlankLine();
         InstallModResult result = _workflowService.Install(
-            new InstallModRequest(zipFilePath, gameDirectory)
+            new InstallRequest(zipFilePath, gameDirectory)
             {
                 SelectedOptionalGroups = selectedOptionalGroups,
             });
@@ -110,7 +110,7 @@ internal sealed class InstallTerminalPage : ITerminalPage
         try
         {
             return _workflowService.PreviewInstall(
-                new InstallPreviewRequest(zipFilePath, gameDirectory)
+                new InstallRequest(zipFilePath, gameDirectory)
                 {
                     SelectedOptionalGroups = selectedOptionalGroups,
                 });

@@ -4,8 +4,6 @@ namespace UnityAssetsPatcher.Core;
 
 public sealed record AppInfo(string Name, string DisplayVersion)
 {
-    public static AppInfo Default { get; } = new("Unity Assets Patcher", "dev");
-
     public static AppInfo FromAssembly(string name, Assembly assembly)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

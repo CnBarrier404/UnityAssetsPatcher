@@ -23,7 +23,7 @@ public sealed class InstallPlanner
         _patchPlanBuilder = patchPlanBuilder;
     }
 
-    public InstallPlanSession BuildPreview(InstallPreviewRequest request, StepTimer timings)
+    internal InstallPlanSession<InstallPreviewPlan> BuildPreview(InstallRequest request, StepTimer timings)
     {
         ModPackage? package = null;
 
@@ -31,13 +31,13 @@ public sealed class InstallPlanner
         {
             package = OpenPackage(request.ZipFilePath, request.SelectedOptionalGroups, timings);
             string gameDirectory =
-                _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Info.Game);
+                _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Game);
             TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
             var payloadFiles = PlanPayloadFiles(package.Manifest, targets);
-            InstallPatchPreview patchPreview = CreatePatchPreview(targets, package, timings);
+            IReadOnlyList<InstallPatchPreviewFile> patchPreview = CreatePatchPreview(targets, package, timings);
             var payloadPreview = PreviewPayloadFiles(payloadFiles);
-            var plan = new InstallPlan(gameDirectory, new InstallPreviewPlan(patchPreview, payloadPreview), null);
-            var session = new InstallPlanSession(package, plan);
+            var plan = new InstallPreviewPlan(patchPreview, payloadPreview);
+            var session = new InstallPlanSession<InstallPreviewPlan>(package, plan);
             package = null;
             return session;
         }
@@ -47,7 +47,7 @@ public sealed class InstallPlanner
         }
     }
 
-    public InstallPlanSession BuildInstall(InstallModRequest request, StepTimer timings)
+    internal InstallPlanSession<InstallWritePlan> BuildInstall(InstallRequest request, StepTimer timings)
     {
         ModPackage? package = null;
 
@@ -55,12 +55,13 @@ public sealed class InstallPlanner
         {
             package = OpenPackage(request.ZipFilePath, request.SelectedOptionalGroups, timings);
             string gameDirectory =
-                _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Info.Game);
+                _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Game);
             TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
             var payloadFiles = PlanPayloadFiles(package.Manifest, targets);
-            InstallPatchPlan patchWritePlan = CreateRequiredPatchWritePlan(targets, package, timings);
-            var plan = new InstallPlan(gameDirectory, null, new InstallWritePlan(patchWritePlan, payloadFiles));
-            var session = new InstallPlanSession(package, plan);
+            IReadOnlyList<InstallPatchPlanFile> patchWritePlan =
+                CreateRequiredPatchWritePlan(targets, package, timings);
+            var plan = new InstallWritePlan(gameDirectory, patchWritePlan, payloadFiles);
+            var session = new InstallPlanSession<InstallWritePlan>(package, plan);
             package = null;
             return session;
         }
@@ -75,7 +76,10 @@ public sealed class InstallPlanner
         return ModPackage.Open(zipFilePath, selectedOptionalGroups, _manifestReader, timings);
     }
 
-    private InstallPatchPreview CreatePatchPreview(TargetAssetSet targets, ModPackage package, StepTimer timings)
+    private IReadOnlyList<InstallPatchPreviewFile> CreatePatchPreview(
+        TargetAssetSet targets,
+        ModPackage package,
+        StepTimer timings)
     {
         var files = timings.Measure("analyze-changes", () => targets.Targets
             .Select(target =>
@@ -89,10 +93,13 @@ public sealed class InstallPlanner
             })
             .ToArray());
 
-        return new InstallPatchPreview(files);
+        return files;
     }
 
-    private InstallPatchPlan CreateRequiredPatchWritePlan(TargetAssetSet targets, ModPackage package, StepTimer timings)
+    private IReadOnlyList<InstallPatchPlanFile> CreateRequiredPatchWritePlan(
+        TargetAssetSet targets,
+        ModPackage package,
+        StepTimer timings)
     {
         PatchOperationRules.ValidateModManifest(package.Manifest);
 
@@ -108,7 +115,7 @@ public sealed class InstallPlanner
             })
             .ToArray());
 
-        return new InstallPatchPlan(files);
+        return files;
     }
 
     public static IReadOnlyList<InstallPayloadFilePlan> PlanPayloadFiles(ModManifest manifest, TargetAssetSet targets)
@@ -125,11 +132,6 @@ public sealed class InstallPlanner
         {
             string entryPath = file.Source.Replace('\\', '/');
             string fileName = Path.GetFileName(entryPath.Replace('/', Path.DirectorySeparatorChar));
-
-            if (string.IsNullOrWhiteSpace(fileName))
-            {
-                throw new InvalidOperationException($"Payload source must name a file: {entryPath}");
-            }
 
             files.Add(new InstallPayloadFilePlan(entryPath, Path.Combine(payloadDirectory, fileName)));
         }
@@ -149,7 +151,6 @@ public sealed class InstallPlanner
         return targetDirectories.Length switch
         {
             1 => targetDirectories[0],
-            0 => throw new InvalidOperationException("Payload files require at least one patch target."),
             _ => throw new InvalidOperationException(
                 "Payload files require all patch targets to resolve to the same directory.")
         };
@@ -161,18 +162,18 @@ public sealed class InstallPlanner
             .Select(file => new InstallChange(
                 InstallChangeKind.Payload,
                 file.Source,
-                file.DestinationPath,
-                WillCopy: !File.Exists(file.DestinationPath)))
+                file.DestinationPath))
             .ToArray();
     }
 }
 
-public sealed class InstallPlanSession : IDisposable
+internal sealed class InstallPlanSession<TPlan> : IDisposable
+    where TPlan : notnull
 {
     public ModPackage Package { get; }
-    public InstallPlan Plan { get; }
+    public TPlan Plan { get; }
 
-    public InstallPlanSession(ModPackage package, InstallPlan plan)
+    public InstallPlanSession(ModPackage package, TPlan plan)
     {
         Package = package;
         Plan = plan;
@@ -184,18 +185,17 @@ public sealed class InstallPlanSession : IDisposable
     }
 }
 
-public sealed record InstallPlan(string GameDirectory, InstallPreviewPlan? Preview, InstallWritePlan? Write);
+internal sealed record InstallPreviewPlan(
+    IReadOnlyList<InstallPatchPreviewFile> PatchFiles,
+    IReadOnlyList<InstallChange> Payload);
 
-public sealed record InstallPreviewPlan(InstallPatchPreview Patch, IReadOnlyList<InstallChange> Payload);
-
-public sealed record InstallWritePlan(InstallPatchPlan Patch, IReadOnlyList<InstallPayloadFilePlan> PayloadFiles);
+internal sealed record InstallWritePlan(
+    string GameDirectory,
+    IReadOnlyList<InstallPatchPlanFile> PatchFiles,
+    IReadOnlyList<InstallPayloadFilePlan> PayloadFiles);
 
 public sealed record InstallPayloadFilePlan(string Source, string DestinationPath);
 
-public sealed record InstallPatchPreview(IReadOnlyList<InstallPatchPreviewFile> Files);
+internal sealed record InstallPatchPreviewFile(string Target, string AssetsFilePath, PatchPreviewResult Preview);
 
-public sealed record InstallPatchPreviewFile(string Target, string AssetsFilePath, PatchPreviewResult Preview);
-
-public sealed record InstallPatchPlan(IReadOnlyList<InstallPatchPlanFile> Files);
-
-public sealed record InstallPatchPlanFile(string Target, string AssetsFilePath, PatchFileWritePlan PatchPlan);
+internal sealed record InstallPatchPlanFile(string Target, string AssetsFilePath, PatchFileWritePlan PatchPlan);

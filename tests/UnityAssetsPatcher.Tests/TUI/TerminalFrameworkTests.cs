@@ -26,28 +26,9 @@ public sealed class TerminalFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void ReturnToMenu_WhenWaitForKeyIsFalse_ExpressesImmediateReturn()
-    {
-        TerminalPageResult result = TerminalPageResult.ReturnToMenu(false);
-
-        Assert.Equal(TerminalPageAction.ReturnToMenu, result.Action);
-        Assert.False(result.WaitForKey);
-    }
-
-    [Fact]
-    public void PageContract_RunReturnsExplicitPageResult()
-    {
-        Assert.Equal(
-            typeof(TerminalPageResult),
-            typeof(ITerminalPage).GetMethod(nameof(ITerminalPage.Run))?.ReturnType);
-    }
-
-    [Fact]
     public void PageConstructors_DoNotUseServiceProviderOrContextObjects()
     {
         var tuiAssembly = typeof(TerminalApp).Assembly;
-
-        Assert.Null(tuiAssembly.GetType("UnityAssetsPatcher.TUI.TerminalAppContext"));
 
         Type[] pageTypes = tuiAssembly
             .GetTypes()
@@ -122,25 +103,6 @@ public sealed class TerminalFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void TuiComposition_DoesNotUseDedicatedErrorOutputChannel()
-    {
-        var tuiAssembly = typeof(TerminalApp).Assembly;
-
-        Assert.Null(tuiAssembly.GetType("UnityAssetsPatcher.TUI.TerminalErrorOutput"));
-
-        Type[] constructorParameterTypes = tuiAssembly
-            .GetTypes()
-            .Where(type => type.Namespace?.StartsWith("UnityAssetsPatcher.TUI", StringComparison.Ordinal) == true)
-            .SelectMany(type =>
-                type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-            .SelectMany(constructor => constructor.GetParameters())
-            .Select(parameter => parameter.ParameterType)
-            .ToArray();
-
-        Assert.DoesNotContain(constructorParameterTypes, type => type.Name == "TerminalErrorOutput");
-    }
-
-    [Fact]
     public void AddUnityAssetsPatcherTui_RegistersTerminalAppForOfficialServiceProvider()
     {
         TestConsole console = CreateConsole();
@@ -148,7 +110,7 @@ public sealed class TerminalFrameworkTests : IDisposable
             .AddSingleton<IAssetsAccessScopeFactory>(new ThrowingAssetsAccessScopeFactory())
             .AddUnityAssetsPatcherApplication("backup")
             .AddUnityAssetsPatcherTUI(
-                AppInfo.Default,
+                new AppInfo("Unity Assets Patcher", "dev"),
                 console)
             .BuildServiceProvider(new ServiceProviderOptions
             {
@@ -179,22 +141,10 @@ public sealed class TerminalFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void Lists_WriteList_MarksSelectedChoice()
+    public void Lists_WriteDescribedList_RendersLabelsDescriptionsAndSelection()
     {
         TestConsole console = CreateConsole();
-        var ui = new TerminalUI(console);
-
-        ui.List.WriteList(["First action", "Second action"], selectedIndex: 1);
-
-        Assert.Contains("> Second action", console.Output);
-        Assert.Contains("  First action", console.Output);
-    }
-
-    [Fact]
-    public void Lists_WriteDescribedList_AlignsLabelAndDescription()
-    {
-        TestConsole console = CreateConsole();
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Unity Assets Patcher", "dev"));
 
         ui.List.WriteDescribedList(
             [
@@ -214,7 +164,7 @@ public sealed class TerminalFrameworkTests : IDisposable
     public void Lists_WriteToggleList_RendersRowsWithIndicatorAndCheckbox()
     {
         TestConsole console = CreateConsole().SupportsAnsi(true);
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Unity Assets Patcher", "dev"));
 
         ui.List.WriteToggleList(
             [
@@ -236,7 +186,7 @@ public sealed class TerminalFrameworkTests : IDisposable
     public void Lists_WriteToggleList_WrapsLongLabelsAndDescriptionsToConsoleWidth()
     {
         TestConsole console = CreateConsole().Width(42);
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Unity Assets Patcher", "dev"));
 
         ui.List.WriteToggleList(
             [
@@ -260,7 +210,7 @@ public sealed class TerminalFrameworkTests : IDisposable
     public void Summary_WriteRows_PrintsAlignedLabelValuePairs()
     {
         TestConsole console = CreateConsole();
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Unity Assets Patcher", "dev"));
 
         ui.Summary.WriteRows(
             ("Name", "Example"),
@@ -277,7 +227,7 @@ public sealed class TerminalFrameworkTests : IDisposable
     public void Summary_WriteRows_AlignsLocalizedLabelsByDisplayWidth()
     {
         TestConsole console = CreateConsole().SupportsAnsi(false);
-        var ui = new TerminalUI(console);
+        var ui = new TerminalUI(console, new AppInfo("Unity Assets Patcher", "dev"));
 
         ui.Summary.WriteRows(
             ("Mod", "Ridgeview"),
@@ -290,85 +240,6 @@ public sealed class TerminalFrameworkTests : IDisposable
         int localizedValueColumn = GetDisplayWidth(lines[1][..lines[1].IndexOf("1", StringComparison.Ordinal)]);
 
         Assert.Equal(englishValueColumn, localizedValueColumn);
-    }
-
-    [Fact]
-    public void Text_WriteWarning_PrintsWarningMessage()
-    {
-        TestConsole console = CreateConsole();
-        var ui = new TerminalUI(console);
-
-        ui.Text.WriteWarning("Careful");
-
-        Assert.Contains("Careful", console.Output);
-    }
-
-    [Fact]
-    public void Tables_WritePlainTable_PrintsEscapedHeadersAndStyledCells()
-    {
-        TestConsole console = CreateConsole();
-        var ui = new TerminalUI(console);
-
-        ui.Table.WritePlainTable(
-            [
-                new TerminalTableColumn("Target"),
-                new TerminalTableColumn("Operations"),
-                new TerminalTableColumn("Path"),
-            ],
-            [
-                [
-                    new TerminalTableCell("Level[7]"),
-                    new TerminalTableCell("4 changed, 72 skipped"),
-                    new TerminalTableCell(@"E:\Steam\Game_Data\level7", "grey"),
-                ],
-            ]);
-
-        string output = console.Output;
-        Assert.Contains("Target", output);
-        Assert.Contains("Operations", output);
-        Assert.Contains("Path", output);
-        Assert.Contains("Level[7]", output);
-        Assert.Contains("4 changed, 72 skipped", output);
-        Assert.Contains(@"E:\Steam\Game_Data\level7", output);
-        Assert.DoesNotContain("|", output);
-    }
-
-    [Fact]
-    public void ReadChoice_WhenSelectionIsAccepted_ReturnsSelectedChoice()
-    {
-        TestConsole console = CreateConsole();
-        console.Input.PushKey(ConsoleKey.DownArrow);
-        console.Input.PushKey(ConsoleKey.Enter);
-        var ui = new TerminalUI(console);
-        var prompts = new TerminalPrompts(console, ui.Text);
-
-        string choice = prompts.ReadChoice(
-            ["First action", "Second action"],
-            cancelChoice: "__cancel",
-            render: (selectedIndex, _) => ui.List.WriteList(
-                ["First action", "Second action"],
-                selectedIndex));
-
-        Assert.Equal("Second action", choice);
-        Assert.Contains("> Second action", console.Output);
-    }
-
-    [Fact]
-    public void ReadChoice_WhenEscapeIsPressed_ReturnsCancelChoice()
-    {
-        TestConsole console = CreateConsole();
-        console.Input.PushKey(ConsoleKey.Escape);
-        var ui = new TerminalUI(console);
-        var prompts = new TerminalPrompts(console, ui.Text);
-
-        string choice = prompts.ReadChoice(
-            ["First action", "Second action"],
-            cancelChoice: "__cancel",
-            render: (selectedIndex, _) => ui.List.WriteList(
-                ["First action", "Second action"],
-                selectedIndex));
-
-        Assert.Equal("__cancel", choice);
     }
 
     [Fact]

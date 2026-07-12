@@ -46,11 +46,6 @@ internal sealed class TerminalNavigator
             _selectedIndex = selectedIndex.Value;
             TerminalPageResult result = RunMenuAction(_pages[_selectedIndex].Run);
 
-            if (result.Action == TerminalPageAction.Exit)
-            {
-                return 0;
-            }
-
             if (!result.WaitForKey)
             {
                 continue;

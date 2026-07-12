@@ -12,9 +12,6 @@ public sealed class TerminalPrompts
     private readonly TerminalText _text;
     private readonly TerminalSelectionPrompt _selectionPrompt;
 
-    public TerminalPrompts(IAnsiConsole console)
-        : this(console, new TerminalUI(console).Text) { }
-
     public TerminalPrompts(IAnsiConsole console, TerminalText text)
     {
         _console = console;
@@ -25,22 +22,6 @@ public sealed class TerminalPrompts
     public string? ReadExistingFilePath(string label)
     {
         return ReadExistingPath(label, File.Exists, value => Format(LocalizedStrings.Prompt_FileNotFoundFormat, value));
-    }
-
-    public string ReadChoice(
-        IReadOnlyList<string> choices,
-        string cancelChoice,
-        Action<int, bool> render,
-        int initialSelectedIndex = 0,
-        ConsoleKey acceptKey = ConsoleKey.Enter)
-    {
-        int? selectedIndex = ReadChoiceIndex(
-            choices.Count,
-            initialSelectedIndex,
-            render,
-            acceptKey);
-
-        return selectedIndex is null ? cancelChoice : choices[selectedIndex.Value];
     }
 
     public int? ReadChoiceIndex(
@@ -81,11 +62,6 @@ public sealed class TerminalPrompts
 
     public bool Confirm(string prompt)
     {
-        return ConfirmOrCancel(prompt) == ConfirmChoice.Yes;
-    }
-
-    private ConfirmChoice ConfirmOrCancel(string prompt)
-    {
         _console.Cursor.Show(false);
         _text.WriteConfirmationLabel(prompt);
 
@@ -95,7 +71,7 @@ public sealed class TerminalPrompts
 
             if (maybeKey is null)
             {
-                return ConfirmChoice.Canceled;
+                return false;
             }
 
             ConsoleKeyInfo key = maybeKey.Value;
@@ -105,11 +81,11 @@ public sealed class TerminalPrompts
                 case ConsoleKey.Escape:
                     _console.Write(new Text(Environment.NewLine));
 
-                    return ConfirmChoice.Canceled;
+                    return false;
                 case ConsoleKey.Enter:
                     _console.Write(new Text(Environment.NewLine));
 
-                    return ConfirmChoice.No;
+                    return false;
             }
 
             char choice = char.ToLowerInvariant(key.KeyChar);
@@ -119,11 +95,11 @@ public sealed class TerminalPrompts
                 case 'y':
                     _console.Write(new Text($"y{Environment.NewLine}"));
 
-                    return ConfirmChoice.Yes;
+                    return true;
                 case 'n':
                     _console.Write(new Text($"n{Environment.NewLine}"));
 
-                    return ConfirmChoice.No;
+                    return false;
             }
         }
     }
@@ -132,55 +108,6 @@ public sealed class TerminalPrompts
     {
         _console.Cursor.Show(false);
         _console.Input.ReadKey(intercept: true);
-    }
-
-    public bool TryReadInt64(string label, out long value)
-    {
-        while (true)
-        {
-            string? input = ReadText(label);
-
-            if (input is null)
-            {
-                value = 0;
-
-                return false;
-            }
-
-            string normalized = NormalizePathInput(input);
-
-            if (long.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-            {
-                return true;
-            }
-
-            _text.WriteError(Format(LocalizedStrings.Prompt_LabelMustBeIntegerFormat, label));
-        }
-    }
-
-    public bool TryReadPositiveInt(string label, out int value)
-    {
-        while (true)
-        {
-            string? input = ReadText(label);
-
-            if (input is null)
-            {
-                value = 0;
-
-                return false;
-            }
-
-            string normalized = NormalizePathInput(input);
-
-            if (int.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) &&
-                value > 0)
-            {
-                return true;
-            }
-
-            _text.WriteError(Format(LocalizedStrings.Prompt_LabelMustBeGreaterThanZeroFormat, label));
-        }
     }
 
     private string? ReadExistingPath(string label, Func<string, bool> exists, Func<string, string> missingMessage)
@@ -212,7 +139,7 @@ public sealed class TerminalPrompts
         }
     }
 
-    private string? ReadText(string label, bool allowEmpty = false)
+    private string? ReadText(string label)
     {
         while (true)
         {
@@ -224,7 +151,7 @@ public sealed class TerminalPrompts
                 return null;
             }
 
-            if (allowEmpty || value.Length > 0)
+            if (value.Length > 0)
             {
                 return value;
             }
