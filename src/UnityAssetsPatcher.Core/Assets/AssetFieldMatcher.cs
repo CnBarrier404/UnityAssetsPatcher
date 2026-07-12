@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using UnityAssetsPatcher.Core.Json;
 
@@ -37,14 +36,28 @@ public static class AssetFieldMatcher
         return field.Value is not null && MatchesValue(field.Value, expectedValue);
     }
 
-    private static bool MatchesValue(string actualValue, JsonElement expectedValue)
+    public static bool MatchesValue(AssetFieldValue actualValue, JsonElement expectedValue)
     {
-        return expectedValue.ValueKind switch
+        return actualValue switch
         {
-            JsonValueKind.Number => MatchesNumber(actualValue, expectedValue),
-            JsonValueKind.True => MatchesBoolean(actualValue, true),
-            JsonValueKind.False => MatchesBoolean(actualValue, false),
-            JsonValueKind.String => string.Equals(actualValue, expectedValue.GetString(), StringComparison.Ordinal),
+            BoolAssetFieldValue value =>
+                expectedValue.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+                value.Value == expectedValue.GetBoolean(),
+            StringAssetFieldValue value =>
+                expectedValue.ValueKind == JsonValueKind.String &&
+                string.Equals(value.Value, expectedValue.GetString(), StringComparison.Ordinal),
+            Int64AssetFieldValue value =>
+                expectedValue.ValueKind == JsonValueKind.Number &&
+                expectedValue.TryGetInt64(out long expected) && value.Value == expected,
+            UInt64AssetFieldValue value =>
+                expectedValue.ValueKind == JsonValueKind.Number &&
+                expectedValue.TryGetUInt64(out ulong expected) && value.Value == expected,
+            FloatAssetFieldValue value =>
+                expectedValue.ValueKind == JsonValueKind.Number &&
+                expectedValue.TryGetSingle(out float expected) && value.Value.Equals(expected),
+            DoubleAssetFieldValue value =>
+                expectedValue.ValueKind == JsonValueKind.Number &&
+                expectedValue.TryGetDouble(out double expected) && value.Value.Equals(expected),
             _ => false,
         };
     }
@@ -92,27 +105,5 @@ public static class AssetFieldMatcher
         }
 
         return true;
-    }
-
-    private static bool MatchesNumber(string actualValue, JsonElement expectedValue)
-    {
-        return double.TryParse(actualValue, NumberStyles.Float, CultureInfo.InvariantCulture, out double actualNumber)
-               && expectedValue.TryGetDouble(out double expectedNumber)
-               && Math.Abs(actualNumber - expectedNumber) <= 0.00001d;
-    }
-
-    private static bool MatchesBoolean(string actualValue, bool expectedValue)
-    {
-        if (bool.TryParse(actualValue, out bool actualBoolean))
-        {
-            return actualBoolean == expectedValue;
-        }
-
-        if (long.TryParse(actualValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out long actualInteger))
-        {
-            return actualInteger != 0 == expectedValue;
-        }
-
-        return false;
     }
 }

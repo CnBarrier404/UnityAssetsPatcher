@@ -5,15 +5,18 @@ public sealed class AssetsFieldInfo
     public IReadOnlyList<AssetsFieldInfo> Children { get; }
     public string Name { get; }
     public string TypeName { get; }
-    public string? Value { get; }
+    public AssetFieldValue? Value { get; }
 
     private readonly Dictionary<string, IReadOnlyList<AssetsFieldInfo>>? _childrenByName;
 
-    public AssetsFieldInfo(string name, string typeName, string? value, IReadOnlyList<AssetsFieldInfo> children)
+    public AssetsFieldInfo(string name, string typeName, AssetFieldValue? value,
+        IReadOnlyList<AssetsFieldInfo> children)
     {
         Name = name;
         TypeName = typeName;
-        Value = value;
+        Value = value is StringAssetFieldValue stringValue && !AssetFieldTypeNames.IsString(typeName)
+            ? AssetFieldValue.FromInvariantString(typeName, stringValue.Value)
+            : value;
         Children = children.ToArray();
         _childrenByName = BuildChildrenByName(Children);
     }

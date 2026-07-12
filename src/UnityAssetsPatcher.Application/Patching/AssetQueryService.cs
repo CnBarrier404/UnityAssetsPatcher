@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
@@ -128,9 +127,7 @@ public sealed class AssetQueryService
             AssetFieldNavigator.FindField(componentReferenceField, "component.m_PathID") ??
             AssetFieldNavigator.FindField(componentReferenceField, "m_PathID");
 
-        return long.TryParse(pathIdField?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long pathId)
-            ? pathId
-            : null;
+        return pathIdField?.Value is Int64AssetFieldValue value ? value.Value : null;
     }
 }
 

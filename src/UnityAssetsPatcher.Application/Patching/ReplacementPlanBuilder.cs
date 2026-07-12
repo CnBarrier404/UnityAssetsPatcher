@@ -120,7 +120,7 @@ public sealed class ReplacementPlanBuilder
     {
         AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, matchFieldPath);
 
-        return field?.Value ?? throw new InvalidOperationException(
+        return field?.Value?.ToInvariantString() ?? throw new InvalidOperationException(
             $"Replacement {role} Path ID {pathId} does not contain scalar match field '{matchFieldPath}'.");
     }
 

@@ -12,6 +12,6 @@ internal static class AssetsFieldLocator
             path,
             static candidate => candidate.FieldName,
             static candidate => candidate.Children,
-            static candidate => candidate.Value?.ToString());
+            static candidate => AssetsFieldInfoMapper.MapValue(candidate)?.ToInvariantString());
     }
 }

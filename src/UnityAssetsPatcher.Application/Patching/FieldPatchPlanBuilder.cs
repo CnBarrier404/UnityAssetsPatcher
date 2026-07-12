@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
@@ -406,7 +405,7 @@ internal sealed class FieldPatchOperationPlanner
     {
         return isArrayPatch && child is not null
             ? PatchFieldValueFormatter.FormatArrayFieldValue(child)
-            : child?.Value ?? "<missing>";
+            : child?.Value?.ToInvariantString() ?? "<missing>";
     }
 
     private static string CreateSetMismatchMessage(
@@ -429,7 +428,8 @@ internal sealed class FieldPatchOperationPlanner
         {
             if (!PatchFieldValueFormatter.IsJsonArrayPatchValue(operation.To))
             {
-                return new FieldValueSnapshot(operation.FieldPath, field?.Value ?? "<missing>", false, null);
+                return new FieldValueSnapshot(
+                    operation.FieldPath, field?.Value?.ToInvariantString() ?? "<missing>", false, null);
             }
 
             AssetsFieldInfo? arrayField = PatchFieldValueFormatter.ResolveArrayField(field);
@@ -646,8 +646,8 @@ internal static class PatchFieldValueFormatter
         }
 
         return AssetFieldTypeNames.IsString(element.TypeName)
-            ? FormatJsonStringLiteral(element.Value)
-            : element.Value;
+            ? FormatJsonStringLiteral(element.Value.ToInvariantString())
+            : element.Value.ToInvariantString();
     }
 
     private static string FormatJsonStringLiteral(string value)
@@ -700,45 +700,18 @@ internal static class PatchFieldValueFormatter
 
     private static JsonElement CreateJsonElementFromArrayElementField(AssetsFieldInfo field)
     {
-        string value = field.Value ?? throw new InvalidOperationException(
+        AssetFieldValue value = field.Value ?? throw new InvalidOperationException(
             $"Array field '{field.Name}' contains a non-scalar element.");
 
-        if (AssetFieldTypeNames.IsString(field.TypeName))
+        return value switch
         {
-            return JsonElementFactory.String(value);
-        }
-
-        if (AssetFieldTypeNames.IsBoolean(field.TypeName))
-        {
-            if (bool.TryParse(value, out bool boolean))
-            {
-                return JsonElementFactory.Boolean(boolean);
-            }
-
-            if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long booleanInteger))
-            {
-                return JsonElementFactory.Boolean(booleanInteger != 0);
-            }
-        }
-
-        if (AssetFieldTypeNames.IsUnsignedInteger(field.TypeName) &&
-            ulong.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong unsignedInteger))
-        {
-            return JsonElementFactory.Number(unsignedInteger);
-        }
-
-        if (AssetFieldTypeNames.IsSignedInteger(field.TypeName) &&
-            long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long signedInteger))
-        {
-            return JsonElementFactory.Number(signedInteger);
-        }
-
-        if (AssetFieldTypeNames.IsFloatingPoint(field.TypeName) &&
-            double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double floatingPoint))
-        {
-            return JsonElementFactory.Number(floatingPoint);
-        }
-
-        return JsonElementFactory.String(value);
+            StringAssetFieldValue stringValue => JsonElementFactory.String(stringValue.Value),
+            BoolAssetFieldValue boolValue => JsonElementFactory.Boolean(boolValue.Value),
+            Int64AssetFieldValue integerValue => JsonElementFactory.Number(integerValue.Value),
+            UInt64AssetFieldValue integerValue => JsonElementFactory.Number(integerValue.Value),
+            FloatAssetFieldValue floatValue => JsonElementFactory.Number(floatValue.Value),
+            DoubleAssetFieldValue doubleValue => JsonElementFactory.Number(doubleValue.Value),
+            _ => throw new InvalidOperationException($"Unsupported scalar value type '{value.GetType().Name}'."),
+        };
     }
 }

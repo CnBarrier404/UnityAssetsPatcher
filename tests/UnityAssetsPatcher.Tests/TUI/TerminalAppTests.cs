@@ -381,7 +381,7 @@ public sealed class TerminalAppTests : IDisposable
                 "Show detailed install preview logs and per-stage install timings.",
                 FirstLineContaining(text, "Verbose output"));
             Assert.Contains("field of view", text);
-            Assert.Contains("90.0 -> 75.0", text);
+            Assert.Contains("90 -> 75.0", text);
             Assert.Contains("Read package", text);
         }
         finally

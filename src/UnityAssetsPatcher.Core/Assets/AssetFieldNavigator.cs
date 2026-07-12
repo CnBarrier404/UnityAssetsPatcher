@@ -9,7 +9,7 @@ public static class AssetFieldNavigator
             path,
             static field => field.Name,
             static field => field.Children,
-            static field => field.Value,
+            static field => field.Value?.ToInvariantString(),
             static (field, name) => field.ChildrenNamed(name));
     }
 

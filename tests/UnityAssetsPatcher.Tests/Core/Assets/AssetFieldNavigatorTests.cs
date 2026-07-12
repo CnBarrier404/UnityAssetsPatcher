@@ -39,7 +39,7 @@ public sealed class AssetFieldNavigatorTests
 
         Assert.NotNull(field);
         Assert.Equal("m_PathID", field.Name);
-        Assert.Equal("17", field.Value);
+        Assert.Equal("17", field.Value?.ToInvariantString());
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class AssetFieldNavigatorTests
 
         Assert.NotNull(field);
         Assert.Equal("m_PathID", field.Name);
-        Assert.Equal("8842", field.Value);
+        Assert.Equal("8842", field.Value?.ToInvariantString());
     }
 
     [Fact]
