@@ -593,7 +593,7 @@ public sealed class UninstallModWorkflowTests
         Directory.CreateDirectory(targetDirectory);
         Directory.CreateDirectory(installAssetsDirectory);
         File.WriteAllText(firstTargetPath, "first patched");
-        File.WriteAllText(firstBackupPath, new string('o', 8 * 1024 * 1024));
+        File.WriteAllText(firstBackupPath, "first original");
         File.WriteAllText(secondTargetPath, "second patched");
         File.WriteAllText(secondBackupPath, "second original");
 
@@ -629,18 +629,18 @@ public sealed class UninstallModWorkflowTests
 
         var store = new ModBackupStore(backupDirectory);
         store.Save(record, installDirectory);
-        var workflow = CreateWorkflow(store);
-
-        FileStream? restoreAttemptBackupLock = null;
-        FileStream? secondTargetLock = null;
-        using var watcher = new FileSystemWatcher(targetDirectory, ".sharedassets0.assets.*.uninstall.tmp");
-
-        watcher.EnableRaisingEvents = true;
-        watcher.Created += (_, args) =>
+        int firstFileRestoreAttempts = 0;
+        var executor = new UninstallExecutor((backupPath, targetPath) =>
         {
-            restoreAttemptBackupLock ??= OpenExclusiveWhenReady(args.FullPath);
-            secondTargetLock ??= OpenExclusiveWhenReady(secondTargetPath);
-        };
+            if (targetPath == firstTargetPath && firstFileRestoreAttempts++ == 0)
+            {
+                ModBackupStore.RestoreFile(backupPath, targetPath);
+                return;
+            }
+
+            throw new IOException($"Simulated restore failure for: {targetPath}");
+        });
+        var workflow = CreateWorkflow(store, executor: executor);
 
         try
         {
@@ -651,9 +651,6 @@ public sealed class UninstallModWorkflowTests
         }
         finally
         {
-            restoreAttemptBackupLock?.Dispose();
-            secondTargetLock?.Dispose();
-
             if (Directory.Exists(backupDirectory))
             {
                 Directory.Delete(backupDirectory, true);
@@ -1063,34 +1060,14 @@ public sealed class UninstallModWorkflowTests
         }
     }
 
-    private static FileStream OpenExclusiveWhenReady(string path)
-    {
-        for (int attempt = 0; attempt < 100; attempt++)
-        {
-            try
-            {
-                return File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-            }
-            catch (IOException)
-            {
-                Thread.Sleep(10);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                Thread.Sleep(10);
-            }
-        }
-
-        return File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-    }
-
     private static UninstallModWorkflow CreateWorkflow(
         ModBackupStore store,
-        GameDirectoryResolver? gameDirectoryResolver = null)
+        GameDirectoryResolver? gameDirectoryResolver = null,
+        UninstallExecutor? executor = null)
     {
         return new UninstallModWorkflow(
             new UninstallPlanner(store, gameDirectoryResolver ?? new GameDirectoryResolver([])),
-            new UninstallExecutor(),
+            executor ?? new UninstallExecutor(),
             store);
     }
 

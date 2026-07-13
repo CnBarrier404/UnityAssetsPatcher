@@ -5,6 +5,18 @@ namespace UnityAssetsPatcher.Application.Uninstallation;
 
 public sealed class UninstallExecutor
 {
+    private readonly Action<string, string> _restoreFile;
+
+    public UninstallExecutor() : this(ModBackupStore.RestoreFile)
+    {
+    }
+
+    internal UninstallExecutor(Action<string, string> restoreFile)
+    {
+        ArgumentNullException.ThrowIfNull(restoreFile);
+        _restoreFile = restoreFile;
+    }
+
     public UninstallModResult Execute(UninstallPlan plan)
     {
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
@@ -46,7 +58,7 @@ public sealed class UninstallExecutor
 
             foreach (UninstallResolvedPatchedFile file in paths.PatchedFiles)
             {
-                ModBackupStore.RestoreFile(file.BackupPath, file.AssetsFilePath);
+                _restoreFile(file.BackupPath, file.AssetsFilePath);
                 restoredFiles.Add(new UninstallRestoredFileResult(file.Target, file.AssetsFilePath));
             }
 
@@ -97,7 +109,7 @@ public sealed class UninstallExecutor
                 {
                     if (File.Exists(file.RollbackPath))
                     {
-                        ModBackupStore.RestoreFile(file.RollbackPath!, file.AssetsFilePath);
+                        _restoreFile(file.RollbackPath!, file.AssetsFilePath);
                     }
                 }
                 catch (Exception exception)
@@ -112,7 +124,7 @@ public sealed class UninstallExecutor
                 {
                     if (File.Exists(file.StagingPath) && !File.Exists(file.DestinationPath))
                     {
-                        ModBackupStore.RestoreFile(file.StagingPath!, file.DestinationPath);
+                        _restoreFile(file.StagingPath!, file.DestinationPath);
                     }
                 }
                 catch (Exception exception)
