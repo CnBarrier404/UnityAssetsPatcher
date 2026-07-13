@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Pages;
@@ -13,7 +15,15 @@ public static class TerminalServiceCollectionExtensions
         AppInfo appInfo,
         IAnsiConsole console)
     {
+        services.AddSingleton(appInfo);
         services.AddSingleton(console);
+        services.AddSingleton(_ => new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(3),
+        });
+        services.AddSingleton<IUpdateChecker>(provider => new GitHubUpdateChecker(
+            provider.GetRequiredService<HttpClient>(),
+            provider.GetRequiredService<AppInfo>()));
         services.AddSingleton(_ => new TerminalUI(console, appInfo));
         services.AddSingleton(provider => new TerminalPrompts(
             console,

@@ -43,6 +43,8 @@
   "Summary_OperationUnit": "操作",
   "Summary_Operations": "操作",
   "Summary_Version": "版本",
+  "Update_AvailableFormat": "发现新版本：{0}",
+  "Update_DownloadFormat": "下载地址：{0}",
   "UninstallPage_CannotUninstallIntegrityConflict": "安装文件或备份与安装记录不一致，无法卸载",
   "UninstallPage_CannotUninstallBlockingMods": "请先卸载下列后安装的 Mod，再卸载此 Mod",
   "UninstallPage_ConfirmPrompt": "是否卸载此 Mod？",

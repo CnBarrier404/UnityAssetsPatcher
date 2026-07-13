@@ -43,6 +43,8 @@
   "Summary_OperationUnit": "operation(s)",
   "Summary_Operations": "Operations",
   "Summary_Version": "Version",
+  "Update_AvailableFormat": "A new version is available: {0}",
+  "Update_DownloadFormat": "Download: {0}",
   "UninstallPage_CannotUninstallIntegrityConflict": "Cannot uninstall because one or more installed files or backups no longer match the install record.",
   "UninstallPage_CannotUninstallBlockingMods": "Cannot uninstall until the later mods listed below are uninstalled.",
   "UninstallPage_ConfirmPrompt": "Uninstall this mod?",

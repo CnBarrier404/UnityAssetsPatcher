@@ -1,3 +1,4 @@
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Pages;
 
@@ -10,6 +11,7 @@ internal sealed class TerminalNavigator
     private readonly TerminalPrompts _prompts;
     private readonly MainMenuTerminalInput _input;
     private readonly MainMenuTerminalView _view;
+    private readonly IUpdateChecker _updateChecker;
     private readonly ITerminalPage[] _pages;
     private int _selectedIndex;
 
@@ -19,6 +21,7 @@ internal sealed class TerminalNavigator
         TerminalPrompts prompts,
         MainMenuTerminalInput input,
         MainMenuTerminalView view,
+        IUpdateChecker updateChecker,
         IEnumerable<ITerminalPage> pages)
     {
         _ui = ui;
@@ -26,17 +29,20 @@ internal sealed class TerminalNavigator
         _prompts = prompts;
         _input = input;
         _view = view;
+        _updateChecker = updateChecker;
         _pages = pages.ToArray();
     }
 
     public int Run()
     {
+        AvailableUpdate? availableUpdate = _updateChecker.CheckForUpdate();
+
         while (true)
         {
             int? selectedIndex = _input.ReadSelection(
                 _pages.Length,
                 _selectedIndex,
-                (index, clear) => _view.WriteMainMenu(_pages, index, clear));
+                (index, clear) => _view.WriteMainMenu(_pages, index, clear, availableUpdate));
 
             if (selectedIndex is null)
             {

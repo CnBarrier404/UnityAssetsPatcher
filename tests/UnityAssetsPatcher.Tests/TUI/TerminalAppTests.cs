@@ -4,6 +4,7 @@ using Spectre.Console;
 using Spectre.Console.Rendering;
 using Spectre.Console.Testing;
 using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.Tests.Support;
@@ -41,6 +42,38 @@ public sealed class TerminalAppTests : IDisposable
         Assert.Contains(false, console.CursorStates);
         Assert.DoesNotContain(true, console.CursorStates.Take(console.CursorStates.Count - 1));
         Assert.True(console.CursorStates[^1]);
+    }
+
+    [Fact]
+    public void Run_ChecksForUpdateOnceAndShowsAvailableReleaseOnMainMenu()
+    {
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        var updateChecker = new StubUpdateChecker(new AvailableUpdate(
+            "v2.0.0",
+            new Uri("https://example.com/releases/v2.0.0")));
+        var assetsFileService = new StubAssetsFileService([]);
+        using ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IAssetsAccessScopeFactory>(new TestAssetsAccessScopeFactory(
+                assetsFileService,
+                assetsFileService))
+            .AddUnityAssetsPatcherApplication(Path.Combine(AppContext.BaseDirectory, "backup"))
+            .AddUnityAssetsPatcherTUI(
+                new AppInfo("Unity Assets Patcher", "v1.0.0"),
+                console)
+            .AddSingleton<IUpdateChecker>(updateChecker)
+            .BuildServiceProvider(new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true,
+            });
+
+        int exitCode = provider.GetRequiredService<TerminalApp>().Run();
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(1, updateChecker.CheckCount);
+        Assert.Contains("v2.0.0", console.Output);
+        Assert.Contains("https://example.com/releases/v2.0.0", console.Output);
     }
 
     [Fact]
@@ -572,6 +605,17 @@ public sealed class TerminalAppTests : IDisposable
                 ValidateScopes = true,
             })
             .GetRequiredService<TerminalApp>();
+    }
+
+    private sealed class StubUpdateChecker(AvailableUpdate? update) : IUpdateChecker
+    {
+        public int CheckCount { get; private set; }
+
+        public AvailableUpdate? CheckForUpdate()
+        {
+            CheckCount++;
+            return update;
+        }
     }
 
     private sealed class TestAssetsAccessScopeFactory(
