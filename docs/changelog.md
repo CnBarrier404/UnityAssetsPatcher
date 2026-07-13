@@ -1,5 +1,69 @@
 # Changelog
 
+## v0.3.0
+
+本次版本重点增强安装与卸载安全性，可在操作中断后自动恢复，并更严格地保护游戏文件和 Mod 安装层级。
+
+### 新增
+
+- 启动时会检查 GitHub 最新版本；网络或响应异常不会影响程序正常使用
+- 安装和卸载操作现在使用事务日志记录进度，程序重启后会自动恢复未完成的操作；无法安全恢复的记录会被隔离
+- 卸载预览会显示与当前 Mod 冲突且需要优先卸载的后装 Mod，以及发生重叠的 assets 文件
+- 安装记录现在保存游戏实例指纹、安装序号，以及 assets、备份和 payload 文件的长度与 SHA-256 完整性信息
+
+### 修复
+
+- 多个 Mod 修改同一 assets 文件时，现在强制按安装顺序的反向顺序卸载，避免恢复旧备份覆盖后装 Mod 的修改
+- 卸载前会验证当前 assets、安装备份和 payload 文件的完整性；已修改或无法读取的文件会阻止不安全的覆盖或删除
+- 卸载多个 assets 文件时，如果后续恢复失败，已经恢复的文件会回滚到卸载前状态
+- 安装目标与卸载记录路径会拒绝绝对路径、目录穿越和重解析点逃逸，避免读写到可信目录之外
+- Assets 字段验证会保留整数和浮点数等标量的实际类型，避免字符串转换造成错误匹配或精度问题
+- Assets 读取会话现在可以在写入前安全关闭并按需重新打开，避免残留文件句柄阻止替换文件
+
+### 改进
+
+- 安装和卸载操作通过共享锁串行执行，避免并发修改备份记录或游戏文件
+- 卸载路径会基于用户确认的游戏目录重新解析，不再信任安装记录中的绝对路径
+- 有效的安装记录目录现在直接表示已安装状态；卸载成功后会删除该目录，不再保留已卸载状态记录
+- 安装、卸载和备份模块经过重构，规划、执行、回滚与恢复职责更加清晰
+
+### 破坏性变更
+
+- v0.3.0 使用新的安装记录格式，不支持旧版本安装记录且不会自动迁移；升级前请先使用原版本卸载已安装的 Mod
+- 部分应用层与 Assets 访问公共契约已精简或调整，依赖这些 API 的外部集成需要相应更新
+
+---
+
+This release focuses on safer installation and uninstallation, automatic recovery after interrupted operations, and stricter protection for game files and mod layering.
+
+### Added
+
+- The app now checks the latest GitHub release on startup; network and malformed-response failures remain non-fatal
+- Install and uninstall operations now record progress in transaction journals, allowing unfinished operations to recover on restart; operations that cannot be recovered safely are quarantined
+- Uninstall previews now show later conflicting mods that must be removed first, together with their overlapping assets files
+- Install records now store a game-instance fingerprint, install sequence, and file length and SHA-256 integrity data for assets, backups, and payloads
+
+### Fixed
+
+- Mods that modify the same assets file must now be uninstalled in reverse installation order, preventing an older backup from overwriting a later mod
+- Uninstall now validates the integrity of current assets, install backups, and payload files before mutation; modified or unreadable files block unsafe replacement or deletion
+- If a later assets restore fails during a multi-file uninstall, files already restored are rolled back to their pre-uninstall state
+- Install targets and uninstall record paths now reject absolute paths, traversal, and reparse-point escapes to prevent access outside trusted directories
+- Assets field validation now preserves actual scalar types such as integers and floating-point values, avoiding incorrect matches or precision loss from string conversion
+- Assets read sessions can now be closed safely before writes and reopened when needed, preventing leftover handles from blocking file replacement
+
+### Improved
+
+- Install and uninstall mutations are serialized with a shared lock to prevent concurrent changes to backup records or game files
+- Uninstall paths are re-derived from the user-confirmed game directory instead of trusting absolute paths stored in records
+- A valid install record directory now directly represents an installed mod; successful uninstall removes the directory instead of retaining an uninstalled status
+- Installation, uninstallation, and backup components were reorganized to separate planning, execution, rollback, and recovery more clearly
+
+### Breaking Changes
+
+- v0.3.0 uses a new install record format. Older records are unsupported and are not migrated automatically; uninstall existing mods with the original version before upgrading
+- Several application-layer and assets-access public contracts were simplified or changed, so external integrations using these APIs must be updated
+
 ## v0.2.0
 
 本次版本重点改进 Mod 安装体验、安装失败回滚能力和终端界面可读性。
