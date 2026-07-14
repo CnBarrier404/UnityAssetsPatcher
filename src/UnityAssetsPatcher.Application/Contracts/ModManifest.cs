@@ -3,6 +3,7 @@ using System.Text.Json;
 namespace UnityAssetsPatcher.Application.Contracts;
 
 public sealed record ModManifest(
+    int SchemaVersion,
     string Name,
     string Author,
     string Version,

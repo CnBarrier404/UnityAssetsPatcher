@@ -6,8 +6,11 @@ namespace UnityAssetsPatcher.Application.Manifests;
 
 public static class ModManifestParser
 {
+    public const int CurrentSchemaVersion = 1;
+
     public static ModManifest Parse(JsonElement manifestElement)
     {
+        int schemaVersion = ReadSchemaVersion(manifestElement);
         string name = ReadRequiredMetadataString(manifestElement, "name");
         string author = ReadRequiredMetadataString(manifestElement, "author");
         string version = ReadRequiredMetadataString(manifestElement, "version");
@@ -17,7 +20,29 @@ public static class ModManifestParser
         var patches = ReadTargets(manifestElement);
         var optional = ReadOptionalGroups(manifestElement);
 
-        return new ModManifest(name, author, version, description, game, files, patches, optional);
+        return new ModManifest(schemaVersion, name, author, version, description, game, files, patches, optional);
+    }
+
+    private static int ReadSchemaVersion(JsonElement manifestElement)
+    {
+        JsonElement versionElement = JsonUtils.ReadRequiredProperty(
+            manifestElement,
+            "schemaVersion",
+            JsonValueKind.Number,
+            "Manifest");
+
+        if (!versionElement.TryGetInt32(out int schemaVersion))
+        {
+            throw new InvalidOperationException("Manifest 'schemaVersion' property must be an integer.");
+        }
+
+        if (schemaVersion != CurrentSchemaVersion)
+        {
+            throw new InvalidOperationException(
+                $"Unsupported manifest schema version {schemaVersion}. Supported version: {CurrentSchemaVersion}.");
+        }
+
+        return schemaVersion;
     }
 
     private static IReadOnlyDictionary<string, JsonElement> ReadMatch(JsonElement patchElement)

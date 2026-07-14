@@ -7,6 +7,41 @@ namespace UnityAssetsPatcher.Tests.Application.Manifests;
 
 public sealed class ModManifestParserTests
 {
+    [Fact]
+    public void Parse_WhenSchemaVersionIsSupported_ReturnsSchemaVersion()
+    {
+        ModManifest manifest = ParseManifest(BaseManifest());
+
+        Assert.Equal(ModManifestParser.CurrentSchemaVersion, manifest.SchemaVersion);
+    }
+
+    [Fact]
+    public void Parse_WhenSchemaVersionIsMissing_ThrowsInvalidOperationException()
+    {
+        string json = BaseManifest().Replace("\"schemaVersion\": 1,", string.Empty, StringComparison.Ordinal);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => ParseManifest(json));
+
+        Assert.Contains("schemaVersion", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("1.5", "integer")]
+    [InlineData("2", "Unsupported")]
+    public void Parse_WhenSchemaVersionIsInvalid_ThrowsInvalidOperationException(
+        string schemaVersion,
+        string expectedMessage)
+    {
+        string json = BaseManifest().Replace(
+            "\"schemaVersion\": 1",
+            $"\"schemaVersion\": {schemaVersion}",
+            StringComparison.Ordinal);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => ParseManifest(json));
+
+        Assert.Contains(expectedMessage, exception.Message);
+    }
+
     /// <summary>
     /// Verifies that match object cannot be empty.
     /// </summary>
@@ -130,6 +165,7 @@ public sealed class ModManifestParserTests
         ModManifest manifest = ParseManifest(
             """
             {
+              "schemaVersion": 1,
               "name": "Test Mod",
               "author": "Tester",
               "version": "1.0.0",
@@ -228,6 +264,7 @@ public sealed class ModManifestParserTests
     {
         return """
                {
+                 "schemaVersion": 1,
                  "name": "Test Mod",
                  "author": "Tester",
                  "version": "1.0.0",
@@ -247,6 +284,7 @@ public sealed class ModManifestParserTests
     {
         return $$"""
                  {
+                   "schemaVersion": 1,
                    "name": "Test Mod",
                    "author": "Tester",
                    "version": "1.0.0",
@@ -274,6 +312,7 @@ public sealed class ModManifestParserTests
         return ParseManifest(
             $$"""
               {
+                "schemaVersion": 1,
                 "name": "Test Mod",
                 "author": "Tester",
                 "version": "1.0.0",

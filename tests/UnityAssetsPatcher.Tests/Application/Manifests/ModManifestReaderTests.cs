@@ -19,6 +19,7 @@ public sealed class ModManifestReaderTests
             configPath,
             """
             {
+              "schemaVersion": 1,
               "name": "Example Mod",
               "author": "Author Name",
               "version": "1.0.0",
@@ -210,6 +211,7 @@ public sealed class ModManifestReaderTests
             configPath,
             """
             {
+              "schemaVersion": 1,
               "name": "Example Mod",
               "author": "Author Name",
               "target": "sharedassets0.assets",
@@ -254,6 +256,7 @@ public sealed class ModManifestReaderTests
             configPath,
             $$"""
               {
+                "schemaVersion": 1,
                 "name": {{nameValue}},
                 "author": {{authorValue}},
                 "version": {{versionValue}},
@@ -290,6 +293,7 @@ public sealed class ModManifestReaderTests
             configPath,
             """
             {
+              "schemaVersion": 1,
               "name": "Example Mod",
               "author": "Author Name",
               "version": "1.0.0",
@@ -468,6 +472,7 @@ public sealed class ModManifestReaderTests
                 writer.Write(
                     """
                     {
+                      "schemaVersion": 1,
                       "name": "Example Mod",
                       "author": "Author Name",
                       "version": "1.0.0",

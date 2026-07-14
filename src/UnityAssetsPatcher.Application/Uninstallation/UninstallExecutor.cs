@@ -7,9 +7,7 @@ public sealed class UninstallExecutor
 {
     private readonly Action<string, string> _restoreFile;
 
-    public UninstallExecutor() : this(ModBackupStore.RestoreFile)
-    {
-    }
+    public UninstallExecutor() : this(ModBackupStore.RestoreFile) { }
 
     internal UninstallExecutor(Action<string, string> restoreFile)
     {

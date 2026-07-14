@@ -24,7 +24,7 @@ public sealed class InstallPlannerTests
 
     private static ModManifest CreateManifest(IReadOnlyList<ManifestFile> files)
     {
-        return new ModManifest("Test Mod", "Tester", "1.0.0", null, null, files, [], []);
+        return new ModManifest(1, "Test Mod", "Tester", "1.0.0", null, null, files, [], []);
     }
 
     private static string FullPath(params string[] parts)

@@ -30,6 +30,7 @@ internal static class TestManifest
                               throw new InvalidOperationException("Test manifest fragment must be a JSON object.");
         var manifest = new JsonObject
         {
+            ["schemaVersion"] = 1,
             ["name"] = "Test Mod",
             ["author"] = "UnityAssetsPatcher.Tests",
             ["version"] = "1.0.0",

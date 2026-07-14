@@ -135,6 +135,7 @@ public sealed class InstallModWorkflowTests
                 writer.Write(TestManifest.CreateJson(
                     """
                     {
+                      "schemaVersion": 1,
                       "name": "Test Mod",
                       "author": "UnityAssetsPatcher.Tests",
                       "version": "1.0.0",
@@ -232,6 +233,7 @@ public sealed class InstallModWorkflowTests
                 writer.Write(TestManifest.CreateJson(
                     """
                     {
+                      "schemaVersion": 1,
                       "name": "Test Mod",
                       "author": "UnityAssetsPatcher.Tests",
                       "version": "1.0.0",
@@ -333,6 +335,7 @@ public sealed class InstallModWorkflowTests
                 writer.Write(TestManifest.CreateJson(
                     """
                     {
+                      "schemaVersion": 1,
                       "name": "Test Mod",
                       "author": "UnityAssetsPatcher.Tests",
                       "version": "1.0.0",
@@ -633,6 +636,7 @@ public sealed class InstallModWorkflowTests
                 writer.Write(TestManifest.CreateJson(
                     """
                     {
+                      "schemaVersion": 1,
                       "name": "Test Mod",
                       "author": "UnityAssetsPatcher.Tests",
                       "version": "1.0.0",
@@ -799,6 +803,7 @@ public sealed class InstallModWorkflowTests
                 writer.Write(TestManifest.CreateJson(
                     """
                     {
+                      "schemaVersion": 1,
                       "name": "Test Mod",
                       "author": "UnityAssetsPatcher.Tests",
                       "version": "1.0.0",
@@ -1142,6 +1147,7 @@ public sealed class InstallModWorkflowTests
                 writer.Write(TestManifest.CreateJson(
                     """
                     {
+                      "schemaVersion": 1,
                       "name": "Test Mod",
                       "author": "UnityAssetsPatcher.Tests",
                       "version": "1.0.0",

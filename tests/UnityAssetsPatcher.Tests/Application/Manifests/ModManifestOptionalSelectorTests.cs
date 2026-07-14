@@ -69,6 +69,7 @@ public sealed class ModManifestOptionalSelectorTests
         const string json =
             """
             {
+              "schemaVersion": 1,
               "name": "Test Mod",
               "author": "Tester",
               "version": "1.0.0",
