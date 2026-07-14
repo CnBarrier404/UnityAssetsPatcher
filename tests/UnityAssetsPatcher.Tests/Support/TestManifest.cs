@@ -126,7 +126,7 @@ internal static class TestManifest
                 ["match"] = match,
             };
 
-            CopyIfPresent(patch, current, "component");
+            CopyIfPresent(patch, current, "componentType");
 
             if (patch.TryGetPropertyValue("set", out JsonNode? setNode))
             {

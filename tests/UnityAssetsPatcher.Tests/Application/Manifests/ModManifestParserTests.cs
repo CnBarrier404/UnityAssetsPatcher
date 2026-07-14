@@ -145,6 +145,42 @@ public sealed class ModManifestParserTests
         Assert.Throws<InvalidOperationException>(() => ParsePatch(patch));
     }
 
+    [Fact]
+    public void Parse_WhenComponentTypeIsPresent_ReturnsComponentTypeName()
+    {
+        const string patch =
+            """
+            {
+              "type": "GameObject",
+              "match": { "m_Name": "Player" },
+              "componentType": "Transform",
+              "set": { "m_LocalPosition.x": { "from": 0, "to": 1 } }
+            }
+            """;
+
+        ManifestPatch parsedPatch = Assert.Single(ParsePatch(patch).Patches);
+
+        Assert.Equal("Transform", parsedPatch.ComponentTypeName);
+    }
+
+    [Fact]
+    public void Parse_WhenLegacyComponentPropertyIsPresent_ThrowsClearError()
+    {
+        const string patch =
+            """
+            {
+              "type": "GameObject",
+              "match": { "m_Name": "Player" },
+              "component": "Transform",
+              "set": { "m_LocalPosition.x": { "from": 0, "to": 1 } }
+            }
+            """;
+
+        var exception = Assert.Throws<InvalidOperationException>(() => ParsePatch(patch));
+
+        Assert.Contains("renamed to 'componentType'", exception.Message);
+    }
+
     /// <summary>
     /// Verifies that a manifest without an optional array yields an empty optional group list.
     /// </summary>

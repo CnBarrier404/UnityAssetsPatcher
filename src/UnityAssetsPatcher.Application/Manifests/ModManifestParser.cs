@@ -281,9 +281,15 @@ public static class ModManifestParser
         string assetTypeName,
         ManifestReplaceFrom? replaceFrom)
     {
+        if (patchElement.TryGetProperty("component", out _))
+        {
+            throw new InvalidOperationException(
+                "Manifest patch property 'component' has been renamed to 'componentType'.");
+        }
+
         if (!JsonUtils.TryReadProperty(
                 patchElement,
-                "component",
+                "componentType",
                 JsonValueKind.String,
                 out JsonElement componentElement))
         {
@@ -295,19 +301,19 @@ public static class ModManifestParser
         if (string.IsNullOrWhiteSpace(componentTypeName))
         {
             throw new InvalidOperationException(
-                "Manifest patch 'component' property must be a non-empty string.");
+                "Manifest patch 'componentType' property must be a non-empty string.");
         }
 
         if (!string.Equals(assetTypeName, "GameObject", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                "Manifest patch 'component' property can only be used when 'type' is 'GameObject'.");
+                "Manifest patch 'componentType' property can only be used when 'type' is 'GameObject'.");
         }
 
         if (replaceFrom is not null)
         {
             throw new InvalidOperationException(
-                "Manifest patch 'component' property cannot be combined with asset replacement.");
+                "Manifest patch 'componentType' property cannot be combined with asset replacement.");
         }
 
         return componentTypeName;

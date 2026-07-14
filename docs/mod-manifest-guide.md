@@ -226,9 +226,9 @@ Mod.zip
 
 如果需要 OR 关系，写多条结构相同的 patch，每条用不同的 `match` 值。匹配值支持字符串、数字、布尔值、对象和数组；数字按数值比较，字符串区分大小写，数组要求长度和元素都匹配。
 
-#### component
+#### componentType
 
-`component` 用于通过 `GameObject` 定位挂载组件，再修改组件字段。
+`componentType` 用于通过 `GameObject` 定位指定类型的挂载组件，再修改组件字段。
 
 ```json
 {
@@ -236,7 +236,7 @@ Mod.zip
   "match": {
     "m_Name": "_Equipment_Items"
   },
-  "component": "Transform",
+  "componentType": "Transform",
   "set": {
     "m_LocalPosition.x": {
       "from": 0,
@@ -248,11 +248,11 @@ Mod.zip
 
 规则：
 
-- `component` 只能在 `type` 为 `GameObject` 时使用。
+- `componentType` 只能在 `type` 为 `GameObject` 时使用。
 - `match` 匹配的是 `GameObject` 的字段。
 - `set` 和 `add` 中的字段路径属于组件，不属于 `GameObject`。
 - 同一个 `GameObject` 上如果找到多个同类型组件，安装会停止，避免写错目标。
-- `component` 不能和 `replaceAsset` 组合。
+- `componentType` 不能和 `replaceAsset` 组合。
 
 ### 安装变更
 
@@ -385,7 +385,7 @@ Mod.zip
 组合限制：
 
 - `replaceAsset` 不能和 `set` 或 `add` 放在同一个 patch 中。
-- `replaceAsset` 不能和 `component` 放在同一个 patch 中。
+- `replaceAsset` 不能和 `componentType` 放在同一个 patch 中。
 - 同一个目标 assets 文件中，如果存在 `replaceAsset`，就不能混入字段级 `set` 或 `add`。
 
 ## 字段路径
