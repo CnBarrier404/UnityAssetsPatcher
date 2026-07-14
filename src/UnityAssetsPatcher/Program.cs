@@ -4,12 +4,13 @@ using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.CLI;
 
 namespace UnityAssetsPatcher;
 
 public static class Program
 {
-    public static int Main()
+    public static int Main(string[] args)
     {
         // The TPK is a bundled type database resource and does not depend on the startup working directory.
         // Source: https://github.com/AssetRipper/Tpk
@@ -20,6 +21,7 @@ public static class Program
         using ServiceProvider serviceProvider = new ServiceCollection()
             .AddUnityAssetsPatcherAssetsTools(tpkFilePath)
             .AddUnityAssetsPatcherApplication(backupDirectory)
+            .AddUnityAssetsPatcherCLI()
             .AddUnityAssetsPatcherTUI(
                 appInfo,
                 Spectre.Console.AnsiConsole.Console)
@@ -29,9 +31,12 @@ public static class Program
                 ValidateScopes = true,
             });
 
-        serviceProvider.GetRequiredService<ModBackupStore>().RecoverPendingTransactions();
-        var app = serviceProvider.GetRequiredService<TerminalApp>();
+        if (args.Length > 0)
+        {
+            return serviceProvider.GetRequiredService<CLIApplication>().Run(args);
+        }
 
-        return app.Run();
+        serviceProvider.GetRequiredService<ModBackupStore>().RecoverPendingTransactions();
+        return serviceProvider.GetRequiredService<TerminalApp>().Run();
     }
 }
