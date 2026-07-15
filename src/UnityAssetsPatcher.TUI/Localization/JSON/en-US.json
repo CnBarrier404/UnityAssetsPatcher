@@ -1,5 +1,6 @@
 {
   "InspectPage_AllRowsChoice": "All rows",
+  "InspectPage_Analyzing": "Reading assets file...",
   "InspectPage_AssetsFilePathPrompt": "Assets file path",
   "InspectPage_CustomLimitChoice": "Custom limit",
   "InspectPage_Description": "List assets or inspect the field tree for a selected Path ID.",
@@ -15,6 +16,8 @@
   "InspectPage_ShowFieldsTitle": "Show asset fields",
   "InspectPage_ShowingAssetsFormat": "Showing {0} of {1} assets.",
   "InspectPage_TypeNameColumn": "Type Name",
+  "InspectPage_BackAction": "Back",
+  "InspectPage_ReturnAction": "Return to inspect menu",
   "InstallPage_AnalyzingMod": "Analyzing mod...",
   "InstallPage_ApplyTheseChangesPrompt": "Apply these changes?",
   "InstallPage_BackAction": "Back",

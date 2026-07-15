@@ -36,8 +36,6 @@ public static class TerminalServiceCollectionExtensions
         services.AddSingleton<ITerminalPage, UninstallTerminalPage>();
         services.AddSingleton<ITerminalPage, InspectTerminalPage>();
         services.AddSingleton<ITerminalPage, SettingsTerminalPage>();
-        services.AddSingleton<InspectTerminalInput>();
-        services.AddSingleton<InspectTerminalView>();
         services.AddSingleton<TerminalGUINavigator>();
         services.AddSingleton(provider => new TerminalApp(
             provider.GetRequiredService<IAnsiConsole>(),

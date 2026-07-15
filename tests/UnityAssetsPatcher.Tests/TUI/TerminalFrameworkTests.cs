@@ -88,7 +88,7 @@ public sealed class TerminalFrameworkTests : IDisposable
         Type[] viewTypes = typeof(TerminalApp).Assembly
             .GetTypes()
             .Where(type => type is { IsClass: true, Namespace: "UnityAssetsPatcher.TUI.Pages" } &&
-                           type.Name.EndsWith("TerminalView", StringComparison.Ordinal))
+                           typeof(Terminal.Gui.ViewBase.View).IsAssignableFrom(type))
             .ToArray();
 
         Assert.NotEmpty(viewTypes);
@@ -150,6 +150,17 @@ public sealed class TerminalFrameworkTests : IDisposable
 
         Assert.IsAssignableFrom<ITerminalGUIPage>(page);
         Assert.IsType<UninstallModView>(view);
+    }
+
+    [Fact]
+    public void InspectPage_CreateView_UsesTerminalGuiContentPage()
+    {
+        var page = new InspectTerminalPage(new ThrowingWorkflowService());
+
+        using Terminal.Gui.ViewBase.View view = page.CreateView(() => { });
+
+        Assert.IsAssignableFrom<ITerminalGUIPage>(page);
+        Assert.IsType<InspectAssetsView>(view);
     }
 
     [Fact]

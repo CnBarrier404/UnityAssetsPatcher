@@ -1,5 +1,6 @@
 {
   "InspectPage_AllRowsChoice": "全部",
+  "InspectPage_Analyzing": "正在读取 Assets 文件……",
   "InspectPage_AssetsFilePathPrompt": "Assets 文件路径",
   "InspectPage_CustomLimitChoice": "自定义数量",
   "InspectPage_Description": "列出资产，或查看指定 Path ID 的字段树",
@@ -15,6 +16,8 @@
   "InspectPage_ShowFieldsTitle": "检查资产字段",
   "InspectPage_ShowingAssetsFormat": "正在显示 {1} 个资产中的 {0} 个",
   "InspectPage_TypeNameColumn": "类型名称",
+  "InspectPage_BackAction": "返回",
+  "InspectPage_ReturnAction": "返回浏览菜单",
   "InstallPage_AnalyzingMod": "正在分析 Mod……",
   "InstallPage_ApplyTheseChangesPrompt": "是否应用这些更改？",
   "InstallPage_BackAction": "返回",
