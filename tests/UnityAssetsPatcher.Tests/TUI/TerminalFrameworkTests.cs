@@ -9,6 +9,7 @@ using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Pages;
+using UnityAssetsPatcher.TUI.Shell;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.TUI;
@@ -124,6 +125,20 @@ public sealed class TerminalFrameworkTests : IDisposable
 
         Assert.IsAssignableFrom<ITerminalGUIPage>(page);
         Assert.IsType<InstallModView>(view);
+    }
+
+    [Fact]
+    public void SettingsPage_CreateView_UsesTerminalGuiContentPage()
+    {
+        var page = new SettingsTerminalPage(new TerminalSettings());
+
+        using Terminal.Gui.ViewBase.View view = page.CreateView(() => { });
+
+        Assert.IsAssignableFrom<ITerminalGUIPage>(page);
+        Assert.IsType<SettingsView>(view);
+        var content = Assert.IsAssignableFrom<ITerminalContentView>(view);
+        Assert.Equal("Shortcuts: ↑/↓ to choose | Space to toggle | Esc to cancel | Ctrl + C to exit",
+            content.ShortcutHint);
     }
 
     [Fact]

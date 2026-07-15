@@ -1,68 +1,28 @@
-using UnityAssetsPatcher.TUI.Framework;
+using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-internal sealed class SettingsTerminalPage : ITerminalPage
+// TODO(tui-refactor): Remove this adapter when the navigator creates SettingsView directly.
+public sealed class SettingsTerminalPage : ITerminalPage, ITerminalGUIPage
 {
     public string Title => LocalizedStrings.MainMenu_Settings_Title;
     public string Description => LocalizedStrings.MainMenu_Settings_Description;
 
     private readonly TerminalSettings _settings;
-    private readonly SettingsTerminalInput _input;
-    private readonly SettingsTerminalView _view;
 
-    public SettingsTerminalPage(
-        TerminalSettings settings,
-        SettingsTerminalInput input,
-        SettingsTerminalView view)
+    public SettingsTerminalPage(TerminalSettings settings)
     {
         _settings = settings;
-        _input = input;
-        _view = view;
+    }
+
+    public View CreateView(Action returnToMainMenu)
+    {
+        return new SettingsView(_settings, returnToMainMenu);
     }
 
     public TerminalPageResult Run()
     {
-        int selectedIndex = 0;
-
-        while (true)
-        {
-            int? toggledIndex = _input.ReadToggledSetting(
-                SettingsCount,
-                selectedIndex,
-                (index, clear) => _view.WriteSettings(Title, GetSettings(), index, clear));
-
-            if (toggledIndex is null)
-            {
-                return TerminalPageResult.ReturnToMenu(false);
-            }
-
-            selectedIndex = toggledIndex.Value;
-            Toggle(selectedIndex);
-        }
+        throw new InvalidOperationException("The settings page must run inside the Terminal.Gui shell.");
     }
-
-    private IReadOnlyList<TerminalToggleDisplay> GetSettings()
-    {
-        return
-        [
-            new TerminalToggleDisplay(
-                LocalizedStrings.SettingsPage_VerboseLoggingName,
-                LocalizedStrings.SettingsPage_VerboseLoggingDescription,
-                _settings.VerboseOutput),
-        ];
-    }
-
-    private void Toggle(int selectedIndex)
-    {
-        switch (selectedIndex)
-        {
-            case 0:
-                _settings.VerboseOutput = !_settings.VerboseOutput;
-                break;
-        }
-    }
-
-    private static int SettingsCount => 1;
 }

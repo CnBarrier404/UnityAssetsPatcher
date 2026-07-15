@@ -40,8 +40,6 @@ public static class TerminalServiceCollectionExtensions
         services.AddSingleton<UninstallTerminalView>();
         services.AddSingleton<InspectTerminalInput>();
         services.AddSingleton<InspectTerminalView>();
-        services.AddSingleton<SettingsTerminalInput>();
-        services.AddSingleton<SettingsTerminalView>();
         services.AddSingleton<TerminalGUINavigator>();
         services.AddSingleton(provider => new TerminalApp(
             provider.GetRequiredService<IAnsiConsole>(),

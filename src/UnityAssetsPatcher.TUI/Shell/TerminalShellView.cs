@@ -8,11 +8,14 @@ namespace UnityAssetsPatcher.TUI.Shell;
 
 public sealed class TerminalShellView : Window
 {
+    private readonly string _defaultFooterText;
     private readonly View _contentHost;
+    private readonly TerminalFooterView _footer;
     private View? _content;
 
     public TerminalShellView(AppInfo appInfo, string footerText)
     {
+        _defaultFooterText = footerText;
         BorderStyle = LineStyle.None;
         SetScheme(TerminalGUITheme.Base);
 
@@ -25,8 +28,8 @@ public sealed class TerminalShellView : Window
             Height = Dim.Fill(2),
             CanFocus = true,
         };
-        var footer = new TerminalFooterView(footerText);
-        Add(banner, _contentHost, footer);
+        _footer = new TerminalFooterView(footerText);
+        Add(banner, _contentHost, _footer);
     }
 
     public void ShowContent(View content)
@@ -40,6 +43,9 @@ public sealed class TerminalShellView : Window
         }
 
         _content = content;
+        _footer.SetText(content is ITerminalContentView terminalContent
+            ? terminalContent.ShortcutHint
+            : _defaultFooterText);
         content.X = 0;
         content.Y = 0;
         content.Width = Dim.Fill();
@@ -47,4 +53,5 @@ public sealed class TerminalShellView : Window
         content.CanFocus = true;
         _contentHost.Add(content);
     }
+
 }
