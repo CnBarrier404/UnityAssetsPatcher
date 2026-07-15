@@ -142,6 +142,17 @@ public sealed class TerminalFrameworkTests : IDisposable
     }
 
     [Fact]
+    public void UninstallPage_CreateView_UsesTerminalGuiContentPage()
+    {
+        var page = new UninstallTerminalPage(new ThrowingWorkflowService());
+
+        using Terminal.Gui.ViewBase.View view = page.CreateView(() => { });
+
+        Assert.IsAssignableFrom<ITerminalGUIPage>(page);
+        Assert.IsType<UninstallModView>(view);
+    }
+
+    [Fact]
     public void AddUnityAssetsPatcherTui_RegistersTerminalAppForOfficialServiceProvider()
     {
         TestConsole console = CreateConsole();
@@ -367,7 +378,7 @@ public sealed class TerminalFrameworkTests : IDisposable
 
         public InstallModResult Install(InstallRequest request) => throw new NotSupportedException();
 
-        public IReadOnlyList<InstallRecordSummary> ListInstalledMods() => throw new NotSupportedException();
+        public IReadOnlyList<InstallRecordSummary> ListInstalledMods() => [];
 
         public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request) =>
             throw new NotSupportedException();

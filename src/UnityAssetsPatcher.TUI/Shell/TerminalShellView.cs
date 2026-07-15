@@ -23,6 +23,7 @@ public sealed class TerminalShellView : Window
         SetScheme(TerminalGUITheme.Base);
 
         var banner = new ApplicationBannerView(appInfo);
+
         _contentHost = new View
         {
             X = 0,
@@ -31,6 +32,7 @@ public sealed class TerminalShellView : Window
             Height = Dim.Fill(2),
             CanFocus = true,
         };
+
         _footer = new TerminalFooterView(footerText);
         Add(banner, _contentHost, _footer);
     }
@@ -46,13 +48,16 @@ public sealed class TerminalShellView : Window
         }
 
         _content = content;
+
         if (content is ITerminalRenderRequester renderRequester)
         {
             renderRequester.RenderRequested += (_, _) => _application.LayoutAndDraw(false);
         }
+
         _footer.SetText(content is ITerminalContentView terminalContent
             ? terminalContent.ShortcutHint
             : _defaultFooterText);
+
         content.X = 0;
         content.Y = 0;
         content.Width = Dim.Fill();
