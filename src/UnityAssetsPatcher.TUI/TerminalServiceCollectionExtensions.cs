@@ -4,6 +4,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Pages;
 
 namespace UnityAssetsPatcher.TUI;
@@ -43,13 +44,11 @@ public static class TerminalServiceCollectionExtensions
         services.AddSingleton<InspectTerminalView>();
         services.AddSingleton<SettingsTerminalInput>();
         services.AddSingleton<SettingsTerminalView>();
-        services.AddSingleton<MainMenuTerminalInput>();
-        services.AddSingleton<MainMenuTerminalView>();
-        services.AddSingleton<TerminalNavigator>();
+        services.AddSingleton<TerminalGUINavigator>();
         services.AddSingleton(provider => new TerminalApp(
             provider.GetRequiredService<IAnsiConsole>(),
             provider.GetRequiredService<TerminalUI>(),
-            provider.GetRequiredService<TerminalNavigator>()));
+            provider.GetRequiredService<TerminalGUINavigator>()));
 
         return services;
     }

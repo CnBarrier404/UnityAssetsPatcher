@@ -9,6 +9,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="11.0.0-preview.5.26302.115"/>
         <PackageReference Include="Spectre.Console" Version="0.57.1-alpha.0.1"/>
+        <PackageReference Include="Terminal.Gui" Version="2.4.17"/>
     </ItemGroup>
 
     <ItemGroup>

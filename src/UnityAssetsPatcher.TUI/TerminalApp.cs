@@ -1,5 +1,6 @@
 using Spectre.Console;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Navigation;
 
 namespace UnityAssetsPatcher.TUI;
 
@@ -7,23 +8,23 @@ public sealed class TerminalApp
 {
     private readonly IAnsiConsole _console;
     private readonly TerminalUI _ui;
-    private readonly TerminalNavigator _navigator;
+    private readonly TerminalGUINavigator _terminalGuiNavigator;
 
-    internal TerminalApp(
+    public TerminalApp(
         IAnsiConsole console,
         TerminalUI ui,
-        TerminalNavigator navigator)
+        TerminalGUINavigator terminalGuiNavigator)
     {
         _console = console;
         _ui = ui;
-        _navigator = navigator;
+        _terminalGuiNavigator = terminalGuiNavigator;
     }
 
     public int Run()
     {
         try
         {
-            return _navigator.Run();
+            return _terminalGuiNavigator.Run();
         }
         catch (Exception exception)
         {
