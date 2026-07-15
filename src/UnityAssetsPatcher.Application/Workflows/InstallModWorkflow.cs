@@ -56,6 +56,7 @@ public sealed class InstallModWorkflow
                 session.Package,
                 execution.PatchedFiles,
                 execution.CopiedFiles,
+                execution.InstallId,
                 timings.BuildSnapshot());
         }
         finally

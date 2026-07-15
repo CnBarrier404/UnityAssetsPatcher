@@ -54,9 +54,10 @@ public sealed class UninstallModWorkflowTests
 
         try
         {
-            UninstallPreviewResult result = workflow.Preview(new UninstallPreviewRequest(installDirectory));
+            UninstallPreviewResult result = workflow.Preview(new UninstallPreviewRequest(record.Id));
 
             Assert.Equal(Path.GetFullPath(gameDirectory), result.GameDirectory);
+            Assert.Equal(record.Id, result.InstallId);
             Assert.True(result.CanUninstall);
         }
         finally
@@ -258,7 +259,7 @@ public sealed class UninstallModWorkflowTests
             Assert.False(File.Exists(Path.Combine(installDirectory, "record.json")));
             Assert.DoesNotContain(
                 workflow.ListInstalled(),
-                summary => summary.InstallDirectory == installDirectory);
+                summary => summary.InstallId == record.Id);
         }
         finally
         {

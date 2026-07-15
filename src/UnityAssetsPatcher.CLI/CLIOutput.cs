@@ -1,0 +1,425 @@
+using System.CommandLine;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Installation;
+
+namespace UnityAssetsPatcher.CLI;
+
+internal static class CLIOutput
+{
+    public static int WriteSuccess(
+        ParseResult parseResult,
+        CLIOptions options,
+        string command,
+        JsonObject data,
+        Action<TextWriter> writeText)
+    {
+        if (parseResult.GetValue(options.Format) == CLIOutputFormat.Json)
+        {
+            WriteJson(parseResult.InvocationConfiguration.Output, new JsonObject
+            {
+                ["schemaVersion"] = 1,
+                ["success"] = true,
+                ["command"] = command,
+                ["data"] = data,
+            });
+        }
+        else
+        {
+            writeText(parseResult.InvocationConfiguration.Output);
+        }
+
+        return 0;
+    }
+
+    public static int WriteFailure(
+        ParseResult parseResult,
+        CLIOptions options,
+        string command,
+        Exception exception)
+    {
+        TextWriter error = parseResult.InvocationConfiguration.Error;
+
+        if (parseResult.GetValue(options.Format) == CLIOutputFormat.Json)
+        {
+            WriteJson(error, ErrorEnvelope(command, "command_failed", exception.Message, Flatten(exception)));
+        }
+        else
+        {
+            WriteException(error, exception);
+        }
+
+        return 1;
+    }
+
+    public static void WriteUsageFailure(TextWriter error, string command, IEnumerable<string> messages)
+    {
+        string[] details = messages.ToArray();
+        WriteJson(error, new JsonObject
+        {
+            ["schemaVersion"] = 1,
+            ["success"] = false,
+            ["command"] = command,
+            ["error"] = new JsonObject
+            {
+                ["code"] = "usage_error",
+                ["message"] = details.FirstOrDefault() ?? "Invalid command-line arguments.",
+                ["causes"] =
+                    new JsonArray(details.Skip(1).Select(value => JsonValue.Create(value)).ToArray<JsonNode?>()),
+            },
+        });
+    }
+
+    public static JsonObject ManifestSummary(string path, ModManifest manifest)
+    {
+        return new JsonObject
+        {
+            ["configPath"] = Path.GetFullPath(path),
+            ["schemaVersion"] = manifest.SchemaVersion,
+            ["name"] = manifest.Name,
+            ["author"] = manifest.Author,
+            ["version"] = manifest.Version,
+            ["description"] = manifest.Description,
+            ["game"] = manifest.Game,
+            ["optionalGroups"] = new JsonArray(manifest.Optional.Select(group => new JsonObject
+            {
+                ["name"] = group.Name,
+                ["description"] = group.Description,
+            }).ToArray<JsonNode?>()),
+        };
+    }
+
+    public static JsonObject InstallPreview(InstallPreviewResult result)
+    {
+        return new JsonObject
+        {
+            ["mod"] = Mod(result.ModName, result.ModVersion, result.ModAuthor),
+            ["changes"] = Changes(result.Changes),
+            ["optionalGroups"] = new JsonArray(result.OptionalGroups.Select(group => new JsonObject
+            {
+                ["name"] = group.Name,
+                ["description"] = group.Description,
+            }).ToArray<JsonNode?>()),
+            ["timing"] = Timing(result.Timing),
+        };
+    }
+
+    public static JsonObject InstallResult(InstallModResult result)
+    {
+        return new JsonObject
+        {
+            ["installId"] = result.InstallId,
+            ["mod"] = Mod(result.ModName, result.ModVersion),
+            ["changes"] = Changes(result.Changes),
+            ["optionalGroups"] =
+                new JsonArray(result.OptionalGroups.Select(value => JsonValue.Create(value)).ToArray<JsonNode?>()),
+            ["timing"] = Timing(result.Timing),
+        };
+    }
+
+    public static JsonObject InstalledMods(IReadOnlyList<InstallRecordSummary> installed)
+    {
+        return new JsonObject
+        {
+            ["mods"] = new JsonArray(installed.Select(record => new JsonObject
+            {
+                ["installId"] = record.InstallId,
+                ["name"] = record.ModName,
+                ["version"] = record.ModVersion,
+                ["game"] = record.GameName,
+                ["installedAt"] = record.InstalledAt.ToString("O"),
+            }).ToArray<JsonNode?>()),
+        };
+    }
+
+    public static JsonObject UninstallPreview(UninstallPreviewResult result)
+    {
+        return new JsonObject
+        {
+            ["installId"] = result.InstallId,
+            ["mod"] = Mod(result.ModName, result.ModVersion),
+            ["installedAt"] = result.InstalledAt.ToString("O"),
+            ["gameDirectory"] = result.GameDirectory,
+            ["canUninstall"] = result.CanUninstall,
+            ["blockingMods"] = new JsonArray(result.BlockingMods.Select(mod => new JsonObject
+            {
+                ["name"] = mod.ModName,
+                ["version"] = mod.ModVersion,
+                ["installedAt"] = mod.InstalledAt.ToString("O"),
+                ["overlappingAssetsFiles"] = new JsonArray(
+                    mod.OverlappingAssetsFiles.Select(value => JsonValue.Create(value)).ToArray<JsonNode?>()),
+            }).ToArray<JsonNode?>()),
+            ["restoredFiles"] = new JsonArray(result.RestoredFiles.Select(file => new JsonObject
+            {
+                ["target"] = file.Target,
+                ["targetStatus"] = EnumName(file.TargetStatus),
+                ["backupStatus"] = EnumName(file.BackupStatus),
+            }).ToArray<JsonNode?>()),
+            ["deletedFiles"] = new JsonArray(result.DeletedFiles.Select(file => new JsonObject
+            {
+                ["destinationPath"] = file.DestinationPath,
+                ["status"] = EnumName(file.Status),
+            }).ToArray<JsonNode?>()),
+        };
+    }
+
+    public static JsonObject UninstallResult(UninstallModResult result)
+    {
+        return new JsonObject
+        {
+            ["installId"] = result.InstallId,
+            ["mod"] = Mod(result.ModName, result.ModVersion),
+            ["restoredFiles"] = new JsonArray(result.RestoredFiles.Select(file => new JsonObject
+            {
+                ["target"] = file.Target,
+                ["assetsFilePath"] = file.AssetsFilePath,
+            }).ToArray<JsonNode?>()),
+            ["deletedFiles"] = new JsonArray(result.DeletedFiles.Select(file => new JsonObject
+            {
+                ["destinationPath"] = file.DestinationPath,
+                ["deleted"] = file.Deleted,
+            }).ToArray<JsonNode?>()),
+        };
+    }
+
+    public static void WriteInstallPreviewText(TextWriter output, InstallPreviewResult result)
+    {
+        output.WriteLine($"Preview: {result.ModName} {result.ModVersion} by {result.ModAuthor}");
+        WriteChanges(output, result.Changes, preview: true);
+
+        if (result.OptionalGroups.Count > 0)
+        {
+            output.WriteLine("Optional groups:");
+            foreach ((string name, string? description) in result.OptionalGroups)
+            {
+                output.WriteLine(description is null ? $"- {name}" : $"- {name}: {description}");
+            }
+        }
+    }
+
+    public static void WriteInstallResultText(TextWriter output, InstallModResult result)
+    {
+        output.WriteLine($"Installed: {result.ModName} {result.ModVersion}");
+        output.WriteLine($"Install ID: {result.InstallId}");
+        WriteChanges(output, result.Changes, preview: false);
+    }
+
+    public static void WriteInstalledModsText(TextWriter output, IReadOnlyList<InstallRecordSummary> installed)
+    {
+        if (installed.Count == 0)
+        {
+            output.WriteLine("No installed mods.");
+            return;
+        }
+
+        foreach (InstallRecordSummary record in installed)
+        {
+            string game = record.GameName is null ? string.Empty : $" | {record.GameName}";
+            output.WriteLine(
+                $"{record.InstallId} | {record.ModName} {record.ModVersion}{game} | {record.InstalledAt:O}");
+        }
+    }
+
+    public static void WriteUninstallPreviewText(TextWriter output, UninstallPreviewResult result)
+    {
+        output.WriteLine($"Preview uninstall: {result.ModName} {result.ModVersion}");
+        output.WriteLine($"Install ID: {result.InstallId}");
+        output.WriteLine($"Game directory: {result.GameDirectory}");
+        output.WriteLine($"Can uninstall: {result.CanUninstall}");
+
+        foreach (UninstallPreviewRestoredFileResult file in result.RestoredFiles)
+        {
+            output.WriteLine(
+                $"- restore {file.Target}: target={EnumName(file.TargetStatus)}, backup={EnumName(file.BackupStatus)}");
+        }
+
+        foreach (UninstallPreviewDeletedFileResult file in result.DeletedFiles)
+        {
+            output.WriteLine($"- delete {file.DestinationPath}: {EnumName(file.Status)}");
+        }
+
+        foreach (UninstallBlockingModResult blocker in result.BlockingMods)
+        {
+            output.WriteLine($"- blocked by {blocker.ModName} {blocker.ModVersion}: " +
+                             string.Join(", ", blocker.OverlappingAssetsFiles));
+        }
+    }
+
+    public static void WriteUninstallResultText(TextWriter output, UninstallModResult result)
+    {
+        output.WriteLine($"Uninstalled: {result.ModName} {result.ModVersion}");
+        output.WriteLine($"Install ID: {result.InstallId}");
+        output.WriteLine($"Restored files: {result.RestoredFiles.Count}");
+        output.WriteLine($"Deleted files: {result.DeletedFiles.Count(file => file.Deleted)}");
+    }
+
+    private static JsonObject ErrorEnvelope(
+        string command,
+        string code,
+        string message,
+        IEnumerable<JsonNode?> causes)
+    {
+        return new JsonObject
+        {
+            ["schemaVersion"] = 1,
+            ["success"] = false,
+            ["command"] = command,
+            ["error"] = new JsonObject
+            {
+                ["code"] = code,
+                ["message"] = message,
+                ["causes"] = new JsonArray(causes.ToArray()),
+            },
+        };
+    }
+
+    private static IEnumerable<JsonNode?> Flatten(Exception exception)
+    {
+        foreach (Exception current in EnumerateExceptions(exception).Skip(1))
+        {
+            yield return new JsonObject
+            {
+                ["type"] = current.GetType().Name,
+                ["message"] = current.Message,
+            };
+        }
+    }
+
+    private static IEnumerable<Exception> EnumerateExceptions(Exception exception)
+    {
+        yield return exception;
+
+        if (exception is AggregateException aggregate)
+        {
+            foreach (Exception inner in aggregate.InnerExceptions)
+            {
+                foreach (Exception nested in EnumerateExceptions(inner))
+                {
+                    yield return nested;
+                }
+            }
+        }
+        else if (exception.InnerException is { } inner)
+        {
+            foreach (Exception nested in EnumerateExceptions(inner))
+            {
+                yield return nested;
+            }
+        }
+    }
+
+    private static void WriteException(TextWriter error, Exception exception)
+    {
+        bool first = true;
+        foreach (Exception current in EnumerateExceptions(exception))
+        {
+            error.WriteLine($"{(first ? string.Empty : "Caused by ")}{current.GetType().Name}: {current.Message}");
+            first = false;
+        }
+    }
+
+    private static void WriteJson(TextWriter output, JsonObject value)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        {
+            value.WriteTo(writer);
+        }
+
+        output.WriteLine(Encoding.UTF8.GetString(stream.ToArray()));
+    }
+
+    private static JsonObject Mod(string name, string version, string? author = null)
+    {
+        var result = new JsonObject
+        {
+            ["name"] = name,
+            ["version"] = version,
+        };
+
+        if (author is not null)
+        {
+            result["author"] = author;
+        }
+
+        return result;
+    }
+
+    private static JsonArray Changes(IReadOnlyList<InstallChange> changes)
+    {
+        return new JsonArray(changes.Select(change =>
+        {
+            var json = new JsonObject
+            {
+                ["kind"] = EnumName(change.Kind),
+                ["name"] = change.Name,
+                ["path"] = change.Path,
+                ["backupPath"] = change.BackupPath,
+                ["assetCount"] = change.AssetCount,
+                ["operationCount"] = change.OperationCount,
+            };
+
+            if (change.Preview is not null)
+            {
+                json["assets"] = new JsonArray(change.Preview.Assets.Select(asset => new JsonObject
+                {
+                    ["pathId"] = asset.Asset.PathId,
+                    ["typeName"] = asset.Asset.TypeName,
+                    ["operations"] = new JsonArray(asset.Operations.Select(operation => new JsonObject
+                    {
+                        ["path"] = operation.Path,
+                        ["oldValue"] = operation.OldValue,
+                        ["from"] = operation.FromText,
+                        ["to"] = operation.ToText,
+                        ["willChange"] = operation.WillChange,
+                    }).ToArray<JsonNode?>()),
+                }).ToArray<JsonNode?>());
+            }
+
+            return json;
+        }).ToArray<JsonNode?>());
+    }
+
+    private static JsonObject Timing(TimingSnapshot timing)
+    {
+        return new JsonObject
+        {
+            ["elapsedMilliseconds"] = timing.Elapsed.TotalMilliseconds,
+            ["steps"] = new JsonArray(timing.Steps.Select(step => new JsonObject
+            {
+                ["name"] = step.Name,
+                ["elapsedMilliseconds"] = step.Elapsed.TotalMilliseconds,
+            }).ToArray<JsonNode?>()),
+        };
+    }
+
+    private static void WriteChanges(TextWriter output, IReadOnlyList<InstallChange> changes, bool preview)
+    {
+        foreach (InstallChange change in changes)
+        {
+            output.WriteLine($"- {EnumName(change.Kind)} {change.Name}: {change.Path}");
+            if (preview && change.Preview is not null)
+            {
+                foreach (PatchPreviewAssetResult asset in change.Preview.Assets)
+                {
+                    output.WriteLine($"  Path ID {asset.Asset.PathId} ({asset.Asset.TypeName})");
+                    foreach (PatchPreviewOperationResult operation in asset.Operations)
+                    {
+                        string result = operation.WillChange
+                            ? $"{operation.OldValue} -> {operation.ToText}"
+                            : $"skipped; expected {operation.FromText}, found {operation.OldValue}";
+                        output.WriteLine($"  - {operation.Path}: {result}");
+                    }
+                }
+            }
+        }
+    }
+
+    private static string EnumName<T>(T value) where T : struct, Enum
+    {
+        string name = value.ToString();
+        return char.ToLowerInvariant(name[0]) + name[1..];
+    }
+}

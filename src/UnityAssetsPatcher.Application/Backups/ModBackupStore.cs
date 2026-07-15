@@ -157,7 +157,7 @@ public sealed class ModBackupStore
         return ListRecords()
             .OrderByDescending(item => item.Record.InstallSequence)
             .Select(item => new InstallRecordSummary(
-                item.InstallDirectory,
+                item.Record.Id,
                 item.Record.ModName,
                 item.Record.ModVersion,
                 item.Record.GameName,

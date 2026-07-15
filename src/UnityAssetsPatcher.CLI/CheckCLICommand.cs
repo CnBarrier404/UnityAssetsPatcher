@@ -1,4 +1,5 @@
 using System.CommandLine;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.CLI;
@@ -9,12 +10,17 @@ public sealed class CheckCLICommand : ICLICommand
 
     private readonly ModManifestReader _manifestReader;
     private readonly Func<string> _getCurrentDirectory;
+    private readonly CLIOptions _options;
     private readonly Option<string?> _configOption;
 
-    public CheckCLICommand(ModManifestReader manifestReader, Func<string> getCurrentDirectory)
+    public CheckCLICommand(
+        ModManifestReader manifestReader,
+        Func<string> getCurrentDirectory,
+        CLIOptions? options = null)
     {
         _manifestReader = manifestReader;
         _getCurrentDirectory = getCurrentDirectory;
+        _options = options ?? new CLIOptions();
         _configOption = new Option<string?>("--config", "-c")
         {
             Description = "Manifest JSON or mod ZIP path (default: ./manifest.json).",
@@ -32,24 +38,17 @@ public sealed class CheckCLICommand : ICLICommand
 
         try
         {
-            _manifestReader.Load(configPath);
-
-            return 0;
+            ModManifest manifest = _manifestReader.Load(configPath);
+            return CLIOutput.WriteSuccess(
+                parseResult,
+                _options,
+                "check",
+                CLIOutput.ManifestSummary(configPath, manifest),
+                _ => { });
         }
         catch (Exception exception)
         {
-            WriteException(parseResult.InvocationConfiguration.Error, exception);
-
-            return 1;
-        }
-    }
-
-    private static void WriteException(TextWriter error, Exception exception)
-    {
-        for (Exception? current = exception; current is not null; current = current.InnerException)
-        {
-            string prefix = ReferenceEquals(current, exception) ? string.Empty : "Caused by ";
-            error.WriteLine($"{prefix}{current.GetType().Name}: {current.Message}");
+            return CLIOutput.WriteFailure(parseResult, _options, "check", exception);
         }
     }
 }

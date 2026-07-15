@@ -142,7 +142,7 @@ public sealed class ModBackupStoreTests
             Assert.False(File.Exists(Path.Combine(installDirectory, "record.json")));
             Assert.DoesNotContain(
                 store.ListInstalled(),
-                summary => summary.InstallDirectory == installDirectory);
+                summary => summary.InstallId == record.Id);
         }
         finally
         {

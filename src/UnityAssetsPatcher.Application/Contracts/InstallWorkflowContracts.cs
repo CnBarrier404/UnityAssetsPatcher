@@ -8,6 +8,7 @@ public sealed record InstallRequest(string ZipFilePath, string? GameDirectory)
 }
 
 public sealed record InstallModResult(
+    string InstallId,
     string ModName,
     string ModVersion,
     IReadOnlyList<InstallChange> Changes,

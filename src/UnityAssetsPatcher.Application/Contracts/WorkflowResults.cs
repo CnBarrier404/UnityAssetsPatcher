@@ -3,6 +3,7 @@ using UnityAssetsPatcher.Core.Assets;
 namespace UnityAssetsPatcher.Application.Contracts;
 
 public sealed record UninstallModResult(
+    string InstallId,
     string ModName,
     string ModVersion,
     IReadOnlyList<UninstallRestoredFileResult> RestoredFiles,
@@ -15,6 +16,7 @@ public sealed record UninstallRestoredFileResult(
 public sealed record UninstallDeletedFileResult(string DestinationPath, bool Deleted);
 
 public sealed record UninstallPreviewResult(
+    string InstallId,
     string ModName,
     string ModVersion,
     DateTimeOffset InstalledAt,
@@ -61,7 +63,7 @@ public sealed record PatchPreviewOperationResult(
     bool WillChange);
 
 public sealed record InstallRecordSummary(
-    string InstallDirectory,
+    string InstallId,
     string ModName,
     string ModVersion,
     string? GameName,

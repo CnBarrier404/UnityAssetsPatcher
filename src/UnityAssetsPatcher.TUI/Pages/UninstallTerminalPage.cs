@@ -49,7 +49,7 @@ internal sealed class UninstallTerminalPage : ITerminalPage
 
         InstallRecordSummary selected = installed[selectedIndex.Value];
         _chrome.PrepareOutputArea();
-        UninstallPreviewResult? preview = TryPreviewUninstall(selected.InstallDirectory, null);
+        UninstallPreviewResult? preview = TryPreviewUninstall(selected.InstallId, null);
 
         if (preview is null)
         {
@@ -60,7 +60,7 @@ internal sealed class UninstallTerminalPage : ITerminalPage
                 return TerminalPageResult.ReturnToMenu(false);
             }
 
-            preview = TryPreviewUninstall(selected.InstallDirectory, gameDirectory);
+            preview = TryPreviewUninstall(selected.InstallId, gameDirectory);
         }
 
         if (preview is null)
@@ -89,18 +89,18 @@ internal sealed class UninstallTerminalPage : ITerminalPage
 
         _view.WriteBlankLine();
         UninstallModResult result = _workflowService.Uninstall(
-            new UninstallModRequest(selected.InstallDirectory, preview.GameDirectory));
+            new UninstallModRequest(selected.InstallId, preview.GameDirectory));
         _view.WriteResult(result);
 
         return TerminalPageResult.ReturnToMenu();
     }
 
-    private UninstallPreviewResult? TryPreviewUninstall(string installDirectory, string? gameDirectory)
+    private UninstallPreviewResult? TryPreviewUninstall(string installId, string? gameDirectory)
     {
         try
         {
             return _workflowService.PreviewUninstall(
-                new UninstallPreviewRequest(installDirectory, gameDirectory));
+                new UninstallPreviewRequest(installId, gameDirectory));
         }
         catch (DirectoryNotFoundException exception) when (gameDirectory is null)
         {

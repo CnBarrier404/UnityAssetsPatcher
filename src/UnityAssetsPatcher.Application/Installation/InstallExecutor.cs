@@ -7,7 +7,8 @@ namespace UnityAssetsPatcher.Application.Installation;
 
 internal sealed record InstallExecutionResult(
     IReadOnlyList<InstallPatchAppliedFile> PatchedFiles,
-    IReadOnlyList<InstallChange> CopiedFiles);
+    IReadOnlyList<InstallChange> CopiedFiles,
+    string InstallId);
 
 internal sealed record InstallPatchAppliedFile(
     string Target,
@@ -68,7 +69,7 @@ public sealed class InstallExecutor
             OperationJournalStore.Save(recordPaths.InstallDirectory, journal);
             OperationJournalStore.Delete(recordPaths.InstallDirectory);
 
-            return new InstallExecutionResult(patchedFiles, copiedFiles);
+            return new InstallExecutionResult(patchedFiles, copiedFiles, record.Id);
         }
         catch (Exception ex)
         {

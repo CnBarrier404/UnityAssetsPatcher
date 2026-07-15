@@ -54,6 +54,20 @@ public sealed class CLIApplicationTests : IDisposable
     }
 
     [Fact]
+    public void Run_CheckValidJson_WithJsonFormatReturnsManifestSummary()
+    {
+        string manifestPath = WriteFile("custom.json", ValidManifest);
+        (CLIApplication app, StringWriter output, StringWriter error) = CreateApp();
+
+        int exitCode = app.Run(["check", "--config", manifestPath, "--format", "json"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("\"command\": \"check\"", output.ToString());
+        Assert.Contains("\"name\": \"Example Mod\"", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
     public void Run_CheckWithoutConfig_UsesCurrentDirectoryManifest()
     {
         WriteFile("manifest.json", ValidManifest);
@@ -193,8 +207,9 @@ public sealed class CLIApplicationTests : IDisposable
     {
         var output = new StringWriter();
         var error = new StringWriter();
-        var command = new CheckCLICommand(new ModManifestReader(), () => _temporaryDirectory);
-        var app = new CLIApplication([command], output, error);
+        var options = new CLIOptions();
+        var command = new CheckCLICommand(new ModManifestReader(), () => _temporaryDirectory, options);
+        var app = new CLIApplication([command], output, error, options);
 
         return (app, output, error);
     }

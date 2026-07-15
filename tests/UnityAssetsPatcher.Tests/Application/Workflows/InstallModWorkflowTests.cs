@@ -93,6 +93,7 @@ public sealed class InstallModWorkflowTests
             Assert.DoesNotContain("\"gameDirectory\"", recordJson);
             Assert.DoesNotContain(targetPath, recordJson);
             InstallRecord storedRecord = Assert.Single(new ModBackupStore(backupDirectory).ListRecords()).Record;
+            Assert.Equal(storedRecord.Id, result.InstallId);
             InstallRecordPatchedFile storedFile = Assert.Single(storedRecord.PatchedFiles);
             Assert.Equal(FileIntegrity.Create(targetPath), storedFile.InstalledFile);
             Assert.Equal(FileIntegrity.Create(file.BackupPath!), storedFile.BackupFile);

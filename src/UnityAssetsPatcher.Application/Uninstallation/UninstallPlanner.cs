@@ -28,16 +28,16 @@ public sealed class UninstallPlanner
 
     public UninstallPreviewResult BuildPreview(UninstallPreviewRequest request)
     {
-        UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, request.InstallDirectory);
-
-        InstallRecord record = _backupStore.Load(request.InstallDirectory);
+        InstallRecordEntry entry = ResolveRecord(request.InstallId);
+        string installDirectory = entry.InstallDirectory;
+        InstallRecord record = entry.Record;
         string gameDirectory = ResolveGameDirectory(request.GameDirectory, record);
         ValidateGameInstance(record, gameDirectory);
         var blockers = InstallLayerAnalyzer.FindBlockingRecords(
             record, _backupStore.ListRecords());
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
             _backupStore.BackupDirectory,
-            request.InstallDirectory,
+            installDirectory,
             gameDirectory,
             record);
 
@@ -65,6 +65,7 @@ public sealed class UninstallPlanner
                                 file.Status is FileIntegrityStatus.Matches or FileIntegrityStatus.Missing);
 
         return new UninstallPreviewResult(
+            record.Id,
             record.ModName,
             record.ModVersion,
             record.InstalledAt,
@@ -81,10 +82,11 @@ public sealed class UninstallPlanner
 
     public UninstallPlan BuildUninstall(UninstallModRequest request)
     {
-        UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, request.InstallDirectory);
-
-        InstallRecord record = _backupStore.Load(request.InstallDirectory);
-        ValidateGameInstance(record, request.GameDirectory);
+        InstallRecordEntry entry = ResolveRecord(request.InstallId);
+        string installDirectory = entry.InstallDirectory;
+        InstallRecord record = entry.Record;
+        string gameDirectory = ResolveGameDirectory(request.GameDirectory, record);
+        ValidateGameInstance(record, gameDirectory);
 
         var blockers = InstallLayerAnalyzer.FindBlockingRecords(
             record, _backupStore.ListRecords());
@@ -98,17 +100,45 @@ public sealed class UninstallPlanner
 
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
             _backupStore.BackupDirectory,
-            request.InstallDirectory,
-            request.GameDirectory,
+            installDirectory,
+            gameDirectory,
             record);
 
         UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
 
         return new UninstallPlan(
             _backupStore.BackupDirectory,
-            request.InstallDirectory,
+            installDirectory,
             paths.GameDirectory,
             record);
+    }
+
+    private InstallRecordEntry ResolveRecord(string installId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(installId);
+
+        InstallRecordEntry[] matches = _backupStore.ListRecords()
+            .Where(entry => string.Equals(entry.Record.Id, installId, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (matches.Length == 1)
+        {
+            return matches[0];
+        }
+
+        if (matches.Length > 1)
+        {
+            throw new InvalidOperationException($"Multiple install records use ID '{installId}'.");
+        }
+
+        // Accept the former install-directory selector for compatibility with application API callers.
+        if (!Path.IsPathFullyQualified(installId))
+        {
+            throw new KeyNotFoundException($"Install record not found: {installId}");
+        }
+
+        UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, installId);
+        return new InstallRecordEntry(installId, _backupStore.Load(installId));
     }
 
     private static void ValidateGameInstance(InstallRecord record, string gameDirectory)

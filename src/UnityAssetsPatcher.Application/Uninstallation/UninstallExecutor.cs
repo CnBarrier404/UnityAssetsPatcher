@@ -84,6 +84,7 @@ public sealed class UninstallExecutor
             Directory.Delete(plan.InstallDirectory, true);
 
             return new UninstallModResult(
+                plan.Record.Id,
                 plan.Record.ModName,
                 plan.Record.ModVersion,
                 restoredFiles,

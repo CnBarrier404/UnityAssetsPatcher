@@ -34,6 +34,7 @@ internal static class InstallResultMapper
         ModPackage package,
         IReadOnlyList<InstallPatchAppliedFile> patchedFiles,
         IReadOnlyList<InstallChange> copiedFiles,
+        string installId,
         TimingSnapshot timing)
     {
         var changes = patchedFiles
@@ -48,6 +49,7 @@ internal static class InstallResultMapper
             .ToArray();
 
         return new InstallModResult(
+            installId,
             package.Manifest.Name,
             package.Manifest.Version,
             changes,

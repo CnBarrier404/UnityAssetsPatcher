@@ -23,6 +23,11 @@ public static class InstallRecordValidator
             throw new InvalidOperationException("Install record sequence must be positive.");
         }
 
+        if (string.IsNullOrWhiteSpace(record.Id))
+        {
+            throw new InvalidOperationException("Install record ID must not be empty.");
+        }
+
         foreach (InstallRecordPatchedFile file in record.PatchedFiles)
         {
             ValidateIntegrity(file.InstalledFile, $"patched assets file {file.AssetsFileRelativePath}");
