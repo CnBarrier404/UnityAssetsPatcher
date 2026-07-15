@@ -161,7 +161,7 @@ public sealed class TerminalPrompts
                 return null;
             }
 
-            string path = NormalizePathInput(input);
+            string path = TerminalPathNormalizer.Normalize(input);
 
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -247,20 +247,6 @@ public sealed class TerminalPrompts
             builder.Append(key.KeyChar);
             _console.Write(new Text(key.KeyChar.ToString()));
         }
-    }
-
-    private static string NormalizePathInput(string value)
-    {
-        string path = value.Trim();
-
-        while (path.Length >= 2 &&
-               ((path[0] == '"' && path[^1] == '"') ||
-                (path[0] == '\'' && path[^1] == '\'')))
-        {
-            path = path[1..^1].Trim();
-        }
-
-        return path;
     }
 
     private static string Format(string format, params object[] args)

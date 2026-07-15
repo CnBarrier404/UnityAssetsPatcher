@@ -3,10 +3,12 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Testing;
 using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Pages;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.TUI;
@@ -100,6 +102,28 @@ public sealed class TerminalFrameworkTests : IDisposable
             Assert.DoesNotContain(parameters,
                 parameter => parameter.ParameterType == typeof(Spectre.Console.IAnsiConsole));
         }
+    }
+
+    [Fact]
+    public void TerminalPathNormalizer_Normalize_RemovesQuotesAddedByTerminalDragAndDrop()
+    {
+        Assert.Equal(
+            @"D:\Mods\Example Mod.zip",
+            TerminalPathNormalizer.Normalize("  \"D:\\Mods\\Example Mod.zip\"  "));
+        Assert.Equal(
+            @"D:\Games\Example Game",
+            TerminalPathNormalizer.Normalize("'D:\\Games\\Example Game'"));
+    }
+
+    [Fact]
+    public void InstallPage_CreateView_UsesTerminalGuiContentPage()
+    {
+        var page = new InstallTerminalPage(new ThrowingWorkflowService(), new TerminalSettings());
+
+        using Terminal.Gui.ViewBase.View view = page.CreateView(() => { });
+
+        Assert.IsAssignableFrom<ITerminalGUIPage>(page);
+        Assert.IsType<InstallModView>(view);
     }
 
     [Fact]
@@ -316,5 +340,23 @@ public sealed class TerminalFrameworkTests : IDisposable
         {
             throw new NotSupportedException();
         }
+    }
+
+    private sealed class ThrowingWorkflowService : IWorkflowService
+    {
+        public InspectListResult InspectList(InspectListRequest request) => throw new NotSupportedException();
+
+        public AssetsFieldInfo InspectFields(InspectFieldsRequest request) => throw new NotSupportedException();
+
+        public InstallPreviewResult PreviewInstall(InstallRequest request) => throw new NotSupportedException();
+
+        public InstallModResult Install(InstallRequest request) => throw new NotSupportedException();
+
+        public IReadOnlyList<InstallRecordSummary> ListInstalledMods() => throw new NotSupportedException();
+
+        public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request) =>
+            throw new NotSupportedException();
+
+        public UninstallModResult Uninstall(UninstallModRequest request) => throw new NotSupportedException();
     }
 }

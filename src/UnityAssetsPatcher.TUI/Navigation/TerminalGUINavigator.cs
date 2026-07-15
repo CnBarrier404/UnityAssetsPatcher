@@ -26,40 +26,42 @@ public sealed class TerminalGUINavigator
     public int Run()
     {
         AvailableUpdate? availableUpdate = _updateChecker.CheckForUpdate();
-
         while (true)
         {
-            ITerminalPage? selectedPage = RunMainMenu(availableUpdate);
+            ITerminalPage? legacyPage = null;
+            using IApplication application = Terminal.Gui.App.Application.Create().Init();
+            using var shell = new TerminalShellView(_appInfo, LocalizedStrings.Layout_ShortcutHint);
 
-            if (selectedPage is null)
+            void ShowMainMenu()
+            {
+                var mainMenu = new MainMenuView(_pages, availableUpdate);
+                mainMenu.PageSelected += (_, page) =>
+                {
+                    if (page is ITerminalGUIPage terminalGUIPage)
+                    {
+                        shell.ShowContent(terminalGUIPage.CreateView(ShowMainMenu));
+                        return;
+                    }
+
+                    legacyPage = page;
+                    application.RequestStop();
+                };
+                shell.ShowContent(mainMenu);
+            }
+
+            ShowMainMenu();
+            application.Run(shell);
+
+            if (legacyPage is null)
             {
                 return 0;
             }
 
-            TerminalPageResult result = selectedPage.Run();
-
+            TerminalPageResult result = legacyPage.Run();
             if (result.WaitForKey)
             {
                 Console.ReadKey(intercept: true);
             }
         }
-    }
-
-    private ITerminalPage? RunMainMenu(AvailableUpdate? availableUpdate)
-    {
-        ITerminalPage? selectedPage = null;
-
-        using IApplication application = Terminal.Gui.App.Application.Create().Init();
-        using var shell = new TerminalShellView(_appInfo, LocalizedStrings.Layout_ShortcutHint);
-        var mainMenu = new MainMenuView(_pages, availableUpdate);
-        mainMenu.PageSelected += (_, page) =>
-        {
-            selectedPage = page;
-            application.RequestStop();
-        };
-        shell.ShowContent(mainMenu);
-        application.Run(shell);
-
-        return selectedPage;
     }
 }

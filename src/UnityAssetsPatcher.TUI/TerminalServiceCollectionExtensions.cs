@@ -36,8 +36,6 @@ public static class TerminalServiceCollectionExtensions
         services.AddSingleton<ITerminalPage, UninstallTerminalPage>();
         services.AddSingleton<ITerminalPage, InspectTerminalPage>();
         services.AddSingleton<ITerminalPage, SettingsTerminalPage>();
-        services.AddSingleton<InstallTerminalInput>();
-        services.AddSingleton<InstallTerminalView>();
         services.AddSingleton<UninstallTerminalInput>();
         services.AddSingleton<UninstallTerminalView>();
         services.AddSingleton<InspectTerminalInput>();
