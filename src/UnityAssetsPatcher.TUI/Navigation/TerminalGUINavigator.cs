@@ -30,7 +30,7 @@ public sealed class TerminalGUINavigator
         {
             ITerminalPage? legacyPage = null;
             using IApplication application = Terminal.Gui.App.Application.Create().Init();
-            using var shell = new TerminalShellView(_appInfo, LocalizedStrings.Layout_ShortcutHint);
+            using var shell = new TerminalShellView(application, _appInfo, LocalizedStrings.Layout_ShortcutHint);
 
             void ShowMainMenu()
             {

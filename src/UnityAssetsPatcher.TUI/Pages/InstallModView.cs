@@ -8,12 +8,17 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
+using UnityAssetsPatcher.TUI.Shell;
 using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public sealed class InstallModView : View
+public sealed class InstallModView : View, ITerminalContentView, ITerminalRenderRequester
 {
+    public event EventHandler? RenderRequested;
+
+    public string ShortcutHint => LocalizedStrings.InstallPage_ShortcutHint;
+
     private readonly IWorkflowService _workflowService;
     private readonly TerminalSettings _settings;
     private readonly Action _returnToMainMenu;
@@ -22,7 +27,8 @@ public sealed class InstallModView : View
     private readonly View _form;
     private TextField? _gameDirectory;
     private View? _optionalGroupArea;
-    private readonly List<(string Name, CheckBox CheckBox)> _optionalGroups = [];
+    private readonly List<OptionalGroupChoice> _optionalGroups = [];
+    private bool _isAnalyzing;
 
     public InstallModView(
         IWorkflowService workflowService,
@@ -73,13 +79,24 @@ public sealed class InstallModView : View
         };
         _modPath.SetScheme(CreateInputScheme());
         _modPath.Accepted += (_, _) => Preview();
-        _message = new Label { X = 0, Y = 2, Width = Dim.Fill() };
+        _message = new Label
+        {
+            X = 0,
+            Y = Pos.Bottom(_modPath) + 2,
+            Width = Dim.Fill(),
+            Visible = false,
+        };
         _form.Add(pathLabel, _modPath, _message);
         Add(heading, description, _form);
     }
 
     private void Preview()
     {
+        if (_isAnalyzing)
+        {
+            return;
+        }
+
         ClearMessage();
         string modPath = TerminalPathNormalizer.Normalize(_modPath.Text);
         if (string.IsNullOrWhiteSpace(modPath))
@@ -88,36 +105,48 @@ public sealed class InstallModView : View
                 _modPath,
                 string.Format(LocalizedStrings.Prompt_LabelRequiredFormat,
                     LocalizedStrings.InstallPage_ModZipPathPrompt));
+
             return;
         }
 
         if (!File.Exists(modPath))
         {
-            ShowInputError(
-                _modPath,
-                string.Format(LocalizedStrings.Prompt_FileNotFoundFormat, modPath));
+            ShowInputError(_modPath, string.Format(LocalizedStrings.Prompt_FileNotFoundFormat, modPath));
+
             return;
         }
+
+        _modPath.Text = modPath;
 
         string? gameDirectory = _gameDirectory is null
             ? null
             : TerminalPathNormalizer.Normalize(_gameDirectory.Text);
+
         if (!string.IsNullOrEmpty(gameDirectory) && !Directory.Exists(gameDirectory))
         {
             ShowInputError(
                 _gameDirectory!,
                 string.Format(LocalizedStrings.Prompt_DirectoryNotFoundFormat, gameDirectory));
+
             return;
         }
 
+        if (_gameDirectory is not null && gameDirectory is not null)
+        {
+            _gameDirectory.Text = gameDirectory;
+        }
+
         IReadOnlyList<string> selectedGroups = _optionalGroups
-            .Where(group => group.CheckBox.Value == CheckState.Checked)
+            .Where(group => group.IsSelected)
             .Select(group => group.Name)
             .ToArray();
+
+        _isAnalyzing = true;
 
         try
         {
             ShowInfo(LocalizedStrings.InstallPage_AnalyzingMod);
+            RenderRequested?.Invoke(this, EventArgs.Empty);
             InstallPreviewResult result = _workflowService.PreviewInstall(
                 new InstallRequest(modPath, gameDirectory)
                 {
@@ -128,6 +157,7 @@ public sealed class InstallModView : View
             {
                 ShowOptionalGroups(result.OptionalGroups);
                 ClearMessage();
+
                 return;
             }
 
@@ -141,6 +171,10 @@ public sealed class InstallModView : View
         {
             ShowInputError(_modPath, exception.Message);
         }
+        finally
+        {
+            _isAnalyzing = false;
+        }
     }
 
     private void ShowGameDirectory(string message)
@@ -148,17 +182,18 @@ public sealed class InstallModView : View
         if (_gameDirectory is null)
         {
             string prompt = $"{LocalizedStrings.InstallPage_GameDirectoryPrompt}: ";
-            var label = new Label { Text = prompt, X = 0, Y = 4 };
+            Pos gameDirectoryRow = Pos.Bottom(_modPath) + 2;
+            var label = new Label { Text = prompt, X = 0, Y = gameDirectoryRow };
             label.SetScheme(TerminalGUITheme.Label);
             _gameDirectory = new TextField
             {
                 X = GetDisplayWidth(prompt),
-                Y = 4,
+                Y = gameDirectoryRow,
                 Width = Dim.Fill(),
             };
             _gameDirectory.SetScheme(CreateInputScheme());
             _gameDirectory.Accepted += (_, _) => Preview();
-            _message.Y = 2;
+            _message.Y = Pos.Bottom(_gameDirectory) + 1;
             _form.Add(label, _gameDirectory);
             _gameDirectory.SetFocus();
         }
@@ -168,13 +203,15 @@ public sealed class InstallModView : View
 
     private void ShowOptionalGroups(IReadOnlyList<(string Name, string? Description)> groups)
     {
-        int startRow = _gameDirectory is null ? 4 : 7;
+        Pos optionalGroupsRow = _gameDirectory is null
+            ? Pos.Bottom(_modPath) + 2
+            : Pos.Bottom(_gameDirectory) + 2;
         _optionalGroupArea = new View
         {
             X = 0,
-            Y = startRow,
+            Y = optionalGroupsRow,
             Width = Dim.Fill(),
-            Height = groups.Count + 2,
+            Height = (groups.Count * 2) + 4,
             CanFocus = true,
         };
         var heading = new Label { Text = LocalizedStrings.InstallPage_OptionalGroupsHeader, X = 0, Y = 0 };
@@ -184,16 +221,23 @@ public sealed class InstallModView : View
         for (int index = 0; index < groups.Count; index++)
         {
             (string name, string? description) = groups[index];
-            string text = string.IsNullOrWhiteSpace(description) ? name : $"{name} — {description}";
-            var checkBox = new CheckBox { Text = text, X = 0, Y = index + 1, Width = Dim.Fill() };
-            checkBox.SetScheme(CreateChoiceScheme());
-            _optionalGroups.Add((name, checkBox));
-            _optionalGroupArea.Add(checkBox);
+            int choiceRow = 2 + (index * 2);
+            var choice = new OptionalGroupChoice(name, description, choiceRow);
+            _optionalGroups.Add(choice);
+            _optionalGroupArea.Add(choice.Button, choice.Description);
         }
 
-        _message.Y = startRow + groups.Count + 2;
+        int submitRow = 3 + (groups.Count * 2);
+        Button submit = CreatePrimaryActionButton(
+            LocalizedStrings.InstallPage_SubmitAction,
+            0,
+            submitRow);
+        submit.Accepted += (_, _) => Preview();
+        _optionalGroupArea.Add(submit);
+
+        _message.Y = Pos.Bottom(_optionalGroupArea) + 1;
         _form.Add(_optionalGroupArea);
-        _optionalGroups[0].CheckBox.SetFocus();
+        _optionalGroups[0].Button.SetFocus();
     }
 
     private void ShowPreview(
@@ -320,12 +364,14 @@ public sealed class InstallModView : View
 
     private void ShowInfo(string message)
     {
+        _message.Visible = true;
         _message.Text = message;
         _message.SetScheme(TerminalGUITheme.Muted);
     }
 
     private void ShowError(string message)
     {
+        _message.Visible = true;
         _message.Text = message;
         _message.SetScheme(TerminalGUITheme.Error);
     }
@@ -340,6 +386,7 @@ public sealed class InstallModView : View
     private void ClearMessage()
     {
         _message.Text = string.Empty;
+        _message.Visible = false;
     }
 
     private static Button CreateActionButton(string text, Pos x, Pos y)
@@ -356,6 +403,24 @@ public sealed class InstallModView : View
             ShadowStyle = ShadowStyles.None,
         };
         button.SetScheme(CreateChoiceScheme());
+        button.HasFocusChanged += (_, _) => button.Text = button.HasFocus ? focusedText : normalText;
+        return button;
+    }
+
+    private static Button CreatePrimaryActionButton(string text, Pos x, Pos y)
+    {
+        string normalText = $"  {text}";
+        string focusedText = $"> {text}";
+        var button = new Button
+        {
+            Text = normalText,
+            X = x,
+            Y = y,
+            NoDecorations = true,
+            NoPadding = true,
+            ShadowStyle = ShadowStyles.None,
+        };
+        button.SetScheme(CreatePrimaryActionScheme());
         button.HasFocusChanged += (_, _) => button.Text = button.HasFocus ? focusedText : normalText;
         return button;
     }
@@ -379,6 +444,76 @@ public sealed class InstallModView : View
     private static Scheme CreateChoiceScheme()
     {
         return CreateInputScheme();
+    }
+
+    private static Scheme CreatePrimaryActionScheme()
+    {
+        Attribute normal = TerminalGUITheme.Label.Normal;
+        Attribute selected = TerminalGUITheme.Selected.Normal;
+
+        return new Scheme
+        {
+            Normal = normal,
+            Focus = selected,
+            HotNormal = normal,
+            HotFocus = selected,
+            Active = selected,
+            Editable = normal,
+            ReadOnly = normal,
+            Disabled = normal,
+        };
+    }
+
+    private sealed class OptionalGroupChoice
+    {
+        public string Name { get; }
+        public Button Button { get; }
+        public Label Description { get; }
+        public bool IsSelected { get; private set; }
+
+        public OptionalGroupChoice(string name, string? description, int row)
+        {
+            Name = name;
+            Button = new Button
+            {
+                X = 0,
+                Y = row,
+                Width = Dim.Fill(),
+                NoDecorations = true,
+                NoPadding = true,
+                ShadowStyle = ShadowStyles.None,
+                TextAlignment = Alignment.Start,
+            };
+            Button.SetScheme(CreateChoiceScheme());
+            Description = new Label
+            {
+                Text = description ?? string.Empty,
+                X = 6,
+                Y = row + 1,
+                Width = Dim.Fill(),
+            };
+            Description.SetScheme(TerminalGUITheme.Muted);
+            Button.KeyDown += (_, key) =>
+            {
+                if (key != Key.Space)
+                {
+                    return;
+                }
+
+                key.Handled = true;
+                IsSelected = !IsSelected;
+                UpdateText();
+            };
+            Button.HasFocusChanged += (_, _) => UpdateText();
+            UpdateText();
+        }
+
+        private void UpdateText()
+        {
+            string indicator = Button.HasFocus ? ">" : " ";
+            string checkbox = IsSelected ? "[*]" : "[ ]";
+            Button.Text = $"{indicator} {checkbox} {Name}";
+        }
     }
 
     private static (string Label, string Value)[] GetPreviewSummaryRows(InstallPreviewResult result)
