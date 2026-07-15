@@ -686,7 +686,7 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
 
     private static string FormatElapsed(TimeSpan elapsed)
     {
-        return TerminalSummary.FormatElapsedSecondsWithUnit(elapsed);
+        return $"{elapsed.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture)} s";
     }
 
     private static InstallChange[] GetChanges(IReadOnlyList<InstallChange> changes, InstallChangeKind kind)

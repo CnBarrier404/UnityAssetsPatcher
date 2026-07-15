@@ -8,9 +8,9 @@ namespace UnityAssetsPatcher.TUI.Pages;
 
 public sealed class MainMenuView : View
 {
-    public event EventHandler<ITerminalPage>? PageSelected;
+    public event EventHandler<TerminalMenuItem>? ItemSelected;
 
-    public MainMenuView(IReadOnlyList<ITerminalPage> pages, AvailableUpdate? availableUpdate)
+    public MainMenuView(IReadOnlyList<TerminalMenuItem> items, AvailableUpdate? availableUpdate)
     {
         var heading = new Label { Text = LocalizedStrings.MainMenu_Title, X = 0, Y = 0 };
         heading.SetScheme(TerminalGUITheme.Title);
@@ -24,9 +24,9 @@ public sealed class MainMenuView : View
             row += 3;
         }
 
-        foreach (ITerminalPage page in pages)
+        foreach (TerminalMenuItem item in items)
         {
-            AddChoice(page, row);
+            AddChoice(item, row);
             row += 2;
         }
     }
@@ -52,10 +52,10 @@ public sealed class MainMenuView : View
         Add(available, download);
     }
 
-    private void AddChoice(ITerminalPage page, int row)
+    private void AddChoice(TerminalMenuItem item, int row)
     {
-        string normalText = $"  {page.Title}";
-        string focusedText = $"> {page.Title}";
+        string normalText = $"  {item.Title}";
+        string focusedText = $"> {item.Title}";
         var button = new Button
         {
             Text = normalText,
@@ -70,7 +70,7 @@ public sealed class MainMenuView : View
         button.SetScheme(CreateChoiceScheme());
         var description = new Label
         {
-            Text = page.Description,
+            Text = item.Description,
             X = 36,
             Y = row,
             Width = Dim.Fill(),
@@ -81,7 +81,7 @@ public sealed class MainMenuView : View
             button.Text = button.HasFocus ? focusedText : normalText;
             description.SetScheme(button.HasFocus ? TerminalGUITheme.Selected : TerminalGUITheme.Muted);
         };
-        button.Accepted += (_, _) => PageSelected?.Invoke(this, page);
+        button.Accepted += (_, _) => ItemSelected?.Invoke(this, item);
         Add(button, description);
     }
 
@@ -100,3 +100,5 @@ public sealed class MainMenuView : View
         };
     }
 }
+
+public sealed record TerminalMenuItem(string Title, string Description, Func<Action, View> CreateView);

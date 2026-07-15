@@ -22,9 +22,7 @@ public static class Program
             .AddUnityAssetsPatcherAssetsTools(tpkFilePath)
             .AddUnityAssetsPatcherApplication(backupDirectory)
             .AddUnityAssetsPatcherCLI()
-            .AddUnityAssetsPatcherTUI(
-                appInfo,
-                Spectre.Console.AnsiConsole.Console)
+            .AddUnityAssetsPatcherTUI(appInfo)
             .BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateOnBuild = true,
