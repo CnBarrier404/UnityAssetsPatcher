@@ -60,6 +60,46 @@ public sealed class TerminalPrompts
             value => Format(LocalizedStrings.Prompt_DirectoryNotFoundFormat, value));
     }
 
+    public long? ReadInt64(string label)
+    {
+        while (true)
+        {
+            string? input = ReadText(label);
+
+            if (input is null)
+            {
+                return null;
+            }
+
+            if (long.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out long value))
+            {
+                return value;
+            }
+
+            _text.WriteError(Format(LocalizedStrings.Prompt_InvalidIntegerFormat, label));
+        }
+    }
+
+    public int? ReadPositiveInt(string label)
+    {
+        while (true)
+        {
+            string? input = ReadText(label);
+
+            if (input is null)
+            {
+                return null;
+            }
+
+            if (int.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) && value > 0)
+            {
+                return value;
+            }
+
+            _text.WriteError(Format(LocalizedStrings.Prompt_InvalidPositiveIntegerFormat, label));
+        }
+    }
+
     public bool Confirm(string prompt)
     {
         _console.Cursor.Show(false);

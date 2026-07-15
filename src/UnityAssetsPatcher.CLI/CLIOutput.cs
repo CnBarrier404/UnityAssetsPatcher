@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.CLI;
 
@@ -89,6 +90,75 @@ internal static class CLIOutput
                 ["description"] = group.Description,
             }).ToArray<JsonNode?>()),
         };
+    }
+
+    public static JsonObject InspectList(string path, InspectListResult result)
+    {
+        return new JsonObject
+        {
+            ["assetsFilePath"] = path,
+            ["totalCount"] = result.TotalCount,
+            ["returnedCount"] = result.Assets.Count,
+            ["assets"] = new JsonArray(result.Assets.Select(asset => new JsonObject
+            {
+                ["pathId"] = asset.PathId,
+                ["typeName"] = asset.TypeName,
+                ["name"] = asset.Name,
+            }).ToArray<JsonNode?>()),
+        };
+    }
+
+    public static JsonObject InspectFields(string path, long pathId, AssetsFieldInfo fieldTree)
+    {
+        return new JsonObject
+        {
+            ["assetsFilePath"] = path,
+            ["pathId"] = pathId,
+            ["fieldTree"] = InspectField(fieldTree),
+        };
+    }
+
+    public static void WriteInspectListText(TextWriter output, InspectListResult result)
+    {
+        output.WriteLine("Path ID\tType Name\tName");
+        foreach (InspectAssetSummary asset in result.Assets)
+        {
+            output.WriteLine(
+                $"{asset.PathId.ToString(System.Globalization.CultureInfo.InvariantCulture)}\t{asset.TypeName}\t{asset.Name}");
+        }
+
+        if (result.Assets.Count < result.TotalCount)
+        {
+            output.WriteLine();
+            output.WriteLine($"Showing {result.Assets.Count} of {result.TotalCount} assets.");
+        }
+    }
+
+    public static void WriteInspectFieldsText(TextWriter output, AssetsFieldInfo fieldTree)
+    {
+        WriteInspectFieldText(output, fieldTree, 0);
+    }
+
+    private static JsonObject InspectField(AssetsFieldInfo field)
+    {
+        return new JsonObject
+        {
+            ["name"] = field.Name,
+            ["typeName"] = field.TypeName,
+            ["value"] = field.Value?.ToInvariantString(),
+            ["children"] = new JsonArray(field.Children.Select(InspectField).ToArray<JsonNode?>()),
+        };
+    }
+
+    private static void WriteInspectFieldText(TextWriter output, AssetsFieldInfo field, int depth)
+    {
+        string value = field.Value is null ? string.Empty : $": {field.Value.ToInvariantString()}";
+        output.WriteLine($"{new string(' ', depth * 2)}{field.Name} ({field.TypeName}){value}");
+
+        foreach (AssetsFieldInfo child in field.Children)
+        {
+            WriteInspectFieldText(output, child, depth + 1);
+        }
     }
 
     public static JsonObject InstallPreview(InstallPreviewResult result)

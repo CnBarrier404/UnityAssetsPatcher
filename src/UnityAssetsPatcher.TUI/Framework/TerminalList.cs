@@ -1,4 +1,6 @@
 using Spectre.Console;
+using System.Globalization;
+using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.TUI.Framework;
 
@@ -81,6 +83,28 @@ public sealed class TerminalList
             {
                 table.AddRow(string.Empty, string.Empty);
             }
+        }
+
+        _console.Write(table);
+    }
+
+    public void WriteAssets(
+        IReadOnlyList<InspectAssetSummary> assets,
+        string pathIdHeader,
+        string typeNameHeader,
+        string nameHeader)
+    {
+        var table = new Table();
+        table.AddColumn(new TableColumn(pathIdHeader).RightAligned());
+        table.AddColumn(typeNameHeader);
+        table.AddColumn(nameHeader);
+
+        foreach (InspectAssetSummary asset in assets)
+        {
+            table.AddRow(
+                asset.PathId.ToString(CultureInfo.InvariantCulture),
+                TerminalText.Escape(asset.TypeName),
+                TerminalText.Escape(asset.Name ?? string.Empty));
         }
 
         _console.Write(table);

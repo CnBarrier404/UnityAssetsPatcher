@@ -383,6 +383,47 @@ public sealed class TerminalAppTests : IDisposable
     }
 
     [Fact]
+    public void Run_InspectListShowsAssetsAndTruncationSummary()
+    {
+        string assetsFilePath = Path.GetTempFileName();
+        TestConsole console = CreateConsole();
+        SelectMainMenuOption(console, MainMenuOption.InspectAssets);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter(assetsFilePath);
+        console.Input.PushKey(ConsoleKey.Enter);
+        ReturnToMainMenu(console);
+        SelectMainMenuOption(console, MainMenuOption.Exit);
+        AssetsInfo[] assets = Enumerable.Range(1, 105)
+            .Select(id => new AssetsInfo(id, "Camera"))
+            .ToArray();
+        var fieldTrees = assets.ToDictionary(
+            asset => asset.PathId,
+            asset => new AssetsFieldInfo(
+                "Base",
+                asset.TypeName,
+                null,
+                [new AssetsFieldInfo("m_Name", "string", $"Asset Name {asset.PathId}", [])]));
+        TerminalApp app = CreateApp(new StubAssetsFileService(assets, fieldTrees), console);
+
+        try
+        {
+            int exitCode = app.Run();
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Inspect Assets", console.Output);
+            Assert.Contains("Path ID", console.Output);
+            Assert.Contains("Name", console.Output);
+            Assert.Contains("Camera", console.Output);
+            Assert.Contains("Asset Name 1", console.Output);
+            Assert.Contains("Showing 100 of 105 assets.", console.Output);
+        }
+        finally
+        {
+            File.Delete(assetsFilePath);
+        }
+    }
+
+    [Fact]
     public void Run_WhenSettingsToggleVerboseLogging_InstallPreviewPrintsFieldDiff()
     {
         string zipPath = CreateCameraPatchZip();
@@ -473,6 +514,7 @@ public sealed class TerminalAppTests : IDisposable
     {
         InstallMod,
         UninstallMod,
+        InspectAssets,
         Settings,
         Exit,
     }

@@ -1,5 +1,6 @@
 using Spectre.Console;
 using UnityAssetsPatcher.TUI.Localization;
+using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.TUI.Framework;
 
@@ -41,6 +42,24 @@ public sealed class TerminalText
     public void WriteError(string message)
     {
         _console.MarkupLine($"[{TerminalTheme.Error}]{Escape(message)}[/]");
+    }
+
+    public void WriteAssetFields(AssetsFieldInfo fieldTree)
+    {
+        WriteAssetField(fieldTree, 0);
+    }
+
+    private void WriteAssetField(AssetsFieldInfo field, int depth)
+    {
+        string indentation = new(' ', depth * 2);
+        string value = field.Value is null ? string.Empty : $": {field.Value.ToInvariantString()}";
+        _console.MarkupLine(
+            $"{indentation}{Escape(field.Name)} ({Escape(field.TypeName)}){Escape(value)}");
+
+        foreach (AssetsFieldInfo child in field.Children)
+        {
+            WriteAssetField(child, depth + 1);
+        }
     }
 
     public static string Escape(string value)

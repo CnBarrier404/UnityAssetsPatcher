@@ -19,6 +19,22 @@ public sealed class WorkflowService : IWorkflowService
         _workflowFactory = workflowFactory;
     }
 
+    public InspectListResult InspectList(InspectListRequest request)
+    {
+        using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
+        InspectAssetsWorkflow workflow = _workflowFactory.CreateInspectWorkflow(assets);
+
+        return workflow.List(request);
+    }
+
+    public AssetsFieldInfo InspectFields(InspectFieldsRequest request)
+    {
+        using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
+        InspectAssetsWorkflow workflow = _workflowFactory.CreateInspectWorkflow(assets);
+
+        return workflow.Fields(request);
+    }
+
     public InstallPreviewResult PreviewInstall(InstallRequest request)
     {
         using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();

@@ -48,6 +48,11 @@ internal sealed class WorkflowFactory
             _backupStore);
     }
 
+    public InspectAssetsWorkflow CreateInspectWorkflow(IAssetsAccessScope assets)
+    {
+        return new InspectAssetsWorkflow(assets.Reader);
+    }
+
     private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)
     {
         var assetQueryService = new AssetQueryService(assetsReader);

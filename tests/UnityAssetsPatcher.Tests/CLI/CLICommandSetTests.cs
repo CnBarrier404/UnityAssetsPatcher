@@ -18,6 +18,92 @@ public sealed class CLICommandSetTests : IDisposable
     }
 
     [Fact]
+    public void Run_InspectListDefaultsToFirst100AndReportsTotal()
+    {
+        var assets = Enumerable.Range(1, 105)
+            .Select(id => new UnityAssetsPatcher.Core.Assets.AssetsInfo(id, "Camera"))
+            .ToArray();
+        var workflow = new StubWorkflowService
+        {
+            InspectAssets = assets,
+        };
+        (CLIApplication app, StringWriter output, StringWriter error) = CreateApp(workflow);
+
+        int exitCode = app.Run(["inspect", "list", Path.Combine(_temporaryDirectory, "data.assets")]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(100, workflow.LastInspectListRequest!.Limit);
+        Assert.Contains("Path ID", output.ToString());
+        Assert.Contains("Showing 100 of 105 assets.", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_InspectFieldsJsonWritesRecursiveFieldTree()
+    {
+        var workflow = new StubWorkflowService
+        {
+            InspectFieldTree = new UnityAssetsPatcher.Core.Assets.AssetsFieldInfo(
+                "Camera",
+                "Camera",
+                null,
+                [new UnityAssetsPatcher.Core.Assets.AssetsFieldInfo("field of view", "float", "90", [])]),
+        };
+        (CLIApplication app, StringWriter output, StringWriter error) = CreateApp(workflow);
+
+        int exitCode = app.Run([
+            "inspect", "fields", Path.Combine(_temporaryDirectory, "data.assets"), "4", "--format", "json",
+        ]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(4, workflow.LastInspectFieldsRequest!.PathId);
+        using JsonDocument json = JsonDocument.Parse(output.ToString());
+        JsonElement fieldTree = json.RootElement.GetProperty("data").GetProperty("fieldTree");
+        Assert.Equal("Camera", fieldTree.GetProperty("name").GetString());
+        Assert.Equal("field of view", fieldTree.GetProperty("children")[0].GetProperty("name").GetString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_InspectListAllPassesNoLimit()
+    {
+        var workflow = new StubWorkflowService
+        {
+            InspectAssets = [new UnityAssetsPatcher.Core.Assets.AssetsInfo(1, "Camera")],
+        };
+        (CLIApplication app, _, StringWriter error) = CreateApp(workflow);
+
+        int exitCode = app.Run([
+            "inspect", "list", Path.Combine(_temporaryDirectory, "data.assets"), "--all",
+        ]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Null(workflow.LastInspectListRequest!.Limit);
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Theory]
+    [InlineData("--limit", "0")]
+    [InlineData("--limit", "-1")]
+    [InlineData("--all", "--limit", "2")]
+    public void Run_InspectListInvalidLimitOptionsReturnUsageFailure(params string[] options)
+    {
+        var workflow = new StubWorkflowService();
+        (CLIApplication app, _, StringWriter error) = CreateApp(workflow);
+        var arguments = new List<string>
+        {
+            "inspect", "list", Path.Combine(_temporaryDirectory, "data.assets"),
+        };
+        arguments.AddRange(options);
+
+        int exitCode = app.Run(arguments);
+
+        Assert.Equal(2, exitCode);
+        Assert.Null(workflow.LastInspectListRequest);
+        Assert.Contains(options[0], error.ToString());
+    }
+
+    [Fact]
     public void Run_InstallPreview_MapsPathsAndRepeatedOptionalGroups()
     {
         var workflow = new StubWorkflowService
@@ -191,6 +277,7 @@ public sealed class CLICommandSetTests : IDisposable
         var backupStore = new ModBackupStore(Path.Combine(_temporaryDirectory, "backup"));
         ICLICommand[] commands =
         [
+            new InspectCLICommand(workflow, options),
             new InstallCLICommand(workflow, backupStore, options),
             new UninstallCLICommand(workflow, backupStore, options),
         ];
@@ -218,9 +305,33 @@ public sealed class CLICommandSetTests : IDisposable
         public UninstallPreviewResult? UninstallPreviewResult { get; init; }
         public UninstallModResult? UninstallResult { get; init; }
         public Exception? Failure { get; init; }
+        public IReadOnlyList<UnityAssetsPatcher.Core.Assets.AssetsInfo> InspectAssets { get; init; } = [];
+        public UnityAssetsPatcher.Core.Assets.AssetsFieldInfo? InspectFieldTree { get; init; }
+        public InspectListRequest? LastInspectListRequest { get; private set; }
+        public InspectFieldsRequest? LastInspectFieldsRequest { get; private set; }
         public InstallRequest? LastInstallRequest { get; private set; }
         public UninstallPreviewRequest? LastUninstallPreviewRequest { get; private set; }
         public UninstallModRequest? LastUninstallRequest { get; private set; }
+
+        public InspectListResult InspectList(InspectListRequest request)
+        {
+            LastInspectListRequest = request;
+            ThrowIfConfigured();
+            IEnumerable<UnityAssetsPatcher.Core.Assets.AssetsInfo> listed = request.Limit is null
+                ? InspectAssets
+                : InspectAssets.Take(request.Limit.Value);
+            return new InspectListResult(
+                listed.Select(asset => new InspectAssetSummary(asset.PathId, asset.TypeName, $"Name{asset.PathId}"))
+                    .ToArray(),
+                InspectAssets.Count);
+        }
+
+        public UnityAssetsPatcher.Core.Assets.AssetsFieldInfo InspectFields(InspectFieldsRequest request)
+        {
+            LastInspectFieldsRequest = request;
+            ThrowIfConfigured();
+            return InspectFieldTree ?? throw new InvalidOperationException("Field tree was not configured.");
+        }
 
         public InstallPreviewResult PreviewInstall(InstallRequest request)
         {

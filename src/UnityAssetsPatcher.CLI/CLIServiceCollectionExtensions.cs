@@ -14,6 +14,9 @@ public static class CLIServiceCollectionExtensions
             provider.GetRequiredService<ModManifestReader>(),
             () => Environment.CurrentDirectory,
             provider.GetRequiredService<CLIOptions>()));
+        services.AddSingleton<ICLICommand>(provider => new InspectCLICommand(
+            provider.GetRequiredService<IWorkflowService>(),
+            provider.GetRequiredService<CLIOptions>()));
         services.AddSingleton<ICLICommand>(provider => new InstallCLICommand(
             provider.GetRequiredService<IWorkflowService>(),
             provider.GetRequiredService<ModBackupStore>(),

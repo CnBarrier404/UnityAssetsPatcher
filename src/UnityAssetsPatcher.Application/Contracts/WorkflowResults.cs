@@ -2,6 +2,10 @@ using UnityAssetsPatcher.Core.Assets;
 
 namespace UnityAssetsPatcher.Application.Contracts;
 
+public sealed record InspectAssetSummary(long PathId, string TypeName, string? Name);
+
+public sealed record InspectListResult(IReadOnlyList<InspectAssetSummary> Assets, int TotalCount);
+
 public sealed record UninstallModResult(
     string InstallId,
     string ModName,

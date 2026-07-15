@@ -18,7 +18,7 @@ public sealed class CLIApplication
         CLIOptions? options = null)
     {
         _options = options ?? new CLIOptions();
-        _rootCommand = new RootCommand("Install and uninstall Unity assets file mods.");
+        _rootCommand = new RootCommand("Inspect, install, and uninstall Unity assets file mods.");
         _error = error;
         _rootCommand.Options.Add(_options.Format);
 
