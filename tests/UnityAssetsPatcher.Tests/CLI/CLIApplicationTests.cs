@@ -1,6 +1,9 @@
 using System.IO.Compression;
-using UnityAssetsPatcher.Application.Manifests;
+using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.CLI;
+using UnityAssetsPatcher.Core.Assets;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.CLI;
@@ -35,9 +38,15 @@ public sealed class CLIApplicationTests : IDisposable
         Path.GetTempPath(),
         $"UnityAssetsPatcher.CLITests.{Guid.NewGuid():N}");
 
+    private readonly ServiceProvider _serviceProvider;
+
     public CLIApplicationTests()
     {
         Directory.CreateDirectory(_temporaryDirectory);
+        _serviceProvider = new ServiceCollection()
+            .AddSingleton<IAssetsAccessScopeFactory>(new ThrowingAssetsAccessScopeFactory())
+            .AddUnityAssetsPatcherApplication(Path.Combine(_temporaryDirectory, "backup"))
+            .BuildServiceProvider();
     }
 
     [Fact]
@@ -193,6 +202,7 @@ public sealed class CLIApplicationTests : IDisposable
 
     public void Dispose()
     {
+        _serviceProvider.Dispose();
         Directory.Delete(_temporaryDirectory, recursive: true);
     }
 
@@ -208,9 +218,17 @@ public sealed class CLIApplicationTests : IDisposable
         var output = new StringWriter();
         var error = new StringWriter();
         var options = new CLIOptions();
-        var command = new CheckCLICommand(new ModManifestReader(), () => _temporaryDirectory, options);
+        var command = new CheckCLICommand(
+            _serviceProvider.GetRequiredService<IWorkflowService>(),
+            () => _temporaryDirectory,
+            options);
         var app = new CLIApplication([command], output, error, options);
 
         return (app, output, error);
+    }
+
+    private sealed class ThrowingAssetsAccessScopeFactory : IAssetsAccessScopeFactory
+    {
+        public IAssetsAccessScope CreateScope() => throw new NotSupportedException();
     }
 }

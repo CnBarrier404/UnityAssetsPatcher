@@ -21,7 +21,9 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<WorkflowFactory>();
         services.AddSingleton<IWorkflowService>(provider => new WorkflowService(
             provider.GetRequiredService<IAssetsAccessScopeFactory>(),
-            provider.GetRequiredService<WorkflowFactory>()));
+            provider.GetRequiredService<WorkflowFactory>(),
+            provider.GetRequiredService<ModManifestReader>(),
+            provider.GetRequiredService<ModBackupStore>()));
 
         return services;
     }

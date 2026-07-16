@@ -1,5 +1,4 @@
 using System.CommandLine;
-using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.CLI;
@@ -9,16 +8,13 @@ public sealed class UninstallCLICommand : ICLICommand
     public Command Command { get; }
 
     private readonly IWorkflowService _workflowService;
-    private readonly ModBackupStore _backupStore;
     private readonly CLIOptions _options;
 
     public UninstallCLICommand(
         IWorkflowService workflowService,
-        ModBackupStore backupStore,
         CLIOptions options)
     {
         _workflowService = workflowService;
-        _backupStore = backupStore;
         _options = options;
 
         Command = new Command("uninstall", "List, preview, or uninstall installed mods.");
@@ -69,7 +65,6 @@ public sealed class UninstallCLICommand : ICLICommand
     {
         try
         {
-            _backupStore.RecoverPendingTransactions();
             IReadOnlyList<InstallRecordSummary> installed = _workflowService.ListInstalledMods();
             return CLIOutput.WriteSuccess(
                 parseResult,
@@ -88,7 +83,6 @@ public sealed class UninstallCLICommand : ICLICommand
     {
         try
         {
-            _backupStore.RecoverPendingTransactions();
             UninstallPreviewResult result = _workflowService.PreviewUninstall(
                 new UninstallPreviewRequest(installId, FullPathOrNull(gameDirectory)));
             return CLIOutput.WriteSuccess(
@@ -108,7 +102,6 @@ public sealed class UninstallCLICommand : ICLICommand
     {
         try
         {
-            _backupStore.RecoverPendingTransactions();
             UninstallModResult result = _workflowService.Uninstall(
                 new UninstallModRequest(installId, FullPathOrNull(gameDirectory)));
             return CLIOutput.WriteSuccess(

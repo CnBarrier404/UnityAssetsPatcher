@@ -1,5 +1,4 @@
 using System.CommandLine;
-using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.CLI;
@@ -9,16 +8,13 @@ public sealed class InstallCLICommand : ICLICommand
     public Command Command { get; }
 
     private readonly IWorkflowService _workflowService;
-    private readonly ModBackupStore _backupStore;
     private readonly CLIOptions _options;
 
     public InstallCLICommand(
         IWorkflowService workflowService,
-        ModBackupStore backupStore,
         CLIOptions options)
     {
         _workflowService = workflowService;
-        _backupStore = backupStore;
         _options = options;
 
         Command = new Command("install", "Preview or install a mod package.");
@@ -71,7 +67,6 @@ public sealed class InstallCLICommand : ICLICommand
     {
         try
         {
-            _backupStore.RecoverPendingTransactions();
             InstallPreviewResult result = _workflowService.PreviewInstall(CreateRequest(
                 packagePath, gameDirectory, optionalGroups));
             return CLIOutput.WriteSuccess(
@@ -95,7 +90,6 @@ public sealed class InstallCLICommand : ICLICommand
     {
         try
         {
-            _backupStore.RecoverPendingTransactions();
             InstallModResult result = _workflowService.Install(CreateRequest(
                 packagePath, gameDirectory, optionalGroups));
             return CLIOutput.WriteSuccess(

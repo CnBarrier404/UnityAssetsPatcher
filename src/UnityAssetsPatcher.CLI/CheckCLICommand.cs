@@ -1,6 +1,5 @@
 using System.CommandLine;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.CLI;
 
@@ -8,17 +7,17 @@ public sealed class CheckCLICommand : ICLICommand
 {
     public Command Command { get; }
 
-    private readonly ModManifestReader _manifestReader;
+    private readonly IWorkflowService _workflowService;
     private readonly Func<string> _getCurrentDirectory;
     private readonly CLIOptions _options;
     private readonly Option<string?> _configOption;
 
     public CheckCLICommand(
-        ModManifestReader manifestReader,
+        IWorkflowService workflowService,
         Func<string> getCurrentDirectory,
         CLIOptions? options = null)
     {
-        _manifestReader = manifestReader;
+        _workflowService = workflowService;
         _getCurrentDirectory = getCurrentDirectory;
         _options = options ?? new CLIOptions();
         _configOption = new Option<string?>("--config", "-c")
@@ -38,7 +37,7 @@ public sealed class CheckCLICommand : ICLICommand
 
         try
         {
-            ModManifest manifest = _manifestReader.Load(configPath);
+            ModManifest manifest = _workflowService.CheckManifest(configPath);
             return CLIOutput.WriteSuccess(
                 parseResult,
                 _options,

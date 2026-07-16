@@ -312,6 +312,10 @@ public sealed class TerminalGUITests : IDisposable
 
     private sealed class ThrowingWorkflowService : IWorkflowService
     {
+        public void RecoverPendingTransactions() => throw new NotSupportedException();
+
+        public ModManifest CheckManifest(string path) => throw new NotSupportedException();
+
         public InspectListResult InspectList(InspectListRequest request) => throw new NotSupportedException();
 
         public AssetsFieldInfo InspectFields(InspectFieldsRequest request) => throw new NotSupportedException();

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.CLI;
@@ -274,12 +273,11 @@ public sealed class CLICommandSetTests : IDisposable
         var output = new StringWriter();
         var error = new StringWriter();
         var options = new CLIOptions();
-        var backupStore = new ModBackupStore(Path.Combine(_temporaryDirectory, "backup"));
         ICLICommand[] commands =
         [
             new InspectCLICommand(workflow, options),
-            new InstallCLICommand(workflow, backupStore, options),
-            new UninstallCLICommand(workflow, backupStore, options),
+            new InstallCLICommand(workflow, options),
+            new UninstallCLICommand(workflow, options),
         ];
         return (new CLIApplication(commands, output, error, options), output, error);
     }
@@ -312,6 +310,10 @@ public sealed class CLICommandSetTests : IDisposable
         public InstallRequest? LastInstallRequest { get; private set; }
         public UninstallPreviewRequest? LastUninstallPreviewRequest { get; private set; }
         public UninstallModRequest? LastUninstallRequest { get; private set; }
+
+        public void RecoverPendingTransactions() => ThrowIfConfigured();
+
+        public ModManifest CheckManifest(string path) => throw new NotSupportedException();
 
         public InspectListResult InspectList(InspectListRequest request)
         {

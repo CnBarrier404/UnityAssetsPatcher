@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI;
-using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.CLI;
 
 namespace UnityAssetsPatcher;
@@ -34,7 +34,7 @@ public static class Program
             return serviceProvider.GetRequiredService<CLIApplication>().Run(args);
         }
 
-        serviceProvider.GetRequiredService<ModBackupStore>().RecoverPendingTransactions();
+        serviceProvider.GetRequiredService<IWorkflowService>().RecoverPendingTransactions();
         return serviceProvider.GetRequiredService<TerminalApp>().Run();
     }
 }
