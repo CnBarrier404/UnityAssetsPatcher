@@ -9,11 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Content Include="Assets\AssetsRipper.tpk">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-            <TargetPath>resources.tpk</TargetPath>
-        </Content>
+        <EmbeddedResource Include="Assets\AssetsRipper.tpk" LogicalName="resources.tpk"/>
     </ItemGroup>
 
     <ItemGroup>

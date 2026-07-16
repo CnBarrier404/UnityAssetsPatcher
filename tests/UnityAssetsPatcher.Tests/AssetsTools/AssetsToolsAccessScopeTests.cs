@@ -25,6 +25,17 @@ public sealed class AssetsToolsAccessScopeTests
     }
 
     [Fact]
+    public void CreateScope_WhenTpkIsProvidedAsStream_ReturnsAssetData()
+    {
+        using var factory = new AssetsToolsAccessScopeFactory(() => File.OpenRead(GetRealTpkFilePath()));
+        using IAssetsAccessScope scope = factory.CreateScope();
+
+        var assets = scope.Reader.ReadAssetsInfo(GetRealAssetsFilePath());
+
+        Assert.NotEmpty(assets);
+    }
+
+    [Fact]
     public void ReadAssetsFieldInfo_WhenReadingMultipleAssetsInOneSession_ReturnsFieldTrees()
     {
         using var factory = new AssetsToolsAccessScopeFactory(GetRealTpkFilePath());

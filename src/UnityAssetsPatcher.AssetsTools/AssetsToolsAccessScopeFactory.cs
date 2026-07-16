@@ -11,6 +11,11 @@ public sealed class AssetsToolsAccessScopeFactory : IAssetsAccessScopeFactory, I
         _context = new AssetsToolsContext(tpkFilePath);
     }
 
+    public AssetsToolsAccessScopeFactory(Func<Stream> openTpkStream)
+    {
+        _context = new AssetsToolsContext(openTpkStream);
+    }
+
     public IAssetsAccessScope CreateScope()
     {
         return new AssetsToolsAccessScope(new AssetsFileReader(_context, ownsContext: false),

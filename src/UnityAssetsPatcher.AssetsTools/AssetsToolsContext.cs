@@ -8,7 +8,8 @@ public sealed class AssetsToolsContext : IDisposable
     private AssetsManager Manager { get; } = new();
 
     private readonly Lock _gate = new();
-    private readonly string _tpkFilePath;
+    private readonly string? _tpkFilePath;
+    private readonly Func<Stream>? _openTpkStream;
     private bool _classPackageLoaded;
     private string? _loadedClassDatabaseVersion;
     private bool _disposed;
@@ -16,6 +17,12 @@ public sealed class AssetsToolsContext : IDisposable
     public AssetsToolsContext(string tpkFilePath)
     {
         _tpkFilePath = tpkFilePath;
+    }
+
+    public AssetsToolsContext(Func<Stream> openTpkStream)
+    {
+        ArgumentNullException.ThrowIfNull(openTpkStream);
+        _openTpkStream = openTpkStream;
     }
 
     public AssetsFileInstance LoadAssetsFile(string assetsFilePath)
@@ -71,6 +78,15 @@ public sealed class AssetsToolsContext : IDisposable
     {
         if (_classPackageLoaded)
         {
+            return;
+        }
+
+        if (_openTpkStream is not null)
+        {
+            using Stream stream = _openTpkStream();
+            Manager.LoadClassPackage(stream);
+            _classPackageLoaded = true;
+
             return;
         }
 
