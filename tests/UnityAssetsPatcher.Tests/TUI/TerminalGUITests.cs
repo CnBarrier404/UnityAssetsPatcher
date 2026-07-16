@@ -136,6 +136,32 @@ public sealed class TerminalGUITests : IDisposable
     }
 
     [Fact]
+    public void ActionButton_SpaceDoesNotAcceptButEnterDoes()
+    {
+        using var action = new ActionButton("Continue");
+        int accepts = 0;
+        action.Accepted += (_, _) => accepts++;
+
+        action.NewKeyDownEvent(Key.Space);
+
+        Assert.Equal(0, accepts);
+
+        action.NewKeyDownEvent(Key.Enter);
+
+        Assert.Equal(1, accepts);
+    }
+
+    [Fact]
+    public void ToggleItem_SpaceTogglesSelection()
+    {
+        using var choice = new ToggleItem("Verbose");
+
+        choice.Button.NewKeyDownEvent(Key.Space);
+
+        Assert.True(choice.IsSelected);
+    }
+
+    [Fact]
     public void ToggleItem_ReflectsSelectionAndRaisesChangeEvent()
     {
         using var choice = new ToggleItem("Verbose", "Show details");

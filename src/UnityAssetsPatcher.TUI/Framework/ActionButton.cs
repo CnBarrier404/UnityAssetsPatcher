@@ -1,3 +1,4 @@
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
@@ -24,6 +25,7 @@ public sealed class ActionButton : Button
         NoPadding = true;
         ShadowStyle = ShadowStyles.None;
         TextAlignment = Alignment.Start;
+        KeyBindings.Remove(Key.Space);
 
         SetScheme(kind switch
         {
