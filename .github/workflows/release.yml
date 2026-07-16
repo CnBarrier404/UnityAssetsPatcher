@@ -124,7 +124,37 @@ jobs:
           $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
           $checksumFile = "$zipPath.sha256"
           "$hash  $(Split-Path $zipPath -Leaf)" | Set-Content -Path $checksumFile -Encoding utf8
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
           "checksum_path=$checksumFile" >> $env:GITHUB_OUTPUT
+
+      - name: Generate update manifest
+        shell: pwsh
+        run: |
+          $tag = "$env:TAG_NAME"
+          $zipFilename = "${{ steps.release.outputs.artifact_name }}.zip"
+          $sha256 = "${{ steps.checksum.outputs.sha256 }}"
+          $repositoryUrl = "https://github.com/${{ github.repository }}"
+          $manifestPath = "artifacts/update.json"
+
+          $manifest = [ordered]@{
+            schemaVersion = 1
+            version = $tag
+            releaseUrl = "$repositoryUrl/releases/tag/$tag"
+            downloadUrl = "$repositoryUrl/releases/download/$tag/$zipFilename"
+            sha256 = $sha256
+          }
+
+          $manifest | ConvertTo-Json | Set-Content -Path $manifestPath -Encoding utf8
+
+          $parsed = Get-Content -Raw -Path $manifestPath | ConvertFrom-Json
+
+          if ($parsed.schemaVersion -ne 1 -or
+              $parsed.version -ne $tag -or
+              $parsed.downloadUrl -notlike "*/$zipFilename" -or
+              $parsed.sha256 -ne $sha256 -or
+              $parsed.sha256 -notmatch '^[0-9a-f]{64}$') {
+            throw "Generated update manifest failed validation."
+          }
 
       - name: Prepare release notes
         id: notes
@@ -200,6 +230,7 @@ jobs:
           path: |
             artifacts/*.zip
             artifacts/*.sha256
+            artifacts/update.json
             artifacts/release-notes.md
           if-no-files-found: error
 
@@ -227,3 +258,4 @@ jobs:
           files: |
             artifacts/${{ needs.build.outputs.zip_filename }}
             artifacts/${{ needs.build.outputs.zip_filename }}.sha256
+            artifacts/update.json

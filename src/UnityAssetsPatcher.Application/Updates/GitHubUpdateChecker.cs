@@ -1,18 +1,26 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core;
 
 namespace UnityAssetsPatcher.Application.Updates;
 
-public sealed class GitHubUpdateChecker : IUpdateChecker
+public sealed partial class GitHubUpdateChecker : IUpdateChecker
 {
-    public const string LatestReleaseUrl =
-        "https://api.github.com/repos/CnBarrier404/UnityAssetsPatcher/releases/latest";
+    private static readonly Regex Sha256Pattern = MyRegex();
+
+    [GeneratedRegex("^[0-9a-fA-F]{64}$", RegexOptions.CultureInvariant)]
+    private static partial Regex MyRegex();
 
     private readonly HttpClient _httpClient;
     private readonly AppInfo _appInfo;
+
+    public const string UpdateManifestUrl =
+        "https://github.com/CnBarrier404/UnityAssetsPatcher/releases/latest/download/update.json";
+
+    public const int MaximumManifestSize = 64 * 1024;
 
     public GitHubUpdateChecker(HttpClient httpClient, AppInfo appInfo)
     {
@@ -23,71 +31,124 @@ public sealed class GitHubUpdateChecker : IUpdateChecker
         _appInfo = appInfo;
     }
 
-    public AvailableUpdate? CheckForUpdate()
+    public async Task<UpdateCheckResult> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
         if (!SemanticVersion.TryParse(_appInfo.DisplayVersion, out SemanticVersion currentVersion))
         {
-            return null;
+            return new UpdateCheckFailed();
         }
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, LatestReleaseUrl);
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+            using var request = new HttpRequestMessage(HttpMethod.Get, UpdateManifestUrl);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             request.Headers.UserAgent.ParseAdd("UnityAssetsPatcher");
-            request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
 
-            using HttpResponseMessage response = _httpClient.Send(
+            using HttpResponseMessage response = await _httpClient.SendAsync(
                 request,
-                HttpCompletionOption.ResponseHeadersRead);
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken).ConfigureAwait(false);
 
-            if (!response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength is > MaximumManifestSize)
             {
-                return null;
+                return new UpdateCheckFailed();
             }
 
-            using Stream content = response.Content.ReadAsStream();
-            using JsonDocument document = JsonDocument.Parse(content);
+            await using Stream content =
+                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
+            using var manifestBuffer = new MemoryStream();
+
+            byte[] buffer = new byte[8192];
+
+            while (true)
+            {
+                int bytesRead = await content.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                if (manifestBuffer.Length + bytesRead > MaximumManifestSize)
+                {
+                    return new UpdateCheckFailed();
+                }
+
+                manifestBuffer.Write(buffer, 0, bytesRead);
+            }
+
+            manifestBuffer.Position = 0;
+            using JsonDocument document = await JsonDocument.ParseAsync(
+                manifestBuffer,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
             JsonElement root = document.RootElement;
 
             if (root.ValueKind != JsonValueKind.Object ||
-                !root.TryGetProperty("tag_name", out JsonElement tagElement) ||
-                tagElement.ValueKind != JsonValueKind.String ||
-                !root.TryGetProperty("html_url", out JsonElement urlElement) ||
-                urlElement.ValueKind != JsonValueKind.String)
+                !root.TryGetProperty("schemaVersion", out JsonElement schemaElement) ||
+                !schemaElement.TryGetInt32(out int schemaVersion) ||
+                schemaVersion != 1 ||
+                !TryReadString(root, "version", out string? version) ||
+                !TryReadHttpsUri(root, "releaseUrl", out Uri? releaseUrl) ||
+                !TryReadHttpsUri(root, "downloadUrl", out Uri? downloadUrl) ||
+                !TryReadString(root, "sha256", out string? sha256) ||
+                !Sha256Pattern.IsMatch(sha256!) ||
+                !SemanticVersion.TryParse(version, out SemanticVersion latestVersion))
             {
-                return null;
+                return new UpdateCheckFailed();
             }
 
-            string? tagName = tagElement.GetString();
-            string? releaseUrl = urlElement.GetString();
-
-            if (!SemanticVersion.TryParse(tagName, out SemanticVersion latestVersion) ||
-                latestVersion.CompareTo(currentVersion) <= 0 ||
-                !Uri.TryCreate(releaseUrl, UriKind.Absolute, out Uri? parsedReleaseUrl) ||
-                parsedReleaseUrl.Scheme != Uri.UriSchemeHttps)
+            if (latestVersion.CompareTo(currentVersion) <= 0)
             {
-                return null;
+                return new UpToDate();
             }
 
-            return new AvailableUpdate(tagName!, parsedReleaseUrl);
+            return new UpdateAvailable(new AvailableUpdate(
+                version!,
+                releaseUrl!,
+                downloadUrl!,
+                sha256!.ToLowerInvariant()));
         }
         catch (HttpRequestException)
         {
-            return null;
+            return new UpdateCheckFailed();
         }
         catch (OperationCanceledException)
         {
-            return null;
+            return new UpdateCheckFailed();
         }
         catch (IOException)
         {
-            return null;
+            return new UpdateCheckFailed();
         }
         catch (JsonException)
         {
-            return null;
+            return new UpdateCheckFailed();
         }
+    }
+
+    private static bool TryReadString(JsonElement root, string propertyName, out string? value)
+    {
+        value = null;
+
+        if (!root.TryGetProperty(propertyName, out JsonElement element) ||
+            element.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        value = element.GetString();
+
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool TryReadHttpsUri(JsonElement root, string propertyName, out Uri? uri)
+    {
+        uri = null;
+
+        return TryReadString(root, propertyName, out string? value) &&
+               Uri.TryCreate(value, UriKind.Absolute, out uri) &&
+               uri.Scheme == Uri.UriSchemeHttps;
     }
 
     private readonly record struct SemanticVersion(
@@ -134,6 +195,7 @@ public sealed class GitHubUpdateChecker : IUpdateChecker
             }
 
             version = new SemanticVersion(major, minor, patch, prerelease);
+
             return true;
         }
 

@@ -28,22 +28,56 @@ public sealed class TerminalGUINavigator
 
     public int Run()
     {
-        AvailableUpdate? availableUpdate = _updateChecker.CheckForUpdate();
         using IApplication application = Terminal.Gui.App.Application.Create().Init();
         var taskRunner = new TerminalTaskRunner(application.Invoke);
-        TerminalMenuItem[] menuItems = CreateMenuItems(taskRunner);
+        var menuItems = CreateMenuItems(taskRunner);
         using var shell = new TerminalShellView(application, _appInfo, LocalizedStrings.Layout_ShortcutHint);
+        using var updateCancellation = new CancellationTokenSource();
+        AvailableUpdate? availableUpdate = null;
+        MainMenuView? visibleMainMenu = null;
+
+        ShowMainMenu();
+        _ = CheckForUpdateAsync();
+        application.Run(shell);
+        updateCancellation.Cancel();
+
+        return 0;
 
         void ShowMainMenu()
         {
             var mainMenu = new MainMenuView(menuItems, availableUpdate);
-            mainMenu.ItemSelected += (_, item) => { shell.ShowContent(item.CreateView(ShowMainMenu)); };
+            visibleMainMenu = mainMenu;
+            mainMenu.ItemSelected += (_, item) =>
+            {
+                visibleMainMenu = null;
+                shell.ShowContent(item.CreateView(ShowMainMenu));
+            };
+
             shell.ShowContent(mainMenu);
         }
 
-        ShowMainMenu();
-        application.Run(shell);
-        return 0;
+        async Task CheckForUpdateAsync()
+        {
+            UpdateCheckResult result = await _updateChecker.CheckForUpdateAsync(updateCancellation.Token)
+                .ConfigureAwait(false);
+
+            if (result is not UpdateAvailable update)
+            {
+                return;
+            }
+
+            try
+            {
+                application.Invoke(() =>
+                {
+                    availableUpdate = update.Update;
+                    visibleMainMenu?.ShowAvailableUpdate(update.Update);
+                    application.LayoutAndDraw();
+                });
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
+        }
     }
 
     private TerminalMenuItem[] CreateMenuItems(TerminalTaskRunner taskRunner)

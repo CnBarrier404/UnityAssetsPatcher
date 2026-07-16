@@ -78,6 +78,35 @@ public sealed class TerminalGUITests : IDisposable
     }
 
     [Fact]
+    public void MainMenuView_ShowAvailableUpdate_InsertsUpdateWithoutChangingFocus()
+    {
+        TerminalMenuItem[] items =
+        [
+            new("First", "First description", _ => new View()),
+            new("Second", "Second description", _ => new View()),
+        ];
+        var update = new AvailableUpdate(
+            "v1.0.0",
+            new Uri("https://example.com/releases/v1.0.0"),
+            new Uri("https://example.com/download/v1.0.0.zip"),
+            new string('0', 64));
+
+        using var menu = new MainMenuView(items, null);
+        menu.CanFocus = true;
+        menu.BeginInit();
+        menu.EndInit();
+        ChoiceItem firstChoice = menu.SubViews.OfType<ChoiceItem>().First();
+
+        menu.ShowAvailableUpdate(update);
+        menu.ShowAvailableUpdate(update);
+
+        Assert.True(firstChoice.Button.HasFocus);
+        Assert.Contains(menu.SubViews, view => view.Text?.ToString().Contains("v1.0.0") == true);
+        Assert.Equal(2, menu.SubViews.OfType<StyledLabel>().Count(label =>
+            label.Text?.ToString().Contains("v1.0.0") == true));
+    }
+
+    [Fact]
     public void AddUnityAssetsPatcherTui_RegistersTerminalAppForOfficialServiceProvider()
     {
         using ServiceProvider provider = new ServiceCollection()

@@ -8,27 +8,25 @@ namespace UnityAssetsPatcher.Tests.Application.Updates;
 
 public sealed class GitHubUpdateCheckerTests
 {
+    private const string Sha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
     [Fact]
-    public void CheckForUpdate_WhenLatestReleaseIsNewer_ReturnsReleaseDetails()
+    public async Task CheckForUpdateAsync_WhenLatestReleaseIsNewer_ReturnsReleaseDetails()
     {
-        var handler = new StubHttpMessageHandler(_ => CreateJsonResponse(
-            """
-            {"tag_name":"v1.3.0","html_url":"https://github.com/CnBarrier404/UnityAssetsPatcher/releases/tag/v1.3.0"}
-            """));
+        var handler = new StubHttpMessageHandler(_ => CreateJsonResponse(Manifest("v1.3.0")));
         using var httpClient = new HttpClient(handler);
         var checker = new GitHubUpdateChecker(
             httpClient,
             new AppInfo("Unity Assets Patcher", "v1.2.3"));
 
-        AvailableUpdate? update = checker.CheckForUpdate();
+        UpdateAvailable result = Assert.IsType<UpdateAvailable>(await Check(checker));
 
-        Assert.NotNull(update);
-        Assert.Equal("v1.3.0", update.Version);
-        Assert.Equal(
-            "https://github.com/CnBarrier404/UnityAssetsPatcher/releases/tag/v1.3.0",
-            update.ReleaseUrl.AbsoluteUri);
+        Assert.Equal("v1.3.0", result.Update.Version);
+        Assert.Equal("https://example.com/releases/v1.3.0", result.Update.ReleaseUrl.AbsoluteUri);
+        Assert.Equal("https://example.com/download/v1.3.0.zip", result.Update.DownloadUrl.AbsoluteUri);
+        Assert.Equal(Sha256, result.Update.Sha256);
         Assert.Equal(1, handler.RequestCount);
-        Assert.Equal(GitHubUpdateChecker.LatestReleaseUrl, handler.LastRequestUri?.AbsoluteUri);
+        Assert.Equal(GitHubUpdateChecker.UpdateManifestUrl, handler.LastRequestUri?.AbsoluteUri);
         Assert.Contains("UnityAssetsPatcher", handler.LastUserAgent ?? string.Empty);
     }
 
@@ -36,43 +34,80 @@ public sealed class GitHubUpdateCheckerTests
     [InlineData("v1.2.3", "v1.2.3")]
     [InlineData("v1.2.3", "v1.2.2")]
     [InlineData("v2.0.0", "v1.9.9")]
-    [InlineData("v1.2.3", "not-a-version")]
-    public void CheckForUpdate_WhenReleaseIsNotNewer_ReturnsNull(
+    public async Task CheckForUpdateAsync_WhenReleaseIsNotNewer_ReturnsUpToDate(
         string currentVersion,
         string latestVersion)
     {
-        var handler = new StubHttpMessageHandler(_ => CreateJsonResponse(
-            $$"""
-              {"tag_name":"{{latestVersion}}","html_url":"https://example.com/release"}
-              """));
-        using var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(
+            new StubHttpMessageHandler(_ => CreateJsonResponse(Manifest(latestVersion))));
         var checker = new GitHubUpdateChecker(
             httpClient,
             new AppInfo("Unity Assets Patcher", currentVersion));
 
-        Assert.Null(checker.CheckForUpdate());
+        Assert.IsType<UpToDate>(await Check(checker));
     }
 
     [Fact]
-    public void CheckForUpdate_WhenStableReleaseReplacesCurrentPrerelease_ReturnsUpdate()
+    public async Task CheckForUpdateAsync_WhenStableReleaseReplacesCurrentPrerelease_ReturnsUpdate()
     {
-        var handler = new StubHttpMessageHandler(_ => CreateJsonResponse(
-            """
-            {"tag_name":"v1.2.3","html_url":"https://example.com/release"}
-            """));
-        using var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(
+            new StubHttpMessageHandler(_ => CreateJsonResponse(Manifest("v1.2.3"))));
         var checker = new GitHubUpdateChecker(
             httpClient,
             new AppInfo("Unity Assets Patcher", "v1.2.3-beta.2"));
 
-        AvailableUpdate? update = checker.CheckForUpdate();
+        UpdateAvailable result = Assert.IsType<UpdateAvailable>(await Check(checker));
 
-        Assert.NotNull(update);
-        Assert.Equal("v1.2.3", update.Version);
+        Assert.Equal("v1.2.3", result.Update.Version);
     }
 
     [Fact]
-    public void CheckForUpdate_WhenRunningDevelopmentBuild_DoesNotSendRequest()
+    public async Task CheckForUpdateAsync_NormalizesSha256ToLowercase()
+    {
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+            CreateJsonResponse(Manifest("v1.3.0", sha256: Sha256.ToUpperInvariant()))));
+        var checker = new GitHubUpdateChecker(
+            httpClient,
+            new AppInfo("Unity Assets Patcher", "v1.2.3"));
+
+        UpdateAvailable result = Assert.IsType<UpdateAvailable>(await Check(checker));
+
+        Assert.Equal(Sha256, result.Update.Sha256);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("not-json")]
+    [InlineData("{\"schemaVersion\":2,\"version\":\"v1.3.0\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
+    [InlineData("{\"schemaVersion\":1,\"version\":\"invalid\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
+    [InlineData("{\"schemaVersion\":1,\"version\":\"v1.3.0\",\"releaseUrl\":\"http://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
+    [InlineData("{\"schemaVersion\":1,\"version\":\"v1.3.0\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"invalid\"}")]
+    public async Task CheckForUpdateAsync_WhenManifestIsInvalid_ReturnsFailed(string json)
+    {
+        using var httpClient = new HttpClient(
+            new StubHttpMessageHandler(_ => CreateJsonResponse(json)));
+        var checker = new GitHubUpdateChecker(
+            httpClient,
+            new AppInfo("Unity Assets Patcher", "v1.2.3"));
+
+        Assert.IsType<UpdateCheckFailed>(await Check(checker));
+    }
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenManifestIsTooLarge_ReturnsFailed()
+    {
+        string json = new(' ', GitHubUpdateChecker.MaximumManifestSize + 1);
+        using var httpClient = new HttpClient(
+            new StubHttpMessageHandler(_ => CreateJsonResponse(json)));
+        var checker = new GitHubUpdateChecker(
+            httpClient,
+            new AppInfo("Unity Assets Patcher", "v1.2.3"));
+
+        Assert.IsType<UpdateCheckFailed>(await Check(checker));
+    }
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenRunningDevelopmentBuild_DoesNotSendRequest()
     {
         var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException());
         using var httpClient = new HttpClient(handler);
@@ -80,20 +115,59 @@ public sealed class GitHubUpdateCheckerTests
             httpClient,
             new AppInfo("Unity Assets Patcher", "dev"));
 
-        Assert.Null(checker.CheckForUpdate());
+        Assert.IsType<UpdateCheckFailed>(await Check(checker));
         Assert.Equal(0, handler.RequestCount);
     }
 
-    [Fact]
-    public void CheckForUpdate_WhenGitHubRequestFails_ReturnsNull()
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public async Task CheckForUpdateAsync_WhenRequestIsNotSuccessful_ReturnsFailed(HttpStatusCode statusCode)
     {
-        var handler = new StubHttpMessageHandler(_ => throw new HttpRequestException("Offline"));
-        using var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(statusCode)));
         var checker = new GitHubUpdateChecker(
             httpClient,
             new AppInfo("Unity Assets Patcher", "v1.2.3"));
 
-        Assert.Null(checker.CheckForUpdate());
+        Assert.IsType<UpdateCheckFailed>(await Check(checker));
+    }
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenRequestFails_ReturnsFailed()
+    {
+        using var httpClient = new HttpClient(
+            new StubHttpMessageHandler(_ => throw new HttpRequestException("Offline")));
+        var checker = new GitHubUpdateChecker(
+            httpClient,
+            new AppInfo("Unity Assets Patcher", "v1.2.3"));
+
+        Assert.IsType<UpdateCheckFailed>(await Check(checker));
+    }
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenCanceled_ReturnsFailed()
+    {
+        using var httpClient = new HttpClient(
+            new StubHttpMessageHandler(_ => throw new OperationCanceledException()));
+        var checker = new GitHubUpdateChecker(
+            httpClient,
+            new AppInfo("Unity Assets Patcher", "v1.2.3"));
+
+        Assert.IsType<UpdateCheckFailed>(await Check(checker));
+    }
+
+    private static string Manifest(string version, string sha256 = Sha256)
+    {
+        return $$"""
+                 {
+                   "schemaVersion": 1,
+                   "version": "{{version}}",
+                   "releaseUrl": "https://example.com/releases/{{version}}",
+                   "downloadUrl": "https://example.com/download/{{version}}.zip",
+                   "sha256": "{{sha256}}",
+                   "ignored": true
+                 }
+                 """;
     }
 
     private static HttpResponseMessage CreateJsonResponse(string json)
@@ -102,6 +176,11 @@ public sealed class GitHubUpdateCheckerTests
         {
             Content = new StringContent(json),
         };
+    }
+
+    private static Task<UpdateCheckResult> Check(GitHubUpdateChecker checker)
+    {
+        return checker.CheckForUpdateAsync(TestContext.Current.CancellationToken);
     }
 
     private sealed class StubHttpMessageHandler(

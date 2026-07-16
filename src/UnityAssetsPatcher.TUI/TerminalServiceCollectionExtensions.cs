@@ -15,7 +15,7 @@ public static class TerminalServiceCollectionExtensions
         services.AddSingleton(appInfo);
         services.AddSingleton(_ => new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(3),
+            Timeout = TimeSpan.FromSeconds(10),
         });
         services.AddSingleton<IUpdateChecker>(provider => new GitHubUpdateChecker(
             provider.GetRequiredService<HttpClient>(),
