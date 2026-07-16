@@ -14,7 +14,7 @@ public sealed class FieldPatchPlanBuilder
     public FieldPatchPlanBuilder(AssetQueryService assetQueryService)
     {
         _assetQueryService = assetQueryService;
-        _operationPlanner = new FieldPatchOperationPlanner(new PatchValueResolver(assetQueryService));
+        _operationPlanner = new FieldPatchOperationPlanner();
     }
 
     public PatchPreviewResult CreatePreview(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
@@ -68,20 +68,25 @@ public sealed class FieldPatchPlanBuilder
         IReadOnlyList<ManifestPatch> targets)
     {
         AssetQueryContext queryContext = _assetQueryService.CreateContext(assetsFilePath);
+        var valueResolver = new PatchValueResolver();
 
         foreach (ManifestPatch patch in targets)
         {
+            var resolvedSetOperations = (patch.SetOperations ?? [])
+                .Select(operation => new Lazy<ManifestSetOperation>(() =>
+                    PatchValueResolver.ResolveSetOperation(queryContext, assetsFilePath, operation)))
+                .ToArray();
+
             foreach (AssetQueryMatch match in AssetQueryService.FindMatches(queryContext, patch))
             {
                 var operations = new List<FieldPatchOperationPlan>();
 
-                foreach (ManifestSetOperation operation in patch.SetOperations ?? [])
+                foreach (var operation in resolvedSetOperations)
                 {
-                    operations.AddRange(_operationPlanner.CreateSetOperationPlans(
-                        assetsFilePath,
+                    operations.AddRange(FieldPatchOperationPlanner.CreateSetOperationPlans(
                         match.Asset.PathId,
                         match.FieldTree,
-                        operation));
+                        operation.Value));
                 }
 
                 foreach (ManifestAddOperation operation in patch.AddOperations ?? [])
@@ -104,32 +109,34 @@ public sealed class FieldPatchPlanBuilder
 
 internal sealed class PatchValueResolver
 {
-    private readonly AssetQueryService _assetQueryService;
-
-    public PatchValueResolver(AssetQueryService assetQueryService)
+    public static ManifestSetOperation ResolveSetOperation(
+        AssetQueryContext queryContext,
+        string assetsFilePath,
+        ManifestSetOperation operation)
     {
-        _assetQueryService = assetQueryService;
-    }
-
-    public ManifestSetOperation ResolveSetOperation(string assetsFilePath, ManifestSetOperation operation)
-    {
-        JsonElement resolvedTo = ResolvePatchValue(assetsFilePath, operation.To);
+        JsonElement resolvedTo = ResolvePatchValue(queryContext, assetsFilePath, operation.To);
 
         return new ManifestSetOperation(operation.FieldPath, operation.From.Clone(), resolvedTo);
     }
 
-    private JsonElement ResolvePatchValue(string assetsFilePath, JsonElement value)
+    private static JsonElement ResolvePatchValue(
+        AssetQueryContext queryContext,
+        string assetsFilePath,
+        JsonElement value)
     {
         if (!TryGetPathIdResolver(value, out JsonElement resolver))
         {
             return value.Clone();
         }
 
-        long pathId = ResolvePathIdReference(assetsFilePath, resolver);
+        long pathId = ResolvePathIdReference(queryContext, assetsFilePath, resolver);
         return JsonElementFactory.Number(pathId);
     }
 
-    private long ResolvePathIdReference(string assetsFilePath, JsonElement resolver)
+    private static long ResolvePathIdReference(
+        AssetQueryContext queryContext,
+        string assetsFilePath,
+        JsonElement resolver)
     {
         string type = ReadRequiredPathIdResolverString(resolver, "type");
         var match = ReadPathIdResolverMatch(resolver);
@@ -140,7 +147,7 @@ internal sealed class PatchValueResolver
             match,
             null,
             null);
-        var matches = _assetQueryService.FindMatches(assetsFilePath, target)
+        var matches = AssetQueryService.FindMatches(queryContext, target)
             .Select(match => match.Asset)
             .ToArray();
 
@@ -205,20 +212,11 @@ internal sealed class PatchValueResolver
 
 internal sealed class FieldPatchOperationPlanner
 {
-    private readonly PatchValueResolver _valueResolver;
-
-    public FieldPatchOperationPlanner(PatchValueResolver valueResolver)
-    {
-        _valueResolver = valueResolver;
-    }
-
-    public IReadOnlyList<FieldPatchOperationPlan> CreateSetOperationPlans(
-        string assetsFilePath,
+    public static IReadOnlyList<FieldPatchOperationPlan> CreateSetOperationPlans(
         long pathId,
         AssetsFieldInfo fieldTree,
         ManifestSetOperation operation)
     {
-        operation = _valueResolver.ResolveSetOperation(assetsFilePath, operation);
         AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, operation.FieldPath);
 
         return JsonUtils.TryGetObjectValue(operation.To, out JsonElement toObject)
