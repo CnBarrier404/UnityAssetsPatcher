@@ -1,5 +1,69 @@
 # Changelog
 
+## v0.4.0
+
+TUI 全面重构！交互界面已完整迁移到 Terminal.Gui，在导航、操作反馈、长内容展示和后台任务处理等方面提供了更好、更一致且更稳定的使用体验。同时新增完整的非交互式 CLI 和 Assets 文件浏览能力，进一步完善手动操作与自动化场景。
+
+### 新增
+
+- 新增非交互式 CLI：可通过命令验证 manifest、浏览 Assets 文件，以及预览或执行 Mod 安装与卸载；不带参数启动时仍会进入交互界面
+- CLI 支持文本和 JSON 输出，并使用明确的成功、操作失败和参数错误退出码，便于脚本和 CI 集成
+- 安装与卸载 CLI 将预览和执行拆分为独立命令；实际修改文件时必须显式传入确认参数，预览操作不会改动文件
+- 新增 Assets 文件浏览功能，可列出 Path ID、类型和名称，并查看指定资产的完整字段树；CLI 和交互界面均可使用
+- Manifest 可通过独立命令直接验证，支持 JSON 文件、Mod ZIP 包以及默认的当前目录 `manifest.json`
+
+### 修复
+
+- 耗时工作流现在会在后台执行并将结果安全地送回界面，避免安装、卸载和 Assets 读取期间界面失去响应
+- 动态工作流页面现在支持滚动，较长的预览、结果、资产列表和字段树不会被终端窗口截断
+- 本地化源生成器移除了对 `System.Text.Json` 的运行时依赖，避免生成器加载环境缺少依赖时构建失败
+
+### 改进
+
+- TUI 已从旧版 Spectre.Console 页面全面重构为持久化 Terminal.Gui 界面；主菜单、安装、卸载、设置和 Assets 浏览现在使用统一的导航、表单、表格、按钮与快捷键，带来更流畅、更一致且更稳定的交互体验
+- 可选内容选择器现在更适合键盘操作，并提供明确的提交动作；路径和数值输入会即时验证和规范化
+- 交互界面会显示即时进度，并阻止多个修改操作重叠执行；终端标题也已精简，便于在窗口和标签页中识别
+- 安装、卸载、恢复、manifest 验证和 Assets 浏览统一通过应用层工作流门面调用，CLI 与交互界面的行为更加一致
+- AssetsTools 类型数据库 `resources.tpk` 现在嵌入可执行文件，发布包不再需要在程序旁携带该文件
+
+### 破坏性变更
+
+- Manifest 现在必须包含整数 `schemaVersion: 1`；缺失、非整数或不受支持的版本都会被拒绝，旧 Mod 包需要补充该字段
+- Manifest patch 的 `component` 属性已重命名为 `componentType`；旧属性会被明确拒绝，需要更新现有 manifest
+- 安装与卸载应用层契约现在使用稳定的安装 ID 标识记录，不再以备份目录作为主要标识；依赖这些公共契约的外部集成需要更新
+
+---
+
+Complete TUI overhaul! The interactive interface has been fully migrated to Terminal.Gui, delivering a better, more consistent, and more reliable experience through improved navigation, operation feedback, long-content presentation, and background workflow handling. It also adds a complete non-interactive CLI and assets file browsing to expand both manual and automated workflows.
+
+### Added
+
+- Added a non-interactive CLI for validating manifests, browsing assets files, and previewing or applying mod installs and uninstalls; launching without arguments still opens the interactive interface
+- CLI commands support text and JSON output with distinct exit codes for success, operation failures, and usage errors, making them suitable for scripts and CI
+- Install and uninstall CLI workflows separate preview from apply commands; mutating operations require an explicit confirmation option, while previews never modify files
+- Added assets file browsing in both the CLI and interactive interface, including Path IDs, types, names, and the complete field tree for a selected asset
+- Manifests can now be validated directly from a JSON file, a mod ZIP package, or the default `manifest.json` in the current directory
+
+### Fixed
+
+- Long-running workflows now execute in the background and dispatch results safely back to the interface, keeping the UI responsive during installs, uninstalls, and assets reads
+- Dynamic workflow pages are now scrollable, preventing long previews, results, asset lists, and field trees from being clipped by the terminal window
+- The localization source generator no longer has a runtime dependency on `System.Text.Json`, preventing build failures when that dependency is unavailable in the generator load context
+
+### Improved
+
+- The TUI has been completely rebuilt from the legacy Spectre.Console pages as a persistent Terminal.Gui interface; the main menu, install, uninstall, settings, and assets browsing views now share consistent navigation, forms, tables, buttons, and shortcuts for a smoother and more reliable experience
+- Optional content selection is now more keyboard-friendly and has an explicit submit action; path and numeric inputs provide immediate validation and normalization
+- The interface now shows immediate progress and prevents overlapping mutating operations; its compact terminal title is also easier to identify in windows and tabs
+- Install, uninstall, recovery, manifest validation, and assets browsing now share the application workflow facade, keeping CLI and interactive behavior aligned
+- The AssetsTools type database, `resources.tpk`, is now embedded in the executable, so the release package no longer needs that file beside the program
+
+### Breaking Changes
+
+- Manifests must now contain the integer property `schemaVersion: 1`; missing, non-integer, and unsupported versions are rejected, so existing mod packages need to add this field
+- The manifest patch property `component` has been renamed to `componentType`; the legacy property is explicitly rejected and existing manifests must be updated
+- Install and uninstall application contracts now identify records by stable install ID instead of using the backup directory as the primary identifier; external integrations using these public contracts must be updated
+
 ## v0.3.0
 
 本次版本重点增强安装与卸载安全性，可在操作中断后自动恢复，并更严格地保护游戏文件和 Mod 安装层级。
