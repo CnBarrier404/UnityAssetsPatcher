@@ -9,6 +9,8 @@ namespace UnityAssetsPatcher.TUI.Shell;
 
 public sealed class TerminalShellView : Window
 {
+    private const string TerminalTitle = "UnityAssetsPatcher";
+
     private readonly IApplication _application;
     private readonly View _contentHost;
     private View? _content;
@@ -16,6 +18,7 @@ public sealed class TerminalShellView : Window
     public TerminalShellView(IApplication application, AppInfo appInfo, string footerText)
     {
         _application = application;
+        Title = TerminalTitle;
         BorderStyle = LineStyle.None;
         SetScheme(TerminalTheme.Base);
 

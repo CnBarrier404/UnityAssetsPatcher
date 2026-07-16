@@ -94,6 +94,19 @@ public sealed class TerminalGUITests : IDisposable
     }
 
     [Fact]
+    public void TerminalShellView_UsesCompactTerminalTitle()
+    {
+        using Terminal.Gui.App.IApplication application = Terminal.Gui.App.Application.Create();
+        using var shell = new TerminalShellView(
+            application,
+            new AppInfo("Unity Assets Patcher", "dev"),
+            "Footer");
+
+        Assert.Equal("UnityAssetsPatcher", shell.Title);
+        Assert.True(shell.Border.Settings.HasFlag(BorderSettings.TerminalTitle));
+    }
+
+    [Fact]
     public void TerminalPathNormalizer_Normalize_RemovesQuotesAddedByTerminalDragAndDrop()
     {
         Assert.Equal(
