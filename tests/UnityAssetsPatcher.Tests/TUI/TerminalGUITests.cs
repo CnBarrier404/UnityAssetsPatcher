@@ -1,5 +1,6 @@
-using System.Globalization;
+using System.Collections.Concurrent;
 using System.Drawing;
+using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
@@ -234,6 +235,71 @@ public sealed class TerminalGUITests : IDisposable
 
         Assert.Equal(3, content.Viewport.Y);
         Assert.True(mouse.Handled);
+    }
+
+    [Fact]
+    public void TerminalTaskRunner_RunsWorkInBackgroundAndDispatchesSuccess()
+    {
+        var dispatched = new ConcurrentQueue<Action>();
+        using var operationStarted = new ManualResetEventSlim();
+        using var releaseOperation = new ManualResetEventSlim();
+        var runner = new TerminalTaskRunner(dispatched.Enqueue);
+        int callingThread = Environment.CurrentManagedThreadId;
+        int operationThread = 0;
+        int callbackThread = 0;
+        int result = 0;
+
+        Assert.True(runner.TryRun(
+            () =>
+            {
+                operationThread = Environment.CurrentManagedThreadId;
+                operationStarted.Set();
+                releaseOperation.Wait();
+                return 42;
+            },
+            value =>
+            {
+                callbackThread = Environment.CurrentManagedThreadId;
+                result = value;
+            },
+            _ => throw new Xunit.Sdk.XunitException("The operation should not fail.")));
+
+        Assert.True(operationStarted.Wait(
+            TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken));
+        Assert.True(runner.IsRunning);
+        Assert.False(runner.TryRun(() => 0, _ => { }, _ => { }));
+
+        releaseOperation.Set();
+        Assert.True(SpinWait.SpinUntil(() => !dispatched.IsEmpty, TimeSpan.FromSeconds(5)));
+        Assert.True(dispatched.TryDequeue(out Action? callback));
+        callback();
+
+        Assert.NotEqual(callingThread, operationThread);
+        Assert.Equal(callingThread, callbackThread);
+        Assert.Equal(42, result);
+        Assert.False(runner.IsRunning);
+    }
+
+    [Fact]
+    public void TerminalTaskRunner_DispatchesFailureAndReleasesRunner()
+    {
+        var dispatched = new ConcurrentQueue<Action>();
+        var runner = new TerminalTaskRunner(dispatched.Enqueue);
+        Exception? actualException = null;
+        var expectedException = new InvalidOperationException("Failure");
+
+        Assert.True(runner.TryRun<int>(
+            () => throw expectedException,
+            _ => throw new Xunit.Sdk.XunitException("The operation should not succeed."),
+            exception => actualException = exception));
+
+        Assert.True(SpinWait.SpinUntil(() => !dispatched.IsEmpty, TimeSpan.FromSeconds(5)));
+        Assert.True(dispatched.TryDequeue(out Action? callback));
+        callback();
+
+        Assert.Same(expectedException, actualException);
+        Assert.False(runner.IsRunning);
     }
 
     private sealed class ThrowingAssetsAccessScopeFactory : IAssetsAccessScopeFactory

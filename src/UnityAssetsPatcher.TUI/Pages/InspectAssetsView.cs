@@ -17,6 +17,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     public event EventHandler? RenderRequested;
 
     private readonly IWorkflowService _workflowService;
+    private readonly TerminalTaskRunner _taskRunner;
     private readonly StyledLabel _heading;
     private readonly StyledLabel _description;
     private readonly View _body;
@@ -24,18 +25,27 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private const int DefaultLimit = 100;
 
-    public InspectAssetsView(IWorkflowService workflowService, Action returnToMainMenu)
+    public InspectAssetsView(
+        IWorkflowService workflowService,
+        TerminalTaskRunner taskRunner,
+        Action returnToMainMenu)
     {
         _workflowService = workflowService;
+        _taskRunner = taskRunner;
 
         KeyDown += (_, key) =>
         {
-            if (key != Key.Esc || _isWorking)
+            if (key != Key.Esc)
             {
                 return;
             }
 
             key.Handled = true;
+
+            if (_isWorking)
+            {
+                return;
+            }
 
             returnToMainMenu.Invoke();
         };
@@ -200,22 +210,31 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void InspectList(string path, int? limit)
     {
-        if (_isWorking) return;
+        if (_isWorking)
+        {
+            return;
+        }
+
+        bool started = _taskRunner.TryRun(
+            () => _workflowService.InspectList(new InspectListRequest(path, limit)),
+            result =>
+            {
+                _isWorking = false;
+                ShowAssets(result);
+            },
+            exception =>
+            {
+                _isWorking = false;
+                ShowError(exception.Message);
+            });
+
+        if (!started)
+        {
+            return;
+        }
+
         _isWorking = true;
         ShowWorking();
-        try
-        {
-            InspectListResult result = _workflowService.InspectList(new InspectListRequest(path, limit));
-            ShowAssets(result);
-        }
-        catch (Exception exception)
-        {
-            ShowError(exception.Message);
-        }
-        finally
-        {
-            _isWorking = false;
-        }
     }
 
     private void ShowAssets(InspectListResult result)
@@ -292,22 +311,31 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void InspectFields(string path, long pathId)
     {
-        if (_isWorking) return;
+        if (_isWorking)
+        {
+            return;
+        }
+
+        bool started = _taskRunner.TryRun(
+            () => _workflowService.InspectFields(new InspectFieldsRequest(path, pathId)),
+            result =>
+            {
+                _isWorking = false;
+                ShowFields(result);
+            },
+            exception =>
+            {
+                _isWorking = false;
+                ShowError(exception.Message);
+            });
+
+        if (!started)
+        {
+            return;
+        }
+
         _isWorking = true;
         ShowWorking();
-        try
-        {
-            AssetsFieldInfo result = _workflowService.InspectFields(new InspectFieldsRequest(path, pathId));
-            ShowFields(result);
-        }
-        catch (Exception exception)
-        {
-            ShowError(exception.Message);
-        }
-        finally
-        {
-            _isWorking = false;
-        }
     }
 
     private void ShowFields(AssetsFieldInfo fieldTree)

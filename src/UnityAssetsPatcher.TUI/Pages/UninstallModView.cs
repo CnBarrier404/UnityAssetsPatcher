@@ -15,23 +15,34 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     public event EventHandler? RenderRequested;
 
     private readonly IWorkflowService _workflowService;
+    private readonly TerminalTaskRunner _taskRunner;
     private readonly Action _returnToMainMenu;
     private readonly ScrollableContentView _body;
     private bool _isWorking;
 
-    public UninstallModView(IWorkflowService workflowService, Action returnToMainMenu)
+    public UninstallModView(
+        IWorkflowService workflowService,
+        TerminalTaskRunner taskRunner,
+        Action returnToMainMenu)
     {
         _workflowService = workflowService;
+        _taskRunner = taskRunner;
         _returnToMainMenu = returnToMainMenu;
 
         KeyDown += (_, key) =>
         {
-            if (key != Key.Esc || _isWorking)
+            if (key != Key.Esc)
             {
                 return;
             }
 
             key.Handled = true;
+
+            if (_isWorking)
+            {
+                return;
+            }
+
             _returnToMainMenu();
         };
 
@@ -57,43 +68,65 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private void ShowInstalledMods()
     {
+        if (_isWorking)
+        {
+            return;
+        }
+
+        bool started = _taskRunner.TryRun(
+            _workflowService.ListInstalledMods,
+            installed =>
+            {
+                _isWorking = false;
+                ShowInstalledMods(installed);
+            },
+            exception =>
+            {
+                _isWorking = false;
+                ShowError(exception.Message);
+            });
+
+        if (!started)
+        {
+            return;
+        }
+
+        _isWorking = true;
+        ShowWorking(LocalizedStrings.UninstallPage_LoadingInstalledMods);
+    }
+
+    private void ShowInstalledMods(IReadOnlyList<InstallRecordSummary> installed)
+    {
         _body.RemoveAll();
-        try
-        {
-            IReadOnlyList<InstallRecordSummary> installed = _workflowService.ListInstalledMods();
-            if (installed.Count == 0)
-            {
-                var message = new StyledLabel(
-                    LocalizedStrings.UninstallPage_NoInstalledModsFound, TextRole.Preview)
-                {
-                    X = 0,
-                    Y = 0,
-                    Width = Dim.Fill(),
-                };
-                Button back = CreateActionButton(LocalizedStrings.UninstallPage_ReturnAction, 0, 2);
-                back.Accepted += (_, _) => _returnToMainMenu();
-                _body.Add(message, back);
-                _body.SetContentHeightForRows(4);
-                back.SetFocus();
-                return;
-            }
 
-            int row = 0;
-            Button? firstButton = null;
-            foreach (InstallRecordSummary record in installed)
-            {
-                Button button = AddInstalledMod(record, row);
-                firstButton ??= button;
-                row += 2;
-            }
-
-            _body.SetContentHeightForRows(row);
-            firstButton!.SetFocus();
-        }
-        catch (Exception exception)
+        if (installed.Count == 0)
         {
-            ShowError(exception.Message);
+            var message = new StyledLabel(
+                LocalizedStrings.UninstallPage_NoInstalledModsFound, TextRole.Preview)
+            {
+                X = 0,
+                Y = 0,
+                Width = Dim.Fill(),
+            };
+            Button back = CreateActionButton(LocalizedStrings.UninstallPage_ReturnAction, 0, 2);
+            back.Accepted += (_, _) => _returnToMainMenu();
+            _body.Add(message, back);
+            _body.SetContentHeightForRows(4);
+            back.SetFocus();
+            return;
         }
+
+        int row = 0;
+        Button? firstButton = null;
+        foreach (InstallRecordSummary record in installed)
+        {
+            Button button = AddInstalledMod(record, row);
+            firstButton ??= button;
+            row += 2;
+        }
+
+        _body.SetContentHeightForRows(row);
+        firstButton!.SetFocus();
     }
 
     private Button AddInstalledMod(InstallRecordSummary record, int row)
@@ -113,26 +146,35 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             return;
         }
 
+        bool started = _taskRunner.TryRun(
+            () => _workflowService.PreviewUninstall(
+                new UninstallPreviewRequest(installId, gameDirectory)),
+            preview =>
+            {
+                _isWorking = false;
+                ShowPreview(preview);
+            },
+            exception =>
+            {
+                _isWorking = false;
+
+                if (exception is DirectoryNotFoundException && gameDirectory is null)
+                {
+                    ShowGameDirectoryInput(installId, exception.Message);
+                }
+                else
+                {
+                    ShowError(exception.Message);
+                }
+            });
+
+        if (!started)
+        {
+            return;
+        }
+
         _isWorking = true;
         ShowWorking(LocalizedStrings.UninstallPage_AnalyzingMod);
-        try
-        {
-            UninstallPreviewResult preview = _workflowService.PreviewUninstall(
-                new UninstallPreviewRequest(installId, gameDirectory));
-            ShowPreview(preview);
-        }
-        catch (DirectoryNotFoundException exception) when (gameDirectory is null)
-        {
-            ShowGameDirectoryInput(installId, exception.Message);
-        }
-        catch (Exception exception)
-        {
-            ShowError(exception.Message);
-        }
-        finally
-        {
-            _isWorking = false;
-        }
     }
 
     private void ShowWorking(string text)
@@ -310,22 +352,27 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     private void Uninstall(UninstallPreviewResult preview)
     {
         if (_isWorking) return;
+        bool started = _taskRunner.TryRun(
+            () => _workflowService.Uninstall(
+                new UninstallModRequest(preview.InstallId, preview.GameDirectory)),
+            result =>
+            {
+                _isWorking = false;
+                ShowResult(result);
+            },
+            exception =>
+            {
+                _isWorking = false;
+                ShowError(exception.Message);
+            });
+
+        if (!started)
+        {
+            return;
+        }
+
         _isWorking = true;
         ShowWorking(LocalizedStrings.UninstallPage_UninstallingMod);
-        try
-        {
-            UninstallModResult result = _workflowService.Uninstall(
-                new UninstallModRequest(preview.InstallId, preview.GameDirectory));
-            ShowResult(result);
-        }
-        catch (Exception exception)
-        {
-            ShowError(exception.Message);
-        }
-        finally
-        {
-            _isWorking = false;
-        }
     }
 
     private void ShowResult(UninstallModResult result)

@@ -18,6 +18,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private readonly IWorkflowService _workflowService;
     private readonly TerminalSettings _settings;
+    private readonly TerminalTaskRunner _taskRunner;
     private readonly Action _returnToMainMenu;
     private readonly InputField _modPath;
     private readonly StyledLabel _message;
@@ -25,15 +26,17 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private InputField? _gameDirectory;
     private View? _optionalGroupArea;
     private readonly List<ToggleItem> _optionalGroups = [];
-    private bool _isAnalyzing;
+    private bool _isWorking;
 
     public InstallModView(
         IWorkflowService workflowService,
         TerminalSettings settings,
+        TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
         _workflowService = workflowService;
         _settings = settings;
+        _taskRunner = taskRunner;
         _returnToMainMenu = returnToMainMenu;
         KeyDown += (_, key) =>
         {
@@ -43,6 +46,12 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             }
 
             key.Handled = true;
+
+            if (_isWorking)
+            {
+                return;
+            }
+
             _returnToMainMenu();
         };
 
@@ -87,7 +96,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private void Preview()
     {
-        if (_isAnalyzing)
+        if (_isWorking)
         {
             return;
         }
@@ -136,40 +145,50 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             .Select(group => group.Name)
             .ToArray();
 
-        _isAnalyzing = true;
-
-        try
+        var request = new InstallRequest(modPath, gameDirectory)
         {
-            ShowInfo(LocalizedStrings.InstallPage_AnalyzingMod);
-            RenderRequested?.Invoke(this, EventArgs.Empty);
-            InstallPreviewResult result = _workflowService.PreviewInstall(
-                new InstallRequest(modPath, gameDirectory)
-                {
-                    SelectedOptionalGroups = selectedGroups,
-                });
-
-            if (result.OptionalGroups.Count > 0 && _optionalGroupArea is null)
+            SelectedOptionalGroups = selectedGroups,
+        };
+        bool started = _taskRunner.TryRun(
+            () => _workflowService.PreviewInstall(request),
+            result =>
             {
-                ShowOptionalGroups(result.OptionalGroups);
-                ClearMessage();
+                _isWorking = false;
+                _form.Enabled = true;
 
-                return;
-            }
+                if (result.OptionalGroups.Count > 0 && _optionalGroupArea is null)
+                {
+                    ShowOptionalGroups(result.OptionalGroups);
+                    ClearMessage();
+                    return;
+                }
 
-            ShowPreview(result, modPath, gameDirectory, selectedGroups);
-        }
-        catch (DirectoryNotFoundException exception) when (string.IsNullOrEmpty(gameDirectory))
+                ShowPreview(result, modPath, gameDirectory, selectedGroups);
+            },
+            exception =>
+            {
+                _isWorking = false;
+                _form.Enabled = true;
+
+                if (exception is DirectoryNotFoundException && string.IsNullOrEmpty(gameDirectory))
+                {
+                    ShowGameDirectory(exception.Message);
+                }
+                else
+                {
+                    ShowInputError(_modPath, exception.Message);
+                }
+            });
+
+        if (!started)
         {
-            ShowGameDirectory(exception.Message);
+            return;
         }
-        catch (Exception exception)
-        {
-            ShowInputError(_modPath, exception.Message);
-        }
-        finally
-        {
-            _isAnalyzing = false;
-        }
+
+        _isWorking = true;
+        _form.Enabled = false;
+        ShowInfo(LocalizedStrings.InstallPage_AnalyzingMod);
+        RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void ShowGameDirectory(string message)
@@ -289,19 +308,48 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private void Install(string modPath, string? gameDirectory, IReadOnlyList<string> selectedGroups)
     {
-        try
+        if (_isWorking)
         {
-            InstallModResult result = _workflowService.Install(
-                new InstallRequest(modPath, gameDirectory)
-                {
-                    SelectedOptionalGroups = selectedGroups,
-                });
-            ShowResult(result);
+            return;
         }
-        catch (Exception exception)
+
+        var request = new InstallRequest(modPath, gameDirectory)
         {
-            ShowResult(exception.Message, isError: true);
+            SelectedOptionalGroups = selectedGroups,
+        };
+        bool started = _taskRunner.TryRun(
+            () => _workflowService.Install(request),
+            result =>
+            {
+                _isWorking = false;
+                ShowResult(result);
+            },
+            exception =>
+            {
+                _isWorking = false;
+                ShowResult(exception.Message, isError: true);
+            });
+
+        if (!started)
+        {
+            return;
         }
+
+        _isWorking = true;
+        ShowWorking(LocalizedStrings.InstallPage_InstallingMod);
+    }
+
+    private void ShowWorking(string text)
+    {
+        _form.RemoveAll();
+        _form.Add(new StyledLabel(text, TextRole.Preview)
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+        });
+        _form.SetContentHeightForRows(2);
+        RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void ShowResult(InstallModResult result)

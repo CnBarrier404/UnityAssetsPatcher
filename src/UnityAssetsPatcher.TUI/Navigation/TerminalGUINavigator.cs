@@ -29,8 +29,9 @@ public sealed class TerminalGUINavigator
     public int Run()
     {
         AvailableUpdate? availableUpdate = _updateChecker.CheckForUpdate();
-        TerminalMenuItem[] menuItems = CreateMenuItems();
         using IApplication application = Terminal.Gui.App.Application.Create().Init();
+        var taskRunner = new TerminalTaskRunner(application.Invoke);
+        TerminalMenuItem[] menuItems = CreateMenuItems(taskRunner);
         using var shell = new TerminalShellView(application, _appInfo, LocalizedStrings.Layout_ShortcutHint);
 
         void ShowMainMenu()
@@ -45,22 +46,23 @@ public sealed class TerminalGUINavigator
         return 0;
     }
 
-    private TerminalMenuItem[] CreateMenuItems()
+    private TerminalMenuItem[] CreateMenuItems(TerminalTaskRunner taskRunner)
     {
         return
         [
             new TerminalMenuItem(
                 LocalizedStrings.MainMenu_InstallMod_Title,
                 LocalizedStrings.MainMenu_InstallMod_Description,
-                returnToMainMenu => new InstallModView(_workflowService, _settings, returnToMainMenu)),
+                returnToMainMenu => new InstallModView(
+                    _workflowService, _settings, taskRunner, returnToMainMenu)),
             new TerminalMenuItem(
                 LocalizedStrings.MainMenu_UninstallMod_Title,
                 LocalizedStrings.MainMenu_UninstallMod_Description,
-                returnToMainMenu => new UninstallModView(_workflowService, returnToMainMenu)),
+                returnToMainMenu => new UninstallModView(_workflowService, taskRunner, returnToMainMenu)),
             new TerminalMenuItem(
                 LocalizedStrings.MainMenu_InspectAssets_Title,
                 LocalizedStrings.MainMenu_InspectAssets_Description,
-                returnToMainMenu => new InspectAssetsView(_workflowService, returnToMainMenu)),
+                returnToMainMenu => new InspectAssetsView(_workflowService, taskRunner, returnToMainMenu)),
             new TerminalMenuItem(
                 LocalizedStrings.MainMenu_Settings_Title,
                 LocalizedStrings.MainMenu_Settings_Description,
