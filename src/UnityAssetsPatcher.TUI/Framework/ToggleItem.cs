@@ -65,7 +65,7 @@ public sealed class ToggleItem : View
 
     private void UpdateText()
     {
-        string indicator = Button.HasFocus ? ">" : " ";
+        string indicator = Button.HasFocus ? "›" : " ";
         string checkbox = IsSelected ? "[*]" : "[ ]";
         Button.Text = $"{indicator} {checkbox} {Name}";
     }

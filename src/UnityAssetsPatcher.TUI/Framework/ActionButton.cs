@@ -43,6 +43,6 @@ public sealed class ActionButton : Button
 
     private void UpdateText()
     {
-        Text = $"{(HasFocus ? ">" : " ")} {_text}";
+        Text = $"{(HasFocus ? "›" : " ")} {_text}";
     }
 }

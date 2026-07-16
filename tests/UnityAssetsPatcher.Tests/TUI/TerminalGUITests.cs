@@ -73,7 +73,7 @@ public sealed class TerminalGUITests : IDisposable
         ChoiceItem firstChoice = menu.SubViews.OfType<ChoiceItem>().First();
 
         Assert.True(firstChoice.Button.HasFocus);
-        Assert.Equal("> First", firstChoice.Button.Text.ToString());
+        Assert.Equal("› First", firstChoice.Button.Text.ToString());
         Assert.Same(TerminalTheme.Selected, firstChoice.Description.GetScheme());
     }
 
