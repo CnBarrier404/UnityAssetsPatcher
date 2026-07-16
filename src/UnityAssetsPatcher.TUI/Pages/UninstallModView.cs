@@ -16,7 +16,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private readonly IWorkflowService _workflowService;
     private readonly Action _returnToMainMenu;
-    private readonly View _body;
+    private readonly ScrollableContentView _body;
     private bool _isWorking;
 
     public UninstallModView(IWorkflowService workflowService, Action returnToMainMenu)
@@ -47,7 +47,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             Width = Dim.Fill(),
         };
 
-        _body = new View
+        _body = new ScrollableContentView
             { X = 0, Y = 3, Width = Dim.Fill(), Height = Dim.Fill(), CanFocus = true };
 
         Add(heading, description, _body);
@@ -73,6 +73,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
                 Button back = CreateActionButton(LocalizedStrings.UninstallPage_ReturnAction, 0, 2);
                 back.Accepted += (_, _) => _returnToMainMenu();
                 _body.Add(message, back);
+                _body.SetContentHeightForRows(4);
                 back.SetFocus();
                 return;
             }
@@ -86,6 +87,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
                 row += 2;
             }
 
+            _body.SetContentHeightForRows(row);
             firstButton!.SetFocus();
         }
         catch (Exception exception)
@@ -139,6 +141,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         var status = new StyledLabel(text, TextRole.Preview)
             { X = 0, Y = 0, Width = Dim.Fill() };
         _body.Add(status);
+        _body.SetContentHeightForRows(2);
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -170,6 +173,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         Button back = CreateActionButton(LocalizedStrings.UninstallPage_BackAction, 0, 6);
         back.Accepted += (_, _) => ShowInstalledMods();
         _body.Add(info, label, input, error, back);
+        _body.SetContentHeightForRows(8);
         input.SetFocus();
     }
 
@@ -213,6 +217,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             Button back = CreateActionButton(LocalizedStrings.UninstallPage_BackAction, 0, row + 3);
             back.Accepted += (_, _) => ShowInstalledMods();
             _body.Add(error, back);
+            _body.SetContentHeightForRows(row + 5);
             back.SetFocus();
             return;
         }
@@ -222,6 +227,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         Button backAction = CreateActionButton(LocalizedStrings.UninstallPage_BackAction, 0, row + 3);
         backAction.Accepted += (_, _) => ShowInstalledMods();
         _body.Add(uninstall, backAction);
+        _body.SetContentHeightForRows(row + 5);
         uninstall.SetFocus();
     }
 
@@ -371,6 +377,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         Button back = CreateActionButton(LocalizedStrings.UninstallPage_ReturnAction, 0, row);
         back.Accepted += (_, _) => _returnToMainMenu();
         _body.Add(back);
+        _body.SetContentHeightForRows(row + 2);
         back.SetFocus();
     }
 
@@ -382,6 +389,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         Button back = CreateActionButton(LocalizedStrings.UninstallPage_BackAction, 0, 2);
         back.Accepted += (_, _) => ShowInstalledMods();
         _body.Add(error, back);
+        _body.SetContentHeightForRows(4);
         back.SetFocus();
     }
 

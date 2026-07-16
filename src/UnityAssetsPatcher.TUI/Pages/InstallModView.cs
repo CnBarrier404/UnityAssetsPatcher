@@ -21,7 +21,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private readonly Action _returnToMainMenu;
     private readonly InputField _modPath;
     private readonly StyledLabel _message;
-    private readonly View _form;
+    private readonly ScrollableContentView _form;
     private InputField? _gameDirectory;
     private View? _optionalGroupArea;
     private readonly List<ToggleItem> _optionalGroups = [];
@@ -56,7 +56,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             Width = Dim.Fill(),
         };
 
-        _form = new View
+        _form = new ScrollableContentView
         {
             X = 0,
             Y = 3,
@@ -64,6 +64,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             Height = Dim.Fill(),
             CanFocus = true,
         };
+        _form.SetContentHeightForRows(3);
         string pathPrompt = $"{LocalizedStrings.InstallPage_ModZipPathPrompt}: ";
         var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
         _modPath = new InputField
@@ -233,6 +234,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
         _message.Y = Pos.Bottom(_optionalGroupArea) + 1;
         _form.Add(_optionalGroupArea);
+        _form.SetContentHeightForRows(actionsRow + 3);
         _optionalGroups[0].Button.SetFocus();
     }
 
@@ -281,6 +283,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             Y = nextRow + 1,
         };
         _form.Add(actions);
+        _form.SetContentHeightForRows(nextRow + 3);
         actions.ConfirmButton.SetFocus();
     }
 
@@ -332,6 +335,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         }
 
         _form.Add(back);
+        _form.SetContentHeightForRows(actionRow + 2);
         back.SetFocus();
     }
 
@@ -350,6 +354,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         Button back = CreateActionButton(LocalizedStrings.InstallPage_ReturnAction, 0, outputHeight + 1);
         back.Accepted += (_, _) => _returnToMainMenu();
         _form.Add(output, back);
+        _form.SetContentHeightForRows(outputHeight + 3);
         back.SetFocus();
     }
 

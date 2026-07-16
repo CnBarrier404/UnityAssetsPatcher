@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Drawing;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
@@ -171,6 +172,68 @@ public sealed class TerminalGUITests : IDisposable
         Assert.Equal(9, table.Style.ColumnStyles[0].MinWidth);
         Assert.Equal(9, table.Style.ColumnStyles[0].MaxWidth);
         Assert.False(table.Style.ShowHeaders);
+    }
+
+    [Fact]
+    public void ScrollableContentView_WhenFocusedControlIsBelowViewport_ScrollsItIntoView()
+    {
+        using var content = new ScrollableContentView
+        {
+            Width = 40,
+            Height = 5,
+        };
+        using var actions = new ConfirmationBar("Continue", () => { }, "Back", () => { })
+            { X = 0, Y = 15 };
+        content.Add(actions);
+        content.SetContentHeightForRows(17);
+        content.BeginInit();
+        content.EndInit();
+        content.Layout(new Size(40, 5));
+
+        actions.ConfirmButton.SetFocus();
+
+        Assert.True(content.Viewport.Y > 0);
+        Assert.True(actions.ConfirmButton.FrameToScreen().Bottom <= content.ViewportToScreen().Bottom);
+        Assert.True(content.VerticalScrollBar.Visible);
+    }
+
+    [Fact]
+    public void ScrollableContentView_WhenContentFitsViewport_DoesNotShowScrollBar()
+    {
+        using var content = new ScrollableContentView
+        {
+            Width = 40,
+            Height = 5,
+        };
+        content.SetContentHeightForRows(3);
+        content.BeginInit();
+        content.EndInit();
+        content.Layout(new Size(40, 5));
+
+        Assert.Equal(0, content.Viewport.Y);
+        Assert.False(content.VerticalScrollBar.Visible);
+    }
+
+    [Fact]
+    public void ScrollableContentView_WhenMouseWheelIsUsedOverChildControl_ScrollsContent()
+    {
+        using var content = new ScrollableContentView
+        {
+            Width = 40,
+            Height = 5,
+        };
+        using var label = new StyledLabel("Content") { X = 0, Y = 0 };
+        content.Add(label);
+        content.SetContentHeightForRows(20);
+        content.BeginInit();
+        content.EndInit();
+        content.Layout(new Size(40, 5));
+        var mouse = new Mouse { Flags = MouseFlags.WheeledDown };
+
+        label.RaiseMouseEvent(mouse);
+
+        Assert.Equal(3, content.Viewport.Y);
+        Assert.True(mouse.Handled);
     }
 
     private sealed class ThrowingAssetsAccessScopeFactory : IAssetsAccessScopeFactory
