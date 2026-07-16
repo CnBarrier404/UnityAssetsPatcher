@@ -9,18 +9,15 @@ namespace UnityAssetsPatcher.TUI.Shell;
 
 public sealed class TerminalShellView : Window
 {
-    private readonly string _defaultFooterText;
     private readonly IApplication _application;
     private readonly View _contentHost;
-    private readonly TerminalFooterView _footer;
     private View? _content;
 
     public TerminalShellView(IApplication application, AppInfo appInfo, string footerText)
     {
         _application = application;
-        _defaultFooterText = footerText;
         BorderStyle = LineStyle.None;
-        SetScheme(TerminalGUITheme.Base);
+        SetScheme(TerminalTheme.Base);
 
         var banner = new ApplicationBannerView(appInfo);
 
@@ -33,8 +30,8 @@ public sealed class TerminalShellView : Window
             CanFocus = true,
         };
 
-        _footer = new TerminalFooterView(footerText);
-        Add(banner, _contentHost, _footer);
+        var footer = new TerminalFooterView(footerText);
+        Add(banner, _contentHost, footer);
     }
 
     public void ShowContent(View content)
@@ -51,12 +48,8 @@ public sealed class TerminalShellView : Window
 
         if (content is ITerminalRenderRequester renderRequester)
         {
-            renderRequester.RenderRequested += (_, _) => _application.LayoutAndDraw(false);
+            renderRequester.RenderRequested += (_, _) => _application.LayoutAndDraw();
         }
-
-        _footer.SetText(content is ITerminalContentView terminalContent
-            ? terminalContent.ShortcutHint
-            : _defaultFooterText);
 
         content.X = 0;
         content.Y = 0;

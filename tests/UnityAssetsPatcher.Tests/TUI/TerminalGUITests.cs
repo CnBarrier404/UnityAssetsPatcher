@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
+using Terminal.Gui.Views;
+using Terminal.Gui.Input;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core;
@@ -54,19 +56,23 @@ public sealed class TerminalGUITests : IDisposable
     }
 
     [Fact]
-    public void ContentViews_ExposePageSpecificShortcutHints()
+    public void MainMenuView_FocusesFirstChoice()
     {
-        var workflowService = new ThrowingWorkflowService();
+        TerminalMenuItem[] items =
+        [
+            new("First", "First description", _ => new View()),
+            new("Second", "Second description", _ => new View()),
+        ];
 
-        using var install = new InstallModView(workflowService, new TerminalSettings(), () => { });
-        using var uninstall = new UninstallModView(workflowService, () => { });
-        using var inspect = new InspectAssetsView(workflowService, () => { });
-        using var settings = new SettingsView(new TerminalSettings(), () => { });
+        using var menu = new MainMenuView(items, null);
+        menu.CanFocus = true;
+        menu.BeginInit();
+        menu.EndInit();
+        ChoiceItem firstChoice = menu.SubViews.OfType<ChoiceItem>().First();
 
-        Assert.Contains("Enter to confirm", ((ITerminalContentView)install).ShortcutHint);
-        Assert.Contains("Esc to cancel", ((ITerminalContentView)uninstall).ShortcutHint);
-        Assert.Contains("Esc to cancel", ((ITerminalContentView)inspect).ShortcutHint);
-        Assert.Contains("Space to toggle", ((ITerminalContentView)settings).ShortcutHint);
+        Assert.True(firstChoice.Button.HasFocus);
+        Assert.Equal("> First", firstChoice.Button.Text.ToString());
+        Assert.Same(TerminalTheme.Selected, firstChoice.Description.GetScheme());
     }
 
     [Fact]
@@ -94,6 +100,77 @@ public sealed class TerminalGUITests : IDisposable
         Assert.Equal(
             @"D:\Games\Example Game",
             TerminalPathNormalizer.Normalize("'D:\\Games\\Example Game'"));
+    }
+
+    [Fact]
+    public void FrameworkControls_ApplyProjectDefaults()
+    {
+        using var action = new ActionButton("Save");
+        using var input = new InputField();
+        using var output = new TextViewer("result");
+        using var label = new StyledLabel("Title", TextRole.Title);
+
+        Assert.Equal("  Save", action.Text.ToString());
+        Assert.True(action.NoDecorations);
+        Assert.True(action.NoPadding);
+        Assert.Same(TerminalTheme.Interactive, action.GetScheme());
+        Assert.Same(TerminalTheme.Interactive, input.GetScheme());
+        Assert.True(output.ReadOnly);
+        Assert.Equal("result", output.Text.ToString());
+        Assert.Same(TerminalTheme.Title, label.GetScheme());
+    }
+
+    [Fact]
+    public void ToggleItem_ReflectsSelectionAndRaisesChangeEvent()
+    {
+        using var choice = new ToggleItem("Verbose", "Show details");
+        int changes = 0;
+        choice.IsSelectedChanged += (_, _) => changes++;
+
+        choice.IsSelected = true;
+
+        Assert.True(choice.IsSelected);
+        Assert.Equal(1, changes);
+        Assert.Equal("  [*] Verbose", choice.Button.Text.ToString());
+        Assert.Equal("Show details", choice.Description.Text.ToString());
+        Assert.Same(TerminalTheme.Muted, choice.Description.GetScheme());
+    }
+
+    [Fact]
+    public void ConfirmationBar_InvokesConfiguredActions()
+    {
+        int confirms = 0;
+        int cancels = 0;
+        using var actions = new ConfirmationBar(
+            "Install",
+            () => confirms++,
+            "Back",
+            () => cancels++);
+
+        actions.ConfirmButton.InvokeCommand(Command.Accept);
+        actions.CancelButton.InvokeCommand(Command.Accept);
+
+        Assert.Equal(1, confirms);
+        Assert.Equal(1, cancels);
+        Assert.Equal("  Install", actions.ConfirmButton.Text.ToString());
+        Assert.Equal("  Back", actions.CancelButton.Text.ToString());
+        Assert.Equal(1, actions.Height);
+        Assert.Same(TerminalTheme.PrimaryAction, actions.ConfirmButton.GetScheme());
+        Assert.Same(TerminalTheme.SecondaryAction, actions.CancelButton.GetScheme());
+    }
+
+    [Fact]
+    public void SummaryTableView_UsesDisplayWidthForLabelColumn()
+    {
+        using var table = new SummaryTableView([("版本", "1.0"), ("Author", "Test")]);
+        ITableSource source = Assert.IsAssignableFrom<ITableSource>(table.Table);
+
+        Assert.False(table.CanFocus);
+        Assert.Equal(2, source.Rows);
+        Assert.Equal(2, source.Columns);
+        Assert.Equal(9, table.Style.ColumnStyles[0].MinWidth);
+        Assert.Equal(9, table.Style.ColumnStyles[0].MaxWidth);
+        Assert.False(table.Style.ShowHeaders);
     }
 
     private sealed class ThrowingAssetsAccessScopeFactory : IAssetsAccessScopeFactory

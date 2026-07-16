@@ -1,21 +1,18 @@
 using System.Globalization;
-using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
+using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Shell;
-using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public sealed class UninstallModView : View, ITerminalContentView, ITerminalRenderRequester
+public sealed class UninstallModView : View, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
-
-    public string ShortcutHint => LocalizedStrings.Layout_ShortcutHint;
 
     private readonly IWorkflowService _workflowService;
     private readonly Action _returnToMainMenu;
@@ -38,17 +35,21 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
             _returnToMainMenu();
         };
 
-        var heading = new Label { Text = LocalizedStrings.MainMenu_UninstallMod_Title, X = 0, Y = 0 };
-        heading.SetScheme(TerminalGUITheme.Title);
-        var description = new Label
+        var heading = new StyledLabel(LocalizedStrings.MainMenu_UninstallMod_Title, TextRole.Title)
         {
-            Text = LocalizedStrings.MainMenu_UninstallMod_Description,
+            X = 0, Y = 0
+        };
+
+        var description = new StyledLabel(LocalizedStrings.MainMenu_UninstallMod_Description, TextRole.Muted)
+        {
             X = 0,
             Y = 1,
             Width = Dim.Fill(),
         };
-        description.SetScheme(TerminalGUITheme.Muted);
-        _body = new View { X = 0, Y = 3, Width = Dim.Fill(), Height = Dim.Fill(), CanFocus = true };
+
+        _body = new View
+            { X = 0, Y = 3, Width = Dim.Fill(), Height = Dim.Fill(), CanFocus = true };
+
         Add(heading, description, _body);
 
         ShowInstalledMods();
@@ -62,14 +63,13 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
             IReadOnlyList<InstallRecordSummary> installed = _workflowService.ListInstalledMods();
             if (installed.Count == 0)
             {
-                var message = new Label
+                var message = new StyledLabel(
+                    LocalizedStrings.UninstallPage_NoInstalledModsFound, TextRole.Preview)
                 {
-                    Text = LocalizedStrings.UninstallPage_NoInstalledModsFound,
                     X = 0,
                     Y = 0,
                     Width = Dim.Fill(),
                 };
-                message.SetScheme(TerminalGUITheme.Preview);
                 Button back = CreateActionButton(LocalizedStrings.UninstallPage_ReturnAction, 0, 2);
                 back.Accepted += (_, _) => _returnToMainMenu();
                 _body.Add(message, back);
@@ -96,37 +96,12 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
 
     private Button AddInstalledMod(InstallRecordSummary record, int row)
     {
-        string normalText = $"  {record.ModName} {record.ModVersion}";
-        string focusedText = $"> {record.ModName} {record.ModVersion}";
-        var button = new Button
-        {
-            Text = normalText,
-            X = 0,
-            Y = row,
-            Width = 30,
-            NoDecorations = true,
-            NoPadding = true,
-            ShadowStyle = ShadowStyles.None,
-            TextAlignment = Alignment.Start,
-        };
-        button.SetScheme(CreateChoiceScheme());
         string installedAt = record.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture);
-        var details = new Label
-        {
-            Text = record.GameName is null ? installedAt : $"{installedAt} | {record.GameName}",
-            X = 36,
-            Y = row,
-            Width = Dim.Fill(),
-        };
-        details.SetScheme(TerminalGUITheme.Muted);
-        button.HasFocusChanged += (_, _) =>
-        {
-            button.Text = button.HasFocus ? focusedText : normalText;
-            details.SetScheme(button.HasFocus ? TerminalGUITheme.Selected : TerminalGUITheme.Muted);
-        };
-        button.Accepted += (_, _) => Preview(record.InstallId, null);
-        _body.Add(button, details);
-        return button;
+        string details = record.GameName is null ? installedAt : $"{installedAt} | {record.GameName}";
+        var choice = new ChoiceItem($"{record.ModName} {record.ModVersion}", details) { X = 0, Y = row };
+        choice.Button.Accepted += (_, _) => Preview(record.InstallId, null);
+        _body.Add(choice);
+        return choice.Button;
     }
 
     private void Preview(string installId, string? gameDirectory)
@@ -161,8 +136,8 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
     private void ShowWorking(string text)
     {
         _body.RemoveAll();
-        var status = new Label { Text = text, X = 0, Y = 0, Width = Dim.Fill() };
-        status.SetScheme(TerminalGUITheme.Preview);
+        var status = new StyledLabel(text, TextRole.Preview)
+            { X = 0, Y = 0, Width = Dim.Fill() };
         _body.Add(status);
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
@@ -170,15 +145,13 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
     private void ShowGameDirectoryInput(string installId, string message)
     {
         _body.RemoveAll();
-        var info = new Label { Text = message, X = 0, Y = 0, Width = Dim.Fill() };
-        info.SetScheme(TerminalGUITheme.Muted);
+        var info = new StyledLabel(message, TextRole.Muted)
+            { X = 0, Y = 0, Width = Dim.Fill() };
         string prompt = $"{LocalizedStrings.InstallPage_GameDirectoryPrompt}: ";
-        var label = new Label { Text = prompt, X = 0, Y = 2 };
-        label.SetScheme(TerminalGUITheme.Label);
-        var input = new TextField { X = GetDisplayWidth(prompt), Y = 2, Width = Dim.Fill() };
-        input.SetScheme(CreateInputScheme());
-        var error = new Label { X = 0, Y = 4, Width = Dim.Fill(), Visible = false };
-        error.SetScheme(TerminalGUITheme.Error);
+        var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = 2 };
+        var input = new InputField { X = prompt.GetColumns(), Y = 2, Width = Dim.Fill() };
+        var error = new StyledLabel(role: TextRole.Error)
+            { X = 0, Y = 4, Width = Dim.Fill(), Visible = false };
         input.Accepted += (_, _) =>
         {
             string path = TerminalPathNormalizer.Normalize(input.Text);
@@ -203,8 +176,8 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
     private void ShowPreview(UninstallPreviewResult preview)
     {
         _body.RemoveAll();
-        var status = new Label { Text = LocalizedStrings.UninstallPreview_Status, X = 0, Y = 0 };
-        status.SetScheme(TerminalGUITheme.Preview);
+        var status = new StyledLabel(
+            LocalizedStrings.UninstallPreview_Status, TextRole.Preview) { X = 0, Y = 0 };
         var rows = new (string Label, string Value)[]
         {
             (LocalizedStrings.Summary_Mod, preview.ModName),
@@ -217,7 +190,7 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
             (LocalizedStrings.UninstallSummary_PayloadFiles,
                 preview.DeletedFiles.Count.ToString(CultureInfo.InvariantCulture)),
         };
-        TableView summary = CreateSummaryTable(rows, 2);
+        var summary = new SummaryTableView(rows) { X = 0, Y = 2 };
         _body.Add(status, summary);
 
         int row = rows.Length + 3;
@@ -227,16 +200,16 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
 
         if (!preview.CanUninstall)
         {
-            var error = new Label
-            {
-                Text = preview.BlockingMods.Count > 0
+            var error = new StyledLabel(
+                preview.BlockingMods.Count > 0
                     ? LocalizedStrings.UninstallPage_CannotUninstallBlockingMods
                     : LocalizedStrings.UninstallPage_CannotUninstallIntegrityConflict,
+                TextRole.Error)
+            {
                 X = 0,
                 Y = row + 1,
                 Width = Dim.Fill(),
             };
-            error.SetScheme(TerminalGUITheme.Error);
             Button back = CreateActionButton(LocalizedStrings.UninstallPage_BackAction, 0, row + 3);
             back.Accepted += (_, _) => ShowInstalledMods();
             _body.Add(error, back);
@@ -258,17 +231,16 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
         row = AddSectionHeader(LocalizedStrings.UninstallPreview_FilesToRestore, row);
         foreach (UninstallPreviewRestoredFileResult file in files)
         {
-            _body.Add(new Label { Text = $"- {file.Target}", X = 0, Y = row, Width = Dim.Fill() });
-            var details = new Label
+            _body.Add(new StyledLabel($"- {file.Target}") { X = 0, Y = row, Width = Dim.Fill() });
+            var details = new StyledLabel(
+                $"  {LocalizedStrings.UninstallPreview_CurrentFile} {FormatIntegrityStatus(file.TargetStatus)} | " +
+                $"{LocalizedStrings.UninstallPreview_BackupFile} {FormatIntegrityStatus(file.BackupStatus)}",
+                TextRole.Muted)
             {
-                Text =
-                    $"  {LocalizedStrings.UninstallPreview_CurrentFile} {FormatIntegrityStatus(file.TargetStatus)} | " +
-                    $"{LocalizedStrings.UninstallPreview_BackupFile} {FormatIntegrityStatus(file.BackupStatus)}",
                 X = 0,
                 Y = row + 1,
                 Width = Dim.Fill(),
             };
-            details.SetScheme(TerminalGUITheme.Muted);
             _body.Add(details);
             row += 2;
         }
@@ -285,9 +257,8 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
             string state = file.Status == FileIntegrityStatus.Matches
                 ? LocalizedStrings.UninstallPreview_WillDelete
                 : FormatIntegrityStatus(file.Status);
-            _body.Add(new Label
+            _body.Add(new StyledLabel($"- {Path.GetFileName(file.DestinationPath)}  {state}")
             {
-                Text = $"- {Path.GetFileName(file.DestinationPath)}  {state}",
                 X = 0,
                 Y = row++,
                 Width = Dim.Fill(),
@@ -303,18 +274,18 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
         row = AddSectionHeader(LocalizedStrings.UninstallPreview_BlockingMods, row);
         foreach (UninstallBlockingModResult mod in mods)
         {
-            _body.Add(new Label
+            _body.Add(new StyledLabel(
+                $"- {mod.ModName} {mod.ModVersion}  " +
+                mod.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture))
             {
-                Text = $"- {mod.ModName} {mod.ModVersion}  " +
-                       mod.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture),
                 X = 0,
                 Y = row++,
                 Width = Dim.Fill(),
             });
             foreach (string file in mod.OverlappingAssetsFiles)
             {
-                var path = new Label { Text = $"  - {file}", X = 0, Y = row++, Width = Dim.Fill() };
-                path.SetScheme(TerminalGUITheme.Muted);
+                var path = new StyledLabel($"  - {file}", TextRole.Muted)
+                    { X = 0, Y = row++, Width = Dim.Fill() };
                 _body.Add(path);
             }
         }
@@ -324,8 +295,8 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
 
     private int AddSectionHeader(string text, int row)
     {
-        var heading = new Label { Text = text, X = 0, Y = row, Width = Dim.Fill() };
-        heading.SetScheme(TerminalGUITheme.SectionHeader);
+        var heading = new StyledLabel(text, TextRole.SectionHeader)
+            { X = 0, Y = row, Width = Dim.Fill() };
         _body.Add(heading);
         return row + 2;
     }
@@ -354,8 +325,8 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
     private void ShowResult(UninstallModResult result)
     {
         _body.RemoveAll();
-        var status = new Label { Text = LocalizedStrings.UninstallResult_Status, X = 0, Y = 0 };
-        status.SetScheme(TerminalGUITheme.Success);
+        var status = new StyledLabel(
+            LocalizedStrings.UninstallResult_Status, TextRole.Success) { X = 0, Y = 0 };
         var rows = new (string Label, string Value)[]
         {
             (LocalizedStrings.Summary_Mod, result.ModName),
@@ -365,7 +336,7 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
             (LocalizedStrings.UninstallSummary_DeletedFiles,
                 result.DeletedFiles.Count(file => file.Deleted).ToString(CultureInfo.InvariantCulture)),
         };
-        TableView summary = CreateSummaryTable(rows, 2);
+        var summary = new SummaryTableView(rows) { X = 0, Y = 2 };
         _body.Add(status, summary);
         int row = rows.Length + 3;
         if (result.RestoredFiles.Count > 0)
@@ -373,8 +344,8 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
             row = AddSectionHeader(LocalizedStrings.UninstallResult_RestoredFiles, row);
             foreach (UninstallRestoredFileResult file in result.RestoredFiles)
             {
-                _body.Add(new Label
-                    { Text = $"- {file.Target}  {file.AssetsFilePath}", X = 0, Y = row++, Width = Dim.Fill() });
+                _body.Add(new StyledLabel($"- {file.Target}  {file.AssetsFilePath}")
+                    { X = 0, Y = row++, Width = Dim.Fill() });
             }
 
             row++;
@@ -388,9 +359,9 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
                 string state = file.Deleted
                     ? LocalizedStrings.UninstallResult_Deleted
                     : LocalizedStrings.UninstallPreview_AlreadyMissing;
-                _body.Add(new Label
+                _body.Add(new StyledLabel($"- {Path.GetFileName(file.DestinationPath)}  {state}")
                 {
-                    Text = $"- {Path.GetFileName(file.DestinationPath)}  {state}", X = 0, Y = row++, Width = Dim.Fill()
+                    X = 0, Y = row++, Width = Dim.Fill()
                 });
             }
 
@@ -406,8 +377,8 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
     private void ShowError(string message)
     {
         _body.RemoveAll();
-        var error = new Label { Text = message, X = 0, Y = 0, Width = Dim.Fill() };
-        error.SetScheme(TerminalGUITheme.Error);
+        var error = new StyledLabel(message, TextRole.Error)
+            { X = 0, Y = 0, Width = Dim.Fill() };
         Button back = CreateActionButton(LocalizedStrings.UninstallPage_BackAction, 0, 2);
         back.Accepted += (_, _) => ShowInstalledMods();
         _body.Add(error, back);
@@ -423,93 +394,13 @@ public sealed class UninstallModView : View, ITerminalContentView, ITerminalRend
         _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
     };
 
-    private static Button CreateActionButton(string text, Pos x, Pos y)
+    private static ActionButton CreateActionButton(string text, Pos x, Pos y)
     {
-        string normalText = $"  {text}";
-        string focusedText = $"> {text}";
-        var button = new Button
-        {
-            Text = normalText, X = x, Y = y, NoDecorations = true, NoPadding = true,
-            ShadowStyle = ShadowStyles.None, TextAlignment = Alignment.Start,
-        };
-        button.SetScheme(CreateChoiceScheme());
-        button.HasFocusChanged += (_, _) => button.Text = button.HasFocus ? focusedText : normalText;
-        return button;
+        return new ActionButton(text) { X = x, Y = y };
     }
 
     private static Button CreatePrimaryActionButton(string text, Pos x, Pos y)
     {
-        Button button = CreateActionButton(text, x, y);
-        Attribute normal = TerminalGUITheme.Error.Normal;
-        Attribute selected = TerminalGUITheme.Selected.Normal;
-        button.SetScheme(new Scheme
-        {
-            Normal = normal, Focus = selected, HotNormal = normal, HotFocus = selected, Active = selected,
-            Editable = normal, ReadOnly = normal, Disabled = normal,
-        });
-        return button;
-    }
-
-    private static Scheme CreateChoiceScheme()
-    {
-        Attribute normal = TerminalGUITheme.Base.Normal;
-        Attribute selected = TerminalGUITheme.Selected.Normal;
-        return new Scheme
-        {
-            Normal = normal, Focus = selected, HotNormal = normal, HotFocus = selected, Active = selected,
-            Editable = normal, ReadOnly = normal, Disabled = normal,
-        };
-    }
-
-    private static Scheme CreateInputScheme() => CreateChoiceScheme();
-
-    private static TableView CreateSummaryTable(IReadOnlyList<(string Label, string Value)> rows, int row)
-    {
-        const int gap = 3;
-        int labelWidth = rows.Max(item => GetDisplayWidth(item.Label)) + gap;
-        var table = new TableView
-        {
-            X = 0, Y = row, Width = Dim.Fill(), Height = rows.Count, CanFocus = false,
-            BorderStyle = LineStyle.None,
-            Table = new SummaryTableSource(rows),
-            Style = new TableStyle
-            {
-                ShowHeaders = false, AlwaysShowHeaders = false, ShowHorizontalBottomLine = false,
-                ShowHorizontalHeaderOverline = false, ShowHorizontalHeaderUnderline = false,
-                ShowVerticalCellLines = false, ShowVerticalCellLineForFirstColumn = false,
-                ShowVerticalCellLineForLastColumn = false, ShowVerticalHeaderLines = false,
-                InvertSelectedCellFirstCharacter = false, ExpandLastColumn = false,
-                ColumnStyles =
-                {
-                    [0] = new ColumnStyle
-                    {
-                        MinWidth = labelWidth, MaxWidth = labelWidth,
-                        ColorGetter = _ => TerminalGUITheme.Muted,
-                    },
-                    [1] = new ColumnStyle { ColorGetter = _ => TerminalGUITheme.Base },
-                },
-            },
-        };
-        table.SetScheme(TerminalGUITheme.Base);
-        return table;
-    }
-
-    private static int GetDisplayWidth(string value)
-    {
-        return value.Sum(character => character is >= '\u1100' and <= '\u115f' or >= '\u2e80' and <= '\ua4cf'
-            or >= '\uac00' and <= '\ud7a3' or >= '\uf900' and <= '\ufaff' or >= '\ufe10' and <= '\ufe19'
-            or >= '\ufe30' and <= '\ufe6f' or >= '\uff00' and <= '\uff60' or >= '\uffe0' and <= '\uffe6'
-            ? 2
-            : 1);
-    }
-
-    private sealed class SummaryTableSource : ITableSource
-    {
-        private readonly IReadOnlyList<(string Label, string Value)> _rows;
-        public SummaryTableSource(IReadOnlyList<(string Label, string Value)> rows) => _rows = rows;
-        public string[] ColumnNames => [string.Empty, string.Empty];
-        public int Columns => 2;
-        public int Rows => _rows.Count;
-        public object this[int row, int col] => col == 0 ? _rows[row].Label : _rows[row].Value;
+        return new ActionButton(text, ActionKind.Dangerous) { X = x, Y = y };
     }
 }

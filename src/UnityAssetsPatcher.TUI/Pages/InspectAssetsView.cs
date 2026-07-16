@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
-using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
+using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using UnityAssetsPatcher.Application.Contracts;
@@ -9,29 +9,24 @@ using UnityAssetsPatcher.Core.Assets;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Shell;
-using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRenderRequester
+public sealed class InspectAssetsView : View, ITerminalRenderRequester
 {
-    private const int DefaultLimit = 100;
-
     public event EventHandler? RenderRequested;
 
-    public string ShortcutHint => LocalizedStrings.Layout_ShortcutHint;
-
     private readonly IWorkflowService _workflowService;
-    private readonly Label _heading;
-    private readonly Label _description;
+    private readonly StyledLabel _heading;
+    private readonly StyledLabel _description;
     private readonly View _body;
     private bool _isWorking;
+
+    private const int DefaultLimit = 100;
 
     public InspectAssetsView(IWorkflowService workflowService, Action returnToMainMenu)
     {
         _workflowService = workflowService;
-
-        Action returnToMainMenu1 = returnToMainMenu;
 
         KeyDown += (_, key) =>
         {
@@ -41,87 +36,117 @@ public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRen
             }
 
             key.Handled = true;
-            returnToMainMenu1();
+
+            returnToMainMenu.Invoke();
         };
 
-        _heading = new Label { X = 0, Y = 0 };
-        _heading.SetScheme(TerminalGUITheme.Title);
-        _description = new Label { X = 0, Y = 1, Width = Dim.Fill() };
-        _description.SetScheme(TerminalGUITheme.Muted);
-        _body = new View { X = 0, Y = 3, Width = Dim.Fill(), Height = Dim.Fill(), CanFocus = true };
+        _heading = new StyledLabel(role: TextRole.Title)
+        {
+            X = 0, Y = 0
+        };
+
+        _description = new StyledLabel(role: TextRole.Muted)
+        {
+            X = 0, Y = 1,
+            Width = Dim.Fill()
+        };
+
+        _body = new View
+        {
+            X = 0, Y = 3,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            CanFocus = true
+        };
+
         Add(_heading, _description, _body);
+
         ShowActionMenu();
     }
 
     private void ShowActionMenu()
     {
         SetPage(LocalizedStrings.MainMenu_InspectAssets_Title, LocalizedStrings.InspectPage_Description);
+
         _body.RemoveAll();
+
         Button list = AddChoice(
             LocalizedStrings.InspectPage_ListAssetsTitle,
             LocalizedStrings.InspectPage_ListAssetsDescription,
             0);
+
         list.Accepted += (_, _) => ShowListPathInput();
+
         Button fields = AddChoice(
             LocalizedStrings.InspectPage_ShowFieldsTitle,
             LocalizedStrings.InspectPage_ShowFieldsDescription,
             2);
+
         fields.Accepted += (_, _) => ShowFieldsInput();
+
         list.SetFocus();
     }
 
-    private Button AddChoice(string text, string description, int row)
+    private ActionButton AddChoice(string text, string description, int row)
     {
-        string normalText = $"  {text}";
-        string focusedText = $"> {text}";
-        var button = new Button
+        var choice = new ChoiceItem(text, description)
         {
-            Text = normalText, X = 0, Y = row, Width = 30, NoDecorations = true, NoPadding = true,
-            ShadowStyle = ShadowStyles.None, TextAlignment = Alignment.Start,
+            X = 0, Y = row
         };
-        button.SetScheme(CreateChoiceScheme());
-        var details = new Label { Text = description, X = 36, Y = row, Width = Dim.Fill() };
-        details.SetScheme(TerminalGUITheme.Muted);
-        button.HasFocusChanged += (_, _) =>
-        {
-            button.Text = button.HasFocus ? focusedText : normalText;
-            details.SetScheme(button.HasFocus ? TerminalGUITheme.Selected : TerminalGUITheme.Muted);
-        };
-        _body.Add(button, details);
-        return button;
+
+        _body.Add(choice);
+
+        return choice.Button;
     }
 
     private void ShowListPathInput()
     {
         SetPage(LocalizedStrings.InspectPage_ListAssetsTitle, LocalizedStrings.InspectPage_ListAssetsDescription);
-        ShowPathInput(path => ShowLimitChoices(path));
+        ShowPathInput(ShowLimitChoices);
     }
 
     private void ShowPathInput(Action<string> accepted)
     {
         _body.RemoveAll();
         string prompt = $"{LocalizedStrings.InspectPage_AssetsFilePathPrompt}: ";
-        var label = new Label { Text = prompt, X = 0, Y = 0 };
-        label.SetScheme(TerminalGUITheme.Label);
-        var input = new TextField { X = GetDisplayWidth(prompt), Y = 0, Width = Dim.Fill() };
-        input.SetScheme(CreateInputScheme());
-        var error = new Label { X = 0, Y = 2, Width = Dim.Fill(), Visible = false };
-        error.SetScheme(TerminalGUITheme.Error);
+
+        var label = new StyledLabel(prompt, TextRole.Label)
+        {
+            X = 0, Y = 0
+        };
+
+        var input = new InputField
+        {
+            X = prompt.GetColumns(),
+            Y = 0,
+            Width = Dim.Fill()
+        };
+
+        var error = new StyledLabel(role: TextRole.Error)
+        {
+            X = 0, Y = 2,
+            Width = Dim.Fill(),
+            Visible = false
+        };
+
         input.Accepted += (_, _) =>
         {
             string path = TerminalPathNormalizer.Normalize(input.Text);
+
             if (!File.Exists(path))
             {
                 input.Text = string.Empty;
                 error.Text = string.Format(LocalizedStrings.Prompt_FileNotFoundFormat, path);
                 error.Visible = true;
                 input.SetFocus();
+
                 return;
             }
 
             input.Text = path;
             accepted(Path.GetFullPath(path));
         };
+
         Button back = CreateActionButton(LocalizedStrings.InspectPage_BackAction, 0, 4);
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(label, input, error, back);
@@ -148,12 +173,10 @@ public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRen
     {
         _body.RemoveAll();
         string prompt = $"{LocalizedStrings.InspectPage_MaximumRowsPrompt}: ";
-        var label = new Label { Text = prompt, X = 0, Y = 0 };
-        label.SetScheme(TerminalGUITheme.Label);
-        var input = new TextField { X = GetDisplayWidth(prompt), Y = 0, Width = 12 };
-        input.SetScheme(CreateInputScheme());
-        var error = new Label { X = 0, Y = 2, Width = Dim.Fill(), Visible = false };
-        error.SetScheme(TerminalGUITheme.Error);
+        var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = 0 };
+        var input = new InputField { X = prompt.GetColumns(), Y = 0, Width = 12 };
+        var error = new StyledLabel(role: TextRole.Error)
+            { X = 0, Y = 2, Width = Dim.Fill(), Visible = false };
         input.Accepted += (_, _) =>
         {
             if (!int.TryParse(input.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int limit) ||
@@ -198,35 +221,20 @@ public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRen
     private void ShowAssets(InspectListResult result)
     {
         _body.RemoveAll();
-        var table = new TableView
+        var table = new DataTableView
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(3),
-            BorderStyle = LineStyle.None,
             Table = new AssetsTableSource(result.Assets),
-            Style = new TableStyle
-            {
-                ShowHeaders = true,
-                AlwaysShowHeaders = true,
-                ShowHorizontalBottomLine = false,
-                ShowHorizontalHeaderOverline = false,
-                ShowHorizontalHeaderUnderline = true,
-                ShowVerticalCellLines = false,
-                ShowVerticalCellLineForFirstColumn = false,
-                ShowVerticalCellLineForLastColumn = false,
-                ShowVerticalHeaderLines = false,
-                ExpandLastColumn = true,
-            },
         };
-        table.SetScheme(CreateTableScheme());
         string infoText = result.Assets.Count < result.TotalCount
             ? string.Format(CultureInfo.CurrentUICulture, LocalizedStrings.InspectPage_ShowingAssetsFormat,
                 result.Assets.Count, result.TotalCount)
             : string.Empty;
-        var info = new Label { Text = infoText, X = 0, Y = Pos.AnchorEnd(2), Width = Dim.Fill() };
-        info.SetScheme(TerminalGUITheme.Muted);
+        var info = new StyledLabel(infoText, TextRole.Muted)
+            { X = 0, Y = Pos.AnchorEnd(2), Width = Dim.Fill() };
         Button back = CreateActionButton(LocalizedStrings.InspectPage_ReturnAction, 0, Pos.AnchorEnd(1));
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(table, info, back);
@@ -238,17 +246,14 @@ public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRen
         SetPage(LocalizedStrings.InspectPage_ShowFieldsTitle, LocalizedStrings.InspectPage_ShowFieldsDescription);
         _body.RemoveAll();
         string pathPrompt = $"{LocalizedStrings.InspectPage_AssetsFilePathPrompt}: ";
-        var pathLabel = new Label { Text = pathPrompt, X = 0, Y = 0 };
-        pathLabel.SetScheme(TerminalGUITheme.Label);
-        var pathInput = new TextField { X = GetDisplayWidth(pathPrompt), Y = 0, Width = Dim.Fill() };
-        pathInput.SetScheme(CreateInputScheme());
+        var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
+        var pathInput = new InputField
+            { X = pathPrompt.GetColumns(), Y = 0, Width = Dim.Fill() };
         string idPrompt = $"{LocalizedStrings.InspectPage_PathIdPrompt}: ";
-        var idLabel = new Label { Text = idPrompt, X = 0, Y = 2 };
-        idLabel.SetScheme(TerminalGUITheme.Label);
-        var idInput = new TextField { X = GetDisplayWidth(idPrompt), Y = 2, Width = 20 };
-        idInput.SetScheme(CreateInputScheme());
-        var error = new Label { X = 0, Y = 4, Width = Dim.Fill(), Visible = false };
-        error.SetScheme(TerminalGUITheme.Error);
+        var idLabel = new StyledLabel(idPrompt, TextRole.Label) { X = 0, Y = 2 };
+        var idInput = new InputField { X = idPrompt.GetColumns(), Y = 2, Width = 20 };
+        var error = new StyledLabel(role: TextRole.Error)
+            { X = 0, Y = 4, Width = Dim.Fill(), Visible = false };
 
         void Submit()
         {
@@ -308,14 +313,10 @@ public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRen
     private void ShowFields(AssetsFieldInfo fieldTree)
     {
         _body.RemoveAll();
-#pragma warning disable CS0618 // Terminal.Gui has no bundled read-only, scrollable replacement yet.
-        var output = new TextView
+        var output = new TextViewer(FormatFieldTree(fieldTree))
         {
-            X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(2), ReadOnly = true,
-            Text = FormatFieldTree(fieldTree),
+            X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(2),
         };
-#pragma warning restore CS0618
-        output.SetScheme(TerminalGUITheme.Base);
         Button back = CreateActionButton(LocalizedStrings.InspectPage_ReturnAction, 0, Pos.AnchorEnd(1));
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(output, back);
@@ -325,8 +326,8 @@ public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRen
     private void ShowWorking()
     {
         _body.RemoveAll();
-        var status = new Label { Text = LocalizedStrings.InspectPage_Analyzing, X = 0, Y = 0, Width = Dim.Fill() };
-        status.SetScheme(TerminalGUITheme.Preview);
+        var status = new StyledLabel(LocalizedStrings.InspectPage_Analyzing, TextRole.Preview)
+            { X = 0, Y = 0, Width = Dim.Fill() };
         _body.Add(status);
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
@@ -334,8 +335,8 @@ public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRen
     private void ShowError(string message)
     {
         _body.RemoveAll();
-        var error = new Label { Text = message, X = 0, Y = 0, Width = Dim.Fill() };
-        error.SetScheme(TerminalGUITheme.Error);
+        var error = new StyledLabel(message, TextRole.Error)
+            { X = 0, Y = 0, Width = Dim.Fill() };
         Button back = CreateActionButton(LocalizedStrings.InspectPage_ReturnAction, 0, 2);
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(error, back);
@@ -363,50 +364,17 @@ public sealed class InspectAssetsView : View, ITerminalContentView, ITerminalRen
         foreach (AssetsFieldInfo child in field.Children) AppendField(text, child, depth + 1);
     }
 
-    private static Button CreateActionButton(string text, Pos x, Pos y)
+    private static ActionButton CreateActionButton(string text, Pos x, Pos y)
     {
-        string normal = $"  {text}";
-        string focused = $"> {text}";
-        var button = new Button
+        return new ActionButton(text) { X = x, Y = y };
+    }
+
+    private static ActionButton CreatePrimaryActionButton(string text, Pos x, Pos y)
+    {
+        return new ActionButton(text, ActionKind.Primary)
         {
-            Text = normal, X = x, Y = y, NoDecorations = true, NoPadding = true,
-            ShadowStyle = ShadowStyles.None, TextAlignment = Alignment.Start,
+            X = x, Y = y
         };
-        button.SetScheme(CreateChoiceScheme());
-        button.HasFocusChanged += (_, _) => button.Text = button.HasFocus ? focused : normal;
-        return button;
-    }
-
-    private static Button CreatePrimaryActionButton(string text, Pos x, Pos y)
-    {
-        Button button = CreateActionButton(text, x, y);
-        Attribute normal = TerminalGUITheme.Label.Normal;
-        Attribute selected = TerminalGUITheme.Selected.Normal;
-        button.SetScheme(CreateScheme(normal, selected));
-        return button;
-    }
-
-    private static Scheme CreateChoiceScheme() =>
-        CreateScheme(TerminalGUITheme.Base.Normal, TerminalGUITheme.Selected.Normal);
-
-    private static Scheme CreateInputScheme() => CreateChoiceScheme();
-
-    private static Scheme CreateTableScheme() =>
-        CreateScheme(TerminalGUITheme.Base.Normal, TerminalGUITheme.Selected.Normal);
-
-    private static Scheme CreateScheme(Attribute normal, Attribute selected) => new()
-    {
-        Normal = normal, Focus = selected, HotNormal = normal, HotFocus = selected, Active = selected,
-        Editable = normal, ReadOnly = normal, Disabled = normal,
-    };
-
-    private static int GetDisplayWidth(string value)
-    {
-        return value.Sum(character => character is >= '\u1100' and <= '\u115f' or >= '\u2e80' and <= '\ua4cf'
-            or >= '\uac00' and <= '\ud7a3' or >= '\uf900' and <= '\ufaff' or >= '\ufe10' and <= '\ufe19'
-            or >= '\ufe30' and <= '\ufe6f' or >= '\uff00' and <= '\uff60' or >= '\uffe0' and <= '\uffe6'
-            ? 2
-            : 1);
     }
 
     private sealed class AssetsTableSource : ITableSource

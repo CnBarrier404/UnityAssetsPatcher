@@ -1,5 +1,4 @@
 using Terminal.Gui.ViewBase;
-using Terminal.Gui.Views;
 using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI.Framework;
 
@@ -20,19 +19,19 @@ public sealed class ApplicationBannerView : View
         string horizontal = new('─', appInfo.Name.Length + version.Length + 4);
         string emptyLine = $"│{new string(' ', horizontal.Length)}│";
 
-        AddLabel($"╭{horizontal}╮", 0, 0, TerminalGUITheme.Muted);
-        AddLabel(emptyLine, 0, 1, TerminalGUITheme.Muted);
-        AddLabel("│  ", 0, 2, TerminalGUITheme.Muted);
-        AddLabel(appInfo.Name, 3, 2, TerminalGUITheme.Base);
-        AddLabel(version, 3 + appInfo.Name.Length, 2, TerminalGUITheme.Muted);
-        AddLabel("  │", 3 + appInfo.Name.Length + version.Length, 2, TerminalGUITheme.Muted);
-        AddLabel(emptyLine, 0, 3, TerminalGUITheme.Muted);
-        AddLabel($"╰{horizontal}╯", 0, 4, TerminalGUITheme.Muted);
+        AddLabel($"╭{horizontal}╮", 0, 0, TerminalTheme.Muted);
+        AddLabel(emptyLine, 0, 1, TerminalTheme.Muted);
+        AddLabel("│  ", 0, 2, TerminalTheme.Muted);
+        AddLabel(appInfo.Name, 3, 2, TerminalTheme.Base);
+        AddLabel(version, 3 + appInfo.Name.Length, 2, TerminalTheme.Muted);
+        AddLabel("  │", 3 + appInfo.Name.Length + version.Length, 2, TerminalTheme.Muted);
+        AddLabel(emptyLine, 0, 3, TerminalTheme.Muted);
+        AddLabel($"╰{horizontal}╯", 0, 4, TerminalTheme.Muted);
     }
 
     private void AddLabel(string text, int x, int y, Terminal.Gui.Drawing.Scheme scheme)
     {
-        var label = new Label { Text = text, X = x, Y = y };
+        var label = new StyledLabel(text) { X = x, Y = y };
         label.SetScheme(scheme);
         Add(label);
     }

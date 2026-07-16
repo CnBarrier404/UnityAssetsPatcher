@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
-using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
+using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using UnityAssetsPatcher.Application.Contracts;
@@ -9,25 +9,22 @@ using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Shell;
-using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public sealed class InstallModView : View, ITerminalContentView, ITerminalRenderRequester
+public sealed class InstallModView : View, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
-
-    public string ShortcutHint => LocalizedStrings.InstallPage_ShortcutHint;
 
     private readonly IWorkflowService _workflowService;
     private readonly TerminalSettings _settings;
     private readonly Action _returnToMainMenu;
-    private readonly TextField _modPath;
-    private readonly Label _message;
+    private readonly InputField _modPath;
+    private readonly StyledLabel _message;
     private readonly View _form;
-    private TextField? _gameDirectory;
+    private InputField? _gameDirectory;
     private View? _optionalGroupArea;
-    private readonly List<OptionalGroupChoice> _optionalGroups = [];
+    private readonly List<ToggleItem> _optionalGroups = [];
     private bool _isAnalyzing;
 
     public InstallModView(
@@ -49,16 +46,15 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
             _returnToMainMenu();
         };
 
-        var heading = new Label { Text = LocalizedStrings.MainMenu_InstallMod_Title, X = 0, Y = 0 };
-        heading.SetScheme(TerminalGUITheme.Title);
-        var description = new Label
+        var heading = new StyledLabel(
+            LocalizedStrings.MainMenu_InstallMod_Title, TextRole.Title) { X = 0, Y = 0 };
+        var description = new StyledLabel(
+            LocalizedStrings.MainMenu_InstallMod_Description, TextRole.Muted)
         {
-            Text = LocalizedStrings.MainMenu_InstallMod_Description,
             X = 0,
             Y = 1,
             Width = Dim.Fill(),
         };
-        description.SetScheme(TerminalGUITheme.Muted);
 
         _form = new View
         {
@@ -69,17 +65,15 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
             CanFocus = true,
         };
         string pathPrompt = $"{LocalizedStrings.InstallPage_ModZipPathPrompt}: ";
-        var pathLabel = new Label { Text = pathPrompt, X = 0, Y = 0 };
-        pathLabel.SetScheme(TerminalGUITheme.Label);
-        _modPath = new TextField
+        var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
+        _modPath = new InputField
         {
-            X = GetDisplayWidth(pathPrompt),
+            X = pathPrompt.GetColumns(),
             Y = 0,
             Width = Dim.Fill(),
         };
-        _modPath.SetScheme(CreateInputScheme());
         _modPath.Accepted += (_, _) => Preview();
-        _message = new Label
+        _message = new StyledLabel
         {
             X = 0,
             Y = Pos.Bottom(_modPath) + 2,
@@ -183,15 +177,13 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
         {
             string prompt = $"{LocalizedStrings.InstallPage_GameDirectoryPrompt}: ";
             Pos gameDirectoryRow = Pos.Bottom(_modPath) + 2;
-            var label = new Label { Text = prompt, X = 0, Y = gameDirectoryRow };
-            label.SetScheme(TerminalGUITheme.Label);
-            _gameDirectory = new TextField
+            var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = gameDirectoryRow };
+            _gameDirectory = new InputField
             {
-                X = GetDisplayWidth(prompt),
+                X = prompt.GetColumns(),
                 Y = gameDirectoryRow,
                 Width = Dim.Fill(),
             };
-            _gameDirectory.SetScheme(CreateInputScheme());
             _gameDirectory.Accepted += (_, _) => Preview();
             _message.Y = Pos.Bottom(_gameDirectory) + 1;
             _form.Add(label, _gameDirectory);
@@ -214,26 +206,30 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
             Height = (groups.Count * 2) + 4,
             CanFocus = true,
         };
-        var heading = new Label { Text = LocalizedStrings.InstallPage_OptionalGroupsHeader, X = 0, Y = 0 };
-        heading.SetScheme(TerminalGUITheme.Preview);
+        var heading = new StyledLabel(
+            LocalizedStrings.InstallPage_OptionalGroupsHeader, TextRole.Preview) { X = 0, Y = 0 };
         _optionalGroupArea.Add(heading);
 
         for (int index = 0; index < groups.Count; index++)
         {
             (string name, string? description) = groups[index];
             int choiceRow = 2 + (index * 2);
-            var choice = new OptionalGroupChoice(name, description, choiceRow);
+            var choice = new ToggleItem(name, description) { X = 0, Y = choiceRow };
             _optionalGroups.Add(choice);
-            _optionalGroupArea.Add(choice.Button, choice.Description);
+            _optionalGroupArea.Add(choice);
         }
 
-        int submitRow = 3 + (groups.Count * 2);
-        Button submit = CreatePrimaryActionButton(
+        int actionsRow = 3 + (groups.Count * 2);
+        var actions = new ConfirmationBar(
             LocalizedStrings.InstallPage_SubmitAction,
-            0,
-            submitRow);
-        submit.Accepted += (_, _) => Preview();
-        _optionalGroupArea.Add(submit);
+            Preview,
+            LocalizedStrings.InstallPage_BackAction,
+            _returnToMainMenu)
+        {
+            X = 0,
+            Y = actionsRow,
+        };
+        _optionalGroupArea.Add(actions);
 
         _message.Y = Pos.Bottom(_optionalGroupArea) + 1;
         _form.Add(_optionalGroupArea);
@@ -248,9 +244,9 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
     {
         _form.RemoveAll();
         var summaryRows = GetPreviewSummaryRows(result);
-        var status = new Label { Text = LocalizedStrings.InstallPreview_DryRunStatus, X = 0, Y = 0 };
-        status.SetScheme(TerminalGUITheme.Preview);
-        TableView summary = CreateSummaryTable(summaryRows, 2);
+        var status = new StyledLabel(
+            LocalizedStrings.InstallPreview_DryRunStatus, TextRole.Preview) { X = 0, Y = 0 };
+        var summary = new SummaryTableView(summaryRows) { X = 0, Y = 2 };
         _form.Add(status, summary);
 
         int nextRow = summaryRows.Length + 3;
@@ -264,29 +260,28 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
         if (!string.IsNullOrEmpty(verboseText))
         {
             int detailsHeight = GetReportHeight(verboseText);
-#pragma warning disable CS0618 // Terminal.Gui has no bundled read-only, scrollable replacement yet.
-            var output = new TextView
+            var output = new StyledLabel(verboseText)
             {
                 X = 0,
                 Y = nextRow,
                 Width = Dim.Fill(),
                 Height = detailsHeight,
-                ReadOnly = true,
-                Text = verboseText,
             };
-#pragma warning restore CS0618
-            output.SetScheme(TerminalGUITheme.Base);
             _form.Add(output);
             nextRow += detailsHeight + 1;
         }
 
-        int actionRow = nextRow + 1;
-        Button install = CreateActionButton(LocalizedStrings.InstallPage_InstallAction, 0, actionRow);
-        install.Accepted += (_, _) => Install(modPath, gameDirectory, selectedGroups);
-        Button back = CreateActionButton(LocalizedStrings.InstallPage_BackAction, 0, actionRow + 2);
-        back.Accepted += (_, _) => _returnToMainMenu();
-        _form.Add(install, back);
-        install.SetFocus();
+        var actions = new ConfirmationBar(
+            LocalizedStrings.InstallPage_InstallAction,
+            () => Install(modPath, gameDirectory, selectedGroups),
+            LocalizedStrings.InstallPage_BackAction,
+            _returnToMainMenu)
+        {
+            X = 0,
+            Y = nextRow + 1,
+        };
+        _form.Add(actions);
+        actions.ConfirmButton.SetFocus();
     }
 
     private void Install(string modPath, string? gameDirectory, IReadOnlyList<string> selectedGroups)
@@ -317,26 +312,26 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
         var summaryRows = GetResultSummaryRows(result);
         string text = FormatResultDetails(result, verbose);
         int detailsHeight = string.IsNullOrEmpty(text) ? 0 : GetReportHeight(text);
-        var status = new Label { Text = LocalizedStrings.InstallResult_InstalledStatus, X = 0, Y = 0 };
-        status.SetScheme(TerminalGUITheme.Success);
-        TableView summary = CreateSummaryTable(summaryRows, 2);
+        var status = new StyledLabel(
+            LocalizedStrings.InstallResult_InstalledStatus, TextRole.Success) { X = 0, Y = 0 };
+        var summary = new SummaryTableView(summaryRows) { X = 0, Y = 2 };
         int detailsRow = summaryRows.Length + 3;
-#pragma warning disable CS0618 // Terminal.Gui has no bundled read-only, scrollable replacement yet.
-        var output = new TextView
-        {
-            X = 0,
-            Y = detailsRow,
-            Width = Dim.Fill(),
-            Height = detailsHeight,
-            ReadOnly = true,
-            Text = text,
-        };
-#pragma warning restore CS0618
-        output.SetScheme(TerminalGUITheme.Base);
         int actionRow = detailsRow + detailsHeight + 1;
         Button back = CreateActionButton(LocalizedStrings.InstallPage_ReturnAction, 0, actionRow);
         back.Accepted += (_, _) => _returnToMainMenu();
-        _form.Add(status, summary, output, back);
+        _form.Add(status, summary);
+        if (!string.IsNullOrEmpty(text))
+        {
+            _form.Add(new TextViewer(text)
+            {
+                X = 0,
+                Y = detailsRow,
+                Width = Dim.Fill(),
+                Height = detailsHeight,
+            });
+        }
+
+        _form.Add(back);
         back.SetFocus();
     }
 
@@ -344,18 +339,14 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
     {
         _form.RemoveAll();
         int outputHeight = GetReportHeight(text);
-#pragma warning disable CS0618 // Terminal.Gui has no bundled read-only, scrollable replacement yet.
-        var output = new TextView
+        var output = new StyledLabel(
+            text, isError ? TextRole.Error : TextRole.Base)
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = outputHeight,
-            ReadOnly = true,
-            Text = text,
         };
-#pragma warning restore CS0618
-        output.SetScheme(isError ? TerminalGUITheme.Error : TerminalGUITheme.Base);
         Button back = CreateActionButton(LocalizedStrings.InstallPage_ReturnAction, 0, outputHeight + 1);
         back.Accepted += (_, _) => _returnToMainMenu();
         _form.Add(output, back);
@@ -366,14 +357,14 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
     {
         _message.Visible = true;
         _message.Text = message;
-        _message.SetScheme(TerminalGUITheme.Muted);
+        _message.SetScheme(TerminalTheme.Muted);
     }
 
     private void ShowError(string message)
     {
         _message.Visible = true;
         _message.Text = message;
-        _message.SetScheme(TerminalGUITheme.Error);
+        _message.SetScheme(TerminalTheme.Error);
     }
 
     private void ShowInputError(TextField input, string message)
@@ -389,131 +380,9 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
         _message.Visible = false;
     }
 
-    private static Button CreateActionButton(string text, Pos x, Pos y)
+    private static ActionButton CreateActionButton(string text, Pos x, Pos y)
     {
-        string normalText = $"  {text}";
-        string focusedText = $"> {text}";
-        var button = new Button
-        {
-            Text = normalText,
-            X = x,
-            Y = y,
-            NoDecorations = true,
-            NoPadding = true,
-            ShadowStyle = ShadowStyles.None,
-        };
-        button.SetScheme(CreateChoiceScheme());
-        button.HasFocusChanged += (_, _) => button.Text = button.HasFocus ? focusedText : normalText;
-        return button;
-    }
-
-    private static Button CreatePrimaryActionButton(string text, Pos x, Pos y)
-    {
-        string normalText = $"  {text}";
-        string focusedText = $"> {text}";
-        var button = new Button
-        {
-            Text = normalText,
-            X = x,
-            Y = y,
-            NoDecorations = true,
-            NoPadding = true,
-            ShadowStyle = ShadowStyles.None,
-        };
-        button.SetScheme(CreatePrimaryActionScheme());
-        button.HasFocusChanged += (_, _) => button.Text = button.HasFocus ? focusedText : normalText;
-        return button;
-    }
-
-    private static Scheme CreateInputScheme()
-    {
-        Attribute normal = TerminalGUITheme.Base.Normal;
-        Attribute selected = TerminalGUITheme.Selected.Normal;
-        return new Scheme
-        {
-            Normal = normal,
-            Focus = selected,
-            HotNormal = normal,
-            HotFocus = selected,
-            Active = selected,
-            Editable = normal,
-            ReadOnly = normal,
-        };
-    }
-
-    private static Scheme CreateChoiceScheme()
-    {
-        return CreateInputScheme();
-    }
-
-    private static Scheme CreatePrimaryActionScheme()
-    {
-        Attribute normal = TerminalGUITheme.Label.Normal;
-        Attribute selected = TerminalGUITheme.Selected.Normal;
-
-        return new Scheme
-        {
-            Normal = normal,
-            Focus = selected,
-            HotNormal = normal,
-            HotFocus = selected,
-            Active = selected,
-            Editable = normal,
-            ReadOnly = normal,
-            Disabled = normal,
-        };
-    }
-
-    private sealed class OptionalGroupChoice
-    {
-        public string Name { get; }
-        public Button Button { get; }
-        public Label Description { get; }
-        public bool IsSelected { get; private set; }
-
-        public OptionalGroupChoice(string name, string? description, int row)
-        {
-            Name = name;
-            Button = new Button
-            {
-                X = 0,
-                Y = row,
-                Width = Dim.Fill(),
-                NoDecorations = true,
-                NoPadding = true,
-                ShadowStyle = ShadowStyles.None,
-                TextAlignment = Alignment.Start,
-            };
-            Button.SetScheme(CreateChoiceScheme());
-            Description = new Label
-            {
-                Text = description ?? string.Empty,
-                X = 6,
-                Y = row + 1,
-                Width = Dim.Fill(),
-            };
-            Description.SetScheme(TerminalGUITheme.Muted);
-            Button.KeyDown += (_, key) =>
-            {
-                if (key != Key.Space)
-                {
-                    return;
-                }
-
-                key.Handled = true;
-                IsSelected = !IsSelected;
-                UpdateText();
-            };
-            Button.HasFocusChanged += (_, _) => UpdateText();
-            UpdateText();
-        }
-
-        private void UpdateText()
-        {
-            string indicator = Button.HasFocus ? ">" : " ";
-            string checkbox = IsSelected ? "[*]" : "[ ]";
-            Button.Text = $"{indicator} {checkbox} {Name}";
-        }
+        return new ActionButton(text) { X = x, Y = y };
     }
 
     private static (string Label, string Value)[] GetPreviewSummaryRows(InstallPreviewResult result)
@@ -528,23 +397,21 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
 
     private int AddPreviewTargets(IReadOnlyList<InstallChange> patches, int row)
     {
-        var heading = new Label { Text = LocalizedStrings.InstallPreview_Targets, X = 0, Y = row };
-        heading.SetScheme(TerminalGUITheme.SectionHeader);
+        var heading = new StyledLabel(
+            LocalizedStrings.InstallPreview_Targets, TextRole.SectionHeader) { X = 0, Y = row };
         _form.Add(heading);
         row += 2;
 
         foreach (InstallChange patch in patches)
         {
             string name = $"- {patch.Name}:";
-            var nameLabel = new Label { Text = name, X = 0, Y = row };
-            var pathLabel = new Label
+            var nameLabel = new StyledLabel(name) { X = 0, Y = row };
+            var pathLabel = new StyledLabel(patch.Path, TextRole.Muted)
             {
-                Text = patch.Path,
-                X = GetDisplayWidth(name) + 1,
+                X = name.GetColumns() + 1,
                 Y = row,
                 Width = Dim.Fill(),
             };
-            pathLabel.SetScheme(TerminalGUITheme.Muted);
             _form.Add(nameLabel, pathLabel);
             row++;
         }
@@ -628,53 +495,6 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
         return text.ToString().TrimEnd();
     }
 
-    private static TableView CreateSummaryTable(
-        IReadOnlyList<(string Label, string Value)> rows,
-        int row)
-    {
-        const int summaryColumnGap = 3;
-        int labelColumnWidth = rows.Max(item => GetDisplayWidth(item.Label)) + summaryColumnGap;
-        var table = new TableView
-        {
-            X = 0,
-            Y = row,
-            Width = Dim.Fill(),
-            Height = rows.Count,
-            CanFocus = false,
-            BorderStyle = LineStyle.None,
-            Table = new SummaryTableSource(rows),
-            Style = new TableStyle
-            {
-                ShowHeaders = false,
-                AlwaysShowHeaders = false,
-                ShowHorizontalBottomLine = false,
-                ShowHorizontalHeaderOverline = false,
-                ShowHorizontalHeaderUnderline = false,
-                ShowVerticalCellLines = false,
-                ShowVerticalCellLineForFirstColumn = false,
-                ShowVerticalCellLineForLastColumn = false,
-                ShowVerticalHeaderLines = false,
-                InvertSelectedCellFirstCharacter = false,
-                ExpandLastColumn = false,
-                ColumnStyles =
-                {
-                    [0] = new ColumnStyle
-                    {
-                        MinWidth = labelColumnWidth,
-                        MaxWidth = labelColumnWidth,
-                        ColorGetter = _ => TerminalGUITheme.Muted,
-                    },
-                    [1] = new ColumnStyle
-                    {
-                        ColorGetter = _ => TerminalGUITheme.Base,
-                    },
-                },
-            },
-        };
-        table.SetScheme(TerminalGUITheme.Base);
-        return table;
-    }
-
     private static void AppendTiming(StringBuilder text, TimingSnapshot snapshot)
     {
         text.AppendLine().AppendLine(LocalizedStrings.Install_TimingHeader);
@@ -694,37 +514,10 @@ public sealed class InstallModView : View, ITerminalContentView, ITerminalRender
         return changes.Where(change => change.Kind == kind).ToArray();
     }
 
-    private static int GetDisplayWidth(string value)
-    {
-        return value.Sum(character => character is >= '\u1100' and <= '\u115f' or >= '\u2e80' and <= '\ua4cf'
-            or >= '\uac00' and <= '\ud7a3' or >= '\uf900' and <= '\ufaff' or >= '\ufe10' and <= '\ufe19'
-            or >= '\ufe30' and <= '\ufe6f' or >= '\uff00' and <= '\uff60' or >= '\uffe0' and <= '\uffe6'
-            ? 2
-            : 1);
-    }
-
     private static int GetReportHeight(string text)
     {
         const int maximumVisibleLines = 20;
         int lineCount = text.Count(character => character == '\n') + 1;
         return Math.Min(lineCount, maximumVisibleLines);
-    }
-
-    private sealed class SummaryTableSource : ITableSource
-    {
-        private readonly IReadOnlyList<(string Label, string Value)> _rows;
-
-        public SummaryTableSource(IReadOnlyList<(string Label, string Value)> rows)
-        {
-            _rows = rows;
-        }
-
-        public string[] ColumnNames => [string.Empty, string.Empty];
-
-        public int Columns => 2;
-
-        public int Rows => _rows.Count;
-
-        public object this[int row, int col] => col == 0 ? _rows[row].Label : _rows[row].Value;
     }
 }
