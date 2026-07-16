@@ -9,7 +9,7 @@ public sealed class UninstallExecutor
 
     public UninstallExecutor() : this(ModBackupStore.RestoreFile) { }
 
-    internal UninstallExecutor(Action<string, string> restoreFile)
+    public UninstallExecutor(Action<string, string> restoreFile)
     {
         ArgumentNullException.ThrowIfNull(restoreFile);
         _restoreFile = restoreFile;
