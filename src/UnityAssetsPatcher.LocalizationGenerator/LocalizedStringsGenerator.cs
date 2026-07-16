@@ -3,7 +3,6 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
@@ -70,7 +69,7 @@ public sealed class LocalizedStringsGenerator : IIncrementalGenerator
                 return;
             }
 
-            var primaryKeys = ParseKeys(primaryContent);
+            List<string> primaryKeys = LocalizationKeyExtractor.Extract(primaryContent);
 
             if (primaryKeys.Count == 0)
             {
@@ -98,44 +97,13 @@ public sealed class LocalizedStringsGenerator : IIncrementalGenerator
         });
     }
 
-    private static List<string> ParseKeys(string json)
-    {
-        var keys = new List<string>();
-
-        try
-        {
-            using JsonDocument document = JsonDocument.Parse(json);
-
-            keys.AddRange(document.RootElement.EnumerateObject().Select(property => property.Name));
-        }
-        catch (JsonException)
-        {
-            // The diagnostic will be reported by the caller.
-        }
-
-        return keys;
-    }
-
     private static void ValidateLocaleFile(
         SourceProductionContext context,
         string hintName,
         string content,
         HashSet<string> primaryKeys)
     {
-        List<string> localeKeys;
-
-        try
-        {
-            localeKeys = ParseKeys(content);
-        }
-        catch
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                Descriptors.LocaleFileInvalidJson,
-                Location.None,
-                hintName));
-            return;
-        }
+        List<string> localeKeys = LocalizationKeyExtractor.Extract(content);
 
         var localeKeySet = new HashSet<string>(localeKeys);
 

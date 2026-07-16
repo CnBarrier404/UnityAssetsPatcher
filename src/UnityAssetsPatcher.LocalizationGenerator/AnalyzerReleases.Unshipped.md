@@ -7,6 +7,5 @@
 ---------|--------------|----------|-------------
  LOC001  | Localization | Error    | Descriptors 
  LOC002  | Localization | Error    | Descriptors 
- LOC003  | Localization | Warning  | Descriptors 
  LOC004  | Localization | Warning  | Descriptors 
  LOC005  | Localization | Warning  | Descriptors 

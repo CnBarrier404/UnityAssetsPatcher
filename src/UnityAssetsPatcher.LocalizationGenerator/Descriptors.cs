@@ -20,14 +20,6 @@ internal static class Descriptors
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    internal static readonly DiagnosticDescriptor LocaleFileInvalidJson = new(
-        "LOC003",
-        "Locale file contains invalid JSON",
-        "Locale file '{0}' could not be parsed as valid JSON",
-        "Localization",
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
-
     internal static readonly DiagnosticDescriptor LocaleHasExtraKey = new(
         "LOC004",
         "Locale file has extra key not in primary",
