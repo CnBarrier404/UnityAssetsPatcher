@@ -117,6 +117,13 @@ public sealed class BackupRepository
         return RecoverUnderLock();
     }
 
+    public BackupRecoveryReport CheckPendingTransactions()
+    {
+        using BackupOperationLock operationLock = AcquireLock();
+
+        return new BackupRecovery(this).Check();
+    }
+
     public BackupRecoveryReport RecoverUnderLock() => new BackupRecovery(this).Recover();
 
     private void EnsureInitialized()

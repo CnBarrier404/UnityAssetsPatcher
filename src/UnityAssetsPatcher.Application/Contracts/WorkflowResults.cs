@@ -79,6 +79,7 @@ public sealed record InstallRecordSummary(
 public enum BackupRepositoryStatus
 {
     Clean,
+    RecoveryRequired,
     Recovered,
     Locked,
 }

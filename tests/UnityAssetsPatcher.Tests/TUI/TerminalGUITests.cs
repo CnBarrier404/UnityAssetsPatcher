@@ -21,12 +21,18 @@ namespace UnityAssetsPatcher.Tests.TUI;
 public sealed class TerminalGUITests : IDisposable
 {
     [Fact]
-    public void BackupRecoveryView_ShowsRecoveryStatus()
+    public void BackupRecoveryView_ShowsDamageAndOnlyRecoveryChoices()
     {
-        using var view = new BackupRecoveryView();
+        var recovery = new BackupRecoveryReport(
+            BackupRepositoryStatus.Locked,
+            [],
+            [new BackupRecoveryIssue("repository-unsafe", "Damaged record", "record.json")]);
 
-        StyledLabel status = Assert.Single(view.SubViews.OfType<StyledLabel>());
-        Assert.False(string.IsNullOrWhiteSpace(status.Text?.ToString()));
+        using var view = new BackupRecoveryView(recovery, () => { }, () => { });
+
+        Assert.Contains(view.SubViews.OfType<StyledLabel>(), label =>
+            label.Text?.ToString().Contains("Damaged record", StringComparison.Ordinal) == true);
+        Assert.Equal(2, view.SubViews.OfType<ChoiceItem>().Count());
     }
 
     private readonly CultureInfo _originalUiCulture = CultureInfo.CurrentUICulture;
@@ -389,6 +395,7 @@ public sealed class TerminalGUITests : IDisposable
 
     private sealed class ThrowingWorkflowService : IWorkflowService
     {
+        public BackupRecoveryReport CheckPendingTransactions() => BackupRecoveryReport.Clean;
         public BackupRecoveryReport RecoverPendingTransactions() => BackupRecoveryReport.Clean;
 
         public ModManifest CheckManifest(string path) => throw new NotSupportedException();

@@ -49,6 +49,40 @@ internal sealed class BackupRecovery
         }
     }
 
+    public BackupRecoveryReport Check()
+    {
+        try
+        {
+            BackupRepositoryMetadata metadata = _repository.LoadMetadata();
+            _ = _repository.ListRecords();
+
+            if (!Directory.Exists(_repository.TransactionDirectory))
+            {
+                return BackupRecoveryReport.Clean;
+            }
+
+            BackupTransaction transaction = BackupTransactionStore.Load(_repository.TransactionDirectory);
+
+            if (!string.Equals(transaction.RepositoryId, metadata.RepositoryId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Transaction does not belong to this repository.");
+            }
+
+            ValidateTransaction(transaction);
+
+            return new BackupRecoveryReport(BackupRepositoryStatus.RecoveryRequired, [], []);
+        }
+        catch (Exception exception)
+        {
+            string path = Directory.Exists(_repository.TransactionDirectory)
+                ? _repository.TransactionDirectory
+                : _repository.BackupDirectory;
+
+            return new BackupRecoveryReport(BackupRepositoryStatus.Locked, [],
+                [new BackupRecoveryIssue("repository-unsafe", exception.Message, path)]);
+        }
+    }
+
     private BackupRecoveryOperation RecoverInstall(BackupTransaction transaction)
     {
         string installDirectory = _repository.GetInstallDirectory(transaction.InstallId);

@@ -297,6 +297,7 @@ public sealed class CLICommandSetTests : IDisposable
 
     private sealed class StubWorkflowService : IWorkflowService
     {
+        public BackupRecoveryReport CheckPendingTransactions() => BackupRecoveryReport.Clean;
         public InstallPreviewResult? InstallPreviewResult { get; init; }
         public InstallModResult? InstallResult { get; init; }
         public IReadOnlyList<InstallRecordSummary> InstalledMods { get; init; } = [];

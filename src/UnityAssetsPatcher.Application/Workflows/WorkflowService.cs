@@ -34,6 +34,11 @@ public sealed class WorkflowService : IWorkflowService
         return _backupRepository.RecoverPendingTransactions();
     }
 
+    public BackupRecoveryReport CheckPendingTransactions()
+    {
+        return _backupRepository.CheckPendingTransactions();
+    }
+
     public ModManifest CheckManifest(string path)
     {
         return _manifestReader.Load(path);

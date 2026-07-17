@@ -37,30 +37,66 @@ public sealed class TerminalGUINavigator
         AvailableUpdate? availableUpdate = null;
         MainMenuView? visibleMainMenu = null;
         BackupRecoveryReport recovery = BackupRecoveryReport.Clean;
+        int recoveryRunning = 0;
 
-        shell.ShowContent(new BackupRecoveryView());
-        _ = RecoverBackupAsync();
+        _ = CheckBackupAsync();
         _ = CheckForUpdateAsync();
         application.Run(shell);
         updateCancellation.Cancel();
 
         return 0;
 
+        async Task CheckBackupAsync()
+        {
+            await RunBackupTaskAsync(_workflowService.CheckPendingTransactions).ConfigureAwait(false);
+        }
+
         async Task RecoverBackupAsync()
         {
+            await RunBackupTaskAsync(_workflowService.RecoverPendingTransactions).ConfigureAwait(false);
+        }
+
+        async Task RunBackupTaskAsync(Func<BackupRecoveryReport> operation)
+        {
+            if (Interlocked.Exchange(ref recoveryRunning, 1) == 1)
+            {
+                return;
+            }
+
             try
             {
-                recovery = await Task.Run(_workflowService.RecoverPendingTransactions).ConfigureAwait(false);
+                recovery = await Task.Run(operation).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
                 recovery = new BackupRecoveryReport(BackupRepositoryStatus.Locked, [],
                     [new BackupRecoveryIssue("recovery-failed", exception.Message, string.Empty)]);
             }
+            finally
+            {
+                Volatile.Write(ref recoveryRunning, 0);
+            }
 
+            ShowRecoveryResult();
+        }
+
+        void ShowRecoveryResult()
+        {
             try
             {
-                application.Invoke(ShowMainMenu);
+                application.Invoke(() =>
+                {
+                    if (recovery.Status is BackupRepositoryStatus.RecoveryRequired or BackupRepositoryStatus.Locked)
+                    {
+                        shell.ShowContent(new BackupRecoveryView(
+                            recovery,
+                            () => _ = RecoverBackupAsync(),
+                            application.RequestStop));
+                        return;
+                    }
+
+                    ShowMainMenu();
+                });
             }
             catch (ObjectDisposedException) { }
             catch (InvalidOperationException) { }

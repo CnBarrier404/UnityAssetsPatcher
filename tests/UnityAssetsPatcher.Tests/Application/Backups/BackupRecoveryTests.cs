@@ -7,6 +7,30 @@ namespace UnityAssetsPatcher.Tests.Application.Backups;
 public sealed class BackupRecoveryTests
 {
     [Fact]
+    public void CheckInterruptedInstall_ReportsRecoveryRequiredWithoutChangingFiles()
+    {
+        using var scope = new TemporaryDirectories();
+        var store = new BackupRepository(scope.Backup);
+        BackupRepositoryMetadata repository = store.LoadMetadata();
+        string temporary = store.CreateTransactionDirectory();
+        string asset = Path.Combine(scope.Game, "data.assets");
+        File.WriteAllText(asset, "modified");
+        BackupTransactionStore.Save(temporary, new BackupTransaction(
+            repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"), scope.Game,
+            GameInstanceIdentity.CreateFingerprint(scope.Game),
+            [
+                new BackupTransactionFile(BackupFileKind.Assets, "data.assets",
+                    TextIntegrity("original"), TextIntegrity("modified"), Path.Combine("rollback", "asset.bin"))
+            ]));
+
+        BackupRecoveryReport result = store.CheckPendingTransactions();
+
+        Assert.Equal(BackupRepositoryStatus.RecoveryRequired, result.Status);
+        Assert.Equal("modified", File.ReadAllText(asset));
+        Assert.True(Directory.Exists(temporary));
+    }
+
+    [Fact]
     public void RecoverInterruptedInstall_RestoresAssetsAndRemovesPayloadAndTempDirectory()
     {
         using var scope = new TemporaryDirectories();
