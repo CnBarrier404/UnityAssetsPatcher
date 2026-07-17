@@ -5,25 +5,24 @@ using UnityAssetsPatcher.Application.Installation;
 namespace UnityAssetsPatcher.Application.Uninstallation;
 
 public sealed record UninstallPlan(
-    string BackupDirectory,
     string InstallDirectory,
     string GameDirectory,
     InstallRecord Record);
 
 public sealed class UninstallPlanner
 {
-    private readonly ModBackupStore _backupStore;
+    private readonly BackupRepository _backupRepository;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
 
-    public UninstallPlanner(ModBackupStore backupStore, GameDirectoryResolver gameDirectoryResolver)
+    public UninstallPlanner(BackupRepository backupRepository, GameDirectoryResolver gameDirectoryResolver)
     {
-        _backupStore = backupStore;
+        _backupRepository = backupRepository;
         _gameDirectoryResolver = gameDirectoryResolver;
     }
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
     {
-        return _backupStore.ListInstalled();
+        return _backupRepository.ListInstalled();
     }
 
     public UninstallPreviewResult BuildPreview(UninstallPreviewRequest request)
@@ -34,9 +33,9 @@ public sealed class UninstallPlanner
         string gameDirectory = ResolveGameDirectory(request.GameDirectory, record);
         ValidateGameInstance(record, gameDirectory);
         var blockers = InstallLayerAnalyzer.FindBlockingRecords(
-            record, _backupStore.ListRecords());
+            record, _backupRepository.ListRecords());
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
-            _backupStore.BackupDirectory,
+            _backupRepository.BackupDirectory,
             installDirectory,
             gameDirectory,
             record);
@@ -89,7 +88,7 @@ public sealed class UninstallPlanner
         ValidateGameInstance(record, gameDirectory);
 
         var blockers = InstallLayerAnalyzer.FindBlockingRecords(
-            record, _backupStore.ListRecords());
+            record, _backupRepository.ListRecords());
 
         if (blockers.Count > 0)
         {
@@ -99,7 +98,7 @@ public sealed class UninstallPlanner
         }
 
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
-            _backupStore.BackupDirectory,
+            _backupRepository.BackupDirectory,
             installDirectory,
             gameDirectory,
             record);
@@ -107,7 +106,6 @@ public sealed class UninstallPlanner
         UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
 
         return new UninstallPlan(
-            _backupStore.BackupDirectory,
             installDirectory,
             paths.GameDirectory,
             record);
@@ -117,7 +115,7 @@ public sealed class UninstallPlanner
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(installId);
 
-        InstallRecordEntry[] matches = _backupStore.ListRecords()
+        InstallRecordEntry[] matches = _backupRepository.ListRecords()
             .Where(entry => string.Equals(entry.Record.Id, installId, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
@@ -131,14 +129,7 @@ public sealed class UninstallPlanner
             throw new InvalidOperationException($"Multiple install records use ID '{installId}'.");
         }
 
-        // Accept the former install-directory selector for compatibility with application API callers.
-        if (!Path.IsPathFullyQualified(installId))
-        {
-            throw new KeyNotFoundException($"Install record not found: {installId}");
-        }
-
-        UninstallPathValidator.ValidateInstallDirectory(_backupStore.BackupDirectory, installId);
-        return new InstallRecordEntry(installId, _backupStore.Load(installId));
+        throw new KeyNotFoundException($"Install record not found: {installId}");
     }
 
     private static void ValidateGameInstance(InstallRecord record, string gameDirectory)

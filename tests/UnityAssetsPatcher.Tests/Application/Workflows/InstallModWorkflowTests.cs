@@ -78,12 +78,13 @@ public sealed class InstallModWorkflowTests
             Assert.Equal(1, file.AssetCount);
             Assert.Equal(1, file.OperationCount);
             Assert.Equal(targetPath, assetsFileService.InputPath);
-            Assert.Equal(targetPath, assetsFileService.OutputPath);
+            Assert.Contains(BackupRepository.TransactionDirectoryName, assetsFileService.OutputPath);
             Assert.True(assetsFileService.CloseReadSessionsCountAtWrite >= 1);
             Assert.Equal("patched", File.ReadAllText(targetPath));
             Assert.True(File.Exists(file.BackupPath));
             string recordJson = ReadInstallRecordJson(backupDirectory);
-            Assert.Contains("\"formatVersion\": 2", recordJson);
+            Assert.DoesNotContain("\"formatVersion\"", recordJson);
+            Assert.Contains("\"repositoryId\"", recordJson);
             Assert.Contains("\"installedFile\"", recordJson);
             Assert.Contains("\"backupFile\"", recordJson);
             Assert.Contains("\"sha256\"", recordJson);
@@ -92,7 +93,7 @@ public sealed class InstallModWorkflowTests
             Assert.Contains("\"installSequence\": 1", recordJson);
             Assert.DoesNotContain("\"gameDirectory\"", recordJson);
             Assert.DoesNotContain(targetPath, recordJson);
-            InstallRecord storedRecord = Assert.Single(new ModBackupStore(backupDirectory).ListRecords()).Record;
+            InstallRecord storedRecord = Assert.Single(new BackupRepository(backupDirectory).ListRecords()).Record;
             Assert.Equal(storedRecord.Id, result.InstallId);
             InstallRecordPatchedFile storedFile = Assert.Single(storedRecord.PatchedFiles);
             Assert.Equal(FileIntegrity.Create(targetPath), storedFile.InstalledFile);
@@ -1204,16 +1205,16 @@ public sealed class InstallModWorkflowTests
 
         try
         {
-            var exception = Assert.Throws<IOException>(() =>
+            var exception = Assert.Throws<BackupRecoveryException>(() =>
                 workflow.Install(new InstallRequest(zipPath, gameDirectory)));
 
-            Assert.Contains("Payload file was created by another process", exception.Message);
-            Assert.Contains("modassets.resource", exception.Message);
+            Assert.Contains("automatic rollback was unsafe", exception.Message);
             Assert.Equal("original", File.ReadAllText(Path.Combine(targetDirectory, "sharedassets4.assets")));
-            Assert.Empty(Directory.EnumerateFiles(backupDirectory, "record.json", SearchOption.AllDirectories));
-            Assert.Equal(
-                [Path.Combine(backupDirectory, ".operations.lock")],
-                Directory.EnumerateFileSystemEntries(backupDirectory));
+            Assert.Empty(Directory.EnumerateFiles(
+                Path.Combine(backupDirectory, BackupRepository.InstalledDirectoryName),
+                "record.json",
+                SearchOption.AllDirectories));
+            Assert.True(Directory.Exists(Path.Combine(backupDirectory, BackupRepository.TransactionDirectoryName)));
         }
         finally
         {
@@ -1314,8 +1315,8 @@ public sealed class InstallModWorkflowTests
             new TargetAssetResolver(),
             gameDirectoryResolver,
             patchPlanBuilder);
-        var backupStore = new ModBackupStore(backupDirectory ??
-                                             Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+        var backupStore = new BackupRepository(backupDirectory ??
+                                               Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
         var executor = new InstallExecutor(new PatchOutputWriter(assetsFileService), assetsFileService, backupStore);
 
         return new InstallModWorkflow(

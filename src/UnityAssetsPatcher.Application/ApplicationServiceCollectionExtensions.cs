@@ -17,13 +17,13 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<ModManifestReader>();
         services.AddSingleton(_ => new GameDirectoryResolver());
         services.AddSingleton<TargetAssetResolver>();
-        services.AddSingleton(new ModBackupStore(backupDirectory));
+        services.AddSingleton(new BackupRepository(backupDirectory));
         services.AddSingleton<WorkflowFactory>();
         services.AddSingleton<IWorkflowService>(provider => new WorkflowService(
             provider.GetRequiredService<IAssetsAccessScopeFactory>(),
             provider.GetRequiredService<WorkflowFactory>(),
             provider.GetRequiredService<ModManifestReader>(),
-            provider.GetRequiredService<ModBackupStore>()));
+            provider.GetRequiredService<BackupRepository>()));
 
         return services;
     }

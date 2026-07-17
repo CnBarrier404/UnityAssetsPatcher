@@ -11,7 +11,10 @@ public sealed record UninstallModResult(
     string ModName,
     string ModVersion,
     IReadOnlyList<UninstallRestoredFileResult> RestoredFiles,
-    IReadOnlyList<UninstallDeletedFileResult> DeletedFiles);
+    IReadOnlyList<UninstallDeletedFileResult> DeletedFiles)
+{
+    public BackupRecoveryReport Recovery { get; init; } = BackupRecoveryReport.Clean;
+}
 
 public sealed record UninstallRestoredFileResult(
     string Target,
@@ -72,3 +75,33 @@ public sealed record InstallRecordSummary(
     string ModVersion,
     string? GameName,
     DateTimeOffset InstalledAt);
+
+public enum BackupRepositoryStatus
+{
+    Clean,
+    Recovered,
+    Locked,
+}
+
+public sealed record BackupRecoveryOperation(string Kind, string InstallId, string Action);
+
+public sealed record BackupRecoveryIssue(string Code, string Message, string Path);
+
+public sealed record BackupRecoveryReport(
+    BackupRepositoryStatus Status,
+    IReadOnlyList<BackupRecoveryOperation> Operations,
+    IReadOnlyList<BackupRecoveryIssue> Issues)
+{
+    public static BackupRecoveryReport Clean { get; } = new(BackupRepositoryStatus.Clean, [], []);
+}
+
+public sealed class BackupRecoveryException : InvalidOperationException
+{
+    public BackupRecoveryReport Recovery { get; }
+
+    public BackupRecoveryException(string message, BackupRecoveryReport recovery, Exception? innerException = null)
+        : base(message, innerException)
+    {
+        Recovery = recovery;
+    }
+}

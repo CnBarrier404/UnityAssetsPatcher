@@ -1,4 +1,3 @@
-using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core.Assets;
 
@@ -15,22 +14,20 @@ public sealed class PatchOutputWriter
 
     public PatchApplyResult Write(
         string assetsFilePath,
-        string? outputPathOption,
-        string backupDirectory,
+        string outputPath,
         PatchFileWritePlan plan)
     {
         return plan.Kind == PatchFileWritePlanKind.Replacement
-            ? WriteReplacements(assetsFilePath, outputPathOption, backupDirectory, plan.Replacements)
-            : WriteFieldPatch(assetsFilePath, outputPathOption, backupDirectory, plan.Assets);
+            ? WriteReplacements(assetsFilePath, outputPath, plan.Replacements)
+            : WriteFieldPatch(assetsFilePath, outputPath, plan.Assets);
     }
 
     public PatchApplyResult WriteFieldPatch(
         string assetsFilePath,
-        string? outputPathOption,
-        string backupDirectory,
+        string outputPath,
         IReadOnlyList<AssetFieldPatch> plan)
     {
-        WriteTarget target = ResolveWriteTarget(assetsFilePath, outputPathOption);
+        WriteTarget target = ResolveWriteTarget(assetsFilePath, outputPath);
         var changedPlan = plan
             .Where(asset => asset.Operations.Count > 0)
             .ToArray();
@@ -40,44 +37,40 @@ public sealed class PatchOutputWriter
             return new PatchApplyResult(target.OutputPath, null, 0, 0);
         }
 
-        string? backupPath = CreateBackupIfNeeded(target, backupDirectory);
         _assetsPatchWriter.WritePatch(assetsFilePath, target.OutputPath, changedPlan);
 
         return new PatchApplyResult(
             target.OutputPath,
-            backupPath,
+            null,
             changedPlan.Length,
             changedPlan.Sum(asset => asset.Operations.Count));
     }
 
     public PatchApplyResult WriteReplacements(
         string assetsFilePath,
-        string? outputPathOption,
-        string backupDirectory,
+        string outputPath,
         IReadOnlyList<AssetReplacement> plan)
     {
-        WriteTarget target = ResolveWriteTarget(assetsFilePath, outputPathOption);
-        string? backupPath = CreateBackupIfNeeded(target, backupDirectory);
+        WriteTarget target = ResolveWriteTarget(assetsFilePath, outputPath);
 
         _assetsPatchWriter.WriteReplacements(assetsFilePath, target.OutputPath, plan);
 
-        return new PatchApplyResult(target.OutputPath, backupPath, plan.Count, plan.Count);
+        return new PatchApplyResult(target.OutputPath, null, plan.Count, plan.Count);
     }
 
-    private static WriteTarget ResolveWriteTarget(string assetsFilePath, string? outputPathOption)
+    private static WriteTarget ResolveWriteTarget(string assetsFilePath, string outputPath)
     {
         if (!File.Exists(assetsFilePath))
         {
             throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
         }
 
-        string outputPath = outputPathOption ?? assetsFilePath;
         bool overwritesInput = string.Equals(
             Path.GetFullPath(outputPath),
             Path.GetFullPath(assetsFilePath),
             StringComparison.OrdinalIgnoreCase);
 
-        if (outputPathOption is not null && overwritesInput)
+        if (overwritesInput)
         {
             throw new InvalidOperationException("--output cannot point to the input assets file.");
         }
@@ -87,13 +80,8 @@ public sealed class PatchOutputWriter
             throw new IOException($"Output file already exists: {outputPath}");
         }
 
-        return new WriteTarget(assetsFilePath, outputPath, overwritesInput);
+        return new WriteTarget(outputPath);
     }
 
-    private static string? CreateBackupIfNeeded(WriteTarget target, string backupDirectory)
-    {
-        return !target.OverwritesInput ? null : ModBackupStore.BackupFile(target.AssetsFilePath, backupDirectory);
-    }
-
-    private sealed record WriteTarget(string AssetsFilePath, string OutputPath, bool OverwritesInput);
+    private sealed record WriteTarget(string OutputPath);
 }

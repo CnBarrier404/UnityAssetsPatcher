@@ -20,6 +20,15 @@ namespace UnityAssetsPatcher.Tests.TUI;
 
 public sealed class TerminalGUITests : IDisposable
 {
+    [Fact]
+    public void BackupRecoveryView_ShowsRecoveryStatus()
+    {
+        using var view = new BackupRecoveryView();
+
+        StyledLabel status = Assert.Single(view.SubViews.OfType<StyledLabel>());
+        Assert.False(string.IsNullOrWhiteSpace(status.Text?.ToString()));
+    }
+
     private readonly CultureInfo _originalUiCulture = CultureInfo.CurrentUICulture;
 
     public TerminalGUITests()
@@ -380,7 +389,7 @@ public sealed class TerminalGUITests : IDisposable
 
     private sealed class ThrowingWorkflowService : IWorkflowService
     {
-        public void RecoverPendingTransactions() => throw new NotSupportedException();
+        public BackupRecoveryReport RecoverPendingTransactions() => BackupRecoveryReport.Clean;
 
         public ModManifest CheckManifest(string path) => throw new NotSupportedException();
 

@@ -8,13 +8,13 @@ public sealed class UninstallModWorkflow
 {
     private readonly UninstallPlanner _planner;
     private readonly UninstallExecutor _executor;
-    private readonly ModBackupStore _backupStore;
+    private readonly BackupRepository _backupRepository;
 
-    public UninstallModWorkflow(UninstallPlanner planner, UninstallExecutor executor, ModBackupStore backupStore)
+    public UninstallModWorkflow(UninstallPlanner planner, UninstallExecutor executor, BackupRepository backupRepository)
     {
         _planner = planner;
         _executor = executor;
-        _backupStore = backupStore;
+        _backupRepository = backupRepository;
     }
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
@@ -29,8 +29,14 @@ public sealed class UninstallModWorkflow
 
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
-        using BackupOperationLock operationLock = _backupStore.AcquireOperationLock();
+        using BackupOperationLock operationLock = _backupRepository.AcquireLock();
+        BackupRecoveryReport recovery = _backupRepository.RecoverUnderLock();
+        if (recovery.Status == BackupRepositoryStatus.Locked)
+        {
+            throw new BackupRecoveryException(recovery.Issues[0].Message, recovery);
+        }
+
         UninstallPlan plan = _planner.BuildUninstall(request);
-        return _executor.Execute(plan);
+        return _executor.Execute(plan) with { Recovery = recovery };
     }
 }

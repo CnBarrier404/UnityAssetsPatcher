@@ -1,6 +1,7 @@
 using Terminal.Gui.App;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
@@ -35,17 +36,39 @@ public sealed class TerminalGUINavigator
         using var updateCancellation = new CancellationTokenSource();
         AvailableUpdate? availableUpdate = null;
         MainMenuView? visibleMainMenu = null;
+        BackupRecoveryReport recovery = BackupRecoveryReport.Clean;
 
-        ShowMainMenu();
+        shell.ShowContent(new BackupRecoveryView());
+        _ = RecoverBackupAsync();
         _ = CheckForUpdateAsync();
         application.Run(shell);
         updateCancellation.Cancel();
 
         return 0;
 
+        async Task RecoverBackupAsync()
+        {
+            try
+            {
+                recovery = await Task.Run(_workflowService.RecoverPendingTransactions).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                recovery = new BackupRecoveryReport(BackupRepositoryStatus.Locked, [],
+                    [new BackupRecoveryIssue("recovery-failed", exception.Message, string.Empty)]);
+            }
+
+            try
+            {
+                application.Invoke(ShowMainMenu);
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
+        }
+
         void ShowMainMenu()
         {
-            var mainMenu = new MainMenuView(menuItems, availableUpdate);
+            var mainMenu = new MainMenuView(menuItems, availableUpdate, recovery);
             visibleMainMenu = mainMenu;
             mainMenu.ItemSelected += (_, item) =>
             {

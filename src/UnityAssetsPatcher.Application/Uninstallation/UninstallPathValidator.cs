@@ -6,7 +6,8 @@ public static class UninstallPathValidator
 {
     public static void ValidateInstallDirectory(string backupDirectory, string installDirectory)
     {
-        string fullBackupDirectory = GetResolvedPath(backupDirectory, "backup directory");
+        string fullBackupDirectory = GetResolvedPath(
+            Path.Combine(backupDirectory, BackupRepository.InstalledDirectoryName), "installed records directory");
         string fullInstallDirectory = GetResolvedPath(installDirectory, "install directory");
 
         if (PathsEqual(fullInstallDirectory, fullBackupDirectory) ||

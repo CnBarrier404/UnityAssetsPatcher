@@ -311,7 +311,11 @@ public sealed class CLICommandSetTests : IDisposable
         public UninstallPreviewRequest? LastUninstallPreviewRequest { get; private set; }
         public UninstallModRequest? LastUninstallRequest { get; private set; }
 
-        public void RecoverPendingTransactions() => ThrowIfConfigured();
+        public BackupRecoveryReport RecoverPendingTransactions()
+        {
+            ThrowIfConfigured();
+            return BackupRecoveryReport.Clean;
+        }
 
         public ModManifest CheckManifest(string path) => throw new NotSupportedException();
 

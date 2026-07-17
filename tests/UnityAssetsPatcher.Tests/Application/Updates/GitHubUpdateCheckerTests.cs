@@ -78,10 +78,14 @@ public sealed class GitHubUpdateCheckerTests
     [Theory]
     [InlineData("{}")]
     [InlineData("not-json")]
-    [InlineData("{\"schemaVersion\":2,\"version\":\"v1.3.0\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
-    [InlineData("{\"schemaVersion\":1,\"version\":\"invalid\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
-    [InlineData("{\"schemaVersion\":1,\"version\":\"v1.3.0\",\"releaseUrl\":\"http://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
-    [InlineData("{\"schemaVersion\":1,\"version\":\"v1.3.0\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"invalid\"}")]
+    [InlineData(
+        "{\"schemaVersion\":2,\"version\":\"v1.3.0\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
+    [InlineData(
+        "{\"schemaVersion\":1,\"version\":\"invalid\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
+    [InlineData(
+        "{\"schemaVersion\":1,\"version\":\"v1.3.0\",\"releaseUrl\":\"http://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}")]
+    [InlineData(
+        "{\"schemaVersion\":1,\"version\":\"v1.3.0\",\"releaseUrl\":\"https://example.com\",\"downloadUrl\":\"https://example.com/file.zip\",\"sha256\":\"invalid\"}")]
     public async Task CheckForUpdateAsync_WhenManifestIsInvalid_ReturnsFailed(string json)
     {
         using var httpClient = new HttpClient(

@@ -4,7 +4,7 @@ namespace UnityAssetsPatcher.Application.Contracts;
 
 public interface IWorkflowService
 {
-    public void RecoverPendingTransactions();
+    public BackupRecoveryReport RecoverPendingTransactions();
     public ModManifest CheckManifest(string path);
     public InspectListResult InspectList(InspectListRequest request);
     public AssetsFieldInfo InspectFields(InspectFieldsRequest request);

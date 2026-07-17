@@ -10,28 +10,34 @@ public sealed class WorkflowService : IWorkflowService
     private readonly IAssetsAccessScopeFactory _assetsScopeFactory;
     private readonly WorkflowFactory _workflowFactory;
     private readonly ModManifestReader _manifestReader;
-    private readonly ModBackupStore _backupStore;
+    private readonly BackupRepository _backupRepository;
 
     internal WorkflowService(
         IAssetsAccessScopeFactory assetsScopeFactory,
         WorkflowFactory workflowFactory,
         ModManifestReader manifestReader,
-        ModBackupStore backupStore)
+        BackupRepository backupRepository)
     {
         ArgumentNullException.ThrowIfNull(assetsScopeFactory);
         ArgumentNullException.ThrowIfNull(workflowFactory);
         ArgumentNullException.ThrowIfNull(manifestReader);
-        ArgumentNullException.ThrowIfNull(backupStore);
+        ArgumentNullException.ThrowIfNull(backupRepository);
 
         _assetsScopeFactory = assetsScopeFactory;
         _workflowFactory = workflowFactory;
         _manifestReader = manifestReader;
-        _backupStore = backupStore;
+        _backupRepository = backupRepository;
     }
 
-    public void RecoverPendingTransactions() => _backupStore.RecoverPendingTransactions();
+    public BackupRecoveryReport RecoverPendingTransactions()
+    {
+        return _backupRepository.RecoverPendingTransactions();
+    }
 
-    public ModManifest CheckManifest(string path) => _manifestReader.Load(path);
+    public ModManifest CheckManifest(string path)
+    {
+        return _manifestReader.Load(path);
+    }
 
     public InspectListResult InspectList(InspectListRequest request)
     {
@@ -51,7 +57,6 @@ public sealed class WorkflowService : IWorkflowService
 
     public InstallPreviewResult PreviewInstall(InstallRequest request)
     {
-        RecoverPendingTransactions();
         using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
         InstallModWorkflow workflow = _workflowFactory.CreateInstallWorkflow(assets);
 
@@ -60,7 +65,6 @@ public sealed class WorkflowService : IWorkflowService
 
     public InstallModResult Install(InstallRequest request)
     {
-        RecoverPendingTransactions();
         using IAssetsAccessScope assets = _assetsScopeFactory.CreateScope();
         InstallModWorkflow workflow = _workflowFactory.CreateInstallWorkflow(assets);
 
@@ -69,7 +73,6 @@ public sealed class WorkflowService : IWorkflowService
 
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
     {
-        RecoverPendingTransactions();
         UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow();
 
         return workflow.ListInstalled();
@@ -77,7 +80,6 @@ public sealed class WorkflowService : IWorkflowService
 
     public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request)
     {
-        RecoverPendingTransactions();
         UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow();
 
         return workflow.Preview(request);
@@ -85,7 +87,6 @@ public sealed class WorkflowService : IWorkflowService
 
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
-        RecoverPendingTransactions();
         UninstallModWorkflow workflow = _workflowFactory.CreateUninstallWorkflow();
 
         return workflow.Uninstall(request);

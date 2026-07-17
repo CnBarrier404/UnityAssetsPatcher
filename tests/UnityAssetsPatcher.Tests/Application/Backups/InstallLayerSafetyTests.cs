@@ -39,22 +39,20 @@ public sealed class InstallLayerSafetyTests
     }
 
     [Theory]
-    [InlineData(0, "fingerprint", 1)]
-    [InlineData(1, "fingerprint", 1)]
-    [InlineData(3, "fingerprint", 1)]
-    [InlineData(2, "", 1)]
-    [InlineData(2, "fingerprint", 0)]
-    public void InstallRecordValidator_RejectsUnsupportedOrInvalidIdentity(
-        int formatVersion,
+    [InlineData("other-repository", "fingerprint", 1)]
+    [InlineData("repository", "", 1)]
+    [InlineData("repository", "fingerprint", 0)]
+    public void InstallRecordValidator_RejectsWrongRepositoryOrInvalidIdentity(
+        string repositoryId,
         string fingerprint,
         long sequence)
     {
         InstallRecord record = Record("a", fingerprint, sequence, "a.assets") with
         {
-            FormatVersion = formatVersion,
+            RepositoryId = repositoryId,
         };
 
-        Assert.ThrowsAny<Exception>(() => InstallRecordValidator.Validate(record));
+        Assert.ThrowsAny<Exception>(() => InstallRecordValidator.Validate(record, "repository"));
     }
 
     [Theory]
@@ -117,8 +115,9 @@ public sealed class InstallLayerSafetyTests
         string directory = CreateDirectory();
         try
         {
-            using BackupOperationLock owner = BackupOperationLock.Acquire(directory);
-            Assert.Throws<InvalidOperationException>(() => BackupOperationLock.Acquire(directory));
+            var store = new BackupRepository(directory);
+            using BackupOperationLock owner = store.AcquireLock();
+            Assert.Throws<InvalidOperationException>(() => store.AcquireLock());
         }
         finally
         {
@@ -133,14 +132,14 @@ public sealed class InstallLayerSafetyTests
         UninstallModWorkflow workflow = scenario.CreateWorkflow();
 
         UninstallPreviewResult preview = workflow.Preview(
-            new UninstallPreviewRequest(scenario.FirstInstallDirectory, scenario.GameDirectory));
+            new UninstallPreviewRequest(scenario.FirstInstallId, scenario.GameDirectory));
 
         Assert.False(preview.CanUninstall);
         UninstallBlockingModResult blocker = Assert.Single(preview.BlockingMods);
         Assert.Equal("Second Mod", blocker.ModName);
         Assert.Equal([Path.Combine("Game_Data", "sharedassets0.assets")], blocker.OverlappingAssetsFiles);
         Assert.Throws<InvalidOperationException>(() => workflow.Uninstall(
-            new UninstallModRequest(scenario.FirstInstallDirectory, scenario.GameDirectory)));
+            new UninstallModRequest(scenario.FirstInstallId, scenario.GameDirectory)));
         Assert.Equal("second", File.ReadAllText(scenario.AssetsPath));
         Assert.True(File.Exists(scenario.FirstPayloadPath));
         Assert.True(File.Exists(Path.Combine(scenario.FirstInstallDirectory, "record.json")));
@@ -152,10 +151,10 @@ public sealed class InstallLayerSafetyTests
         using Scenario scenario = Scenario.Create();
         UninstallModWorkflow workflow = scenario.CreateWorkflow();
 
-        workflow.Uninstall(new UninstallModRequest(scenario.SecondInstallDirectory, scenario.GameDirectory));
+        workflow.Uninstall(new UninstallModRequest(scenario.SecondInstallId, scenario.GameDirectory));
         Assert.Equal("first", File.ReadAllText(scenario.AssetsPath));
 
-        workflow.Uninstall(new UninstallModRequest(scenario.FirstInstallDirectory, scenario.GameDirectory));
+        workflow.Uninstall(new UninstallModRequest(scenario.FirstInstallId, scenario.GameDirectory));
         Assert.Equal("original", File.ReadAllText(scenario.AssetsPath));
     }
 
@@ -167,7 +166,7 @@ public sealed class InstallLayerSafetyTests
         try
         {
             Assert.Throws<InvalidOperationException>(() => scenario.CreateWorkflow().Preview(
-                new UninstallPreviewRequest(scenario.FirstInstallDirectory, otherGame)));
+                new UninstallPreviewRequest(scenario.FirstInstallId, otherGame)));
         }
         finally
         {
@@ -178,7 +177,7 @@ public sealed class InstallLayerSafetyTests
     private static InstallRecord Record(string id, string fingerprint, long sequence, params string[] files)
     {
         return new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             fingerprint,
             sequence,
             id,
@@ -208,7 +207,9 @@ public sealed class InstallLayerSafetyTests
         public required string FirstPayloadPath { get; init; }
         public required string FirstInstallDirectory { get; init; }
         public required string SecondInstallDirectory { get; init; }
-        public required ModBackupStore Store { get; init; }
+        public required string FirstInstallId { get; init; }
+        public required string SecondInstallId { get; init; }
+        public required BackupRepository Store { get; init; }
 
         public static Scenario Create()
         {
@@ -223,9 +224,12 @@ public sealed class InstallLayerSafetyTests
             string payload = Path.Combine(gameData, "first.payload");
             File.WriteAllText(payload, "payload");
 
-            var store = new ModBackupStore(backup);
-            string firstDirectory = store.CreateInstallDirectory("First Mod", "1.0");
-            string secondDirectory = store.CreateInstallDirectory("Second Mod", "2.0");
+            var store = new BackupRepository(backup);
+            string repositoryId = store.LoadMetadata().RepositoryId;
+            string firstId = Guid.NewGuid().ToString("N");
+            string secondId = Guid.NewGuid().ToString("N");
+            string firstDirectory = store.GetInstallDirectory(firstId);
+            string secondDirectory = store.GetInstallDirectory(secondId);
             string firstBackup = Path.Combine(firstDirectory, "assets", "sharedassets0.assets");
             string secondBackup = Path.Combine(secondDirectory, "assets", Path.GetFileName(firstAssets));
             Directory.CreateDirectory(Path.GetDirectoryName(firstBackup)!);
@@ -234,15 +238,16 @@ public sealed class InstallLayerSafetyTests
             File.WriteAllText(secondBackup, "first");
             string fingerprint = GameInstanceIdentity.CreateFingerprint(game);
 
-            store.Save(CreateScenarioRecord(
-                "first", "First Mod", 1, fingerprint, game, firstDirectory, firstAssets, firstBackup,
+            store.WriteRecord(CreateScenarioRecord(
+                repositoryId, firstId, "First Mod", 1, fingerprint, game, firstDirectory, firstAssets, firstBackup,
                 TextIntegrity("first"),
                 [
                     new InstallRecordCopiedFile("first.payload", Path.GetRelativePath(game, payload),
                         FileIntegrity.Create(payload))
                 ]), firstDirectory);
-            store.Save(CreateScenarioRecord(
-                    "second", "Second Mod", 2, fingerprint, game, secondDirectory, firstAssets, secondBackup,
+            store.WriteRecord(CreateScenarioRecord(
+                    repositoryId, secondId, "Second Mod", 2, fingerprint, game, secondDirectory, firstAssets,
+                    secondBackup,
                     TextIntegrity("second"), []),
                 secondDirectory);
 
@@ -254,13 +259,15 @@ public sealed class InstallLayerSafetyTests
                 FirstPayloadPath = payload,
                 FirstInstallDirectory = firstDirectory,
                 SecondInstallDirectory = secondDirectory,
+                FirstInstallId = firstId,
+                SecondInstallId = secondId,
                 Store = store,
             };
         }
 
         public UninstallModWorkflow CreateWorkflow() => new(
             new UninstallPlanner(Store, new GameDirectoryResolver([])),
-            new UninstallExecutor(),
+            new UninstallExecutor(Store),
             Store);
 
         public void Dispose()
@@ -269,6 +276,7 @@ public sealed class InstallLayerSafetyTests
         }
 
         private static InstallRecord CreateScenarioRecord(
+            string repositoryId,
             string id,
             string name,
             long sequence,
@@ -281,7 +289,7 @@ public sealed class InstallLayerSafetyTests
             IReadOnlyList<InstallRecordCopiedFile> copiedFiles)
         {
             return new InstallRecord(
-                InstallRecordValidator.CurrentFormatVersion,
+                repositoryId,
                 fingerprint,
                 sequence,
                 id,

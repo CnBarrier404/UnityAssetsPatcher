@@ -13,7 +13,10 @@ public sealed record InstallModResult(
     string ModVersion,
     IReadOnlyList<InstallChange> Changes,
     IReadOnlyList<string> OptionalGroups,
-    TimingSnapshot Timing);
+    TimingSnapshot Timing)
+{
+    public BackupRecoveryReport Recovery { get; init; } = BackupRecoveryReport.Clean;
+}
 
 public sealed record InstallPreviewResult(
     string ModName,

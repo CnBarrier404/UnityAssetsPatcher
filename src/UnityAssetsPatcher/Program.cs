@@ -14,7 +14,11 @@ public static class Program
 
     public static int Main(string[] args)
     {
-        string backupDirectory = Path.Combine(AppContext.BaseDirectory, "backup");
+        string backupDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "UnityAssetsPatcher",
+            "backup");
+
         AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
 
         using ServiceProvider serviceProvider = new ServiceCollection()
@@ -28,14 +32,9 @@ public static class Program
                 ValidateScopes = true,
             });
 
-        if (args.Length > 0)
-        {
-            return serviceProvider.GetRequiredService<CLIApplication>().Run(args);
-        }
-
-        serviceProvider.GetRequiredService<IWorkflowService>().RecoverPendingTransactions();
-
-        return serviceProvider.GetRequiredService<TerminalApp>().Run();
+        return args.Length > 0
+            ? serviceProvider.GetRequiredService<CLIApplication>().Run(args)
+            : serviceProvider.GetRequiredService<TerminalApp>().Run();
 
         // TPKSource: https://github.com/AssetRipper/Tpk
         Stream OpenTpkResource() => typeof(Program).Assembly.GetManifestResourceStream(TpkResourceName)

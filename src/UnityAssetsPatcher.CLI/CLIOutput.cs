@@ -45,10 +45,17 @@ internal static class CLIOutput
 
         if (parseResult.GetValue(options.Format) == CLIOutputFormat.Json)
         {
-            WriteJson(error, ErrorEnvelope(command, "command_failed", exception.Message, Flatten(exception)));
+            JsonObject envelope = ErrorEnvelope(command, "command_failed", exception.Message, Flatten(exception));
+            BackupRecoveryException? recovery = EnumerateExceptions(exception).OfType<BackupRecoveryException>()
+                .FirstOrDefault();
+            if (recovery is not null) envelope["recovery"] = Recovery(recovery.Recovery);
+            WriteJson(error, envelope);
         }
         else
         {
+            BackupRecoveryException? recovery = EnumerateExceptions(exception).OfType<BackupRecoveryException>()
+                .FirstOrDefault();
+            if (recovery is not null) WriteRecoveryText(error, recovery.Recovery);
             WriteException(error, exception);
         }
 
@@ -186,6 +193,7 @@ internal static class CLIOutput
             ["optionalGroups"] =
                 new JsonArray(result.OptionalGroups.Select(value => JsonValue.Create(value)).ToArray<JsonNode?>()),
             ["timing"] = Timing(result.Timing),
+            ["recovery"] = Recovery(result.Recovery),
         };
     }
 
@@ -251,6 +259,7 @@ internal static class CLIOutput
                 ["destinationPath"] = file.DestinationPath,
                 ["deleted"] = file.Deleted,
             }).ToArray<JsonNode?>()),
+            ["recovery"] = Recovery(result.Recovery),
         };
     }
 
@@ -271,6 +280,7 @@ internal static class CLIOutput
 
     public static void WriteInstallResultText(TextWriter output, InstallModResult result)
     {
+        WriteRecoveryText(output, result.Recovery);
         output.WriteLine($"Installed: {result.ModName} {result.ModVersion}");
         output.WriteLine($"Install ID: {result.InstallId}");
         WriteChanges(output, result.Changes, preview: false);
@@ -319,6 +329,7 @@ internal static class CLIOutput
 
     public static void WriteUninstallResultText(TextWriter output, UninstallModResult result)
     {
+        WriteRecoveryText(output, result.Recovery);
         output.WriteLine($"Uninstalled: {result.ModName} {result.ModVersion}");
         output.WriteLine($"Install ID: {result.InstallId}");
         output.WriteLine($"Restored files: {result.RestoredFiles.Count}");
@@ -463,6 +474,36 @@ internal static class CLIOutput
                 ["elapsedMilliseconds"] = step.Elapsed.TotalMilliseconds,
             }).ToArray<JsonNode?>()),
         };
+    }
+
+    private static JsonObject Recovery(BackupRecoveryReport recovery)
+    {
+        return new JsonObject
+        {
+            ["status"] = EnumName(recovery.Status),
+            ["operations"] = new JsonArray(recovery.Operations.Select(operation => new JsonObject
+            {
+                ["kind"] = operation.Kind,
+                ["installId"] = operation.InstallId,
+                ["action"] = operation.Action,
+            }).ToArray<JsonNode?>()),
+            ["issues"] = new JsonArray(recovery.Issues.Select(issue => new JsonObject
+            {
+                ["code"] = issue.Code,
+                ["message"] = issue.Message,
+                ["path"] = issue.Path,
+            }).ToArray<JsonNode?>()),
+        };
+    }
+
+    private static void WriteRecoveryText(TextWriter output, BackupRecoveryReport recovery)
+    {
+        if (recovery.Status == BackupRepositoryStatus.Clean) return;
+        output.WriteLine($"Backup recovery: {EnumName(recovery.Status)}");
+        foreach (BackupRecoveryOperation operation in recovery.Operations)
+            output.WriteLine($"- {operation.Kind} {operation.InstallId}: {operation.Action}");
+        foreach (BackupRecoveryIssue issue in recovery.Issues)
+            output.WriteLine($"- {issue.Code}: {issue.Message} ({issue.Path})");
     }
 
     private static void WriteChanges(TextWriter output, IReadOnlyList<InstallChange> changes, bool preview)

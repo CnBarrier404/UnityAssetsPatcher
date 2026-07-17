@@ -19,7 +19,7 @@ public sealed class UninstallIntegrityTests
         scenario.ReplaceWithSameLength(trackedFile);
 
         UninstallPreviewResult preview = scenario.Workflow.Preview(
-            new UninstallPreviewRequest(scenario.InstallDirectory, scenario.GameDirectory));
+            new UninstallPreviewRequest(scenario.InstallId, scenario.GameDirectory));
 
         Assert.False(preview.CanUninstall);
         UninstallPreviewRestoredFileResult restored = Assert.Single(preview.RestoredFiles);
@@ -43,13 +43,13 @@ public sealed class UninstallIntegrityTests
     {
         using Scenario scenario = Scenario.Create();
         UninstallPreviewResult preview = scenario.Workflow.Preview(
-            new UninstallPreviewRequest(scenario.InstallDirectory, scenario.GameDirectory));
+            new UninstallPreviewRequest(scenario.InstallId, scenario.GameDirectory));
         Assert.True(preview.CanUninstall);
 
         scenario.ReplaceWithSameLength(trackedFile);
 
         Assert.Throws<InvalidOperationException>(() => scenario.Workflow.Uninstall(
-            new UninstallModRequest(scenario.InstallDirectory, scenario.GameDirectory)));
+            new UninstallModRequest(scenario.InstallId, scenario.GameDirectory)));
         Assert.Equal(trackedFile == TrackedFile.Assets ? "changed" : "patched",
             File.ReadAllText(scenario.AssetsPath));
         Assert.Equal(trackedFile == TrackedFile.Backup ? "replaced" : "original",
@@ -66,14 +66,14 @@ public sealed class UninstallIntegrityTests
         File.Delete(scenario.PayloadPath);
 
         UninstallPreviewResult preview = scenario.Workflow.Preview(
-            new UninstallPreviewRequest(scenario.InstallDirectory, scenario.GameDirectory));
+            new UninstallPreviewRequest(scenario.InstallId, scenario.GameDirectory));
         UninstallPreviewDeletedFileResult payload = Assert.Single(preview.DeletedFiles);
 
         Assert.True(preview.CanUninstall);
         Assert.Equal(FileIntegrityStatus.Missing, payload.Status);
 
         UninstallModResult result = scenario.Workflow.Uninstall(
-            new UninstallModRequest(scenario.InstallDirectory, scenario.GameDirectory));
+            new UninstallModRequest(scenario.InstallId, scenario.GameDirectory));
 
         Assert.Equal("original", File.ReadAllText(scenario.AssetsPath));
         Assert.False(Assert.Single(result.DeletedFiles).Deleted);
@@ -92,6 +92,7 @@ public sealed class UninstallIntegrityTests
         public required string Root { get; init; }
         public required string GameDirectory { get; init; }
         public required string InstallDirectory { get; init; }
+        public required string InstallId { get; init; }
         public required string AssetsPath { get; init; }
         public required string BackupPath { get; init; }
         public required string PayloadPath { get; init; }
@@ -114,7 +115,7 @@ public sealed class UninstallIntegrityTests
             File.WriteAllText(payloadPath, "payload");
 
             var record = new InstallRecord(
-                InstallRecordValidator.CurrentFormatVersion,
+                string.Empty,
                 GameInstanceIdentity.CreateFingerprint(gameDirectory),
                 1,
                 "install-1",
@@ -139,20 +140,25 @@ public sealed class UninstallIntegrityTests
                         Path.GetRelativePath(gameDirectory, payloadPath),
                         FileIntegrity.Create(payloadPath)),
                 ]);
-            var store = new ModBackupStore(backupDirectory);
-            store.Save(record, installDirectory);
+            var store = new BackupRepository(backupDirectory);
+            string committedInstallDirectory = store.GetInstallDirectory(record.Id);
+            _ = store.LoadMetadata();
+            Directory.Move(installDirectory, committedInstallDirectory);
+            store.WriteRecord(record, committedInstallDirectory);
+            string committedBackupPath = Path.Combine(committedInstallDirectory, "assets", "sharedassets0.assets");
 
             return new Scenario
             {
                 Root = root,
                 GameDirectory = gameDirectory,
-                InstallDirectory = installDirectory,
+                InstallDirectory = committedInstallDirectory,
+                InstallId = record.Id,
                 AssetsPath = assetsPath,
-                BackupPath = backupPath,
+                BackupPath = committedBackupPath,
                 PayloadPath = payloadPath,
                 Workflow = new UninstallModWorkflow(
                     new UninstallPlanner(store, new GameDirectoryResolver([])),
-                    new UninstallExecutor(),
+                    new UninstallExecutor(store),
                     store),
             };
         }

@@ -1,4 +1,7 @@
 {
+  "BackupRecovery_LockedFormat": "Backup repository is read-only: {0}",
+  "BackupRecovery_RecoveredFormat": "Recovered {0} interrupted backup operation(s).",
+  "BackupRecovery_Running": "Checking and recovering the backup repository...",
   "InspectPage_AllRowsChoice": "All rows",
   "InspectPage_Analyzing": "Reading assets file...",
   "InspectPage_AssetsFilePathPrompt": "Assets file path",

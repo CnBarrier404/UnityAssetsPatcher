@@ -1,4 +1,7 @@
 {
+  "BackupRecovery_LockedFormat": "备份仓库已锁定为只读：{0}",
+  "BackupRecovery_RecoveredFormat": "已恢复 {0} 个中断的备份操作。",
+  "BackupRecovery_Running": "正在检查并恢复备份仓库……",
   "InspectPage_AllRowsChoice": "全部",
   "InspectPage_Analyzing": "正在读取 Assets 文件……",
   "InspectPage_AssetsFilePathPrompt": "Assets 文件路径",

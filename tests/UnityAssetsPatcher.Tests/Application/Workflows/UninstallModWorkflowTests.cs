@@ -1,3 +1,4 @@
+using System.Text.Json;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
@@ -28,7 +29,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(backupPath, "original");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -48,8 +49,8 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(backupPath))
             ],
             []);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store, new GameDirectoryResolver([steamRoot]));
 
         try
@@ -86,7 +87,7 @@ public sealed class UninstallModWorkflowTests
         Directory.CreateDirectory(targetDirectory);
         File.WriteAllText(targetPath, "patched");
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -106,14 +107,14 @@ public sealed class UninstallModWorkflowTests
                     TextIntegrity("original")),
             ],
             []);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
             UninstallPreviewResult result =
-                workflow.Preview(new UninstallPreviewRequest(installDirectory, gameDirectory));
+                workflow.Preview(new UninstallPreviewRequest(record.Id, gameDirectory));
 
             Assert.False(result.CanUninstall);
             UninstallPreviewRestoredFileResult file = Assert.Single(result.RestoredFiles);
@@ -152,7 +153,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(payloadPath, "payload");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -175,13 +176,13 @@ public sealed class UninstallModWorkflowTests
                 new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
                     FileIntegrity.Create(payloadPath)),
             ]);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
-            UninstallModResult result = workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory));
+            UninstallModResult result = workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory));
 
             Assert.Equal("Better Audio Pack", result.ModName);
             Assert.Equal("original", File.ReadAllText(targetPath));
@@ -204,7 +205,7 @@ public sealed class UninstallModWorkflowTests
     }
 
     [Fact]
-    public void Uninstall_WhenInstallDirectoryCleanupFails_RemovesRecordFromInstalledList()
+    public void Uninstall_WhenInstallDirectoryCannotMove_KeepsRecordInstalled()
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -221,7 +222,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(lockedPath, "locked");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -241,12 +242,13 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(backupPath)),
             ],
             []);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
+            lockedPath = Path.Combine(installDirectory, "locked.tmp");
             using FileStream _ = File.Open(
                 lockedPath,
                 FileMode.Open,
@@ -254,10 +256,10 @@ public sealed class UninstallModWorkflowTests
                 FileShare.None);
 
             Assert.ThrowsAny<Exception>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
-            Assert.False(File.Exists(Path.Combine(installDirectory, "record.json")));
-            Assert.DoesNotContain(
+            Assert.True(File.Exists(Path.Combine(installDirectory, "record.json")));
+            Assert.Contains(
                 workflow.ListInstalled(),
                 summary => summary.InstallId == record.Id);
         }
@@ -293,7 +295,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(payloadPath, "payload");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -316,8 +318,8 @@ public sealed class UninstallModWorkflowTests
                 new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
                     FileIntegrity.Create(payloadPath)),
             ]);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
@@ -329,7 +331,7 @@ public sealed class UninstallModWorkflowTests
                 FileShare.None);
 
             Assert.ThrowsAny<Exception>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
             Assert.Equal("patched", File.ReadAllText(targetPath));
             Assert.True(File.Exists(Path.Combine(installDirectory, "record.json")));
@@ -367,7 +369,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(secondTargetPath, "second patched");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -395,14 +397,14 @@ public sealed class UninstallModWorkflowTests
                     TextIntegrity("second original")),
             ],
             []);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
             Assert.Contains("backup file is missing", exception.Message);
             Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
@@ -442,7 +444,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(secondBackupPath, "second original");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -470,14 +472,14 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(secondBackupPath)),
             ],
             []);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
             Assert.Contains("assets file is missing", exception.Message);
             Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
@@ -517,7 +519,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(secondBackupPath, "second original");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -545,8 +547,8 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(secondBackupPath)),
             ],
             []);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
@@ -558,7 +560,7 @@ public sealed class UninstallModWorkflowTests
                        FileShare.None))
             {
                 Assert.ThrowsAny<Exception>(() =>
-                    workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+                    workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
             }
 
             Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
@@ -580,7 +582,7 @@ public sealed class UninstallModWorkflowTests
     }
 
     [Fact]
-    public void Uninstall_WhenRestoreAndRollbackBothFail_ReportsBothFailures()
+    public void Uninstall_WhenInjectedRestoreFails_AutomaticRecoveryRestoresEarlierFile()
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -599,7 +601,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(secondBackupPath, "second original");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -628,14 +630,14 @@ public sealed class UninstallModWorkflowTests
             ],
             []);
 
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         int firstFileRestoreAttempts = 0;
-        var executor = new UninstallExecutor((backupPath, targetPath) =>
+        var executor = new UninstallExecutor(store, (backupPath, targetPath) =>
         {
             if (targetPath == firstTargetPath && firstFileRestoreAttempts++ == 0)
             {
-                ModBackupStore.RestoreFile(backupPath, targetPath);
+                BackupFileSystem.RestoreAtomically(backupPath, targetPath);
                 return;
             }
 
@@ -645,10 +647,12 @@ public sealed class UninstallModWorkflowTests
 
         try
         {
-            var exception = Assert.Throws<AggregateException>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+            Assert.Throws<IOException>(() =>
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
-            Assert.True(exception.InnerExceptions.Count >= 2);
+            Assert.Equal("first patched", File.ReadAllText(firstTargetPath));
+            Assert.Equal("second patched", File.ReadAllText(secondTargetPath));
+            Assert.False(Directory.Exists(store.TransactionDirectory));
         }
         finally
         {
@@ -669,17 +673,17 @@ public sealed class UninstallModWorkflowTests
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string escapedDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        var store = new ModBackupStore(backupDirectory);
+        var store = new BackupRepository(backupDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
             Directory.CreateDirectory(escapedDirectory);
 
-            var exception = Assert.Throws<InvalidOperationException>(() =>
+            var exception = Assert.Throws<KeyNotFoundException>(() =>
                 workflow.Preview(new UninstallPreviewRequest(escapedDirectory)));
 
-            Assert.Contains("Install directory must be inside the backup directory", exception.Message);
+            Assert.Contains("Install record not found", exception.Message);
         }
         finally
         {
@@ -711,7 +715,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(backupPath, "escaped original");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -731,16 +735,16 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(backupPath)),
             ],
             []);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitInvalidRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+            var exception = Assert.Throws<BackupRecoveryException>(() =>
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
-            Assert.Contains("Invalid uninstall backup path", exception.Message);
+            Assert.Contains("backup file path is not trusted", exception.Message);
             Assert.Equal("patched", File.ReadAllText(targetPath));
             Assert.True(File.Exists(Path.Combine(installDirectory, "record.json")));
         }
@@ -780,7 +784,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(backupPath, "original");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -800,16 +804,16 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(backupPath)),
             ],
             []);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitInvalidRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+            var exception = Assert.Throws<BackupRecoveryException>(() =>
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
-            Assert.Contains("Invalid uninstall assets file path", exception.Message);
+            Assert.Contains("assets file path is not trusted", exception.Message);
             Assert.Equal("victim", File.ReadAllText(escapedTargetPath));
             Assert.True(File.Exists(Path.Combine(installDirectory, "record.json")));
         }
@@ -852,7 +856,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(escapedPayloadPath, "victim payload");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -876,16 +880,16 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, escapedPayloadPath),
                     FileIntegrity.Create(escapedPayloadPath)),
             ]);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitInvalidRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+            var exception = Assert.Throws<BackupRecoveryException>(() =>
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
-            Assert.Contains("Invalid uninstall payload destination path", exception.Message);
+            Assert.Contains("payload file path is not trusted", exception.Message);
             Assert.Equal("victim payload", File.ReadAllText(escapedPayloadPath));
             Assert.True(File.Exists(Path.Combine(installDirectory, "record.json")));
         }
@@ -926,7 +930,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(payloadPath, "victim payload");
 
         var record = new InstallRecord(
-            InstallRecordValidator.CurrentFormatVersion,
+            string.Empty,
             GameInstanceIdentity.CreateFingerprint(gameDirectory),
             1,
             "install-1",
@@ -949,14 +953,14 @@ public sealed class UninstallModWorkflowTests
                 new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
                     FileIntegrity.Create(payloadPath)),
             ]);
-        var store = new ModBackupStore(backupDirectory);
-        store.Save(record, installDirectory);
+        var store = new BackupRepository(backupDirectory);
+        installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
         try
         {
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
             Assert.Contains("Payload destination file name must match source file name", exception.Message);
             Assert.Equal("victim payload", File.ReadAllText(payloadPath));
@@ -997,7 +1001,7 @@ public sealed class UninstallModWorkflowTests
 
             File.WriteAllText(payloadPath, "victim payload");
             var record = new InstallRecord(
-                InstallRecordValidator.CurrentFormatVersion,
+                string.Empty,
                 GameInstanceIdentity.CreateFingerprint(gameDirectory),
                 1,
                 "install-1",
@@ -1012,12 +1016,12 @@ public sealed class UninstallModWorkflowTests
                         RelativeToGame(gameDirectory, payloadPath),
                         FileIntegrity.Create(payloadPath))
                 ]);
-            var store = new ModBackupStore(backupDirectory);
-            store.Save(record, installDirectory);
+            var store = new BackupRepository(backupDirectory);
+            installDirectory = CommitRecord(store, record, installDirectory);
             var workflow = CreateWorkflow(store);
 
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                workflow.Uninstall(new UninstallModRequest(installDirectory, gameDirectory)));
+                workflow.Uninstall(new UninstallModRequest(record.Id, gameDirectory)));
 
             Assert.Contains("Uninstall payload destination path must be inside its trusted directory",
                 exception.Message);
@@ -1062,13 +1066,13 @@ public sealed class UninstallModWorkflowTests
     }
 
     private static UninstallModWorkflow CreateWorkflow(
-        ModBackupStore store,
+        BackupRepository store,
         GameDirectoryResolver? gameDirectoryResolver = null,
         UninstallExecutor? executor = null)
     {
         return new UninstallModWorkflow(
             new UninstallPlanner(store, gameDirectoryResolver ?? new GameDirectoryResolver([])),
-            executor ?? new UninstallExecutor(),
+            executor ?? new UninstallExecutor(store),
             store);
     }
 
@@ -1080,6 +1084,33 @@ public sealed class UninstallModWorkflowTests
     private static string RelativeToInstall(string installDirectory, string path)
     {
         return Path.GetRelativePath(installDirectory, path);
+    }
+
+    private static string CommitRecord(BackupRepository store, InstallRecord record, string preparedDirectory)
+    {
+        _ = store.LoadMetadata();
+        string installDirectory = store.GetInstallDirectory(record.Id);
+        Directory.CreateDirectory(preparedDirectory);
+        Directory.Move(preparedDirectory, installDirectory);
+        store.WriteRecord(record, installDirectory);
+        return installDirectory;
+    }
+
+    private static string CommitInvalidRecord(BackupRepository store, InstallRecord record, string preparedDirectory)
+    {
+        BackupRepositoryMetadata repository = store.LoadMetadata();
+        record = record with { RepositoryId = repository.RepositoryId };
+        string installDirectory = store.GetInstallDirectory(record.Id);
+        Directory.CreateDirectory(preparedDirectory);
+        Directory.Move(preparedDirectory, installDirectory);
+        File.WriteAllText(
+            Path.Combine(installDirectory, "record.json"),
+            JsonSerializer.Serialize(record, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = true,
+            }));
+        return installDirectory;
     }
 
     private static FileIntegrity TextIntegrity(string contents) =>

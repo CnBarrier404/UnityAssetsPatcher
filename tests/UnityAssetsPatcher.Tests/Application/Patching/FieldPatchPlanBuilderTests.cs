@@ -61,10 +61,12 @@ public sealed class FieldPatchPlanBuilderTests
 
         AssetFieldPatch assetPatch = Assert.Single(builder.CreateWritePlan(
             AssetsPath,
-            [CreatePatch([
-                CreateSetOperation("m_First", "Texture2D", "First"),
-                CreateSetOperation("m_Second", "Texture2D", "Second"),
-            ])]));
+            [
+                CreatePatch([
+                    CreateSetOperation("m_First", "Texture2D", "First"),
+                    CreateSetOperation("m_Second", "Texture2D", "Second"),
+                ])
+            ]));
 
         Assert.Equal([101L, 102L], assetPatch.Operations.Select(operation => operation.To.GetInt64()));
         AssertAllAssetsReadOnce(reader);
