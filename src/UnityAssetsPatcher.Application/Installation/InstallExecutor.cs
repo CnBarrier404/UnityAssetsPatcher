@@ -53,6 +53,7 @@ public sealed class InstallExecutor
         var patched = new List<InstallPatchAppliedFile>();
         var copied = new List<InstallChange>();
         bool transactionSaved = false;
+        BackupTransaction? transaction = null;
 
         try
         {
@@ -137,12 +138,12 @@ public sealed class InstallExecutor
             };
             _backupRepository.WriteRecord(record, preparedInstallDirectory);
 
-            var transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Install, installId,
-                gameDirectory, fingerprint, transactionFiles);
+            transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Install, installId,
+                fingerprint, transactionFiles);
             BackupTransactionStore.Save(temporaryDirectory, transaction);
             transactionSaved = true;
 
-            ApplyPreparedFiles(transaction, temporaryDirectory);
+            ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
             _backupRepository.CommitInstall(preparedInstallDirectory, installId);
             Directory.Delete(temporaryDirectory, true);
             return new InstallExecutionResult(patched, copied, installId);
@@ -155,7 +156,7 @@ public sealed class InstallExecutor
                 throw;
             }
 
-            BackupRecoveryReport recovery = _backupRepository.RecoverUnderLock();
+            BackupRecoveryReport recovery = _backupRepository.RecoverTrustedUnderLock(transaction!, gameDirectory);
             if (recovery.Status == BackupRepositoryStatus.Locked)
                 throw new BackupRecoveryException("Install failed and automatic rollback was unsafe.", recovery,
                     failure);
@@ -163,18 +164,21 @@ public sealed class InstallExecutor
         }
     }
 
-    private static void ApplyPreparedFiles(BackupTransaction transaction, string temporaryDirectory)
+    private static void ApplyPreparedFiles(
+        BackupTransaction transaction,
+        string temporaryDirectory,
+        string gameDirectory)
     {
         foreach (BackupTransactionFile file in transaction.Files)
         {
-            string target = BackupFileSystem.ResolveTrustedPath(transaction.GameDirectory, file.RelativePath);
+            string target = BackupFileSystem.ResolveTrustedPath(gameDirectory, file.RelativePath);
             if (file.Before is null ? File.Exists(target) : !file.Before.Matches(target))
                 throw new IOException($"Install target changed before mutation: {target}");
         }
 
         foreach (BackupTransactionFile file in transaction.Files)
         {
-            string target = BackupFileSystem.ResolveTrustedPath(transaction.GameDirectory, file.RelativePath);
+            string target = BackupFileSystem.ResolveTrustedPath(gameDirectory, file.RelativePath);
             string source = Path.GetFullPath(Path.Combine(temporaryDirectory,
                 file.PreparedRelativePath ?? throw new InvalidOperationException("Prepared file path is missing.")));
             if (file.Before is null)

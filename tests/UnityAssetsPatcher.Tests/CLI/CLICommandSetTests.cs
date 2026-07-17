@@ -9,7 +9,7 @@ namespace UnityAssetsPatcher.Tests.CLI;
 public sealed class CLICommandSetTests : IDisposable
 {
     private readonly string _temporaryDirectory = Path.Combine(
-        Path.GetTempPath(), $"UnityAssetsPatcher.CLICommandSetTests.{Guid.NewGuid():N}");
+        Path.GetTempPath(), $"UapCliCommandSetTests.{Guid.NewGuid():N}");
 
     public CLICommandSetTests()
     {
@@ -262,9 +262,39 @@ public sealed class CLICommandSetTests : IDisposable
             json.RootElement.GetProperty("error").GetProperty("causes")[0].GetProperty("message").GetString());
     }
 
+    [Fact]
+    public void RecoveryPreview_PrintsEveryPlannedFileAction()
+    {
+        var workflow = new StubWorkflowService
+        {
+            RecoveryPreview = new BackupRecoveryPreview(
+                BackupRepositoryStatus.RecoveryRequired, _temporaryDirectory, "install", "id",
+                BackupRecoveryPlanAction.RollBack, true,
+                [new BackupRecoveryFileChange("mod.bin", BackupRecoveryFileAction.Delete)], []),
+        };
+        (CLIApplication app, StringWriter output, StringWriter error) = CreateApp(workflow);
+
+        int exitCode = app.Run(["recovery", "preview", "--game-directory", _temporaryDirectory]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("delete: mod.bin", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void RecoveryApply_RequiresExplicitConfirmation()
+    {
+        (CLIApplication app, _, StringWriter error) = CreateApp(new StubWorkflowService());
+
+        int exitCode = app.Run(["recovery", "apply", "--game-directory", _temporaryDirectory]);
+
+        Assert.Equal(2, exitCode);
+        Assert.Contains("--yes", error.ToString());
+    }
+
     public void Dispose()
     {
-        Directory.Delete(_temporaryDirectory, recursive: true);
+        if (Directory.Exists(_temporaryDirectory)) Directory.Delete(_temporaryDirectory, recursive: true);
     }
 
     private (CLIApplication App, StringWriter Output, StringWriter Error) CreateApp(
@@ -278,6 +308,7 @@ public sealed class CLICommandSetTests : IDisposable
             new InspectCLICommand(workflow, options),
             new InstallCLICommand(workflow, options),
             new UninstallCLICommand(workflow, options),
+            new RecoveryCLICommand(workflow, options),
         ];
         return (new CLIApplication(commands, output, error, options), output, error);
     }
@@ -304,6 +335,7 @@ public sealed class CLICommandSetTests : IDisposable
         public UninstallPreviewResult? UninstallPreviewResult { get; init; }
         public UninstallModResult? UninstallResult { get; init; }
         public Exception? Failure { get; init; }
+        public BackupRecoveryPreview? RecoveryPreview { get; init; }
         public IReadOnlyList<UnityAssetsPatcher.Core.Assets.AssetsInfo> InspectAssets { get; init; } = [];
         public UnityAssetsPatcher.Core.Assets.AssetsFieldInfo? InspectFieldTree { get; init; }
         public InspectListRequest? LastInspectListRequest { get; private set; }
@@ -312,7 +344,10 @@ public sealed class CLICommandSetTests : IDisposable
         public UninstallPreviewRequest? LastUninstallPreviewRequest { get; private set; }
         public UninstallModRequest? LastUninstallRequest { get; private set; }
 
-        public BackupRecoveryReport RecoverPendingTransactions()
+        public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory) =>
+            RecoveryPreview ?? new(BackupRepositoryStatus.Clean, null, null, null, null, false, [], []);
+
+        public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory)
         {
             ThrowIfConfigured();
             return BackupRecoveryReport.Clean;

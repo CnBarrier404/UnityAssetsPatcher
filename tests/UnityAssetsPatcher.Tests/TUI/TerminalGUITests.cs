@@ -28,11 +28,35 @@ public sealed class TerminalGUITests : IDisposable
             [],
             [new BackupRecoveryIssue("repository-unsafe", "Damaged record", "record.json")]);
 
-        using var view = new BackupRecoveryView(recovery, () => { }, () => { });
+        using var view = new BackupRecoveryView(recovery, _ => { }, () => { }, () => { });
 
         Assert.Contains(view.SubViews.OfType<StyledLabel>(), label =>
             label.Text?.ToString().Contains("Damaged record", StringComparison.Ordinal) == true);
         Assert.Equal(2, view.SubViews.OfType<ChoiceItem>().Count());
+    }
+
+    [Fact]
+    public void BackupRecoveryPreviewView_ShowsEveryFileActionAndConfirmation()
+    {
+        var preview = new BackupRecoveryPreview(
+            BackupRepositoryStatus.RecoveryRequired,
+            "C:\\Game",
+            "install",
+            "install-id",
+            BackupRecoveryPlanAction.RollBack,
+            true,
+            [
+                new BackupRecoveryFileChange("data.assets", BackupRecoveryFileAction.Restore),
+                new BackupRecoveryFileChange("mod.bin", BackupRecoveryFileAction.Delete),
+            ],
+            []);
+
+        using var view = new BackupRecoveryPreviewView(preview, () => { }, () => { }, () => { });
+        ScrollableContentView body = Assert.Single(view.SubViews.OfType<ScrollableContentView>());
+
+        Assert.Contains(body.SubViews.OfType<StyledLabel>(), label =>
+            label.Text?.ToString().Contains("data.assets", StringComparison.Ordinal) == true);
+        Assert.Equal(3, body.SubViews.OfType<ChoiceItem>().Count());
     }
 
     private readonly CultureInfo _originalUiCulture = CultureInfo.CurrentUICulture;
@@ -396,7 +420,11 @@ public sealed class TerminalGUITests : IDisposable
     private sealed class ThrowingWorkflowService : IWorkflowService
     {
         public BackupRecoveryReport CheckPendingTransactions() => BackupRecoveryReport.Clean;
-        public BackupRecoveryReport RecoverPendingTransactions() => BackupRecoveryReport.Clean;
+
+        public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory) =>
+            new(BackupRepositoryStatus.Clean, null, null, null, null, false, [], []);
+
+        public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory) => BackupRecoveryReport.Clean;
 
         public ModManifest CheckManifest(string path) => throw new NotSupportedException();
 

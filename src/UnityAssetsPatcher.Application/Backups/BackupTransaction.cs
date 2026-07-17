@@ -28,7 +28,6 @@ public sealed record BackupTransaction(
     string RepositoryId,
     BackupOperationKind Kind,
     string InstallId,
-    string GameDirectory,
     string GameInstanceFingerprint,
     IReadOnlyList<BackupTransactionFile> Files);
 

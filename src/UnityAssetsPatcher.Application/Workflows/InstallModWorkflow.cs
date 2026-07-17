@@ -48,10 +48,13 @@ public sealed class InstallModWorkflow
         try
         {
             using BackupOperationLock operationLock = _backupRepository.AcquireLock();
-            BackupRecoveryReport recovery = _backupRepository.RecoverUnderLock();
-            if (recovery.Status == BackupRepositoryStatus.Locked)
+            BackupRecoveryReport recovery = _backupRepository.CheckPendingTransactionsUnderLock();
+            if (recovery.Status != BackupRepositoryStatus.Clean)
             {
-                throw new BackupRecoveryException(recovery.Issues[0].Message, recovery);
+                throw new BackupRecoveryException(
+                    recovery.Issues.FirstOrDefault()?.Message ??
+                    "A pending transaction must be recovered before installing another mod.",
+                    recovery);
             }
 
             using InstallPlanSession<InstallWritePlan> session = _planner.BuildInstall(request, timings);

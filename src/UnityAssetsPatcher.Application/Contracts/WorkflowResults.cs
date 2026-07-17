@@ -86,6 +86,31 @@ public enum BackupRepositoryStatus
 
 public sealed record BackupRecoveryOperation(string Kind, string InstallId, string Action);
 
+public enum BackupRecoveryPlanAction
+{
+    RollBack,
+    CompleteCleanup,
+}
+
+public enum BackupRecoveryFileAction
+{
+    NoChange,
+    Restore,
+    Delete,
+}
+
+public sealed record BackupRecoveryFileChange(string RelativePath, BackupRecoveryFileAction Action);
+
+public sealed record BackupRecoveryPreview(
+    BackupRepositoryStatus Status,
+    string? GameDirectory,
+    string? Kind,
+    string? InstallId,
+    BackupRecoveryPlanAction? Action,
+    bool CanRecover,
+    IReadOnlyList<BackupRecoveryFileChange> Files,
+    IReadOnlyList<BackupRecoveryIssue> Issues);
+
 public sealed record BackupRecoveryIssue(string Code, string Message, string Path);
 
 public sealed record BackupRecoveryReport(

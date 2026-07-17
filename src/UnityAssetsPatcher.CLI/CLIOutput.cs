@@ -476,6 +476,42 @@ internal static class CLIOutput
         };
     }
 
+    public static JsonObject RecoveryPreview(BackupRecoveryPreview preview)
+    {
+        return new JsonObject
+        {
+            ["status"] = EnumName(preview.Status),
+            ["gameDirectory"] = preview.GameDirectory,
+            ["kind"] = preview.Kind,
+            ["installId"] = preview.InstallId,
+            ["action"] = preview.Action is null ? null : EnumName(preview.Action.Value),
+            ["canRecover"] = preview.CanRecover,
+            ["files"] = new JsonArray(preview.Files.Select(file => new JsonObject
+            {
+                ["relativePath"] = file.RelativePath,
+                ["action"] = EnumName(file.Action),
+            }).ToArray<JsonNode?>()),
+            ["issues"] = RecoveryIssues(preview.Issues),
+        };
+    }
+
+    public static JsonObject RecoveryReport(BackupRecoveryReport recovery) => Recovery(recovery);
+
+    public static void WriteRecoveryPreviewText(TextWriter output, BackupRecoveryPreview preview)
+    {
+        output.WriteLine($"Recovery preview: {EnumName(preview.Status)}");
+        if (preview.GameDirectory is not null) output.WriteLine($"Game directory: {preview.GameDirectory}");
+        if (preview.Kind is not null) output.WriteLine($"Transaction: {preview.Kind} {preview.InstallId}");
+        if (preview.Action is not null) output.WriteLine($"Action: {EnumName(preview.Action.Value)}");
+        foreach (BackupRecoveryFileChange file in preview.Files)
+            output.WriteLine($"- {EnumName(file.Action)}: {file.RelativePath}");
+        foreach (BackupRecoveryIssue issue in preview.Issues)
+            output.WriteLine($"- {issue.Code}: {issue.Message} ({issue.Path})");
+    }
+
+    public static void WriteRecoveryReportText(TextWriter output, BackupRecoveryReport recovery) =>
+        WriteRecoveryText(output, recovery);
+
     private static JsonObject Recovery(BackupRecoveryReport recovery)
     {
         return new JsonObject
@@ -487,14 +523,17 @@ internal static class CLIOutput
                 ["installId"] = operation.InstallId,
                 ["action"] = operation.Action,
             }).ToArray<JsonNode?>()),
-            ["issues"] = new JsonArray(recovery.Issues.Select(issue => new JsonObject
-            {
-                ["code"] = issue.Code,
-                ["message"] = issue.Message,
-                ["path"] = issue.Path,
-            }).ToArray<JsonNode?>()),
+            ["issues"] = RecoveryIssues(recovery.Issues),
         };
     }
+
+    private static JsonArray RecoveryIssues(IEnumerable<BackupRecoveryIssue> issues) =>
+        new(issues.Select(issue => new JsonObject
+        {
+            ["code"] = issue.Code,
+            ["message"] = issue.Message,
+            ["path"] = issue.Path,
+        }).ToArray<JsonNode?>());
 
     private static void WriteRecoveryText(TextWriter output, BackupRecoveryReport recovery)
     {

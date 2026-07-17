@@ -30,10 +30,13 @@ public sealed class UninstallModWorkflow
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
         using BackupOperationLock operationLock = _backupRepository.AcquireLock();
-        BackupRecoveryReport recovery = _backupRepository.RecoverUnderLock();
-        if (recovery.Status == BackupRepositoryStatus.Locked)
+        BackupRecoveryReport recovery = _backupRepository.CheckPendingTransactionsUnderLock();
+        if (recovery.Status != BackupRepositoryStatus.Clean)
         {
-            throw new BackupRecoveryException(recovery.Issues[0].Message, recovery);
+            throw new BackupRecoveryException(
+                recovery.Issues.FirstOrDefault()?.Message ??
+                "A pending transaction must be recovered before uninstalling another mod.",
+                recovery);
         }
 
         UninstallPlan plan = _planner.BuildUninstall(request);

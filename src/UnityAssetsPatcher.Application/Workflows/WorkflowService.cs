@@ -29,9 +29,14 @@ public sealed class WorkflowService : IWorkflowService
         _backupRepository = backupRepository;
     }
 
-    public BackupRecoveryReport RecoverPendingTransactions()
+    public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory)
     {
-        return _backupRepository.RecoverPendingTransactions();
+        return _backupRepository.PreviewPendingTransaction(gameDirectory);
+    }
+
+    public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory)
+    {
+        return _backupRepository.RecoverPendingTransactions(gameDirectory);
     }
 
     public BackupRecoveryReport CheckPendingTransactions()

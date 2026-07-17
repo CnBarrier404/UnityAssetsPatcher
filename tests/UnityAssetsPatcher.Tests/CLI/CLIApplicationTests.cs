@@ -36,7 +36,7 @@ public sealed class CLIApplicationTests : IDisposable
 
     private readonly string _temporaryDirectory = Path.Combine(
         Path.GetTempPath(),
-        $"UnityAssetsPatcher.CLITests.{Guid.NewGuid():N}");
+        $"UapCliTests.{Guid.NewGuid():N}");
 
     private readonly ServiceProvider _serviceProvider;
 

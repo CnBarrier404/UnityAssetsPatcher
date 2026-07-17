@@ -111,10 +111,16 @@ public sealed class BackupRepository
         return records;
     }
 
-    public BackupRecoveryReport RecoverPendingTransactions()
+    public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory)
     {
         using BackupOperationLock operationLock = AcquireLock();
-        return RecoverUnderLock();
+        return new BackupRecovery(this).Preview(gameDirectory);
+    }
+
+    public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory)
+    {
+        using BackupOperationLock operationLock = AcquireLock();
+        return new BackupRecovery(this).Recover(gameDirectory);
     }
 
     public BackupRecoveryReport CheckPendingTransactions()
@@ -124,7 +130,10 @@ public sealed class BackupRepository
         return new BackupRecovery(this).Check();
     }
 
-    public BackupRecoveryReport RecoverUnderLock() => new BackupRecovery(this).Recover();
+    public BackupRecoveryReport CheckPendingTransactionsUnderLock() => new BackupRecovery(this).Check();
+
+    public BackupRecoveryReport RecoverTrustedUnderLock(BackupTransaction transaction, string gameDirectory) =>
+        new BackupRecovery(this).RecoverTrusted(transaction, gameDirectory);
 
     private void EnsureInitialized()
     {

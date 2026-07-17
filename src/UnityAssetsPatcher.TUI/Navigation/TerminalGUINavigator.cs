@@ -51,9 +51,46 @@ public sealed class TerminalGUINavigator
             await RunBackupTaskAsync(_workflowService.CheckPendingTransactions).ConfigureAwait(false);
         }
 
-        async Task RecoverBackupAsync()
+        async Task PreviewBackupAsync(string gameDirectory)
         {
-            await RunBackupTaskAsync(_workflowService.RecoverPendingTransactions).ConfigureAwait(false);
+            if (Interlocked.Exchange(ref recoveryRunning, 1) == 1) return;
+            BackupRecoveryPreview preview;
+            try
+            {
+                preview = await Task.Run(() => _workflowService.PreviewPendingTransaction(gameDirectory))
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                preview = new BackupRecoveryPreview(BackupRepositoryStatus.Locked, null, null, null, null, false, [],
+                    [new BackupRecoveryIssue("recovery-preview-failed", exception.Message, string.Empty)]);
+            }
+            finally
+            {
+                Volatile.Write(ref recoveryRunning, 0);
+            }
+
+            application.Invoke(() =>
+            {
+                if (!preview.CanRecover)
+                {
+                    recovery = new BackupRecoveryReport(preview.Status, [], preview.Issues);
+                    ShowRecoveryResult();
+                    return;
+                }
+
+                shell.ShowContent(new BackupRecoveryPreviewView(
+                    preview,
+                    () => _ = RecoverBackupAsync(preview.GameDirectory!),
+                    ShowRecoveryResult,
+                    application.RequestStop));
+            });
+        }
+
+        async Task RecoverBackupAsync(string gameDirectory)
+        {
+            await RunBackupTaskAsync(() => _workflowService.RecoverPendingTransactions(gameDirectory))
+                .ConfigureAwait(false);
         }
 
         async Task RunBackupTaskAsync(Func<BackupRecoveryReport> operation)
@@ -90,7 +127,8 @@ public sealed class TerminalGUINavigator
                     {
                         shell.ShowContent(new BackupRecoveryView(
                             recovery,
-                            () => _ = RecoverBackupAsync(),
+                            gameDirectory => _ = PreviewBackupAsync(gameDirectory),
+                            () => _ = CheckBackupAsync(),
                             application.RequestStop));
                         return;
                     }

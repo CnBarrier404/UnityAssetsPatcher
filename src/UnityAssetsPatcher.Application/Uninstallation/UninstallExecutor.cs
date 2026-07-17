@@ -32,6 +32,7 @@ public sealed class UninstallExecutor
         Directory.CreateDirectory(rollbackDirectory);
         var files = new List<BackupTransactionFile>();
         bool transactionSaved = false;
+        BackupTransaction? transaction = null;
 
         try
         {
@@ -60,9 +61,8 @@ public sealed class UninstallExecutor
                     Path.GetRelativePath(temporaryDirectory, rollbackPath)));
             }
 
-            var transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Uninstall,
-                plan.Record.Id,
-                paths.GameDirectory, plan.Record.GameInstanceFingerprint, files);
+            transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Uninstall,
+                plan.Record.Id, plan.Record.GameInstanceFingerprint, files);
             BackupTransactionStore.Save(temporaryDirectory, transaction);
             transactionSaved = true;
 
@@ -106,7 +106,8 @@ public sealed class UninstallExecutor
                 throw;
             }
 
-            BackupRecoveryReport recovery = _backupRepository.RecoverUnderLock();
+            BackupRecoveryReport recovery =
+                _backupRepository.RecoverTrustedUnderLock(transaction!, paths.GameDirectory);
             if (recovery.Status == BackupRepositoryStatus.Locked)
                 throw new BackupRecoveryException("Uninstall failed and automatic rollback was unsafe.", recovery,
                     failure);

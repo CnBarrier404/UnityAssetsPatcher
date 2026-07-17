@@ -7,12 +7,12 @@ public static class GameInstanceIdentity
 {
     public static string CreateFingerprint(string gameDirectory)
     {
-        byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(NormalizePath(gameDirectory)));
+        byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(ResolveDirectory(gameDirectory)));
 
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
-    private static string NormalizePath(string gameDirectory)
+    public static string ResolveDirectory(string gameDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
 
