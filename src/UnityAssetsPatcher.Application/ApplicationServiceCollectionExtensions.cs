@@ -5,6 +5,9 @@ using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Patching.Fields;
+using UnityAssetsPatcher.Application.Uninstallation;
 
 namespace UnityAssetsPatcher.Application;
 
@@ -18,13 +21,41 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton(_ => new GameDirectoryResolver());
         services.AddSingleton<TargetAssetResolver>();
         services.AddSingleton(new BackupRepository(backupDirectory));
-        services.AddSingleton<WorkflowFactory>();
-        services.AddSingleton<IWorkflowService>(provider => new WorkflowService(
-            provider.GetRequiredService<IAssetsAccessScopeFactory>(),
-            provider.GetRequiredService<WorkflowFactory>(),
-            provider.GetRequiredService<ModManifestReader>(),
-            provider.GetRequiredService<BackupRepository>()));
+        services.AddSingleton<IWorkflowService, WorkflowService>();
+
+        AddAssetsAccess(services);
+        AddPatching(services);
+        AddWorkflows(services);
 
         return services;
+    }
+
+    private static void AddAssetsAccess(IServiceCollection services)
+    {
+        services.AddScoped<IAssetsAccessScope, ScopedAssetsAccess>();
+        services.AddScoped<IAssetsFileReader, ScopedAssetsFileReader>();
+        services.AddScoped<IAssetsFileWriter, ScopedAssetsFileWriter>();
+        services.AddScoped<AssetQueryService>();
+    }
+
+    private static void AddPatching(IServiceCollection services)
+    {
+        services.AddScoped<IFieldPatchOperationHandler, SetFieldPatchOperationHandler>();
+        services.AddScoped<IFieldPatchOperationHandler, AddFieldPatchOperationHandler>();
+        services.AddScoped<FieldPatchPlanner>();
+        services.AddScoped<ReplacementPlanner>();
+        services.AddScoped<PatchPlanner>();
+        services.AddScoped<PatchOutputWriter>();
+    }
+
+    private static void AddWorkflows(IServiceCollection services)
+    {
+        services.AddScoped<InstallPlanner>();
+        services.AddScoped<InstallExecutor>();
+        services.AddScoped<InstallModWorkflow>();
+        services.AddScoped<InspectAssetsWorkflow>();
+        services.AddScoped<UninstallPlanner>();
+        services.AddScoped<UninstallExecutor>();
+        services.AddScoped<UninstallModWorkflow>();
     }
 }

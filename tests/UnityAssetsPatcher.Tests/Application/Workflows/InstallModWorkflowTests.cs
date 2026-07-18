@@ -1309,7 +1309,8 @@ public sealed class InstallModWorkflowTests
     {
         var assetQueryService = new AssetQueryService(assetsFileService);
         var patchPlanBuilder = new PatchPlanner(
-            new FieldPatchPlanner(assetQueryService),
+            new FieldPatchPlanner(assetQueryService,
+                [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]),
             new ReplacementPlanner(assetQueryService));
         var planner = new InstallPlanner(
             new ModManifestReader(),

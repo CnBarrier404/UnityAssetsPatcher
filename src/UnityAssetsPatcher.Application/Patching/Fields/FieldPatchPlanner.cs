@@ -9,14 +9,12 @@ public sealed class FieldPatchPlanner
     private readonly AssetQueryService _assetQueryService;
     private readonly IReadOnlyList<IFieldPatchOperationHandler> _operationHandlers;
 
-    public FieldPatchPlanner(AssetQueryService assetQueryService)
+    public FieldPatchPlanner(
+        AssetQueryService assetQueryService,
+        IEnumerable<IFieldPatchOperationHandler> operationHandlers)
     {
         _assetQueryService = assetQueryService;
-        _operationHandlers =
-        [
-            new SetFieldPatchOperationHandler(),
-            new AddFieldPatchOperationHandler(),
-        ];
+        _operationHandlers = operationHandlers.ToArray();
     }
 
     public PatchPreviewResult CreatePreview(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
@@ -24,23 +22,19 @@ public sealed class FieldPatchPlanner
         return Plan(assetsFilePath, targets).Preview;
     }
 
-    public IReadOnlyList<AssetFieldPatch> CreateWritePlan(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets)
+    public IReadOnlyList<AssetFieldPatch> CreateWritePlan(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
     {
         return Plan(assetsFilePath, targets).Assets;
     }
 
-    public FieldPatchPlanningOutput Plan(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets)
+    public FieldPatchPlanningOutput Plan(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
     {
         if (!PatchOperationRules.HasPatchOperations(targets))
         {
             return new FieldPatchPlanningOutput([], new PatchPreviewResult([]));
         }
 
-        FieldPatchAssetPlan[] assetPlans = CreateAssetPlans(assetsFilePath, targets).ToArray();
+        var assetPlans = CreateAssetPlans(assetsFilePath, targets).ToArray();
         var preview = new PatchPreviewResult(assetPlans
             .Select(assetPlan => new PatchPreviewAssetResult(
                 assetPlan.Asset,
@@ -82,11 +76,10 @@ public sealed class FieldPatchPlanner
         IReadOnlyList<ManifestPatch> targets)
     {
         AssetQueryContext queryContext = _assetQueryService.CreateContext(assetsFilePath);
-        var valueResolver = new PatchValueResolver();
 
         foreach (ManifestPatch patch in targets)
         {
-            IReadOnlyList<NormalizedFieldPatchOperation> normalizedOperations =
+            var normalizedOperations =
                 NormalizeOperations(queryContext, assetsFilePath, patch);
 
             foreach (AssetQueryMatch match in AssetQueryService.FindMatches(queryContext, patch))
@@ -95,8 +88,7 @@ public sealed class FieldPatchPlanner
 
                 foreach (NormalizedFieldPatchOperation operation in normalizedOperations)
                 {
-                    IFieldPatchOperationHandler handler = _operationHandlers.Single(candidate =>
-                        candidate.CanHandle(operation));
+                    IFieldPatchOperationHandler handler = GetOperationHandler(operation);
                     operations.AddRange(handler.CreatePlans(
                         match.Asset.PathId, match.FieldTree, operation));
                 }
@@ -106,7 +98,24 @@ public sealed class FieldPatchPlanner
         }
     }
 
-    private static IReadOnlyList<NormalizedFieldPatchOperation> NormalizeOperations(
+    private IFieldPatchOperationHandler GetOperationHandler(NormalizedFieldPatchOperation operation)
+    {
+        var matches = _operationHandlers
+            .Where(candidate => candidate.CanHandle(operation))
+            .Take(2)
+            .ToArray();
+
+        return matches.Length switch
+        {
+            1 => matches[0],
+            0 => throw new InvalidOperationException(
+                $"No field patch operation handler is registered for '{operation.GetType().Name}'."),
+            _ => throw new InvalidOperationException(
+                $"Multiple field patch operation handlers are registered for '{operation.GetType().Name}'."),
+        };
+    }
+
+    private static NormalizedFieldPatchOperation[] NormalizeOperations(
         AssetQueryContext queryContext,
         string assetsFilePath,
         ManifestPatch patch)
@@ -115,20 +124,17 @@ public sealed class FieldPatchPlanner
             .Select(operation => new NormalizedSetFieldPatchOperation(
                 new Lazy<ManifestSetOperation>(() => PatchValueResolver.ResolveSetOperation(
                     queryContext, assetsFilePath, operation))));
+
         IEnumerable<NormalizedFieldPatchOperation> addOperations = (patch.AddOperations ?? [])
             .Select(operation => new NormalizedAddFieldPatchOperation(operation));
 
         return setOperations.Concat(addOperations).ToArray();
     }
 
-    private sealed record FieldPatchAssetPlan(
-        AssetsInfo Asset,
-        IReadOnlyList<FieldPatchOperationPlan> Operations);
+    private sealed record FieldPatchAssetPlan(AssetsInfo Asset, IReadOnlyList<FieldPatchOperationPlan> Operations);
 }
 
-public sealed record FieldPatchPlanningOutput(
-    IReadOnlyList<AssetFieldPatch> Assets,
-    PatchPreviewResult Preview);
+public sealed record FieldPatchPlanningOutput(IReadOnlyList<AssetFieldPatch> Assets, PatchPreviewResult Preview);
 
 public abstract record NormalizedFieldPatchOperation;
 
@@ -150,8 +156,10 @@ public interface IFieldPatchOperationHandler
 
 public sealed class SetFieldPatchOperationHandler : IFieldPatchOperationHandler
 {
-    public bool CanHandle(NormalizedFieldPatchOperation operation) =>
-        operation is NormalizedSetFieldPatchOperation;
+    public bool CanHandle(NormalizedFieldPatchOperation operation)
+    {
+        return operation is NormalizedSetFieldPatchOperation;
+    }
 
     public IReadOnlyList<FieldPatchOperationPlan> CreatePlans(
         long pathId,
@@ -165,8 +173,10 @@ public sealed class SetFieldPatchOperationHandler : IFieldPatchOperationHandler
 
 public sealed class AddFieldPatchOperationHandler : IFieldPatchOperationHandler
 {
-    public bool CanHandle(NormalizedFieldPatchOperation operation) =>
-        operation is NormalizedAddFieldPatchOperation;
+    public bool CanHandle(NormalizedFieldPatchOperation operation)
+    {
+        return operation is NormalizedAddFieldPatchOperation;
+    }
 
     public IReadOnlyList<FieldPatchOperationPlan> CreatePlans(
         long pathId,
