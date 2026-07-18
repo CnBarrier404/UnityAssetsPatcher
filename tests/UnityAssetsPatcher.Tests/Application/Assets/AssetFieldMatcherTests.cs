@@ -46,6 +46,21 @@ public sealed class AssetFieldMatcherTests
         Assert.False(AssetFieldMatcher.MatchesFieldValue(doubleField, expected));
     }
 
+    [Theory]
+    [InlineData(1.2794967f, "1.2794979", true)]
+    [InlineData(0.10342161f, "0.1034217", true)]
+    [InlineData(1.2794f, "1.2794979", false)]
+    public void MatchesFieldValue_WhenSingleValuesHaveMinorDrift_AllowsLimitedUlpDifference(
+        float actual,
+        string expectedJson,
+        bool expectedMatch)
+    {
+        var field = new AssetsFieldInfo(
+            "value", "float", new FloatAssetFieldValue(actual), []);
+
+        Assert.Equal(expectedMatch, AssetFieldMatcher.MatchesFieldValue(field, ParseJson(expectedJson)));
+    }
+
     [Fact]
     public void TypedValues_WhenCurrentCultureUsesDecimalComma_RemainInvariant()
     {

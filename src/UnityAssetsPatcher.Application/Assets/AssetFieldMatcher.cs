@@ -5,6 +5,8 @@ namespace UnityAssetsPatcher.Application.Assets;
 
 public static class AssetFieldMatcher
 {
+    private const int FloatComparisonMaxUlps = 16;
+
     public static bool MatchesFields(AssetsFieldInfo fieldTree, IReadOnlyDictionary<string, JsonElement> expectedFields)
     {
         foreach ((string path, JsonElement expectedValue) in expectedFields)
@@ -53,12 +55,30 @@ public static class AssetFieldMatcher
                 expectedValue.TryGetUInt64(out ulong expected) && value.Value == expected,
             FloatAssetFieldValue value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
-                expectedValue.TryGetSingle(out float expected) && value.Value.Equals(expected),
+                expectedValue.TryGetSingle(out float expected) && FloatValuesEqual(value.Value, expected),
             DoubleAssetFieldValue value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
                 expectedValue.TryGetDouble(out double expected) && value.Value.Equals(expected),
             _ => false,
         };
+    }
+
+    private static bool FloatValuesEqual(float actual, float expected)
+    {
+        if (actual.Equals(expected))
+        {
+            return true;
+        }
+
+        if (!float.IsFinite(actual) || !float.IsFinite(expected) || MathF.Sign(actual) != MathF.Sign(expected))
+        {
+            return false;
+        }
+
+        int actualBits = BitConverter.SingleToInt32Bits(actual);
+        int expectedBits = BitConverter.SingleToInt32Bits(expected);
+
+        return Math.Abs((long)actualBits - expectedBits) <= FloatComparisonMaxUlps;
     }
 
     private static bool MatchesObjectValue(AssetsFieldInfo field, JsonElement expectedObject)
