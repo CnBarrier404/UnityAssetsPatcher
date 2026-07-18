@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using UnityAssetsPatcher.Core.IO;
+using UnityAssetsPatcher.Application.IO;
 
 namespace UnityAssetsPatcher.Application.Backups;
 

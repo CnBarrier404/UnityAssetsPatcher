@@ -1,8 +1,8 @@
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Core.Assets;
-using UnityAssetsPatcher.Core.Json;
+using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.Json;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Patching;

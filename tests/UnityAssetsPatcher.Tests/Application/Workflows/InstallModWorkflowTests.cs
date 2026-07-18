@@ -5,7 +5,7 @@ using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
-using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 

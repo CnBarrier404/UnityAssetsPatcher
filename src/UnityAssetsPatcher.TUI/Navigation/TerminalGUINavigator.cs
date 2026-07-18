@@ -1,7 +1,6 @@
 using Terminal.Gui.App;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Core;
-using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;

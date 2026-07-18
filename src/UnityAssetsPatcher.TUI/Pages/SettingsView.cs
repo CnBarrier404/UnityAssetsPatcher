@@ -2,7 +2,6 @@ using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
-using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 

@@ -1,4 +1,4 @@
-using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.Application.Contracts;
 

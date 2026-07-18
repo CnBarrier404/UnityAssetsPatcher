@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
-using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.Application;
 

@@ -1,5 +1,5 @@
 using Terminal.Gui.ViewBase;
-using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.TUI.Framework;
 
 namespace UnityAssetsPatcher.TUI.Shell;

@@ -3,7 +3,7 @@ using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Uninstallation;
-using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 

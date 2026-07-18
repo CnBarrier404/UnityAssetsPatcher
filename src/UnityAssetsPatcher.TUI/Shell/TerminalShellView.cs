@@ -2,7 +2,7 @@ using Terminal.Gui.Drawing;
 using Terminal.Gui.App;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
-using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.TUI.Framework;
 
 namespace UnityAssetsPatcher.TUI.Shell;

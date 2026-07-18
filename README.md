@@ -117,8 +117,7 @@ dotnet test UnityAssetsPatcher.sln
 
 - `src/UnityAssetsPatcher`：可执行程序入口、依赖注入组合和 bundled resource 设置。
 - `src/UnityAssetsPatcher.TUI`：交互式终端界面、页面、提示和输出格式。
-- `src/UnityAssetsPatcher.Core`：共享 assets contracts、字段模型、字段路径匹配和通用工具。
-- `src/UnityAssetsPatcher.Application`：manifest 加载、安装/卸载工作流、patch 规划和业务流程。
+- `src/UnityAssetsPatcher.Application`：assets contracts、字段模型、manifest 加载、安装/卸载工作流、patch 规划和业务流程。
 - `src/UnityAssetsPatcher.AssetsTools`：AssetsTools.NET 集成和真实 Unity assets 文件读写。
 - `tests/UnityAssetsPatcher.Tests`：xUnit v3 测试。
 

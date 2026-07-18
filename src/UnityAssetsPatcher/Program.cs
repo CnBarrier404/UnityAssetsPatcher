@@ -1,8 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.AssetsTools;
-using UnityAssetsPatcher.Core;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.CLI;
 

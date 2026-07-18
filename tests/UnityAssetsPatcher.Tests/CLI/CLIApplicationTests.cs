@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.CLI;
-using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Application.Assets;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.CLI;

@@ -1,6 +1,6 @@
 using System.Text.Json;
 using AssetsTools.NET;
-using UnityAssetsPatcher.Core.Json;
+using UnityAssetsPatcher.Application.Json;
 
 namespace UnityAssetsPatcher.AssetsTools;
 

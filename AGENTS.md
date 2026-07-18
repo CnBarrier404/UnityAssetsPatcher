@@ -9,8 +9,7 @@ Main projects:
 - `UnityAssetsPatcher`: executable composition root and bundled resources.
 - `UnityAssetsPatcher.CLI`: command-line parsing and output.
 - `UnityAssetsPatcher.TUI`: interactive Terminal.Gui interface.
-- `UnityAssetsPatcher.Application`: manifests, workflows, patch planning, installation, backups, and updates.
-- `UnityAssetsPatcher.Core`: shared asset models and contracts.
+- `UnityAssetsPatcher.Application`: asset models and contracts, manifests, workflows, patch planning, installation, backups, and updates.
 - `UnityAssetsPatcher.AssetsTools`: AssetsTools.NET integration.
 - `UnityAssetsPatcher.LocalizationGenerator`: localization source generator.
 - `UnityAssetsPatcher.Tests`: xUnit v3 tests.
@@ -36,7 +35,7 @@ The executable is published as a Windows x64 NativeAOT application by `.github/w
 - `IWorkflowService` is the application facade used by the CLI and TUI. Workflow implementation belongs in `Application`, not in presentation projects.
 - Asset access must remain behind `IAssetsAccessScopeFactory`, `IAssetsAccessScope`, `IAssetsFileReader`, and `IAssetsFileWriter`. Keep AssetsTools.NET-specific code in `UnityAssetsPatcher.AssetsTools`.
 - Manifest parsing belongs under `Application/Manifests`; patch planning under `Application/Patching`; install, uninstall, and backup transaction behavior under their corresponding `Application` directories.
-- Shared domain contracts belong in `Core` or `Application/Contracts`, depending on whether they are asset-level or workflow-level concepts.
+- Asset-level models and contracts belong in `Application/Assets`; workflow-level contracts belong in `Application/Contracts`.
 
 ### TUI
 

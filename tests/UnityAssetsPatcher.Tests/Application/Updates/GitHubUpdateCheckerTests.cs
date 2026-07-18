@@ -1,7 +1,7 @@
 using System.Net;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Updates;
-using UnityAssetsPatcher.Core;
+using UnityAssetsPatcher.Application;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Updates;

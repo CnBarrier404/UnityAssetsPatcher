@@ -7,7 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\UnityAssetsPatcher.Core\UnityAssetsPatcher.Core.csproj"/>
+        <ProjectReference Include="..\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

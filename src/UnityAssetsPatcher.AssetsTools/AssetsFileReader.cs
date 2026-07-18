@@ -1,7 +1,7 @@
 using System.Runtime.ExceptionServices;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
-using UnityAssetsPatcher.Core.Assets;
+using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
