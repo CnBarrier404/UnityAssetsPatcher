@@ -43,9 +43,9 @@ public sealed class WorkflowService : IWorkflowService
         return Invoke<InspectAssetsWorkflow, InspectListResult>(workflow => workflow.List(request));
     }
 
-    public AssetsFieldInfo InspectFields(InspectFieldsRequest request)
+    public AssetField InspectFields(InspectFieldsRequest request)
     {
-        return Invoke<InspectAssetsWorkflow, AssetsFieldInfo>(workflow => workflow.Fields(request));
+        return Invoke<InspectAssetsWorkflow, AssetField>(workflow => workflow.Fields(request));
     }
 
     public InstallPreviewResult PreviewInstall(InstallRequest request)

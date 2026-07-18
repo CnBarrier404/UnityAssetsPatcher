@@ -66,7 +66,7 @@ public sealed record PatchPreviewResult(
     public bool CanApply => Diagnostic is null;
 }
 
-public sealed record PatchPreviewAssetResult(AssetsInfo Asset, IReadOnlyList<PatchPreviewOperationResult> Operations);
+public sealed record PatchPreviewAssetResult(AssetInfo Asset, IReadOnlyList<PatchPreviewOperationResult> Operations);
 
 public sealed record PatchPreviewOperationResult(
     string Path,

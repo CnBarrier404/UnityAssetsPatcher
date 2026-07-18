@@ -34,8 +34,8 @@ public sealed class FieldPatchPlannerTests
     public void PatchPlanner_WhenPathIdResolverDoesNotMatch_ReturnsStructuredDiagnostic()
     {
         var reader = new CountingAssetsFileReader(
-            [new AssetsInfo(1, "Material"), new AssetsInfo(101, "Texture2D")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(1, "Material"), new AssetInfo(101, "Texture2D")],
+            new Dictionary<long, AssetField>
             {
                 [1] = CreateFieldTree("Material", "Target", ("m_Reference", 0)),
                 [101] = CreateFieldTree("Texture2D", "Other"),
@@ -94,11 +94,11 @@ public sealed class FieldPatchPlannerTests
     {
         var reader = new CountingAssetsFileReader(
             [
-                new AssetsInfo(1, "Material"),
-                new AssetsInfo(101, "Texture2D"),
-                new AssetsInfo(102, "Texture2D"),
+                new AssetInfo(1, "Material"),
+                new AssetInfo(101, "Texture2D"),
+                new AssetInfo(102, "Texture2D"),
             ],
-            new Dictionary<long, AssetsFieldInfo>
+            new Dictionary<long, AssetField>
             {
                 [1] = CreateFieldTree("Material", "Target", ("m_First", 0), ("m_Second", 0)),
                 [101] = CreateFieldTree("Texture2D", "First"),
@@ -123,8 +123,8 @@ public sealed class FieldPatchPlannerTests
     public void CreatePreview_WhenTargetDoesNotMatch_DoesNotResolvePathId()
     {
         var reader = new CountingAssetsFileReader(
-            [new AssetsInfo(1, "Material"), new AssetsInfo(101, "Texture2D")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(1, "Material"), new AssetInfo(101, "Texture2D")],
+            new Dictionary<long, AssetField>
             {
                 [1] = CreateFieldTree("Material", "Other", ("m_Reference", 0)),
                 [101] = CreateFieldTree("Texture2D", "Referenced"),
@@ -144,8 +144,8 @@ public sealed class FieldPatchPlannerTests
     public void CreateWritePlan_WhenPathIdResolverDoesNotMatch_ThrowsExistingError()
     {
         var reader = new CountingAssetsFileReader(
-            [new AssetsInfo(1, "Material"), new AssetsInfo(101, "Texture2D")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(1, "Material"), new AssetInfo(101, "Texture2D")],
+            new Dictionary<long, AssetField>
             {
                 [1] = CreateFieldTree("Material", "Target", ("m_Reference", 0)),
                 [101] = CreateFieldTree("Texture2D", "Other"),
@@ -166,11 +166,11 @@ public sealed class FieldPatchPlannerTests
     {
         var reader = new CountingAssetsFileReader(
             [
-                new AssetsInfo(1, "Material"),
-                new AssetsInfo(101, "Texture2D"),
-                new AssetsInfo(102, "Texture2D"),
+                new AssetInfo(1, "Material"),
+                new AssetInfo(101, "Texture2D"),
+                new AssetInfo(102, "Texture2D"),
             ],
-            new Dictionary<long, AssetsFieldInfo>
+            new Dictionary<long, AssetField>
             {
                 [1] = CreateFieldTree("Material", "Target", ("m_Reference", 0)),
                 [101] = CreateFieldTree("Texture2D", "Duplicate"),
@@ -193,12 +193,12 @@ public sealed class FieldPatchPlannerTests
     {
         var reader = new CountingAssetsFileReader(
             [
-                new AssetsInfo(1, "Material"),
-                new AssetsInfo(2, "Material"),
-                new AssetsInfo(101, "Texture2D"),
-                new AssetsInfo(102, "Texture2D"),
+                new AssetInfo(1, "Material"),
+                new AssetInfo(2, "Material"),
+                new AssetInfo(101, "Texture2D"),
+                new AssetInfo(102, "Texture2D"),
             ],
-            new Dictionary<long, AssetsFieldInfo>
+            new Dictionary<long, AssetField>
             {
                 [1] = CreateFieldTree("Material", "Target", ("m_Reference", 0)),
                 [2] = CreateFieldTree("Material", "Target", ("m_Reference", 0)),
@@ -257,19 +257,19 @@ public sealed class FieldPatchPlannerTests
         return document.RootElement.Clone();
     }
 
-    private static AssetsFieldInfo CreateFieldTree(
+    private static AssetField CreateFieldTree(
         string assetTypeName,
         string name,
         params (string Name, long Value)[] fields)
     {
-        return new AssetsFieldInfo(
+        return new AssetField(
             assetTypeName,
             assetTypeName,
             null,
             [
-                new AssetsFieldInfo("m_Name", "string", name, []),
+                new AssetField("m_Name", "string", new AssetFieldValue.String(name), []),
                 .. fields.Select(field =>
-                    new AssetsFieldInfo(field.Name, "SInt64", field.Value.ToString(), [])),
+                    new AssetField(field.Name, "SInt64", new AssetFieldValue.Int64(field.Value), [])),
             ]);
     }
 
@@ -286,8 +286,8 @@ public sealed class FieldPatchPlannerTests
 
     private sealed class CountingAssetsFileReader : IAssetsFileReader
     {
-        private readonly IReadOnlyList<AssetsInfo> _assets;
-        private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldsByPathId;
+        private readonly IReadOnlyList<AssetInfo> _assets;
+        private readonly IReadOnlyDictionary<long, AssetField> _fieldsByPathId;
         private readonly Dictionary<long, int> _fieldReadCounts = new();
 
         public int AssetsReadCount { get; private set; }
@@ -296,26 +296,28 @@ public sealed class FieldPatchPlannerTests
         public int TotalFieldReadCount => _fieldReadCounts.Values.Sum();
 
         public CountingAssetsFileReader(
-            IReadOnlyList<AssetsInfo> assets,
-            IReadOnlyDictionary<long, AssetsFieldInfo> fieldsByPathId)
+            IReadOnlyList<AssetInfo> assets,
+            IReadOnlyDictionary<long, AssetField> fieldsByPathId)
         {
             _assets = assets;
             _fieldsByPathId = fieldsByPathId;
         }
 
-        public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
+        public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
         {
             AssetsReadCount++;
             return _assets;
         }
 
-        public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+        public AssetField ReadField(string assetsFilePath, long pathId)
         {
             _fieldReadCounts[pathId] = GetFieldReadCount(pathId) + 1;
             return _fieldsByPathId[pathId];
         }
 
         public void CloseReadSessions() { }
+
+        public void Dispose() { }
 
         public int GetFieldReadCount(long pathId)
         {

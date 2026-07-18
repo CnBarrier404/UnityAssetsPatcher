@@ -338,7 +338,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         ShowWorking();
     }
 
-    private void ShowFields(AssetsFieldInfo fieldTree)
+    private void ShowFields(AssetField fieldTree)
     {
         _body.RemoveAll();
         var output = new TextViewer(FormatFieldTree(fieldTree))
@@ -377,19 +377,19 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         _description.Text = description;
     }
 
-    private static string FormatFieldTree(AssetsFieldInfo root)
+    private static string FormatFieldTree(AssetField root)
     {
         var text = new StringBuilder();
         AppendField(text, root, 0);
         return text.ToString().TrimEnd();
     }
 
-    private static void AppendField(StringBuilder text, AssetsFieldInfo field, int depth)
+    private static void AppendField(StringBuilder text, AssetField field, int depth)
     {
         text.Append(' ', depth * 2).Append(field.Name).Append(" (").Append(field.TypeName).Append(')');
         if (field.Value is not null) text.Append(": ").Append(field.Value.ToInvariantString());
         text.AppendLine();
-        foreach (AssetsFieldInfo child in field.Children) AppendField(text, child, depth + 1);
+        foreach (AssetField child in field.Children) AppendField(text, child, depth + 1);
     }
 
     private static ActionButton CreateActionButton(string text, Pos x, Pos y)

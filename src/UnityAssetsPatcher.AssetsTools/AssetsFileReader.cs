@@ -5,12 +5,12 @@ using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
+public sealed class AssetsFileReader : IAssetsFileReader
 {
     private readonly AssetsToolsContext _context;
     private readonly bool _ownsContext;
     private readonly Dictionary<string, AssetsFileSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, IReadOnlyList<AssetsInfo>> _assetsInfo = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IReadOnlyList<AssetInfo>> _assets = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
     public AssetsFileReader(AssetsToolsContext context, bool ownsContext = true)
@@ -19,26 +19,26 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
         _ownsContext = ownsContext;
     }
 
-    public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
+    public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         string fullPath = Path.GetFullPath(assetsFilePath);
 
-        if (_assetsInfo.TryGetValue(fullPath, out var assets))
+        if (_assets.TryGetValue(fullPath, out IReadOnlyList<AssetInfo>? assets))
         {
             return assets;
         }
 
-        assets = ReadSessionAssetsInfo(GetSession(fullPath));
-        _assetsInfo.Add(fullPath, assets);
+        assets = ReadSessionAssets(GetSession(fullPath));
+        _assets.Add(fullPath, assets);
 
         return assets;
     }
 
-    public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+    public AssetField ReadField(string assetsFilePath, long pathId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        return ReadSessionAssetsFieldInfo(GetSession(Path.GetFullPath(assetsFilePath)), pathId);
+        return ReadSessionField(GetSession(Path.GetFullPath(assetsFilePath)), pathId);
     }
 
     public void CloseReadSessions()
@@ -80,7 +80,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
         }
 
         _sessions.Clear();
-        _assetsInfo.Clear();
+        _assets.Clear();
 
         firstException?.Throw();
     }
@@ -98,20 +98,20 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
         return session;
     }
 
-    private static AssetsInfo[] ReadSessionAssetsInfo(AssetsFileSession session)
+    private static AssetInfo[] ReadSessionAssets(AssetsFileSession session)
     {
         return session.AssetsFile.Metadata.AssetInfos
-            .Select(info => new AssetsInfo(info.PathId, GetTypeName(info.TypeId)))
+            .Select(info => new AssetInfo(info.PathId, GetTypeName(info.TypeId)))
             .ToArray();
     }
 
-    private static AssetsFieldInfo ReadSessionAssetsFieldInfo(AssetsFileSession session, long pathId)
+    private static AssetField ReadSessionField(AssetsFileSession session, long pathId)
     {
         AssetTypeValueField field = session.GetBaseField(pathId);
 
         return field.IsDummy
             ? throw new InvalidOperationException($"Asset not found or cannot be read: {pathId}")
-            : AssetsFieldInfoMapper.Map(field);
+            : AssetFieldMapper.Map(field);
     }
 
     private static string GetTypeName(int typeId)

@@ -4,6 +4,7 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.CLI;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.CLI;
@@ -43,8 +44,10 @@ public sealed class CLIApplicationTests : IDisposable
     public CLIApplicationTests()
     {
         Directory.CreateDirectory(_temporaryDirectory);
+        var assetsFileService = new StubAssetsFileService([]);
         _serviceProvider = new ServiceCollection()
-            .AddSingleton<IAssetsAccessScopeFactory>(new ThrowingAssetsAccessScopeFactory())
+            .AddSingleton<IAssetsFileReader>(assetsFileService)
+            .AddSingleton<IAssetsFileWriter>(assetsFileService)
             .AddUnityAssetsPatcherApplication(Path.Combine(_temporaryDirectory, "backup"))
             .BuildServiceProvider();
     }
@@ -225,10 +228,5 @@ public sealed class CLIApplicationTests : IDisposable
         var app = new CLIApplication([command], output, error, options);
 
         return (app, output, error);
-    }
-
-    private sealed class ThrowingAssetsAccessScopeFactory : IAssetsAccessScopeFactory
-    {
-        public IAssetsAccessScope CreateScope() => throw new NotSupportedException();
     }
 }

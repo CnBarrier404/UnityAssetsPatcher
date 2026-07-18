@@ -102,7 +102,7 @@ public sealed class InspectCLICommand : ICLICommand
         try
         {
             string fullPath = Path.GetFullPath(assetsFilePath);
-            AssetsFieldInfo result = _workflowService.InspectFields(new InspectFieldsRequest(fullPath, pathId));
+            AssetField result = _workflowService.InspectFields(new InspectFieldsRequest(fullPath, pathId));
             return CLIOutput.WriteSuccess(
                 parseResult,
                 _options,

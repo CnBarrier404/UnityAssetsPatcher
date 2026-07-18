@@ -13,6 +13,7 @@ using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
+using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.TUI;
@@ -147,8 +148,10 @@ public sealed class TerminalGUITests : IDisposable
     [Fact]
     public void AddUnityAssetsPatcherTui_RegistersTerminalAppForOfficialServiceProvider()
     {
+        var assetsFileService = new StubAssetsFileService([]);
         using ServiceProvider provider = new ServiceCollection()
-            .AddSingleton<IAssetsAccessScopeFactory>(new ThrowingAssetsAccessScopeFactory())
+            .AddSingleton<IAssetsFileReader>(assetsFileService)
+            .AddSingleton<IAssetsFileWriter>(assetsFileService)
             .AddUnityAssetsPatcherApplication("backup")
             .AddUnityAssetsPatcherTUI(new AppInfo("Unity Assets Patcher", "dev"))
             .BuildServiceProvider(new ServiceProviderOptions
@@ -408,14 +411,6 @@ public sealed class TerminalGUITests : IDisposable
         Assert.False(runner.IsRunning);
     }
 
-    private sealed class ThrowingAssetsAccessScopeFactory : IAssetsAccessScopeFactory
-    {
-        public IAssetsAccessScope CreateScope()
-        {
-            throw new NotSupportedException();
-        }
-    }
-
     private sealed class ThrowingWorkflowService : IWorkflowService
     {
         public BackupRecoveryReport CheckPendingTransactions() => BackupRecoveryReport.Clean;
@@ -429,7 +424,7 @@ public sealed class TerminalGUITests : IDisposable
 
         public InspectListResult InspectList(InspectListRequest request) => throw new NotSupportedException();
 
-        public AssetsFieldInfo InspectFields(InspectFieldsRequest request) => throw new NotSupportedException();
+        public AssetField InspectFields(InspectFieldsRequest request) => throw new NotSupportedException();
 
         public InstallPreviewResult PreviewInstall(InstallRequest request) => throw new NotSupportedException();
 

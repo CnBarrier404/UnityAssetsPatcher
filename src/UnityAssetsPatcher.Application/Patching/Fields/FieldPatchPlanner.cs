@@ -131,7 +131,7 @@ public sealed class FieldPatchPlanner
         return setOperations.Concat(addOperations).ToArray();
     }
 
-    private sealed record FieldPatchAssetPlan(AssetsInfo Asset, IReadOnlyList<FieldPatchOperationPlan> Operations);
+    private sealed record FieldPatchAssetPlan(AssetInfo Asset, IReadOnlyList<FieldPatchOperationPlan> Operations);
 }
 
 public sealed record FieldPatchPlanningOutput(IReadOnlyList<AssetFieldPatch> Assets, PatchPreviewResult Preview);
@@ -150,7 +150,7 @@ public interface IFieldPatchOperationHandler
 
     public IReadOnlyList<FieldPatchOperationPlan> CreatePlans(
         long pathId,
-        AssetsFieldInfo fieldTree,
+        AssetField fieldTree,
         NormalizedFieldPatchOperation operation);
 }
 
@@ -163,7 +163,7 @@ public sealed class SetFieldPatchOperationHandler : IFieldPatchOperationHandler
 
     public IReadOnlyList<FieldPatchOperationPlan> CreatePlans(
         long pathId,
-        AssetsFieldInfo fieldTree,
+        AssetField fieldTree,
         NormalizedFieldPatchOperation operation)
     {
         var set = (NormalizedSetFieldPatchOperation)operation;
@@ -180,7 +180,7 @@ public sealed class AddFieldPatchOperationHandler : IFieldPatchOperationHandler
 
     public IReadOnlyList<FieldPatchOperationPlan> CreatePlans(
         long pathId,
-        AssetsFieldInfo fieldTree,
+        AssetField fieldTree,
         NormalizedFieldPatchOperation operation)
     {
         var add = (NormalizedAddFieldPatchOperation)operation;

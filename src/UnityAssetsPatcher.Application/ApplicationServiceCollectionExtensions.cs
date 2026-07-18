@@ -4,7 +4,6 @@ using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Workflows;
-using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Uninstallation;
@@ -23,23 +22,15 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton(new BackupRepository(backupDirectory));
         services.AddSingleton<IWorkflowService, WorkflowService>();
 
-        AddAssetsAccess(services);
         AddPatching(services);
         AddWorkflows(services);
 
         return services;
     }
 
-    private static void AddAssetsAccess(IServiceCollection services)
-    {
-        services.AddScoped<IAssetsAccessScope, ScopedAssetsAccess>();
-        services.AddScoped<IAssetsFileReader, ScopedAssetsFileReader>();
-        services.AddScoped<IAssetsFileWriter, ScopedAssetsFileWriter>();
-        services.AddScoped<AssetQueryService>();
-    }
-
     private static void AddPatching(IServiceCollection services)
     {
+        services.AddScoped<AssetQueryService>();
         services.AddScoped<IFieldPatchOperationHandler, SetFieldPatchOperationHandler>();
         services.AddScoped<IFieldPatchOperationHandler, AddFieldPatchOperationHandler>();
         services.AddScoped<FieldPatchPlanner>();

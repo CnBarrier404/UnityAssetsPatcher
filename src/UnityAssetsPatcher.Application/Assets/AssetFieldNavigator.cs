@@ -2,54 +2,54 @@ namespace UnityAssetsPatcher.Application.Assets;
 
 public static class AssetFieldNavigator
 {
-    public static AssetsFieldInfo? FindField(AssetsFieldInfo fieldTree, string path)
+    public static AssetField? Find(AssetField fieldTree, string path)
     {
-        return AssetFieldPathNavigator.Find(
+        return AssetFieldPath.Find(
             fieldTree,
             path,
             static field => field.Name,
             static field => field.Children,
             static field => field.Value?.ToInvariantString(),
-            static (field, name) => field.ChildrenNamed(name));
+            static (field, name) => field.FindChildren(name));
     }
 
-    public static AssetsFieldInfo? ResolveArrayField(AssetsFieldInfo? field)
+    public static AssetField? ResolveArray(AssetField? field)
     {
         if (field is null)
         {
             return null;
         }
 
-        if (IsArrayField(field))
+        if (IsArray(field))
         {
             return field;
         }
 
-        AssetsFieldInfo? namedArray = field.Child("Array");
+        AssetField? namedArray = field.FindChild("Array");
 
-        return namedArray is not null && IsArrayField(namedArray)
+        return namedArray is not null && IsArray(namedArray)
             ? namedArray
-            : field.Children.FirstOrDefault(IsArrayField);
+            : field.Children.FirstOrDefault(IsArray);
     }
 
-    public static IReadOnlyList<AssetsFieldInfo> GetArrayElementFields(AssetsFieldInfo arrayField)
+    public static IReadOnlyList<AssetField> GetArrayElements(AssetField arrayField)
     {
-        var dataChildren = arrayField.ChildrenNamed("data");
+        var dataChildren = arrayField.FindChildren("data");
 
         return dataChildren.Count > 0
             ? dataChildren
             : arrayField.Children.Where(child => !IsArraySizeMetadata(child)).ToArray();
     }
 
-    private static bool IsArrayField(AssetsFieldInfo field)
+    private static bool IsArray(AssetField field)
     {
         return string.Equals(field.Name, "Array", StringComparison.Ordinal) ||
-               AssetFieldTypeNames.IsArray(field.TypeName);
+               string.Equals(field.TypeName, "Array", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsArraySizeMetadata(AssetsFieldInfo field)
+    private static bool IsArraySizeMetadata(AssetField field)
     {
         return string.Equals(field.Name, "size", StringComparison.Ordinal) &&
-               AssetFieldTypeNames.IsInteger(field.TypeName);
+               field.Value is AssetFieldValue.Int64 or AssetFieldValue.UInt64;
     }
 }

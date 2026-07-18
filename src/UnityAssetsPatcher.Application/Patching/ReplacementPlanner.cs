@@ -120,12 +120,12 @@ public sealed class ReplacementPlanner
     }
 
     private static string ReadReplacementMatchValue(
-        AssetsFieldInfo fieldTree,
+        AssetField fieldTree,
         string matchFieldPath,
         long pathId,
         string role)
     {
-        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, matchFieldPath);
+        AssetField? field = AssetFieldNavigator.Find(fieldTree, matchFieldPath);
 
         return field?.Value?.ToInvariantString() ?? throw new InvalidOperationException(
             $"Replacement {role} Path ID {pathId} does not contain scalar match field '{matchFieldPath}'.");
@@ -147,8 +147,8 @@ public sealed class ReplacementPlanner
     }
 
     private sealed record AssetReplacementMatch(
-        AssetsInfo Target,
-        AssetsInfo Source,
+        AssetInfo Target,
+        AssetInfo Source,
         string MatchValue,
         string SourceAssetsFilePath);
 
@@ -156,7 +156,7 @@ public sealed class ReplacementPlanner
     {
         private readonly AssetQueryContext _context;
 
-        private readonly Dictionary<string, Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>>>>
+        private readonly Dictionary<string, Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<AssetInfo>>>>
             _indexesByType = new(StringComparer.OrdinalIgnoreCase);
 
         public ReplacementSourceIndexes(AssetQueryContext context)
@@ -164,13 +164,13 @@ public sealed class ReplacementPlanner
             _context = context;
         }
 
-        public IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>> GetIndex(
+        public IReadOnlyDictionary<string, IReadOnlyList<AssetInfo>> GetIndex(
             string assetTypeName,
             string matchFieldPath)
         {
             if (!_indexesByType.TryGetValue(assetTypeName, out var indexesByFieldPath))
             {
-                indexesByFieldPath = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>>>(
+                indexesByFieldPath = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<AssetInfo>>>(
                     StringComparer.Ordinal);
                 _indexesByType.Add(assetTypeName, indexesByFieldPath);
             }
@@ -185,18 +185,18 @@ public sealed class ReplacementPlanner
             return index;
         }
 
-        private IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>> BuildIndex(
+        private IReadOnlyDictionary<string, IReadOnlyList<AssetInfo>> BuildIndex(
             string assetTypeName,
             string matchFieldPath)
         {
-            var assetsByValue = new Dictionary<string, List<AssetsInfo>>(StringComparer.Ordinal);
+            var assetsByValue = new Dictionary<string, List<AssetInfo>>(StringComparer.Ordinal);
 
-            foreach (AssetsInfo asset in _context.GetAssetsByType(assetTypeName))
+            foreach (AssetInfo asset in _context.GetAssetsByType(assetTypeName))
             {
-                AssetsFieldInfo fieldTree = _context.ReadAssetsFieldInfo(asset.PathId);
-                AssetsFieldInfo? matchField = AssetFieldNavigator.FindField(fieldTree, matchFieldPath);
+                AssetField fieldTree = _context.ReadField(asset.PathId);
+                AssetField? matchField = AssetFieldNavigator.Find(fieldTree, matchFieldPath);
 
-                if (matchField?.Value is not StringAssetFieldValue stringValue)
+                if (matchField?.Value is not AssetFieldValue.String stringValue)
                 {
                     continue;
                 }
@@ -212,7 +212,7 @@ public sealed class ReplacementPlanner
 
             return assetsByValue.ToDictionary(
                 static pair => pair.Key,
-                static IReadOnlyList<AssetsInfo> (pair) => pair.Value.ToArray(),
+                static IReadOnlyList<AssetInfo> (pair) => pair.Value.ToArray(),
                 StringComparer.Ordinal);
         }
     }

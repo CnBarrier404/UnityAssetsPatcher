@@ -52,15 +52,15 @@ public sealed class InstallModWorkflowTests
             }
             """);
         var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, "Camera")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(4, "Camera")],
+            new Dictionary<long, AssetField>
             {
                 [4] = new("Camera", "Camera", null,
                 [
-                    new AssetsFieldInfo("field of view", "float", "90.0", []),
-                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    new AssetField("field of view", "float", new AssetFieldValue.Float(90f), []),
+                    new AssetField("m_CullingMask", "BitField", null,
                     [
-                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                        new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
                     ]),
                 ]),
             });
@@ -175,15 +175,15 @@ public sealed class InstallModWorkflowTests
         }
 
         var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, "Camera")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(4, "Camera")],
+            new Dictionary<long, AssetField>
             {
                 [4] = new("Camera", "Camera", null,
                 [
-                    new AssetsFieldInfo("field of view", "float", "90.0", []),
-                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    new AssetField("field of view", "float", new AssetFieldValue.Float(90f), []),
+                    new AssetField("m_CullingMask", "BitField", null,
                     [
-                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                        new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
                     ]),
                 ]),
             });
@@ -265,18 +265,18 @@ public sealed class InstallModWorkflowTests
         }
 
         var assetsFileService = new StubAssetsFileService(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
                 [targetPath] =
                 [
-                    new AssetsInfo(100, "AudioClip"),
+                    new AssetInfo(100, "AudioClip"),
                 ],
                 ["modassets.assets"] =
                 [
-                    new AssetsInfo(200, "AudioClip"),
+                    new AssetInfo(200, "AudioClip"),
                 ],
             },
-            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            new Dictionary<(string AssetsFilePath, long PathId), AssetField>
             {
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
                 [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
@@ -378,18 +378,18 @@ public sealed class InstallModWorkflowTests
         }
 
         var assetsFileService = new StubAssetsFileService(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
                 [targetPath] =
                 [
-                    new AssetsInfo(100, "AudioClip"),
+                    new AssetInfo(100, "AudioClip"),
                 ],
                 ["modassets.assets"] =
                 [
-                    new AssetsInfo(200, "AudioClip"),
+                    new AssetInfo(200, "AudioClip"),
                 ],
             },
-            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            new Dictionary<(string AssetsFilePath, long PathId), AssetField>
             {
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
                 [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
@@ -464,12 +464,12 @@ public sealed class InstallModWorkflowTests
         }
 
         var assetsFileService = new StubAssetsFileService(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [targetPath] = [new AssetsInfo(100, "AudioClip")],
-                ["modassets.assets"] = [new AssetsInfo(200, "AudioClip")],
+                [targetPath] = [new AssetInfo(100, "AudioClip")],
+                ["modassets.assets"] = [new AssetInfo(200, "AudioClip")],
             },
-            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            new Dictionary<(string AssetsFilePath, long PathId), AssetField>
             {
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
                 [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
@@ -532,15 +532,15 @@ public sealed class InstallModWorkflowTests
             }
             """);
         var workflow = CreateWorkflow(new StubAssetsFileService(
-            [new AssetsInfo(4, "Camera")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(4, "Camera")],
+            new Dictionary<long, AssetField>
             {
                 [4] = new("Camera", "Camera", null,
                 [
-                    new AssetsFieldInfo("field of view", "float", "90.0", []),
-                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    new AssetField("field of view", "float", new AssetFieldValue.Float(90f), []),
+                    new AssetField("m_CullingMask", "BitField", null,
                     [
-                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                        new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
                     ]),
                 ]),
             }));
@@ -622,15 +622,15 @@ public sealed class InstallModWorkflowTests
             """);
         var workflow = CreateWorkflow(
             new StubAssetsFileService(
-                [new AssetsInfo(4, "Camera")],
-                new Dictionary<long, AssetsFieldInfo>
+                [new AssetInfo(4, "Camera")],
+                new Dictionary<long, AssetField>
                 {
                     [4] = new("Camera", "Camera", null,
                     [
-                        new AssetsFieldInfo("field of view", "float", "90.0", []),
-                        new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                        new AssetField("field of view", "float", new AssetFieldValue.Float(90f), []),
+                        new AssetField("m_CullingMask", "BitField", null,
                         [
-                            new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                            new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
                         ]),
                     ]),
                 }),
@@ -751,15 +751,15 @@ public sealed class InstallModWorkflowTests
         }
 
         var workflow = CreateWorkflow(new StubAssetsFileService(
-            [new AssetsInfo(4, "Camera")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(4, "Camera")],
+            new Dictionary<long, AssetField>
             {
                 [4] = new("Camera", "Camera", null,
                 [
-                    new AssetsFieldInfo("field of view", "float", "90.0", []),
-                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    new AssetField("field of view", "float", new AssetFieldValue.Float(90f), []),
+                    new AssetField("m_CullingMask", "BitField", null,
                     [
-                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                        new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
                     ]),
                 ]),
             }));
@@ -824,10 +824,11 @@ public sealed class InstallModWorkflowTests
             }
             """);
         var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, "Camera")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(4, "Camera")],
+            new Dictionary<long, AssetField>
             {
-                [4] = new("Camera", "Camera", null, [new AssetsFieldInfo("field of view", "float", "90.0", [])]),
+                [4] = new("Camera", "Camera", null,
+                    [new AssetField("field of view", "float", new AssetFieldValue.Float(90f), [])]),
             });
         var workflow = CreateWorkflow(assetsFileService, backupDirectory);
 
@@ -923,14 +924,14 @@ public sealed class InstallModWorkflowTests
         }
 
         var assetsFileService = new StubAssetsFileService(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
                 [targetPath] =
                 [
-                    new AssetsInfo(100, "AudioClip"),
+                    new AssetInfo(100, "AudioClip"),
                 ],
             },
-            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            new Dictionary<(string AssetsFilePath, long PathId), AssetField>
             {
                 [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
             });
@@ -1012,21 +1013,21 @@ public sealed class InstallModWorkflowTests
               ]
             }
             """);
-        AssetsFieldInfo fieldTree = new("Camera", "Camera", null,
+        AssetField fieldTree = new("Camera", "Camera", null,
         [
-            new AssetsFieldInfo("field of view", "float", "90.0", []),
-            new AssetsFieldInfo("m_CullingMask", "BitField", null,
+            new AssetField("field of view", "float", new AssetFieldValue.Float(90f), []),
+            new AssetField("m_CullingMask", "BitField", null,
             [
-                new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
             ]),
         ]);
         var assetsFileService = new StubAssetsFileService(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [basePath] = [new AssetsInfo(4, "Camera")],
-                [optionalPath] = [new AssetsInfo(5, "Camera")],
+                [basePath] = [new AssetInfo(4, "Camera")],
+                [optionalPath] = [new AssetInfo(5, "Camera")],
             },
-            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            new Dictionary<(string AssetsFilePath, long PathId), AssetField>
             {
                 [(basePath, 4)] = fieldTree,
                 [(optionalPath, 5)] = fieldTree,
@@ -1164,15 +1165,15 @@ public sealed class InstallModWorkflowTests
     private static StubAssetsFileService CreateCullingMaskCameraReader()
     {
         return new StubAssetsFileService(
-            [new AssetsInfo(4, "Camera")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(4, "Camera")],
+            new Dictionary<long, AssetField>
             {
                 [4] = new("Camera", "Camera", null,
                 [
-                    new AssetsFieldInfo("field of view", "float", "90.0", []),
-                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    new AssetField("field of view", "float", new AssetFieldValue.Float(90f), []),
+                    new AssetField("m_CullingMask", "BitField", null,
                     [
-                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                        new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
                     ]),
                 ]),
             });
@@ -1262,15 +1263,15 @@ public sealed class InstallModWorkflowTests
         }
 
         var assetsFileService = new StubAssetsFileService(
-            [new AssetsInfo(4, "Camera")],
-            new Dictionary<long, AssetsFieldInfo>
+            [new AssetInfo(4, "Camera")],
+            new Dictionary<long, AssetField>
             {
                 [4] = new("Camera", "Camera", null,
                 [
-                    new AssetsFieldInfo("field of view", "float", "90.0", []),
-                    new AssetsFieldInfo("m_CullingMask", "BitField", null,
+                    new AssetField("field of view", "float", new AssetFieldValue.Float(90f), []),
+                    new AssetField("m_CullingMask", "BitField", null,
                     [
-                        new AssetsFieldInfo("m_Bits", "UInt32", "3211820983", []),
+                        new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
                     ]),
                 ]),
             });
@@ -1307,14 +1308,14 @@ public sealed class InstallModWorkflowTests
         }
     }
 
-    private static AssetsFieldInfo CreateAudioClipFieldTree(string name)
+    private static AssetField CreateAudioClipFieldTree(string name)
     {
-        return new AssetsFieldInfo(
+        return new AssetField(
             "AudioClip",
             "AudioClip",
             null,
             [
-                new AssetsFieldInfo("m_Name", "string", name, []),
+                new AssetField("m_Name", "string", new AssetFieldValue.String(name), []),
             ]);
     }
 

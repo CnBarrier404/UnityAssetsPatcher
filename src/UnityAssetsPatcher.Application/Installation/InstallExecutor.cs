@@ -20,20 +20,23 @@ internal sealed record InstallPatchAppliedFile(
 public sealed class InstallExecutor
 {
     private readonly PatchOutputWriter _patchOutputWriter;
-    private readonly IAssetsAccessScope _assets;
+    private readonly IAssetsFileReader _assetsReader;
     private readonly BackupRepository _backupRepository;
 
     public InstallExecutor(
         PatchOutputWriter patchOutputWriter,
-        IAssetsAccessScope assets,
+        IAssetsFileReader assetsReader,
         BackupRepository backupRepository)
     {
         _patchOutputWriter = patchOutputWriter;
-        _assets = assets;
+        _assetsReader = assetsReader;
         _backupRepository = backupRepository;
     }
 
-    public void CloseReadSessions() => _assets.CloseReadSessions();
+    public void CloseReadSessions()
+    {
+        _assetsReader.CloseReadSessions();
+    }
 
     internal InstallExecutionResult Execute(InstallPlanSession<InstallWritePlan> session, StepTimer timings)
     {

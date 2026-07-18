@@ -6,36 +6,36 @@ namespace UnityAssetsPatcher.Tests.Application.Assets;
 public sealed class AssetFieldNavigatorTests
 {
     [Fact]
-    public void Child_WhenMultipleChildrenShareName_ReturnsFirstMatchingChild()
+    public void FindChild_WhenMultipleChildrenShareName_ReturnsFirstMatchingChild()
     {
-        AssetsFieldInfo first = CreateField("data", "pair", value: "first");
-        AssetsFieldInfo second = CreateField("data", "pair", value: "second");
-        AssetsFieldInfo parent = CreateField("Array", "Array", [first, second]);
+        AssetField first = CreateField("data", "pair", value: new AssetFieldValue.String("first"));
+        AssetField second = CreateField("data", "pair", value: new AssetFieldValue.String("second"));
+        AssetField parent = CreateField("Array", "Array", [first, second]);
 
-        AssetsFieldInfo? result = parent.Child("data");
+        AssetField? result = parent.FindChild("data");
 
         Assert.Same(first, result);
     }
 
     [Fact]
-    public void ChildrenNamed_WhenMultipleChildrenShareName_ReturnsAllMatchesInOrder()
+    public void FindChildren_WhenMultipleChildrenShareName_ReturnsAllMatchesInOrder()
     {
-        AssetsFieldInfo first = CreateField("data", "pair", value: "first");
-        AssetsFieldInfo unrelated = CreateField("size", "int", value: "2");
-        AssetsFieldInfo second = CreateField("data", "pair", value: "second");
-        AssetsFieldInfo parent = CreateField("Array", "Array", [first, unrelated, second]);
+        AssetField first = CreateField("data", "pair", value: new AssetFieldValue.String("first"));
+        AssetField unrelated = CreateField("size", "int", value: new AssetFieldValue.Int64(2));
+        AssetField second = CreateField("data", "pair", value: new AssetFieldValue.String("second"));
+        AssetField parent = CreateField("Array", "Array", [first, unrelated, second]);
 
-        IReadOnlyList<AssetsFieldInfo> result = parent.ChildrenNamed("data");
+        IReadOnlyList<AssetField> result = parent.FindChildren("data");
 
         Assert.Equal([first, second], result);
     }
 
     [Fact]
-    public void FindField_WhenPathIsSingleSegment_ReturnsDescendantByName()
+    public void Find_WhenPathIsSingleSegment_ReturnsDescendantByName()
     {
-        AssetsFieldInfo fieldTree = CreateMaterialFieldTree("8842");
+        AssetField fieldTree = CreateMaterialFieldTree(8842);
 
-        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, "m_PathID");
+        AssetField? field = AssetFieldNavigator.Find(fieldTree, "m_PathID");
 
         Assert.NotNull(field);
         Assert.Equal("m_PathID", field.Name);
@@ -43,11 +43,11 @@ public sealed class AssetFieldNavigatorTests
     }
 
     [Fact]
-    public void FindField_WhenPathUsesChildValueSelector_ReturnsSelectedDescendant()
+    public void Find_WhenPathUsesChildValueSelector_ReturnsSelectedDescendant()
     {
-        AssetsFieldInfo fieldTree = CreateMaterialFieldTree("8842");
+        AssetField fieldTree = CreateMaterialFieldTree(8842);
 
-        AssetsFieldInfo? field = AssetFieldNavigator.FindField(
+        AssetField? field = AssetFieldNavigator.Find(
             fieldTree,
             "m_SavedProperties.m_TexEnvs.Array.data[first=_EmissionMap].second.m_Texture.m_PathID");
 
@@ -57,111 +57,123 @@ public sealed class AssetFieldNavigatorTests
     }
 
     [Fact]
-    public void FindField_WhenSelectorDoesNotMatch_ReturnsNull()
+    public void Find_WhenSelectorDoesNotMatch_ReturnsNull()
     {
-        AssetsFieldInfo fieldTree = CreateMaterialFieldTree("8842");
+        AssetField fieldTree = CreateMaterialFieldTree(8842);
 
-        AssetsFieldInfo? field = AssetFieldNavigator.FindField(
+        AssetField? field = AssetFieldNavigator.Find(
             fieldTree,
             "m_SavedProperties.m_TexEnvs.Array.data[first=_BumpMap].second.m_Texture.m_PathID");
 
         Assert.Null(field);
     }
 
-    [Fact]
-    public void ResolveArrayField_WhenFieldIsArray_ReturnsField()
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("root..child")]
+    [InlineData("data[]")]
+    [InlineData("[first=value]")]
+    public void Find_WhenPathSyntaxIsInvalid_ThrowsClearError(string path)
     {
-        AssetsFieldInfo arrayField = CreateField("Array", "Array");
+        AssetField fieldTree = CreateField("root", "Root");
 
-        AssetsFieldInfo? result = AssetFieldNavigator.ResolveArrayField(arrayField);
+        Assert.Throws<InvalidOperationException>(() => AssetFieldNavigator.Find(fieldTree, path));
+    }
+
+    [Fact]
+    public void ResolveArray_WhenFieldIsArray_ReturnsField()
+    {
+        AssetField arrayField = CreateField("Array", "Array");
+
+        AssetField? result = AssetFieldNavigator.ResolveArray(arrayField);
 
         Assert.Same(arrayField, result);
     }
 
     [Fact]
-    public void ResolveArrayField_WhenDirectChildIsArray_ReturnsArrayChild()
+    public void ResolveArray_WhenDirectChildIsArray_ReturnsArrayChild()
     {
-        AssetsFieldInfo arrayField = CreateField("Array", "Array");
-        AssetsFieldInfo parent = CreateField("m_Component", "vector", [arrayField]);
+        AssetField arrayField = CreateField("Array", "Array");
+        AssetField parent = CreateField("m_Component", "vector", [arrayField]);
 
-        AssetsFieldInfo? result = AssetFieldNavigator.ResolveArrayField(parent);
+        AssetField? result = AssetFieldNavigator.ResolveArray(parent);
 
         Assert.Same(arrayField, result);
     }
 
     [Fact]
-    public void ResolveArrayField_WhenFieldIsNull_ReturnsNull()
+    public void ResolveArray_WhenFieldIsNull_ReturnsNull()
     {
-        AssetsFieldInfo? result = AssetFieldNavigator.ResolveArrayField(null);
+        AssetField? result = AssetFieldNavigator.ResolveArray(null);
 
         Assert.Null(result);
     }
 
     [Fact]
-    public void GetArrayElementFields_WhenArrayContainsDataChildren_ReturnsDataChildren()
+    public void GetArrayElements_WhenArrayContainsDataChildren_ReturnsDataChildren()
     {
-        AssetsFieldInfo firstData = CreateField("data", "pair");
-        AssetsFieldInfo secondData = CreateField("data", "pair");
-        AssetsFieldInfo size = CreateField("size", "int", value: "2");
-        AssetsFieldInfo arrayField = CreateField("Array", "Array", [size, firstData, secondData]);
+        AssetField firstData = CreateField("data", "pair");
+        AssetField secondData = CreateField("data", "pair");
+        AssetField size = CreateField("size", "int", value: new AssetFieldValue.Int64(2));
+        AssetField arrayField = CreateField("Array", "Array", [size, firstData, secondData]);
 
-        var result = AssetFieldNavigator.GetArrayElementFields(arrayField);
+        IReadOnlyList<AssetField> result = AssetFieldNavigator.GetArrayElements(arrayField);
 
         Assert.Equal([firstData, secondData], result);
     }
 
     [Fact]
-    public void GetArrayElementFields_WhenArrayHasNoDataChildren_ReturnsAllChildren()
+    public void GetArrayElements_WhenArrayHasNoDataChildren_ReturnsAllChildren()
     {
-        AssetsFieldInfo first = CreateField("first", "int", value: "1");
-        AssetsFieldInfo second = CreateField("second", "int", value: "2");
-        AssetsFieldInfo arrayField = CreateField("Array", "Array", [first, second]);
+        AssetField first = CreateField("first", "int", value: new AssetFieldValue.Int64(1));
+        AssetField second = CreateField("second", "int", value: new AssetFieldValue.Int64(2));
+        AssetField arrayField = CreateField("Array", "Array", [first, second]);
 
-        var result = AssetFieldNavigator.GetArrayElementFields(arrayField);
+        IReadOnlyList<AssetField> result = AssetFieldNavigator.GetArrayElements(arrayField);
 
         Assert.Equal([first, second], result);
     }
 
     [Theory]
-    [InlineData("int")]
-    [InlineData("short")]
-    [InlineData("long")]
-    [InlineData("byte")]
-    [InlineData("UInt32")]
-    [InlineData("SInt64")]
-    public void GetArrayElementFields_WhenArrayOnlyContainsSizeMetadata_ReturnsEmpty(string sizeTypeName)
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GetArrayElements_WhenArrayOnlyContainsNumericSizeMetadata_ReturnsEmpty(bool unsigned)
     {
-        AssetsFieldInfo size = CreateField("size", sizeTypeName, value: "0");
-        AssetsFieldInfo arrayField = CreateField("Array", "Array", [size]);
+        AssetFieldValue sizeValue = unsigned
+            ? new AssetFieldValue.UInt64(0)
+            : new AssetFieldValue.Int64(0);
+        AssetField size = CreateField("size", unsigned ? "UInt32" : "int", value: sizeValue);
+        AssetField arrayField = CreateField("Array", "Array", [size]);
 
-        var result = AssetFieldNavigator.GetArrayElementFields(arrayField);
+        IReadOnlyList<AssetField> result = AssetFieldNavigator.GetArrayElements(arrayField);
 
         Assert.Empty(result);
     }
 
-    private static AssetsFieldInfo CreateField(
+    private static AssetField CreateField(
         string name,
         string typeName,
-        IReadOnlyList<AssetsFieldInfo>? children = null,
-        string? value = null)
+        IReadOnlyList<AssetField>? children = null,
+        AssetFieldValue? value = null)
     {
-        return new AssetsFieldInfo(name, typeName, value, children ?? []);
+        return new AssetField(name, typeName, value, children ?? []);
     }
 
-    private static AssetsFieldInfo CreateMaterialFieldTree(string pathId)
+    private static AssetField CreateMaterialFieldTree(long pathId)
     {
-        return new AssetsFieldInfo(
+        return new AssetField(
             "Material",
             "Material",
             null,
             [
-                new AssetsFieldInfo("m_SavedProperties", "UnityPropertySheet", null,
+                new AssetField("m_SavedProperties", "UnityPropertySheet", null,
                 [
-                    new AssetsFieldInfo("m_TexEnvs", "map", null,
+                    new AssetField("m_TexEnvs", "map", null,
                     [
-                        new AssetsFieldInfo("Array", "Array", null,
+                        new AssetField("Array", "Array", null,
                         [
-                            CreateTexEnv("_MainTex", "17"),
+                            CreateTexEnv("_MainTex", 17),
                             CreateTexEnv("_EmissionMap", pathId),
                         ]),
                     ]),
@@ -169,20 +181,20 @@ public sealed class AssetFieldNavigatorTests
             ]);
     }
 
-    private static AssetsFieldInfo CreateTexEnv(string name, string pathId)
+    private static AssetField CreateTexEnv(string name, long pathId)
     {
-        return new AssetsFieldInfo(
+        return new AssetField(
             "data",
             "pair",
             null,
             [
-                new AssetsFieldInfo("first", "string", name, []),
-                new AssetsFieldInfo("second", "UnityTexEnv", null,
+                new AssetField("first", "string", new AssetFieldValue.String(name), []),
+                new AssetField("second", "UnityTexEnv", null,
                 [
-                    new AssetsFieldInfo("m_Texture", "PPtr<Texture2D>", null,
+                    new AssetField("m_Texture", "PPtr<Texture2D>", null,
                     [
-                        new AssetsFieldInfo("m_FileID", "int", "0", []),
-                        new AssetsFieldInfo("m_PathID", "SInt64", pathId, []),
+                        new AssetField("m_FileID", "int", new AssetFieldValue.Int64(0), []),
+                        new AssetField("m_PathID", "SInt64", new AssetFieldValue.Int64(pathId), []),
                     ]),
                 ]),
             ]);

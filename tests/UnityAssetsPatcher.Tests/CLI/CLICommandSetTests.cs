@@ -20,7 +20,7 @@ public sealed class CLICommandSetTests : IDisposable
     public void Run_InspectListDefaultsToFirst100AndReportsTotal()
     {
         var assets = Enumerable.Range(1, 105)
-            .Select(id => new UnityAssetsPatcher.Application.Assets.AssetsInfo(id, "Camera"))
+            .Select(id => new UnityAssetsPatcher.Application.Assets.AssetInfo(id, "Camera"))
             .ToArray();
         var workflow = new StubWorkflowService
         {
@@ -42,11 +42,14 @@ public sealed class CLICommandSetTests : IDisposable
     {
         var workflow = new StubWorkflowService
         {
-            InspectFieldTree = new UnityAssetsPatcher.Application.Assets.AssetsFieldInfo(
+            InspectFieldTree = new UnityAssetsPatcher.Application.Assets.AssetField(
                 "Camera",
                 "Camera",
                 null,
-                [new UnityAssetsPatcher.Application.Assets.AssetsFieldInfo("field of view", "float", "90", [])]),
+                [
+                    new UnityAssetsPatcher.Application.Assets.AssetField("field of view", "float",
+                        new UnityAssetsPatcher.Application.Assets.AssetFieldValue.Float(90f), [])
+                ]),
         };
         (CLIApplication app, StringWriter output, StringWriter error) = CreateApp(workflow);
 
@@ -68,7 +71,7 @@ public sealed class CLICommandSetTests : IDisposable
     {
         var workflow = new StubWorkflowService
         {
-            InspectAssets = [new UnityAssetsPatcher.Application.Assets.AssetsInfo(1, "Camera")],
+            InspectAssets = [new UnityAssetsPatcher.Application.Assets.AssetInfo(1, "Camera")],
         };
         (CLIApplication app, _, StringWriter error) = CreateApp(workflow);
 
@@ -336,8 +339,8 @@ public sealed class CLICommandSetTests : IDisposable
         public UninstallModResult? UninstallResult { get; init; }
         public Exception? Failure { get; init; }
         public BackupRecoveryPreview? RecoveryPreview { get; init; }
-        public IReadOnlyList<UnityAssetsPatcher.Application.Assets.AssetsInfo> InspectAssets { get; init; } = [];
-        public UnityAssetsPatcher.Application.Assets.AssetsFieldInfo? InspectFieldTree { get; init; }
+        public IReadOnlyList<UnityAssetsPatcher.Application.Assets.AssetInfo> InspectAssets { get; init; } = [];
+        public UnityAssetsPatcher.Application.Assets.AssetField? InspectFieldTree { get; init; }
         public InspectListRequest? LastInspectListRequest { get; private set; }
         public InspectFieldsRequest? LastInspectFieldsRequest { get; private set; }
         public InstallRequest? LastInstallRequest { get; private set; }
@@ -359,7 +362,7 @@ public sealed class CLICommandSetTests : IDisposable
         {
             LastInspectListRequest = request;
             ThrowIfConfigured();
-            IEnumerable<UnityAssetsPatcher.Application.Assets.AssetsInfo> listed = request.Limit is null
+            IEnumerable<UnityAssetsPatcher.Application.Assets.AssetInfo> listed = request.Limit is null
                 ? InspectAssets
                 : InspectAssets.Take(request.Limit.Value);
             return new InspectListResult(
@@ -368,7 +371,7 @@ public sealed class CLICommandSetTests : IDisposable
                 InspectAssets.Count);
         }
 
-        public UnityAssetsPatcher.Application.Assets.AssetsFieldInfo InspectFields(InspectFieldsRequest request)
+        public UnityAssetsPatcher.Application.Assets.AssetField InspectFields(InspectFieldsRequest request)
         {
             LastInspectFieldsRequest = request;
             ThrowIfConfigured();

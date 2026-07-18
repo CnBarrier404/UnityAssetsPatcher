@@ -5,7 +5,7 @@ using Xunit;
 
 namespace UnityAssetsPatcher.Tests.AssetsTools;
 
-public sealed class AssetsFieldWriterTests
+public sealed class AssetFieldWriterTests
 {
     /// <summary>
     /// Verifies that float values outside the single range are rejected instead of being written as infinity.
@@ -65,8 +65,7 @@ public sealed class AssetsFieldWriterTests
 
     private static MethodInfo GetWriteJsonValueMethod()
     {
-        Type writerType = typeof(AssetsFileWriter).Assembly.GetType("UnityAssetsPatcher.AssetsTools.AssetsFieldWriter")
-                          ?? throw new InvalidOperationException("AssetsFieldWriter type was not found.");
+        Type writerType = typeof(AssetFieldWriter);
 
         return writerType.GetMethod(
                    "WriteJsonValue",

@@ -11,8 +11,8 @@ public sealed class InspectAssetsWorkflowTests
     [Fact]
     public void ListReturnsLimitedAssetsAndTotalCount()
     {
-        AssetsInfo[] assets = Enumerable.Range(1, 5)
-            .Select(id => new AssetsInfo(id, $"Asset{id}"))
+        AssetInfo[] assets = Enumerable.Range(1, 5)
+            .Select(id => new AssetInfo(id, $"Asset{id}"))
             .ToArray();
         var workflow = new InspectAssetsWorkflow(CreateReader(assets));
 
@@ -30,8 +30,8 @@ public sealed class InspectAssetsWorkflowTests
     [Fact]
     public void ListWithoutLimitReturnsEveryAsset()
     {
-        AssetsInfo[] assets = Enumerable.Range(1, 3)
-            .Select(id => new AssetsInfo(id, $"Asset{id}"))
+        AssetInfo[] assets = Enumerable.Range(1, 3)
+            .Select(id => new AssetInfo(id, $"Asset{id}"))
             .ToArray();
         var workflow = new InspectAssetsWorkflow(CreateReader(assets));
 
@@ -49,16 +49,16 @@ public sealed class InspectAssetsWorkflowTests
     [Fact]
     public void FieldsReturnsSelectedAssetFieldTree()
     {
-        var fieldTree = new AssetsFieldInfo(
+        var fieldTree = new AssetField(
             "Camera",
             "Camera",
             null,
-            [new AssetsFieldInfo("field of view", "float", "90", [])]);
+            [new AssetField("field of view", "float", new AssetFieldValue.Float(90f), [])]);
         var workflow = new InspectAssetsWorkflow(new StubAssetsFileService(
             [],
-            new Dictionary<long, AssetsFieldInfo> { [4] = fieldTree }));
+            new Dictionary<long, AssetField> { [4] = fieldTree }));
 
-        AssetsFieldInfo result = workflow.Fields(new InspectFieldsRequest("resources.assets", 4));
+        AssetField result = workflow.Fields(new InspectFieldsRequest("resources.assets", 4));
 
         Assert.Same(fieldTree, result);
     }
@@ -66,23 +66,23 @@ public sealed class InspectAssetsWorkflowTests
     [Fact]
     public void ListUsesEmptyNameWhenAssetHasNoReadableName()
     {
-        var workflow = new InspectAssetsWorkflow(new StubAssetsFileService([new AssetsInfo(1, "PreloadData")]));
+        var workflow = new InspectAssetsWorkflow(new StubAssetsFileService([new AssetInfo(1, "PreloadData")]));
 
         InspectListResult result = workflow.List(new InspectListRequest("resources.assets", null));
 
         Assert.Null(Assert.Single(result.Assets).Name);
     }
 
-    private static StubAssetsFileService CreateReader(IReadOnlyList<AssetsInfo> assets)
+    private static StubAssetsFileService CreateReader(IReadOnlyList<AssetInfo> assets)
     {
         return new StubAssetsFileService(
             assets,
             assets.ToDictionary(
                 asset => asset.PathId,
-                asset => new AssetsFieldInfo(
+                asset => new AssetField(
                     "Base",
                     asset.TypeName,
                     null,
-                    [new AssetsFieldInfo("m_Name", "string", $"Name{asset.PathId}", [])])));
+                    [new AssetField("m_Name", "string", new AssetFieldValue.String($"Name{asset.PathId}"), [])])));
     }
 }

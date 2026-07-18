@@ -2,33 +2,33 @@ using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.Tests.Support;
 
-internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWriter, IAssetsAccessScope, IDisposable
+internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWriter
 {
-    private readonly IReadOnlyList<AssetsInfo> _result;
-    private readonly IReadOnlyDictionary<long, AssetsFieldInfo> _fieldTrees;
-    private readonly IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>> _resultsByPath;
-    private readonly IReadOnlyDictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo> _fieldTreesByPath;
+    private readonly IReadOnlyList<AssetInfo> _result;
+    private readonly IReadOnlyDictionary<long, AssetField> _fieldTrees;
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<AssetInfo>> _resultsByPath;
+    private readonly IReadOnlyDictionary<(string AssetsFilePath, long PathId), AssetField> _fieldTreesByPath;
     private readonly HashSet<string> _readPaths = new(StringComparer.OrdinalIgnoreCase);
 
-    public StubAssetsFileService(IReadOnlyList<AssetsInfo> result)
-        : this(result, new Dictionary<long, AssetsFieldInfo>()) { }
+    public StubAssetsFileService(IReadOnlyList<AssetInfo> result)
+        : this(result, new Dictionary<long, AssetField>()) { }
 
     public StubAssetsFileService(
-        IReadOnlyList<AssetsInfo> result,
-        IReadOnlyDictionary<long, AssetsFieldInfo> fieldTrees)
+        IReadOnlyList<AssetInfo> result,
+        IReadOnlyDictionary<long, AssetField> fieldTrees)
     {
         _result = result;
         _fieldTrees = fieldTrees;
-        _resultsByPath = new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase);
-        _fieldTreesByPath = new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>();
+        _resultsByPath = new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase);
+        _fieldTreesByPath = new Dictionary<(string AssetsFilePath, long PathId), AssetField>();
     }
 
     public StubAssetsFileService(
-        IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>> resultsByPath,
-        IReadOnlyDictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo> fieldTreesByPath)
+        IReadOnlyDictionary<string, IReadOnlyList<AssetInfo>> resultsByPath,
+        IReadOnlyDictionary<(string AssetsFilePath, long PathId), AssetField> fieldTreesByPath)
     {
         _result = [];
-        _fieldTrees = new Dictionary<long, AssetsFieldInfo>();
+        _fieldTrees = new Dictionary<long, AssetField>();
         _resultsByPath = resultsByPath;
         _fieldTreesByPath = fieldTreesByPath;
     }
@@ -40,10 +40,8 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     public int? CloseReadSessionsCountAtWrite { get; private set; }
     public bool? ReadFilesExistedAtClose { get; private set; }
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
-    public IAssetsFileReader Reader => this;
-    public IAssetsFileWriter Writer => this;
 
-    public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
+    public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
     {
         _readPaths.Add(Path.GetFullPath(assetsFilePath));
 
@@ -57,22 +55,22 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
             : _result;
     }
 
-    public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+    public AssetField ReadField(string assetsFilePath, long pathId)
     {
         _readPaths.Add(Path.GetFullPath(assetsFilePath));
 
-        if (_fieldTreesByPath.TryGetValue((assetsFilePath, pathId), out AssetsFieldInfo? fieldTreeByPath) ||
+        if (_fieldTreesByPath.TryGetValue((assetsFilePath, pathId), out AssetField? fieldTreeByPath) ||
             _fieldTreesByPath.TryGetValue((Path.GetFileName(assetsFilePath), pathId), out fieldTreeByPath))
         {
             return fieldTreeByPath;
         }
 
-        return _fieldTrees.TryGetValue(pathId, out AssetsFieldInfo? fieldTree)
+        return _fieldTrees.TryGetValue(pathId, out AssetField? fieldTree)
             ? fieldTree
             : throw new InvalidOperationException("Field tree was not configured.");
     }
 
-    public void WritePatch(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
+    public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
     {
         WasCalled = true;
         InputPath = inputPath;

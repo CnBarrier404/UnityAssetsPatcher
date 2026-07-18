@@ -61,17 +61,17 @@ public sealed class ReplacementPlannerTests
     public void CreateWritePlan_WhenUnqueriedSourceValueIsDuplicated_DoesNotThrow()
     {
         var reader = new CountingAssetsFileReader(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [TargetPath] = [new AssetsInfo(1, "AudioClip")],
+                [TargetPath] = [new AssetInfo(1, "AudioClip")],
                 [SourcePath] =
                 [
-                    new AssetsInfo(101, "AudioClip"),
-                    new AssetsInfo(102, "AudioClip"),
-                    new AssetsInfo(103, "AudioClip"),
+                    new AssetInfo(101, "AudioClip"),
+                    new AssetInfo(102, "AudioClip"),
+                    new AssetInfo(103, "AudioClip"),
                 ],
             },
-            new Dictionary<(string, long), AssetsFieldInfo>
+            new Dictionary<(string, long), AssetField>
             {
                 [(TargetPath, 1)] = CreateFieldTree("A"),
                 [(SourcePath, 101)] = CreateFieldTree("A"),
@@ -92,12 +92,12 @@ public sealed class ReplacementPlannerTests
     public void CreateWritePlan_WhenQueriedSourceValueIsDuplicated_ThrowsExistingError()
     {
         var reader = new CountingAssetsFileReader(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [TargetPath] = [new AssetsInfo(1, "AudioClip")],
-                [SourcePath] = [new AssetsInfo(101, "AudioClip"), new AssetsInfo(102, "AudioClip")],
+                [TargetPath] = [new AssetInfo(1, "AudioClip")],
+                [SourcePath] = [new AssetInfo(101, "AudioClip"), new AssetInfo(102, "AudioClip")],
             },
-            new Dictionary<(string, long), AssetsFieldInfo>
+            new Dictionary<(string, long), AssetField>
             {
                 [(TargetPath, 1)] = CreateFieldTree("A"),
                 [(SourcePath, 101)] = CreateFieldTree("A"),
@@ -119,12 +119,12 @@ public sealed class ReplacementPlannerTests
     public void CreateWritePlan_WhenTargetValueIsDuplicated_ThrowsExistingError()
     {
         var reader = new CountingAssetsFileReader(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [TargetPath] = [new AssetsInfo(1, "AudioClip"), new AssetsInfo(2, "AudioClip")],
-                [SourcePath] = [new AssetsInfo(101, "AudioClip")],
+                [TargetPath] = [new AssetInfo(1, "AudioClip"), new AssetInfo(2, "AudioClip")],
+                [SourcePath] = [new AssetInfo(101, "AudioClip")],
             },
-            new Dictionary<(string, long), AssetsFieldInfo>
+            new Dictionary<(string, long), AssetField>
             {
                 [(TargetPath, 1)] = CreateFieldTree("A"),
                 [(TargetPath, 2)] = CreateFieldTree("A"),
@@ -146,12 +146,12 @@ public sealed class ReplacementPlannerTests
     public void CreateWritePlan_WhenSourceDoesNotContainType_ThrowsExistingError()
     {
         var reader = new CountingAssetsFileReader(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [TargetPath] = [new AssetsInfo(1, "AudioClip")],
+                [TargetPath] = [new AssetInfo(1, "AudioClip")],
                 [SourcePath] = [],
             },
-            new Dictionary<(string, long), AssetsFieldInfo>
+            new Dictionary<(string, long), AssetField>
             {
                 [(TargetPath, 1)] = CreateFieldTree("A"),
             });
@@ -171,12 +171,12 @@ public sealed class ReplacementPlannerTests
     public void CreateWritePlan_WhenTargetMatchFieldIsMissing_ThrowsExistingError()
     {
         var reader = new CountingAssetsFileReader(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [TargetPath] = [new AssetsInfo(1, "AudioClip")],
-                [SourcePath] = [new AssetsInfo(101, "AudioClip")],
+                [TargetPath] = [new AssetInfo(1, "AudioClip")],
+                [SourcePath] = [new AssetInfo(101, "AudioClip")],
             },
-            new Dictionary<(string, long), AssetsFieldInfo>
+            new Dictionary<(string, long), AssetField>
             {
                 [(TargetPath, 1)] = CreateFieldTree("A"),
                 [(SourcePath, 101)] = CreateFieldTree("A"),
@@ -198,15 +198,15 @@ public sealed class ReplacementPlannerTests
     public void CreateWritePlan_WhenSourceMatchFieldIsNotAString_DoesNotMatchStringTarget()
     {
         var reader = new CountingAssetsFileReader(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [TargetPath] = [new AssetsInfo(1, "AudioClip")],
-                [SourcePath] = [new AssetsInfo(101, "AudioClip")],
+                [TargetPath] = [new AssetInfo(1, "AudioClip")],
+                [SourcePath] = [new AssetInfo(101, "AudioClip")],
             },
-            new Dictionary<(string, long), AssetsFieldInfo>
+            new Dictionary<(string, long), AssetField>
             {
                 [(TargetPath, 1)] = CreateFieldTree("1"),
-                [(SourcePath, 101)] = CreateFieldTree(new Int64AssetFieldValue(1), "SInt64"),
+                [(SourcePath, 101)] = CreateFieldTree(new AssetFieldValue.Int64(1), "SInt64"),
             });
         var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
@@ -232,12 +232,12 @@ public sealed class ReplacementPlannerTests
     private static TestScenario CreateTwoAssetScenario()
     {
         var reader = new CountingAssetsFileReader(
-            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, IReadOnlyList<AssetInfo>>(StringComparer.OrdinalIgnoreCase)
             {
-                [TargetPath] = [new AssetsInfo(1, "AudioClip"), new AssetsInfo(2, "AudioClip")],
-                [SourcePath] = [new AssetsInfo(101, "AudioClip"), new AssetsInfo(102, "AudioClip")],
+                [TargetPath] = [new AssetInfo(1, "AudioClip"), new AssetInfo(2, "AudioClip")],
+                [SourcePath] = [new AssetInfo(101, "AudioClip"), new AssetInfo(102, "AudioClip")],
             },
-            new Dictionary<(string, long), AssetsFieldInfo>
+            new Dictionary<(string, long), AssetField>
             {
                 [(TargetPath, 1)] = CreateFieldTree("A"),
                 [(TargetPath, 2)] = CreateFieldTree("B"),
@@ -262,18 +262,18 @@ public sealed class ReplacementPlannerTests
             new ManifestReplaceFrom(SourcePath, matchFieldPath));
     }
 
-    private static AssetsFieldInfo CreateFieldTree(string name)
+    private static AssetField CreateFieldTree(string name)
     {
-        return CreateFieldTree(new StringAssetFieldValue(name), "string");
+        return CreateFieldTree(new AssetFieldValue.String(name), "string");
     }
 
-    private static AssetsFieldInfo CreateFieldTree(AssetFieldValue value, string typeName)
+    private static AssetField CreateFieldTree(AssetFieldValue value, string typeName)
     {
-        return new AssetsFieldInfo(
+        return new AssetField(
             "AudioClip",
             "AudioClip",
             null,
-            [new AssetsFieldInfo("m_Name", typeName, value, [])]);
+            [new AssetField("m_Name", typeName, value, [])]);
     }
 
     private sealed record TestScenario(
@@ -282,8 +282,8 @@ public sealed class ReplacementPlannerTests
 
     private sealed class CountingAssetsFileReader : IAssetsFileReader
     {
-        private readonly IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>> _assetsByPath;
-        private readonly IReadOnlyDictionary<(string, long), AssetsFieldInfo> _fieldsByAsset;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<AssetInfo>> _assetsByPath;
+        private readonly IReadOnlyDictionary<(string, long), AssetField> _fieldsByAsset;
         private readonly Dictionary<string, int> _assetsReadCounts = new(StringComparer.OrdinalIgnoreCase);
 
         public IReadOnlyDictionary<(string, long), int> FieldReadCounts => _fieldReadCounts;
@@ -292,20 +292,20 @@ public sealed class ReplacementPlannerTests
         private readonly Dictionary<(string, long), int> _fieldReadCounts = new();
 
         public CountingAssetsFileReader(
-            IReadOnlyDictionary<string, IReadOnlyList<AssetsInfo>> assetsByPath,
-            IReadOnlyDictionary<(string, long), AssetsFieldInfo> fieldsByAsset)
+            IReadOnlyDictionary<string, IReadOnlyList<AssetInfo>> assetsByPath,
+            IReadOnlyDictionary<(string, long), AssetField> fieldsByAsset)
         {
             _assetsByPath = assetsByPath;
             _fieldsByAsset = fieldsByAsset;
         }
 
-        public IReadOnlyList<AssetsInfo> ReadAssetsInfo(string assetsFilePath)
+        public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
         {
             _assetsReadCounts[assetsFilePath] = GetAssetsReadCount(assetsFilePath) + 1;
             return _assetsByPath[assetsFilePath];
         }
 
-        public AssetsFieldInfo ReadAssetsFieldInfo(string assetsFilePath, long pathId)
+        public AssetField ReadField(string assetsFilePath, long pathId)
         {
             var key = (assetsFilePath, pathId);
             _fieldReadCounts[key] = GetFieldReadCount(assetsFilePath, pathId) + 1;
@@ -313,6 +313,8 @@ public sealed class ReplacementPlannerTests
         }
 
         public void CloseReadSessions() { }
+
+        public void Dispose() { }
 
         public int GetAssetsReadCount(string assetsFilePath)
         {

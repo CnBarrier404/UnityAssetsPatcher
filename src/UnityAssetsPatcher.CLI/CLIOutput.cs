@@ -116,7 +116,7 @@ internal static class CLIOutput
         };
     }
 
-    public static JsonObject InspectFields(string path, long pathId, AssetsFieldInfo fieldTree)
+    public static JsonObject InspectFields(string path, long pathId, AssetField fieldTree)
     {
         return new JsonObject
         {
@@ -142,12 +142,12 @@ internal static class CLIOutput
         }
     }
 
-    public static void WriteInspectFieldsText(TextWriter output, AssetsFieldInfo fieldTree)
+    public static void WriteInspectFieldsText(TextWriter output, AssetField fieldTree)
     {
         WriteInspectFieldText(output, fieldTree, 0);
     }
 
-    private static JsonObject InspectField(AssetsFieldInfo field)
+    private static JsonObject InspectField(AssetField field)
     {
         return new JsonObject
         {
@@ -158,12 +158,12 @@ internal static class CLIOutput
         };
     }
 
-    private static void WriteInspectFieldText(TextWriter output, AssetsFieldInfo field, int depth)
+    private static void WriteInspectFieldText(TextWriter output, AssetField field, int depth)
     {
         string value = field.Value is null ? string.Empty : $": {field.Value.ToInvariantString()}";
         output.WriteLine($"{new string(' ', depth * 2)}{field.Name} ({field.TypeName}){value}");
 
-        foreach (AssetsFieldInfo child in field.Children)
+        foreach (AssetField child in field.Children)
         {
             WriteInspectFieldText(output, child, depth + 1);
         }

@@ -14,10 +14,10 @@ public sealed class AssetsFileWriterTests
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        var writer = new AssetsFileWriter("AssetsRipper.tpk");
+        using var writer = new AssetsFileWriter("AssetsRipper.tpk");
 
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            writer.WritePatch(missingAssetsFile, outputPath, []));
+            writer.WriteFieldPatches(missingAssetsFile, outputPath, []));
 
         Assert.Equal($"Assets file not found: {missingAssetsFile}", exception.Message);
     }
@@ -31,12 +31,12 @@ public sealed class AssetsFileWriterTests
         string existingAssetsFile = Path.GetTempFileName();
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        var writer = new AssetsFileWriter(missingTpkFile);
+        using var writer = new AssetsFileWriter(missingTpkFile);
 
         try
         {
             var exception = Assert.Throws<FileNotFoundException>(() =>
-                writer.WritePatch(existingAssetsFile, outputPath, []));
+                writer.WriteFieldPatches(existingAssetsFile, outputPath, []));
 
             Assert.Equal($"TPK file not found: {missingTpkFile}", exception.Message);
         }

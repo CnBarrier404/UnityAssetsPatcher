@@ -7,9 +7,9 @@ namespace UnityAssetsPatcher.Application.Patching.Fields;
 
 public static class PatchFieldValueConverter
 {
-    public static AssetsFieldInfo? Child(AssetsFieldInfo field, string name)
+    public static AssetField? Child(AssetField field, string name)
     {
-        return field.Child(name);
+        return field.FindChild(name);
     }
 
     public static bool IsJsonArrayPatchValue(JsonElement value)
@@ -18,24 +18,24 @@ public static class PatchFieldValueConverter
                !JsonUtils.TryGetObjectValue(value, out _);
     }
 
-    public static AssetsFieldInfo? ResolveArrayField(AssetsFieldInfo? field)
+    public static AssetField? ResolveArrayField(AssetField? field)
     {
-        return AssetFieldNavigator.ResolveArrayField(field);
+        return AssetFieldNavigator.ResolveArray(field);
     }
 
     public static string ResolveArrayFieldPath(
         string fieldPath,
-        AssetsFieldInfo? field,
-        AssetsFieldInfo? arrayField)
+        AssetField? field,
+        AssetField? arrayField)
     {
         return field is not null && arrayField is not null && !ReferenceEquals(field, arrayField)
             ? $"{fieldPath}.{arrayField.Name}"
             : fieldPath;
     }
 
-    public static IReadOnlyList<AssetsFieldInfo> GetArrayElementFields(AssetsFieldInfo arrayField)
+    public static IReadOnlyList<AssetField> GetArrayElementFields(AssetField arrayField)
     {
-        return AssetFieldNavigator.GetArrayElementFields(arrayField);
+        return AssetFieldNavigator.GetArrayElements(arrayField);
     }
 
     public static JsonElement GetObjectPropertyOrDefault(JsonElement value, string propertyName)
@@ -46,7 +46,7 @@ public static class PatchFieldValueConverter
             : value;
     }
 
-    public static string FormatObjectFieldValue(AssetsFieldInfo field)
+    public static string FormatObjectFieldValue(AssetField field)
     {
         string properties = string.Join(", ", field.Children
             .Where(child => child.Value is not null)
@@ -55,7 +55,7 @@ public static class PatchFieldValueConverter
         return properties.Length == 0 ? "<missing>" : $"{{ {properties} }}";
     }
 
-    public static string FormatArrayFieldValue(AssetsFieldInfo arrayField)
+    public static string FormatArrayFieldValue(AssetField arrayField)
     {
         string elements = string.Join(", ", GetArrayElementFields(arrayField).Select(FormatArrayElementValue));
 
@@ -63,7 +63,7 @@ public static class PatchFieldValueConverter
     }
 
     public static JsonElement CreateAddArrayValue(
-        AssetsFieldInfo arrayField,
+        AssetField arrayField,
         JsonElement value,
         out bool changed)
     {
@@ -106,14 +106,14 @@ public static class PatchFieldValueConverter
         }
     }
 
-    private static string FormatArrayElementValue(AssetsFieldInfo element)
+    private static string FormatArrayElementValue(AssetField element)
     {
         if (element.Value is null)
         {
             return FormatObjectFieldValue(element);
         }
 
-        return AssetFieldTypeNames.IsString(element.TypeName)
+        return element.Value is AssetFieldValue.String
             ? FormatJsonStringLiteral(element.Value.ToInvariantString())
             : element.Value.ToInvariantString();
     }
@@ -132,11 +132,11 @@ public static class PatchFieldValueConverter
     }
 
     private static bool ContainsArrayValue(
-        IReadOnlyList<AssetsFieldInfo> currentFields,
+        IReadOnlyList<AssetField> currentFields,
         IReadOnlyList<JsonElement> elements,
         JsonElement value)
     {
-        if (currentFields.Any(field => AssetFieldMatcher.MatchesFieldValue(field, value)))
+        if (currentFields.Any(field => AssetFieldMatcher.MatchesValue(field, value)))
         {
             return true;
         }
@@ -166,19 +166,19 @@ public static class PatchFieldValueConverter
                    StringComparison.Ordinal);
     }
 
-    private static JsonElement CreateJsonElementFromArrayElementField(AssetsFieldInfo field)
+    private static JsonElement CreateJsonElementFromArrayElementField(AssetField field)
     {
         AssetFieldValue value = field.Value ?? throw new InvalidOperationException(
             $"Array field '{field.Name}' contains a non-scalar element.");
 
         return value switch
         {
-            StringAssetFieldValue stringValue => JsonElementFactory.String(stringValue.Value),
-            BoolAssetFieldValue boolValue => JsonElementFactory.Boolean(boolValue.Value),
-            Int64AssetFieldValue integerValue => JsonElementFactory.Number(integerValue.Value),
-            UInt64AssetFieldValue integerValue => JsonElementFactory.Number(integerValue.Value),
-            FloatAssetFieldValue floatValue => JsonElementFactory.Number(floatValue.Value),
-            DoubleAssetFieldValue doubleValue => JsonElementFactory.Number(doubleValue.Value),
+            AssetFieldValue.String stringValue => JsonElementFactory.String(stringValue.Value),
+            AssetFieldValue.Boolean boolValue => JsonElementFactory.Boolean(boolValue.Value),
+            AssetFieldValue.Int64 integerValue => JsonElementFactory.Number(integerValue.Value),
+            AssetFieldValue.UInt64 integerValue => JsonElementFactory.Number(integerValue.Value),
+            AssetFieldValue.Float floatValue => JsonElementFactory.Number(floatValue.Value),
+            AssetFieldValue.Double doubleValue => JsonElementFactory.Number(doubleValue.Value),
             _ => throw new InvalidOperationException($"Unsupported scalar value type '{value.GetType().Name}'."),
         };
     }

@@ -9,10 +9,10 @@ public sealed class FieldPatchOperationPlanner
 {
     public static IReadOnlyList<FieldPatchOperationPlan> CreateSetOperationPlans(
         long pathId,
-        AssetsFieldInfo fieldTree,
+        AssetField fieldTree,
         ManifestSetOperation operation)
     {
-        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, operation.FieldPath);
+        AssetField? field = AssetFieldNavigator.Find(fieldTree, operation.FieldPath);
 
         return JsonUtils.TryGetObjectValue(operation.To, out JsonElement toObject)
             ? CreateObjectSetOperationPlans(pathId, field, operation, toObject)
@@ -21,11 +21,11 @@ public sealed class FieldPatchOperationPlanner
 
     public static IReadOnlyList<FieldPatchOperationPlan> CreateAddOperationPlans(
         long pathId,
-        AssetsFieldInfo fieldTree,
+        AssetField fieldTree,
         ManifestAddOperation operation)
     {
-        AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, operation.FieldPath);
-        AssetsFieldInfo? arrayField = PatchFieldValueConverter.ResolveArrayField(field);
+        AssetField? field = AssetFieldNavigator.Find(fieldTree, operation.FieldPath);
+        AssetField? arrayField = PatchFieldValueConverter.ResolveArrayField(field);
         string path = PatchFieldValueConverter.ResolveArrayFieldPath(operation.FieldPath, field, arrayField);
 
         if (arrayField is null)
@@ -65,11 +65,11 @@ public sealed class FieldPatchOperationPlanner
 
     private static FieldPatchOperationPlan CreateScalarSetOperationPlan(
         long pathId,
-        AssetsFieldInfo? field,
+        AssetField? field,
         ManifestSetOperation operation)
     {
         FieldValueSnapshot value = FieldValueSnapshot.ForSetOperation(field, operation);
-        bool matches = field is not null && AssetFieldMatcher.MatchesFieldValue(field, operation.From);
+        bool matches = field is not null && AssetFieldMatcher.MatchesValue(field, operation.From);
         string? failureMessage = field is null || !matches || value is { IsArrayPatch: true, ArrayField: null }
             ? CreateSetMismatchMessage(pathId, operation.FieldPath, value.OldValue, operation.From)
             : null;
@@ -89,7 +89,7 @@ public sealed class FieldPatchOperationPlanner
 
     private static IReadOnlyList<FieldPatchOperationPlan> CreateObjectSetOperationPlans(
         long pathId,
-        AssetsFieldInfo? field,
+        AssetField? field,
         ManifestSetOperation operation,
         JsonElement toObject)
     {
@@ -110,7 +110,7 @@ public sealed class FieldPatchOperationPlanner
             ];
         }
 
-        bool parentMatches = AssetFieldMatcher.MatchesFieldValue(field, operation.From);
+        bool parentMatches = AssetFieldMatcher.MatchesValue(field, operation.From);
         string? parentFailureMessage = parentMatches
             ? null
             : CreateSetMismatchMessage(
@@ -133,13 +133,13 @@ public sealed class FieldPatchOperationPlanner
 
     private static FieldPatchOperationPlan CreateObjectChildSetOperationPlan(
         long pathId,
-        AssetsFieldInfo parentField,
+        AssetField parentField,
         ManifestSetOperation operation,
         JsonProperty property,
         bool parentMatches,
         string? parentFailureMessage)
     {
-        AssetsFieldInfo? child = PatchFieldValueConverter.Child(parentField, property.Name);
+        AssetField? child = PatchFieldValueConverter.Child(parentField, property.Name);
         string childPath = $"{operation.FieldPath}.{property.Name}";
         bool isArrayPatch = PatchFieldValueConverter.IsJsonArrayPatchValue(property.Value);
         JsonElement from = PatchFieldValueConverter.GetObjectPropertyOrDefault(operation.From, property.Name);
@@ -167,7 +167,7 @@ public sealed class FieldPatchOperationPlanner
     private static ChildWritePolicy CreateChildWritePolicy(
         long pathId,
         string childPath,
-        AssetsFieldInfo? child,
+        AssetField? child,
         JsonElement from,
         bool isArrayPatch,
         string? parentFailureMessage)
@@ -192,7 +192,7 @@ public sealed class FieldPatchOperationPlanner
             : ChildWritePolicy.ValidScalar();
     }
 
-    private static string CreateChildOldValue(AssetsFieldInfo? child, bool isArrayPatch)
+    private static string CreateChildOldValue(AssetField? child, bool isArrayPatch)
     {
         return isArrayPatch && child is not null
             ? PatchFieldValueConverter.FormatArrayFieldValue(child)
@@ -213,9 +213,9 @@ public sealed class FieldPatchOperationPlanner
         string Path,
         string OldValue,
         bool IsArrayPatch,
-        AssetsFieldInfo? ArrayField)
+        AssetField? ArrayField)
     {
-        public static FieldValueSnapshot ForSetOperation(AssetsFieldInfo? field, ManifestSetOperation operation)
+        public static FieldValueSnapshot ForSetOperation(AssetField? field, ManifestSetOperation operation)
         {
             if (!PatchFieldValueConverter.IsJsonArrayPatchValue(operation.To))
             {
@@ -223,7 +223,7 @@ public sealed class FieldPatchOperationPlanner
                     operation.FieldPath, field?.Value?.ToInvariantString() ?? "<missing>", false, null);
             }
 
-            AssetsFieldInfo? arrayField = PatchFieldValueConverter.ResolveArrayField(field);
+            AssetField? arrayField = PatchFieldValueConverter.ResolveArrayField(field);
             string path = PatchFieldValueConverter.ResolveArrayFieldPath(operation.FieldPath, field, arrayField);
             string oldValue = arrayField is null
                 ? "<missing>"

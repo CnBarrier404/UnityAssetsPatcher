@@ -7,13 +7,13 @@ public static class AssetFieldMatcher
 {
     private const int FloatComparisonMaxUlps = 16;
 
-    public static bool MatchesFields(AssetsFieldInfo fieldTree, IReadOnlyDictionary<string, JsonElement> expectedFields)
+    public static bool MatchesFields(AssetField fieldTree, IReadOnlyDictionary<string, JsonElement> expectedFields)
     {
         foreach ((string path, JsonElement expectedValue) in expectedFields)
         {
-            AssetsFieldInfo? field = AssetFieldNavigator.FindField(fieldTree, path);
+            AssetField? field = AssetFieldNavigator.Find(fieldTree, path);
 
-            if (field is null || !MatchesFieldValue(field, expectedValue))
+            if (field is null || !MatchesValue(field, expectedValue))
             {
                 return false;
             }
@@ -22,41 +22,41 @@ public static class AssetFieldMatcher
         return true;
     }
 
-    public static bool MatchesFieldValue(AssetsFieldInfo field, JsonElement expectedValue)
+    public static bool MatchesValue(AssetField field, JsonElement expectedValue)
     {
         if (JsonUtils.TryGetObjectValue(expectedValue, out JsonElement objectValue))
         {
-            return MatchesObjectValue(field, objectValue);
+            return MatchesObject(field, objectValue);
         }
 
         if (expectedValue.ValueKind == JsonValueKind.Array)
         {
-            return MatchesArrayValue(field, expectedValue);
+            return MatchesArray(field, expectedValue);
         }
 
-        return field.Value is not null && MatchesValue(field.Value, expectedValue);
+        return field.Value is not null && MatchesScalar(field.Value, expectedValue);
     }
 
-    public static bool MatchesValue(AssetFieldValue actualValue, JsonElement expectedValue)
+    private static bool MatchesScalar(AssetFieldValue actualValue, JsonElement expectedValue)
     {
         return actualValue switch
         {
-            BoolAssetFieldValue value =>
+            AssetFieldValue.Boolean value =>
                 expectedValue.ValueKind is JsonValueKind.True or JsonValueKind.False &&
                 value.Value == expectedValue.GetBoolean(),
-            StringAssetFieldValue value =>
+            AssetFieldValue.String value =>
                 expectedValue.ValueKind == JsonValueKind.String &&
                 string.Equals(value.Value, expectedValue.GetString(), StringComparison.Ordinal),
-            Int64AssetFieldValue value =>
+            AssetFieldValue.Int64 value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
                 expectedValue.TryGetInt64(out long expected) && value.Value == expected,
-            UInt64AssetFieldValue value =>
+            AssetFieldValue.UInt64 value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
                 expectedValue.TryGetUInt64(out ulong expected) && value.Value == expected,
-            FloatAssetFieldValue value =>
+            AssetFieldValue.Float value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
                 expectedValue.TryGetSingle(out float expected) && FloatValuesEqual(value.Value, expected),
-            DoubleAssetFieldValue value =>
+            AssetFieldValue.Double value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
                 expectedValue.TryGetDouble(out double expected) && value.Value.Equals(expected),
             _ => false,
@@ -81,30 +81,30 @@ public static class AssetFieldMatcher
         return Math.Abs((long)actualBits - expectedBits) <= FloatComparisonMaxUlps;
     }
 
-    private static bool MatchesObjectValue(AssetsFieldInfo field, JsonElement expectedObject)
+    private static bool MatchesObject(AssetField field, JsonElement expectedObject)
     {
         return expectedObject
             .EnumerateObject()
             .All(property => MatchesObjectProperty(field, property));
     }
 
-    private static bool MatchesObjectProperty(AssetsFieldInfo field, JsonProperty property)
+    private static bool MatchesObjectProperty(AssetField field, JsonProperty property)
     {
-        AssetsFieldInfo? child = field.Child(property.Name);
+        AssetField? child = field.FindChild(property.Name);
 
-        return child is not null && MatchesFieldValue(child, property.Value);
+        return child is not null && MatchesValue(child, property.Value);
     }
 
-    private static bool MatchesArrayValue(AssetsFieldInfo field, JsonElement expectedArray)
+    private static bool MatchesArray(AssetField field, JsonElement expectedArray)
     {
-        AssetsFieldInfo? arrayField = AssetFieldNavigator.ResolveArrayField(field);
+        AssetField? arrayField = AssetFieldNavigator.ResolveArray(field);
 
         if (arrayField is null)
         {
             return false;
         }
 
-        var children = AssetFieldNavigator.GetArrayElementFields(arrayField);
+        IReadOnlyList<AssetField> children = AssetFieldNavigator.GetArrayElements(arrayField);
 
         if (children.Count != expectedArray.GetArrayLength())
         {
@@ -115,7 +115,7 @@ public static class AssetFieldMatcher
 
         foreach (JsonElement expectedElement in expectedArray.EnumerateArray())
         {
-            if (!MatchesFieldValue(children[index], expectedElement))
+            if (!MatchesValue(children[index], expectedElement))
             {
                 return false;
             }

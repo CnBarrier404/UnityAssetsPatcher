@@ -12,15 +12,15 @@ public sealed class AssetsFileReaderTests
     /// Verifies that one reader instance can reuse a real Unity assets file session.
     /// </summary>
     [Fact]
-    public void ReadAssetsInfoAndFieldInfo_WhenReaderInstanceIsReused_ReturnsAssetData()
+    public void ReadAssetsAndField_WhenReaderInstanceIsReused_ReturnsAssetData()
     {
         using var reader = new AssetsFileReader(new AssetsToolsContext(GetRealTpkFilePath()));
 
-        var assets = reader.ReadAssetsInfo(GetRealAssetsFilePath());
-        AssetsInfo asset = Assert.Single(assets.Take(1));
-        AssetsFieldInfo fieldTree = reader.ReadAssetsFieldInfo(GetRealAssetsFilePath(), asset.PathId);
-        var repeatedAssets = reader.ReadAssetsInfo(GetRealAssetsFilePath());
-        AssetsFieldInfo repeatedFieldTree = reader.ReadAssetsFieldInfo(GetRealAssetsFilePath(), asset.PathId);
+        var assets = reader.ReadAssets(GetRealAssetsFilePath());
+        AssetInfo asset = Assert.Single(assets.Take(1));
+        AssetField fieldTree = reader.ReadField(GetRealAssetsFilePath(), asset.PathId);
+        var repeatedAssets = reader.ReadAssets(GetRealAssetsFilePath());
+        AssetField repeatedFieldTree = reader.ReadField(GetRealAssetsFilePath(), asset.PathId);
 
         Assert.NotEmpty(assets);
         Assert.NotEqual(0, asset.PathId);
@@ -37,12 +37,12 @@ public sealed class AssetsFileReaderTests
     /// Verifies that the reader returns a clear error with the file path when the target assets file is missing.
     /// </summary>
     [Fact]
-    public void ReadAssetSummaries_WhenAssetsFileDoesNotExist_ThrowsClearError()
+    public void ReadAssets_WhenAssetsFileDoesNotExist_ThrowsClearError()
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        var service = new AssetsFileReader(new AssetsToolsContext("AssetsRipper.tpk"));
+        using var service = new AssetsFileReader(new AssetsToolsContext("AssetsRipper.tpk"));
 
-        var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssetsInfo(missingAssetsFile));
+        var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssets(missingAssetsFile));
 
         Assert.Equal($"Assets file not found: {missingAssetsFile}", exception.Message);
     }
@@ -51,15 +51,15 @@ public sealed class AssetsFileReaderTests
     /// Verifies that the reader returns a clear error with the file path when the TPK type database is missing.
     /// </summary>
     [Fact]
-    public void ReadAssetSummaries_WhenTpkFileDoesNotExist_ThrowsClearError()
+    public void ReadAssets_WhenTpkFileDoesNotExist_ThrowsClearError()
     {
         string existingAssetsFile = Path.GetTempFileName();
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        var service = new AssetsFileReader(new AssetsToolsContext(missingTpkFile));
+        using var service = new AssetsFileReader(new AssetsToolsContext(missingTpkFile));
 
         try
         {
-            var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssetsInfo(existingAssetsFile));
+            var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssets(existingAssetsFile));
 
             Assert.Equal($"TPK file not found: {missingTpkFile}", exception.Message);
         }

@@ -41,7 +41,7 @@ public sealed class PatchOutputWriter
             return new PatchApplyResult(target.OutputPath, null, 0, 0);
         }
 
-        _assetsPatchWriter.WritePatch(assetsFilePath, target.OutputPath, changedPlan);
+        _assetsPatchWriter.WriteFieldPatches(assetsFilePath, target.OutputPath, changedPlan);
 
         return new PatchApplyResult(
             target.OutputPath,

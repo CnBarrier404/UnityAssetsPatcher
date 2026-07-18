@@ -14,8 +14,8 @@ public sealed class InspectAssetsWorkflow
 
     public InspectListResult List(InspectListRequest request)
     {
-        IReadOnlyList<AssetsInfo> assets = _assetsReader.ReadAssetsInfo(request.AssetsFilePath);
-        IEnumerable<AssetsInfo> listedAssets = request.Limit is null
+        IReadOnlyList<AssetInfo> assets = _assetsReader.ReadAssets(request.AssetsFilePath);
+        IEnumerable<AssetInfo> listedAssets = request.Limit is null
             ? assets
             : assets.Take(request.Limit.Value);
         InspectAssetSummary[] summaries = listedAssets
@@ -28,17 +28,18 @@ public sealed class InspectAssetsWorkflow
         return new InspectListResult(summaries, assets.Count);
     }
 
-    public AssetsFieldInfo Fields(InspectFieldsRequest request)
+    public AssetField Fields(InspectFieldsRequest request)
     {
-        return _assetsReader.ReadAssetsFieldInfo(request.AssetsFilePath, request.PathId);
+        return _assetsReader.ReadField(request.AssetsFilePath, request.PathId);
     }
 
     private string? ReadName(string assetsFilePath, long pathId)
     {
         try
         {
-            AssetsFieldInfo fieldTree = _assetsReader.ReadAssetsFieldInfo(assetsFilePath, pathId);
-            return fieldTree.Child("m_Name")?.Value?.ToInvariantString();
+            AssetField fieldTree = _assetsReader.ReadField(assetsFilePath, pathId);
+
+            return fieldTree.FindChild("m_Name")?.Value?.ToInvariantString();
         }
         catch (InvalidOperationException)
         {

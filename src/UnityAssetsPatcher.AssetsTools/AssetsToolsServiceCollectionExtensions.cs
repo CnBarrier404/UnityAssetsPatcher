@@ -9,7 +9,12 @@ public static class AssetsToolsServiceCollectionExtensions
         this IServiceCollection services,
         Func<Stream> openTpkStream)
     {
-        services.AddSingleton<IAssetsAccessScopeFactory>(_ => new AssetsToolsAccessScopeFactory(openTpkStream));
+        services.AddSingleton(_ => new AssetsToolsContext(openTpkStream));
+        services.AddScoped<IAssetsFileReader>(provider => new AssetsFileReader(
+            provider.GetRequiredService<AssetsToolsContext>(),
+            ownsContext: false));
+        services.AddScoped<IAssetsFileWriter>(provider => new AssetsFileWriter(
+            provider.GetRequiredService<AssetsToolsContext>()));
 
         return services;
     }

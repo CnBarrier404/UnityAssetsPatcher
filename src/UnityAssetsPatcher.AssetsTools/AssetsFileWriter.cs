@@ -5,7 +5,7 @@ using AssetsToolsNetFileWriter = AssetsTools.NET.AssetsFileWriter;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
+public sealed class AssetsFileWriter : IAssetsFileWriter
 {
     private readonly AssetsToolsContext _context;
     private readonly bool _ownsContext;
@@ -13,7 +13,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
     public AssetsFileWriter(string tpkFilePath)
         : this(new AssetsToolsContext(tpkFilePath), ownsContext: true) { }
 
-    internal AssetsFileWriter(AssetsToolsContext context)
+    public AssetsFileWriter(AssetsToolsContext context)
         : this(context, ownsContext: false) { }
 
     private AssetsFileWriter(AssetsToolsContext context, bool ownsContext)
@@ -22,7 +22,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
         _ownsContext = ownsContext;
     }
 
-    public void WritePatch(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
+    public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
     {
         WriteAssetsFile(inputPath, outputPath, session => ApplyPatchPlan(session, plan));
     }
@@ -119,10 +119,10 @@ public sealed class AssetsFileWriter : IAssetsFileWriter, IDisposable
 
             foreach (FieldPatchOperation operation in asset.Operations)
             {
-                AssetTypeValueField targetField = AssetsFieldLocator.Find(mutableField, operation.Path)
+                AssetTypeValueField targetField = AssetFieldLocator.Find(mutableField, operation.Path)
                                                   ?? throw new InvalidOperationException(
                                                       $"Field not found for Path ID {asset.PathId}: {operation.Path}");
-                AssetsFieldWriter.WriteJsonValue(targetField, operation.To);
+                AssetFieldWriter.WriteJsonValue(targetField, operation.To);
             }
 
             AssetFileInfo assetInfo = session.AssetsFile.GetAssetInfo(asset.PathId);
