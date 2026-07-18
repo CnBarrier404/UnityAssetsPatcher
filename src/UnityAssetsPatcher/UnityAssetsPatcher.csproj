@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Assets\AssetsRipper.tpk" LogicalName="resources.tpk"/>
+        <EmbeddedResource Include="Assets\resources.tpk" LogicalName="resources.tpk"/>
     </ItemGroup>
 
     <ItemGroup>
