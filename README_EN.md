@@ -16,7 +16,7 @@ Unity Assets Patcher is an interactive command-line tool for installing and unin
 
 ## Download and Run
 
-Download the latest Windows package from [GitHub Releases](https://github.com/CnBarrier404/UnityAssetsPatcher/releases), extract it into its own folder, then run `UnityAssetsPatcher.exe`.
+Download the latest Windows EXE from [GitHub Releases](https://github.com/CnBarrier404/UnityAssetsPatcher/releases) and run it directly.
 
 The current release package is a self-contained `win-x64` single-file executable, so the .NET runtime does not need to be installed first. The required `resources.tpk` is embedded in the executable, and install records plus backups are stored in the `backup` folder next to the program by default.
 

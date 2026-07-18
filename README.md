@@ -16,7 +16,7 @@ Unity Assets Patcher 是一个用于安装和卸载 Unity `.assets` 文件 Mod �
 
 ## 下载与运行
 
-从 [GitHub Releases](https://github.com/CnBarrier404/UnityAssetsPatcher/releases) 下载最新的 Windows 压缩包，解压到一个单独文件夹，然后运行 `UnityAssetsPatcher.exe`。
+从 [GitHub Releases](https://github.com/CnBarrier404/UnityAssetsPatcher/releases) 下载最新的 Windows EXE，然后直接运行。
 
 当前发布包是 `win-x64` 自包含单文件程序，不需要预先安装 .NET 运行时。运行所需的 `resources.tpk` 已嵌入可执行文件；安装记录和备份默认保存在程序目录下的 `backup` 文件夹。
 

@@ -10,7 +10,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DOTNET_VERSION: "10.0.x"
   SOLUTION_PATH: UnityAssetsPatcher.sln
   PROJECT_PATH: src/UnityAssetsPatcher/UnityAssetsPatcher.csproj
   RUNTIME_IDENTIFIER: win-x64
@@ -27,24 +26,14 @@ jobs:
     outputs:
       version: ${{ steps.release.outputs.version }}
       is_prerelease: ${{ steps.release.outputs.is_prerelease }}
-      zip_filename: ${{ steps.release.outputs.artifact_name }}.zip
+      executable_filename: ${{ steps.release.outputs.artifact_name }}.exe
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.nuget/packages
-          key: nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            nuget-
+      - name: Show .NET environment
+        run: dotnet --info
 
       - name: Resolve release metadata
         id: release
@@ -88,42 +77,29 @@ jobs:
             -p:Version=${{ steps.release.outputs.version }} `
             -p:InformationalVersion=${{ env.TAG_NAME }}
 
-      - name: Package release asset
-        id: package
+      - name: Stage release executable
+        id: executable
         shell: pwsh
         run: |
-          $artifactName = "${{ steps.release.outputs.artifact_name }}"
-          $zipPath = "artifacts/$artifactName.zip"
-          $publishPath = "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}"
-          $publishRoot = (Resolve-Path $publishPath).Path
-          $packageFiles = @(Get-ChildItem -Path $publishRoot -Recurse -File |
-            Where-Object { $_.Extension -ne ".pdb" } |
-            ForEach-Object { [System.IO.Path]::GetRelativePath($publishRoot, $_.FullName).Replace("\", "/") })
+          $sourcePath = "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}/UnityAssetsPatcher.exe"
+          $executablePath = "artifacts/${{ steps.release.outputs.artifact_name }}.exe"
 
-          if ($packageFiles.Count -eq 0) {
-            throw "No publish files found to package."
+          if (-not (Test-Path -Path $sourcePath -PathType Leaf)) {
+            throw "Published executable not found: $sourcePath"
           }
 
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
-
-          Push-Location $publishRoot
-          try {
-            tar -a -cf "../../../$zipPath" @packageFiles
-          }
-          finally {
-            Pop-Location
-          }
-
-          "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
+          Copy-Item -Path $sourcePath -Destination $executablePath
+          "executable_path=$executablePath" >> $env:GITHUB_OUTPUT
 
       - name: Generate checksum
         id: checksum
         shell: pwsh
         run: |
-          $zipPath = "${{ steps.package.outputs.zip_path }}"
-          $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          $checksumFile = "$zipPath.sha256"
-          "$hash  $(Split-Path $zipPath -Leaf)" | Set-Content -Path $checksumFile -Encoding utf8
+          $executablePath = "${{ steps.executable.outputs.executable_path }}"
+          $hash = (Get-FileHash -Path $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumFile = "artifacts/SHA256"
+          "$hash  $(Split-Path $executablePath -Leaf)" | Set-Content -Path $checksumFile -Encoding utf8
           "sha256=$hash" >> $env:GITHUB_OUTPUT
           "checksum_path=$checksumFile" >> $env:GITHUB_OUTPUT
 
@@ -131,7 +107,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = "$env:TAG_NAME"
-          $zipFilename = "${{ steps.release.outputs.artifact_name }}.zip"
+          $executableFilename = "${{ steps.release.outputs.artifact_name }}.exe"
           $sha256 = "${{ steps.checksum.outputs.sha256 }}"
           $repositoryUrl = "https://github.com/${{ github.repository }}"
           $manifestPath = "artifacts/update.json"
@@ -140,7 +116,7 @@ jobs:
             schemaVersion = 1
             version = $tag
             releaseUrl = "$repositoryUrl/releases/tag/$tag"
-            downloadUrl = "$repositoryUrl/releases/download/$tag/$zipFilename"
+            downloadUrl = "$repositoryUrl/releases/download/$tag/$executableFilename"
             sha256 = $sha256
           }
 
@@ -150,7 +126,7 @@ jobs:
 
           if ($parsed.schemaVersion -ne 1 -or
               $parsed.version -ne $tag -or
-              $parsed.downloadUrl -notlike "*/$zipFilename" -or
+              $parsed.downloadUrl -notlike "*/$executableFilename" -or
               $parsed.sha256 -ne $sha256 -or
               $parsed.sha256 -notmatch '^[0-9a-f]{64}$') {
             throw "Generated update manifest failed validation."
@@ -228,8 +204,8 @@ jobs:
         with:
           name: release-artifacts
           path: |
-            artifacts/*.zip
-            artifacts/*.sha256
+            artifacts/${{ steps.release.outputs.artifact_name }}.exe
+            artifacts/SHA256
             artifacts/update.json
             artifacts/release-notes.md
           if-no-files-found: error
@@ -256,6 +232,6 @@ jobs:
           body_path: artifacts/release-notes.md
           prerelease: ${{ needs.build.outputs.is_prerelease == 'true' }}
           files: |
-            artifacts/${{ needs.build.outputs.zip_filename }}
-            artifacts/${{ needs.build.outputs.zip_filename }}.sha256
+            artifacts/${{ needs.build.outputs.executable_filename }}
+            artifacts/SHA256
             artifacts/update.json

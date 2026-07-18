@@ -23,7 +23,7 @@ public sealed class GitHubUpdateCheckerTests
 
         Assert.Equal("v1.3.0", result.Update.Version);
         Assert.Equal("https://example.com/releases/v1.3.0", result.Update.ReleaseUrl.AbsoluteUri);
-        Assert.Equal("https://example.com/download/v1.3.0.zip", result.Update.DownloadUrl.AbsoluteUri);
+        Assert.Equal("https://example.com/download/UnityAssetsPatcher-v1.3.0-win-x64.exe", result.Update.DownloadUrl.AbsoluteUri);
         Assert.Equal(Sha256, result.Update.Sha256);
         Assert.Equal(1, handler.RequestCount);
         Assert.Equal(GitHubUpdateChecker.UpdateManifestUrl, handler.LastRequestUri?.AbsoluteUri);
@@ -167,7 +167,7 @@ public sealed class GitHubUpdateCheckerTests
                    "schemaVersion": 1,
                    "version": "{{version}}",
                    "releaseUrl": "https://example.com/releases/{{version}}",
-                   "downloadUrl": "https://example.com/download/{{version}}.zip",
+                   "downloadUrl": "https://example.com/download/UnityAssetsPatcher-{{version}}-win-x64.exe",
                    "sha256": "{{sha256}}",
                    "ignored": true
                  }
