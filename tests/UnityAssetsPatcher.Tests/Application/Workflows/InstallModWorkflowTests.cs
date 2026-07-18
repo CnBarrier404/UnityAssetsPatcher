@@ -421,6 +421,81 @@ public sealed class InstallModWorkflowTests
     }
 
     /// <summary>
+    /// Verifies that preview releases reads before deleting an extracted replacement source.
+    /// </summary>
+    [Fact]
+    public void Preview_WhenZipHasReplacementSource_ClosesReadsBeforeDeletingExtractedSource()
+    {
+        string zipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        string gameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string targetDirectory = Path.Combine(gameDirectory, "Game_Data");
+        string targetPath = Path.Combine(targetDirectory, "sharedassets4.assets");
+        Directory.CreateDirectory(targetDirectory);
+        File.WriteAllText(targetPath, "original");
+
+        using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry manifestEntry = archive.CreateEntry("manifest.json");
+            using (StreamWriter writer = new(manifestEntry.Open()))
+            {
+                writer.Write(TestManifest.CreateJson(
+                    """
+                    {
+                      "patches": [
+                        {
+                          "target": "sharedassets4.assets",
+                          "type": "AudioClip",
+                          "match": {
+                            "m_Name": "Example Clip"
+                          },
+                          "replaceFrom": {
+                            "assets": "resources/modassets.assets",
+                            "match": "m_Name"
+                          }
+                        }
+                      ]
+                    }
+                    """));
+            }
+
+            ZipArchiveEntry sourceAssetsEntry = archive.CreateEntry("resources/modassets.assets");
+            using StreamWriter sourceAssetsWriter = new(sourceAssetsEntry.Open());
+            sourceAssetsWriter.Write("source assets");
+        }
+
+        var assetsFileService = new StubAssetsFileService(
+            new Dictionary<string, IReadOnlyList<AssetsInfo>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [targetPath] = [new AssetsInfo(100, "AudioClip")],
+                ["modassets.assets"] = [new AssetsInfo(200, "AudioClip")],
+            },
+            new Dictionary<(string AssetsFilePath, long PathId), AssetsFieldInfo>
+            {
+                [(targetPath, 100)] = CreateAudioClipFieldTree("Example Clip"),
+                [("modassets.assets", 200)] = CreateAudioClipFieldTree("Example Clip"),
+            });
+        var workflow = CreateWorkflow(assetsFileService);
+
+        try
+        {
+            InstallPreviewResult result = workflow.Preview(new InstallRequest(zipPath, gameDirectory));
+
+            Assert.Single(PatchChanges(result.Changes));
+            Assert.True(assetsFileService.ReadFilesExistedAtClose);
+            Assert.False(assetsFileService.WasCalled);
+        }
+        finally
+        {
+            File.Delete(zipPath);
+
+            if (Directory.Exists(gameDirectory))
+            {
+                Directory.Delete(gameDirectory, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that install preview locates assets files from zip manifest targets without writing files.
     /// </summary>
     [Fact]
@@ -1316,7 +1391,8 @@ public sealed class InstallModWorkflowTests
             new ModManifestReader(),
             new TargetAssetResolver(),
             gameDirectoryResolver,
-            patchPlanBuilder);
+            patchPlanBuilder,
+            assetsFileService);
         var backupStore = new BackupRepository(backupDirectory ??
                                                Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
         var executor = new InstallExecutor(new PatchOutputWriter(assetsFileService), assetsFileService, backupStore);

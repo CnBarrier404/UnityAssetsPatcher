@@ -115,7 +115,7 @@ public sealed class AssetsFileReaderTests
             "src",
             "UnityAssetsPatcher",
             "Assets",
-            "AssetsRipper.tpk");
+            "resources.tpk");
     }
 
     private static IDictionary GetPrivateDictionary(AssetsFileReader reader, string fieldName)

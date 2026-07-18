@@ -183,6 +183,6 @@ public sealed class AssetsToolsAccessScopeTests
             "src",
             "UnityAssetsPatcher",
             "Assets",
-            "AssetsRipper.tpk");
+            "resources.tpk");
     }
 }

@@ -1,6 +1,7 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
@@ -10,17 +11,20 @@ public sealed class InstallPlanner
     private readonly TargetAssetResolver _targetAssetResolver;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly PatchPlanner _patchPlanner;
+    private readonly IAssetsFileReader _assetsReader;
 
     public InstallPlanner(
         ModManifestReader manifestReader,
         TargetAssetResolver targetAssetResolver,
         GameDirectoryResolver gameDirectoryResolver,
-        PatchPlanner patchPlanner)
+        PatchPlanner patchPlanner,
+        IAssetsFileReader assetsReader)
     {
         _manifestReader = manifestReader;
         _targetAssetResolver = targetAssetResolver;
         _gameDirectoryResolver = gameDirectoryResolver;
         _patchPlanner = patchPlanner;
+        _assetsReader = assetsReader;
     }
 
     internal InstallPlanSession<InstallPreviewPlan> BuildPreview(InstallRequest request, StepTimer timings)
@@ -37,13 +41,17 @@ public sealed class InstallPlanner
             IReadOnlyList<InstallPatchPreviewFile> patchPreview = CreatePatchPreview(targets, package, timings);
             var payloadPreview = PreviewPayloadFiles(payloadFiles);
             var plan = new InstallPreviewPlan(patchPreview, payloadPreview);
-            var session = new InstallPlanSession<InstallPreviewPlan>(package, plan);
+            var session = new InstallPlanSession<InstallPreviewPlan>(package, plan, _assetsReader.CloseReadSessions);
             package = null;
+
             return session;
         }
         finally
         {
-            package?.Dispose();
+            if (package is not null)
+            {
+                ClosePackage(package);
+            }
         }
     }
 
@@ -61,13 +69,17 @@ public sealed class InstallPlanner
             IReadOnlyList<InstallPatchPlanFile> patchWritePlan =
                 CreateRequiredPatchWritePlan(targets, package, timings);
             var plan = new InstallWritePlan(gameDirectory, patchWritePlan, payloadFiles);
-            var session = new InstallPlanSession<InstallWritePlan>(package, plan);
+            var session = new InstallPlanSession<InstallWritePlan>(package, plan, _assetsReader.CloseReadSessions);
             package = null;
+
             return session;
         }
         finally
         {
-            package?.Dispose();
+            if (package is not null)
+            {
+                ClosePackage(package);
+            }
         }
     }
 
@@ -164,6 +176,18 @@ public sealed class InstallPlanner
                 file.DestinationPath))
             .ToArray();
     }
+
+    private void ClosePackage(ModPackage package)
+    {
+        try
+        {
+            _assetsReader.CloseReadSessions();
+        }
+        finally
+        {
+            package.Dispose();
+        }
+    }
 }
 
 internal sealed class InstallPlanSession<TPlan> : IDisposable
@@ -172,15 +196,33 @@ internal sealed class InstallPlanSession<TPlan> : IDisposable
     public ModPackage Package { get; }
     public TPlan Plan { get; }
 
-    public InstallPlanSession(ModPackage package, TPlan plan)
+    private readonly Action _closeReadSessions;
+    private bool _disposed;
+
+    public InstallPlanSession(ModPackage package, TPlan plan, Action closeReadSessions)
     {
         Package = package;
         Plan = plan;
+        _closeReadSessions = closeReadSessions;
     }
 
     public void Dispose()
     {
-        Package.Dispose();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        try
+        {
+            _closeReadSessions();
+        }
+        finally
+        {
+            Package.Dispose();
+        }
     }
 }
 
