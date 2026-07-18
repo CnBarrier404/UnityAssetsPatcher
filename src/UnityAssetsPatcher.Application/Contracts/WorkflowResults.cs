@@ -1,4 +1,5 @@
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.Patching;
 
 namespace UnityAssetsPatcher.Application.Contracts;
 
@@ -58,7 +59,12 @@ public sealed record UninstallBlockingModResult(
 
 public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
 
-public sealed record PatchPreviewResult(IReadOnlyList<PatchPreviewAssetResult> Assets);
+public sealed record PatchPreviewResult(
+    IReadOnlyList<PatchPreviewAssetResult> Assets,
+    PatchDiagnostic? Diagnostic = null)
+{
+    public bool CanApply => Diagnostic is null;
+}
 
 public sealed record PatchPreviewAssetResult(AssetsInfo Asset, IReadOnlyList<PatchPreviewOperationResult> Operations);
 

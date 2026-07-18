@@ -3,12 +3,59 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Json;
+using UnityAssetsPatcher.Application.Patching.Fields;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Patching;
 
-public sealed class FieldPatchPlanBuilderTests
+public sealed class FieldPatchPlannerTests
 {
+    [Fact]
+    public void PatchPlanner_WhenPlanSucceeds_ProducesPreviewAndWritePlanFromOneQuerySession()
+    {
+        TestScenario scenario = CreateSharedResolverScenario();
+        var planner = new PatchPlanner(
+            scenario.Builder,
+            new ReplacementPlanner(new AssetQueryService(scenario.Reader)));
+
+        PatchPlanningResult result = planner.Plan(new PatchPlanningRequest(
+            AssetsPath,
+            [CreatePatch([CreateSetOperation("m_Reference", "Texture2D", "Referenced")])],
+            new Dictionary<string, string>()));
+
+        Assert.True(result.CanApply);
+        Assert.Null(result.Diagnostic);
+        Assert.Equal(2, result.Preview.Assets.Count);
+        Assert.Equal(2, Assert.IsType<FieldPatchPlan>(result.Plan).Assets.Count);
+        AssertAllAssetsReadOnce(scenario.Reader);
+    }
+
+    [Fact]
+    public void PatchPlanner_WhenPathIdResolverDoesNotMatch_ReturnsStructuredDiagnostic()
+    {
+        var reader = new CountingAssetsFileReader(
+            [new AssetsInfo(1, "Material"), new AssetsInfo(101, "Texture2D")],
+            new Dictionary<long, AssetsFieldInfo>
+            {
+                [1] = CreateFieldTree("Material", "Target", ("m_Reference", 0)),
+                [101] = CreateFieldTree("Texture2D", "Other"),
+            });
+        var queryService = new AssetQueryService(reader);
+        var planner = new PatchPlanner(
+            new FieldPatchPlanner(queryService),
+            new ReplacementPlanner(queryService));
+
+        PatchPlanningResult result = planner.Plan(new PatchPlanningRequest(
+            AssetsPath,
+            [CreatePatch([CreateSetOperation("m_Reference", "Texture2D", "Missing")])],
+            new Dictionary<string, string>()));
+
+        Assert.False(result.CanApply);
+        Assert.Null(result.Plan);
+        Assert.Equal(PatchDiagnosticCode.PathIdReferenceNotFound, result.Diagnostic?.Code);
+        Assert.Same(result.Diagnostic, result.Preview.Diagnostic);
+    }
+
     [Fact]
     public void CreateWritePlan_WhenMatchesSharePathIdResolver_ReadsEachAssetOnce()
     {
@@ -57,7 +104,7 @@ public sealed class FieldPatchPlanBuilderTests
                 [101] = CreateFieldTree("Texture2D", "First"),
                 [102] = CreateFieldTree("Texture2D", "Second"),
             });
-        var builder = new FieldPatchPlanBuilder(new AssetQueryService(reader));
+        var builder = new FieldPatchPlanner(new AssetQueryService(reader));
 
         AssetFieldPatch assetPatch = Assert.Single(builder.CreateWritePlan(
             AssetsPath,
@@ -82,7 +129,7 @@ public sealed class FieldPatchPlanBuilderTests
                 [1] = CreateFieldTree("Material", "Other", ("m_Reference", 0)),
                 [101] = CreateFieldTree("Texture2D", "Referenced"),
             });
-        var builder = new FieldPatchPlanBuilder(new AssetQueryService(reader));
+        var builder = new FieldPatchPlanner(new AssetQueryService(reader));
 
         PatchPreviewResult preview = builder.CreatePreview(
             AssetsPath,
@@ -103,7 +150,7 @@ public sealed class FieldPatchPlanBuilderTests
                 [1] = CreateFieldTree("Material", "Target", ("m_Reference", 0)),
                 [101] = CreateFieldTree("Texture2D", "Other"),
             });
-        var builder = new FieldPatchPlanBuilder(new AssetQueryService(reader));
+        var builder = new FieldPatchPlanner(new AssetQueryService(reader));
 
         var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
             AssetsPath,
@@ -129,7 +176,7 @@ public sealed class FieldPatchPlanBuilderTests
                 [101] = CreateFieldTree("Texture2D", "Duplicate"),
                 [102] = CreateFieldTree("Texture2D", "Duplicate"),
             });
-        var builder = new FieldPatchPlanBuilder(new AssetQueryService(reader));
+        var builder = new FieldPatchPlanner(new AssetQueryService(reader));
 
         var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
             AssetsPath,
@@ -159,7 +206,7 @@ public sealed class FieldPatchPlanBuilderTests
                 [102] = CreateFieldTree("Texture2D", "Other"),
             });
 
-        return new TestScenario(reader, new FieldPatchPlanBuilder(new AssetQueryService(reader)));
+        return new TestScenario(reader, new FieldPatchPlanner(new AssetQueryService(reader)));
     }
 
     private static ManifestPatch CreatePatch(IReadOnlyList<ManifestSetOperation> setOperations)
@@ -232,7 +279,7 @@ public sealed class FieldPatchPlanBuilderTests
 
     private sealed record TestScenario(
         CountingAssetsFileReader Reader,
-        FieldPatchPlanBuilder Builder);
+        FieldPatchPlanner Builder);
 
     private sealed class CountingAssetsFileReader : IAssetsFileReader
     {

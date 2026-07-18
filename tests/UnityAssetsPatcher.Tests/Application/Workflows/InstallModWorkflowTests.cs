@@ -6,6 +6,7 @@ using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -1307,9 +1308,9 @@ public sealed class InstallModWorkflowTests
         string? backupDirectory = null)
     {
         var assetQueryService = new AssetQueryService(assetsFileService);
-        var patchPlanBuilder = new PatchPlanBuilder(
-            new FieldPatchPlanBuilder(assetQueryService),
-            new ReplacementPlanBuilder(assetQueryService));
+        var patchPlanBuilder = new PatchPlanner(
+            new FieldPatchPlanner(assetQueryService),
+            new ReplacementPlanner(assetQueryService));
         var planner = new InstallPlanner(
             new ModManifestReader(),
             new TargetAssetResolver(),

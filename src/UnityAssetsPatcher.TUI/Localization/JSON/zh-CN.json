@@ -45,6 +45,7 @@
   "InstallPage_ReturnAction": "返回主菜单",
   "InstallPage_SubmitAction": "提交",
   "InstallPreview_DryRunStatus": "预览",
+  "InstallPreview_PlanningFailedFormat": "补丁规划失败（{0}），无法执行安装。",
   "InstallPreview_Targets": "目标",
   "InstallResult_Backup": "备份",
   "InstallResult_CopiedFiles": "已复制文件",

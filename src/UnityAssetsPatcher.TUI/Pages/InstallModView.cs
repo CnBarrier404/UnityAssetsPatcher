@@ -6,6 +6,7 @@ using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Shell;
@@ -269,6 +270,29 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             LocalizedStrings.InstallPreview_DryRunStatus, TextRole.Preview) { X = 0, Y = 0 };
         var summary = new SummaryTableView(summaryRows) { X = 0, Y = 2 };
         _form.Add(status, summary);
+
+        PatchDiagnostic? diagnostic = result.Changes
+            .Select(change => change.Preview?.Diagnostic)
+            .FirstOrDefault(candidate => candidate is not null);
+        if (diagnostic is not null)
+        {
+            string message = string.Format(
+                LocalizedStrings.InstallPreview_PlanningFailedFormat,
+                diagnostic.Code);
+            var error = new StyledLabel(message, TextRole.Error)
+            {
+                X = 0,
+                Y = summaryRows.Length + 3,
+                Width = Dim.Fill(),
+            };
+            Button back = CreateActionButton(
+                LocalizedStrings.InstallPage_BackAction, 0, summaryRows.Length + 5);
+            back.Accepted += (_, _) => _returnToMainMenu();
+            _form.Add(error, back);
+            _form.SetContentHeightForRows(summaryRows.Length + 7);
+            back.SetFocus();
+            return;
+        }
 
         int nextRow = summaryRows.Length + 3;
         var patches = GetChanges(result.Changes, InstallChangeKind.Patch);

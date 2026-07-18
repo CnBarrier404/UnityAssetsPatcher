@@ -4,6 +4,7 @@ using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.Patching.Fields;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -28,7 +29,7 @@ internal sealed class WorkflowFactory
 
     public InstallModWorkflow CreateInstallWorkflow(IAssetsAccessScope assets)
     {
-        PatchPlanBuilder patchPlanBuilder = CreatePatchPlanBuilder(assets.Reader);
+        PatchPlanner patchPlanBuilder = CreatePatchPlanner(assets.Reader);
         var planner = new InstallPlanner(
             _manifestReader,
             _targetAssetResolver,
@@ -53,12 +54,12 @@ internal sealed class WorkflowFactory
         return new InspectAssetsWorkflow(assets.Reader);
     }
 
-    private static PatchPlanBuilder CreatePatchPlanBuilder(IAssetsFileReader assetsReader)
+    private static PatchPlanner CreatePatchPlanner(IAssetsFileReader assetsReader)
     {
         var assetQueryService = new AssetQueryService(assetsReader);
 
-        return new PatchPlanBuilder(
-            new FieldPatchPlanBuilder(assetQueryService),
-            new ReplacementPlanBuilder(assetQueryService));
+        return new PatchPlanner(
+            new FieldPatchPlanner(assetQueryService),
+            new ReplacementPlanner(assetQueryService));
     }
 }

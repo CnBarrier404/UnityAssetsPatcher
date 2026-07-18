@@ -19,12 +19,12 @@ public sealed class AssetQueryService
         return FindMatches(CreateContext(assetsFilePath), patch);
     }
 
-    internal AssetQueryContext CreateContext(string assetsFilePath)
+    public AssetQueryContext CreateContext(string assetsFilePath)
     {
         return new AssetQueryContext(_assetsReader, assetsFilePath);
     }
 
-    internal static IEnumerable<AssetQueryMatch> FindMatches(
+    public static IEnumerable<AssetQueryMatch> FindMatches(
         AssetQueryContext context,
         ManifestPatch patch)
     {
@@ -120,7 +120,7 @@ public sealed record AssetQueryMatch(
     AssetsInfo Asset,
     AssetsFieldInfo FieldTree);
 
-internal sealed class AssetQueryContext
+public sealed class AssetQueryContext
 {
     public IReadOnlyDictionary<long, AssetsInfo> AssetsByPathId => _assetsByPathId.Value;
 

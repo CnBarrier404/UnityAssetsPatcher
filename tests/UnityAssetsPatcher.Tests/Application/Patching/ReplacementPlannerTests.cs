@@ -6,7 +6,7 @@ using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Patching;
 
-public sealed class ReplacementPlanBuilderTests
+public sealed class ReplacementPlannerTests
 {
     [Fact]
     public void CreateWritePlan_WhenPatchesShareSourceIndex_ReadsEachFieldTreeOnce()
@@ -78,7 +78,7 @@ public sealed class ReplacementPlanBuilderTests
                 [(SourcePath, 102)] = CreateFieldTree("B"),
                 [(SourcePath, 103)] = CreateFieldTree("B"),
             });
-        var builder = new ReplacementPlanBuilder(new AssetQueryService(reader));
+        var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
         AssetReplacement replacement = Assert.Single(builder.CreateWritePlan(
             TargetPath,
@@ -103,7 +103,7 @@ public sealed class ReplacementPlanBuilderTests
                 [(SourcePath, 101)] = CreateFieldTree("A"),
                 [(SourcePath, 102)] = CreateFieldTree("A"),
             });
-        var builder = new ReplacementPlanBuilder(new AssetQueryService(reader));
+        var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
         var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
             TargetPath,
@@ -130,7 +130,7 @@ public sealed class ReplacementPlanBuilderTests
                 [(TargetPath, 2)] = CreateFieldTree("A"),
                 [(SourcePath, 101)] = CreateFieldTree("A"),
             });
-        var builder = new ReplacementPlanBuilder(new AssetQueryService(reader));
+        var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
         var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
             TargetPath,
@@ -155,7 +155,7 @@ public sealed class ReplacementPlanBuilderTests
             {
                 [(TargetPath, 1)] = CreateFieldTree("A"),
             });
-        var builder = new ReplacementPlanBuilder(new AssetQueryService(reader));
+        var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
         var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
             TargetPath,
@@ -181,7 +181,7 @@ public sealed class ReplacementPlanBuilderTests
                 [(TargetPath, 1)] = CreateFieldTree("A"),
                 [(SourcePath, 101)] = CreateFieldTree("A"),
             });
-        var builder = new ReplacementPlanBuilder(new AssetQueryService(reader));
+        var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
         var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
             TargetPath,
@@ -208,7 +208,7 @@ public sealed class ReplacementPlanBuilderTests
                 [(TargetPath, 1)] = CreateFieldTree("1"),
                 [(SourcePath, 101)] = CreateFieldTree(new Int64AssetFieldValue(1), "SInt64"),
             });
-        var builder = new ReplacementPlanBuilder(new AssetQueryService(reader));
+        var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
         var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
             TargetPath,
@@ -245,7 +245,7 @@ public sealed class ReplacementPlanBuilderTests
                 [(SourcePath, 102)] = CreateFieldTree("B"),
             });
 
-        return new TestScenario(reader, new ReplacementPlanBuilder(new AssetQueryService(reader)));
+        return new TestScenario(reader, new ReplacementPlanner(new AssetQueryService(reader)));
     }
 
     private static ManifestPatch CreatePatch(string name, string matchFieldPath = "m_Name")
@@ -278,7 +278,7 @@ public sealed class ReplacementPlanBuilderTests
 
     private sealed record TestScenario(
         CountingAssetsFileReader Reader,
-        ReplacementPlanBuilder Builder);
+        ReplacementPlanner Builder);
 
     private sealed class CountingAssetsFileReader : IAssetsFileReader
     {

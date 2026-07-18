@@ -3,11 +3,11 @@ using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
-public sealed class ReplacementPlanBuilder
+public sealed class ReplacementPlanner
 {
     private readonly AssetQueryService _assetQueryService;
 
-    public ReplacementPlanBuilder(AssetQueryService assetQueryService)
+    public ReplacementPlanner(AssetQueryService assetQueryService)
     {
         _assetQueryService = assetQueryService;
     }
@@ -17,20 +17,23 @@ public sealed class ReplacementPlanBuilder
         IReadOnlyList<ManifestPatch> targets,
         IReadOnlyDictionary<string, string> sourceAssetsPaths)
     {
-        return FindReplacementMatches(assetsFilePath, targets, sourceAssetsPaths)
+        return Plan(assetsFilePath, targets, sourceAssetsPaths).Replacements;
+    }
+
+    public ReplacementPlanningOutput Plan(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> targets,
+        IReadOnlyDictionary<string, string> sourceAssetsPaths)
+    {
+        AssetReplacementMatch[] matches = FindReplacementMatches(
+            assetsFilePath, targets, sourceAssetsPaths).ToArray();
+        var replacements = matches
             .Select(match => new AssetReplacement(
                 match.SourceAssetsFilePath,
                 match.Source.PathId,
                 match.Target.PathId))
             .ToArray();
-    }
-
-    public PatchPreviewResult CreatePreview(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets,
-        IReadOnlyDictionary<string, string> sourceAssetsPaths)
-    {
-        var assets = FindReplacementMatches(assetsFilePath, targets, sourceAssetsPaths)
+        var assets = matches
             .Select(match =>
             {
                 var operation = new PatchPreviewOperationResult(
@@ -43,7 +46,15 @@ public sealed class ReplacementPlanBuilder
             })
             .ToArray();
 
-        return new PatchPreviewResult(assets);
+        return new ReplacementPlanningOutput(replacements, new PatchPreviewResult(assets));
+    }
+
+    public PatchPreviewResult CreatePreview(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> targets,
+        IReadOnlyDictionary<string, string> sourceAssetsPaths)
+    {
+        return Plan(assetsFilePath, targets, sourceAssetsPaths).Preview;
     }
 
     private IEnumerable<AssetReplacementMatch> FindReplacementMatches(
@@ -206,3 +217,7 @@ public sealed class ReplacementPlanBuilder
         }
     }
 }
+
+public sealed record ReplacementPlanningOutput(
+    IReadOnlyList<AssetReplacement> Replacements,
+    PatchPreviewResult Preview);

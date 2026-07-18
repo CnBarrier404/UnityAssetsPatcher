@@ -45,6 +45,7 @@
   "InstallPage_ReturnAction": "Return to main menu",
   "InstallPage_SubmitAction": "Submit",
   "InstallPreview_DryRunStatus": "PREVIEW",
+  "InstallPreview_PlanningFailedFormat": "Patch planning failed ({0}). Installation is disabled.",
   "InstallPreview_Targets": "Targets",
   "InstallResult_Backup": "Backup",
   "InstallResult_CopiedFiles": "Copied files",

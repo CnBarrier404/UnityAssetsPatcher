@@ -9,18 +9,18 @@ public sealed class InstallPlanner
     private readonly ModManifestReader _manifestReader;
     private readonly TargetAssetResolver _targetAssetResolver;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
-    private readonly PatchPlanBuilder _patchPlanBuilder;
+    private readonly PatchPlanner _patchPlanner;
 
     public InstallPlanner(
         ModManifestReader manifestReader,
         TargetAssetResolver targetAssetResolver,
         GameDirectoryResolver gameDirectoryResolver,
-        PatchPlanBuilder patchPlanBuilder)
+        PatchPlanner patchPlanner)
     {
         _manifestReader = manifestReader;
         _targetAssetResolver = targetAssetResolver;
         _gameDirectoryResolver = gameDirectoryResolver;
-        _patchPlanBuilder = patchPlanBuilder;
+        _patchPlanner = patchPlanner;
     }
 
     internal InstallPlanSession<InstallPreviewPlan> BuildPreview(InstallRequest request, StepTimer timings)
@@ -84,12 +84,10 @@ public sealed class InstallPlanner
         var files = timings.Measure("analyze-changes", () => targets.Targets
             .Select(target =>
             {
-                var preview = _patchPlanBuilder.CreatePreview(
-                    target.AssetsFilePath,
-                    target.Patches,
-                    package.PatchSourcePaths);
+                PatchPlanningResult result = _patchPlanner.Plan(new PatchPlanningRequest(
+                    target.AssetsFilePath, target.Patches, package.PatchSourcePaths));
 
-                return new InstallPatchPreviewFile(target.Name, target.AssetsFilePath, preview);
+                return new InstallPatchPreviewFile(target.Name, target.AssetsFilePath, result.Preview);
             })
             .ToArray());
 
@@ -106,10 +104,11 @@ public sealed class InstallPlanner
         var files = timings.Measure("analyze-changes", () => targets.Targets
             .Select(target =>
             {
-                PatchFileWritePlan patchPlan = _patchPlanBuilder.CreateRequiredWritePlan(
-                    target.AssetsFilePath,
-                    target.Patches,
-                    package.PatchSourcePaths);
+                PatchPlanningResult result = _patchPlanner.Plan(new PatchPlanningRequest(
+                    target.AssetsFilePath, target.Patches, package.PatchSourcePaths));
+                PatchPlan patchPlan = result.Plan ?? throw new PatchPlanningException(
+                    result.Diagnostic ?? throw new InvalidOperationException(
+                        "Patch planning failed without a diagnostic."));
 
                 return new InstallPatchPlanFile(target.Name, target.AssetsFilePath, patchPlan);
             })
@@ -198,4 +197,4 @@ public sealed record InstallPayloadFilePlan(string Source, string DestinationPat
 
 internal sealed record InstallPatchPreviewFile(string Target, string AssetsFilePath, PatchPreviewResult Preview);
 
-internal sealed record InstallPatchPlanFile(string Target, string AssetsFilePath, PatchFileWritePlan PatchPlan);
+internal sealed record InstallPatchPlanFile(string Target, string AssetsFilePath, PatchPlan PatchPlan);

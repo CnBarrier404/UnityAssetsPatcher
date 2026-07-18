@@ -15,11 +15,15 @@ public sealed class PatchOutputWriter
     public PatchApplyResult Write(
         string assetsFilePath,
         string outputPath,
-        PatchFileWritePlan plan)
+        PatchPlan plan)
     {
-        return plan.Kind == PatchFileWritePlanKind.Replacement
-            ? WriteReplacements(assetsFilePath, outputPath, plan.Replacements)
-            : WriteFieldPatch(assetsFilePath, outputPath, plan.Assets);
+        return plan switch
+        {
+            AssetReplacementPlan replacementPlan =>
+                WriteReplacements(assetsFilePath, outputPath, replacementPlan.Replacements),
+            FieldPatchPlan fieldPlan => WriteFieldPatch(assetsFilePath, outputPath, fieldPlan.Assets),
+            _ => throw new ArgumentOutOfRangeException(nameof(plan)),
+        };
     }
 
     public PatchApplyResult WriteFieldPatch(

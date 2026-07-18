@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.Patching;
 
 namespace UnityAssetsPatcher.CLI;
 
@@ -444,6 +445,20 @@ internal static class CLIOutput
 
             if (change.Preview is not null)
             {
+                if (change.Preview.Diagnostic is { } diagnostic)
+                {
+                    json["diagnostic"] = new JsonObject
+                    {
+                        ["code"] = EnumName(diagnostic.Code),
+                        ["assetsFilePath"] = diagnostic.AssetsFilePath,
+                        ["pathId"] = diagnostic.PathId,
+                        ["fieldPath"] = diagnostic.FieldPath,
+                        ["expected"] = diagnostic.Expected,
+                        ["actual"] = diagnostic.Actual,
+                        ["detail"] = diagnostic.Detail,
+                    };
+                }
+
                 json["assets"] = new JsonArray(change.Preview.Assets.Select(asset => new JsonObject
                 {
                     ["pathId"] = asset.Asset.PathId,
@@ -552,6 +567,11 @@ internal static class CLIOutput
             output.WriteLine($"- {EnumName(change.Kind)} {change.Name}: {change.Path}");
             if (preview && change.Preview is not null)
             {
+                if (change.Preview.Diagnostic is { } diagnostic)
+                {
+                    output.WriteLine($"  - planning failed [{EnumName(diagnostic.Code)}]: {diagnostic.Detail}");
+                }
+
                 foreach (PatchPreviewAssetResult asset in change.Preview.Assets)
                 {
                     output.WriteLine($"  Path ID {asset.Asset.PathId} ({asset.Asset.TypeName})");
