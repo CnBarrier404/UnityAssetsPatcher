@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - "src/**"
+      - "tests/**"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLUTION_PATH: UnityAssetsPatcher.slnx
+  PROJECT_PATH: src/UnityAssetsPatcher/UnityAssetsPatcher.csproj
+  RUNTIME_IDENTIFIER: win-x64
+
+jobs:
+  validate:
+    name: Build and test
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Show .NET environment
+        run: dotnet --info
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_PATH }} --runtime ${{ env.RUNTIME_IDENTIFIER }} -p:PublishAot=true
+
+      - name: Run tests
+        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+
+      - name: Verify NativeAOT publish
+        shell: pwsh
+        run: |
+          dotnet publish $env:PROJECT_PATH `
+            --configuration Release `
+            --runtime $env:RUNTIME_IDENTIFIER `
+            --self-contained true `
+            --no-restore `
+            --output artifacts/ci-publish `
+            -p:JsonSerializerIsReflectionEnabledByDefault=false `
+            -p:WarningsAsErrors=IL2026%3BIL3050 `
+            -p:PublishAot=true `
+            -p:PublishSingleFile=true `
+            -p:DebugType=none `
+            -p:DebugSymbols=false
