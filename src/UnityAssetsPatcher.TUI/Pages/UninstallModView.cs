@@ -133,7 +133,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private Button AddInstalledMod(InstallRecordSummary record, int row)
     {
-        string installedAt = record.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture);
+        string installedAt = FormatInstalledAt(record.InstalledAt);
         string details = record.GameName is null ? installedAt : $"{installedAt} | {record.GameName}";
         var choice = new ChoiceItem($"{record.ModName} {record.ModVersion}", details) { X = 0, Y = row };
         choice.Button.Accepted += (_, _) => Preview(record.InstallId, null);
@@ -232,7 +232,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             (LocalizedStrings.Summary_Version, preview.ModVersion),
             (LocalizedStrings.UninstallSummary_GameDirectory, preview.GameDirectory),
             (LocalizedStrings.UninstallSummary_Installed,
-                preview.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture)),
+                FormatInstalledAt(preview.InstalledAt)),
             (LocalizedStrings.UninstallSummary_RestoredFiles,
                 preview.RestoredFiles.Count.ToString(CultureInfo.InvariantCulture)),
             (LocalizedStrings.UninstallSummary_PayloadFiles,
@@ -332,7 +332,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         {
             _body.Add(new StyledLabel(
                 $"- {mod.ModName} {mod.ModVersion}  " +
-                mod.InstalledAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture))
+                FormatInstalledAt(mod.InstalledAt))
             {
                 X = 0,
                 Y = row++,
@@ -456,6 +456,13 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         FileIntegrityStatus.Unreadable => LocalizedStrings.UninstallPreview_Unreadable,
         _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
     };
+
+    private static string FormatInstalledAt(DateTimeOffset installedAt)
+    {
+        return installedAt.LocalDateTime.ToString(
+            "yyyy'/'MM'/'dd HH':'mm",
+            CultureInfo.InvariantCulture);
+    }
 
     private static ActionButton CreateActionButton(string text, Pos x, Pos y)
     {
