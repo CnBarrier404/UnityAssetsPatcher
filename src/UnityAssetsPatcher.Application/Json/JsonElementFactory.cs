@@ -21,29 +21,27 @@ public static class JsonElementFactory
         return Create(writer => writer.WriteNumberValue(value));
     }
 
-    public static JsonElement Number(ulong value)
-    {
-        return Create(writer => writer.WriteNumberValue(value));
-    }
-
-    public static JsonElement Number(double value)
-    {
-        return Create(writer => writer.WriteNumberValue(value));
-    }
-
     public static JsonElement Array(IEnumerable<JsonElement> values)
     {
         ArgumentNullException.ThrowIfNull(values);
 
-        return Create(writer =>
+        return ArrayFromWriter(writer =>
         {
-            writer.WriteStartArray();
-
             foreach (JsonElement value in values)
             {
                 value.WriteTo(writer);
             }
+        });
+    }
 
+    public static JsonElement ArrayFromWriter(Action<Utf8JsonWriter> writeElements)
+    {
+        ArgumentNullException.ThrowIfNull(writeElements);
+
+        return Create(writer =>
+        {
+            writer.WriteStartArray();
+            writeElements(writer);
             writer.WriteEndArray();
         });
     }
