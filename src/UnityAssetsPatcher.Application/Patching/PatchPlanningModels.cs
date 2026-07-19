@@ -22,6 +22,10 @@ public sealed record FieldPatchPlan(IReadOnlyList<AssetFieldPatch> Assets) : Pat
 
 public sealed record AssetReplacementPlan(IReadOnlyList<AssetReplacement> Replacements) : PatchPlan;
 
+public sealed record FieldPatchAndCopyPlan(
+    IReadOnlyList<AssetFieldPatch> FieldPatches,
+    IReadOnlyList<AssetCopy> Copies) : PatchPlan;
+
 public sealed record PatchDiagnostic(
     PatchDiagnosticCode Code,
     string AssetsFilePath,

@@ -70,17 +70,13 @@ public static class AssetFieldWriter
 
         var values = value.EnumerateArray().ToArray();
 
-        if (field.Children.Count == 0 && values.Length > 0)
-        {
-            throw new InvalidOperationException(
-                $"Cannot assign a non-empty array to field '{field.FieldName}' because it has no existing element template to clone.");
-        }
-
         for (int index = 0; index < values.Length; index++)
         {
             if (index == field.Children.Count)
             {
-                field.Children.Add(field.Children[^1].Clone());
+                field.Children.Add(field.Children.Count > 0
+                    ? field.Children[^1].Clone()
+                    : CreateArrayElement(field));
             }
 
             WriteJsonValue(field.Children[index], values[index]);
@@ -94,6 +90,47 @@ public static class AssetFieldWriter
         AssetTypeArrayInfo arrayInfo = field.AsArray;
         arrayInfo.size = values.Length;
         field.AsArray = arrayInfo;
+    }
+
+    private static AssetTypeValueField CreateArrayElement(AssetTypeValueField field)
+    {
+        AssetTypeTemplateField? elementTemplate = field.TemplateField.Children
+            .FirstOrDefault(child => string.Equals(child.Name, "data", StringComparison.Ordinal));
+
+        if (elementTemplate is null || !elementTemplate.HasValue)
+        {
+            throw new InvalidOperationException(
+                $"Cannot assign a non-empty array to field '{field.FieldName}' because its element template is unavailable or non-scalar.");
+        }
+
+        var element = new AssetTypeValueField();
+        element.Read(
+            new AssetTypeValue(elementTemplate.ValueType, CreateDefaultScalarValue(elementTemplate.ValueType)),
+            elementTemplate,
+            []);
+
+        return element;
+    }
+
+    private static object CreateDefaultScalarValue(AssetValueType valueType)
+    {
+        return valueType switch
+        {
+            AssetValueType.Bool => false,
+            AssetValueType.Int8 => (sbyte)0,
+            AssetValueType.UInt8 => (byte)0,
+            AssetValueType.Int16 => (short)0,
+            AssetValueType.UInt16 => (ushort)0,
+            AssetValueType.Int32 => 0,
+            AssetValueType.UInt32 => 0u,
+            AssetValueType.Int64 => 0L,
+            AssetValueType.UInt64 => 0UL,
+            AssetValueType.Float => 0f,
+            AssetValueType.Double => 0d,
+            AssetValueType.String => string.Empty,
+            _ => throw new InvalidOperationException(
+                $"Cannot create an array element with unsupported value type: {valueType}.")
+        };
     }
 
     private static void WriteBool(AssetTypeValueField field, JsonElement value)

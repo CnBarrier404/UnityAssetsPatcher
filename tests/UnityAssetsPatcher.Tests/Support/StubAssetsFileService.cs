@@ -40,6 +40,7 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     public int? CloseReadSessionsCountAtWrite { get; private set; }
     public bool? ReadFilesExistedAtClose { get; private set; }
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
+    public IReadOnlyList<AssetCopy> CopyPlan { get; private set; } = [];
 
     public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
     {
@@ -86,6 +87,20 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
         OutputPath = outputPath;
         CloseReadSessionsCountAtWrite = CloseReadSessionsCount;
         ReplacementPlan = plan;
+        File.WriteAllText(outputPath, "patched");
+    }
+
+    public void WriteFieldPatchesAndCopies(
+        string inputPath,
+        string outputPath,
+        IReadOnlyList<AssetFieldPatch> fieldPatches,
+        IReadOnlyList<AssetCopy> copies)
+    {
+        WasCalled = true;
+        InputPath = inputPath;
+        OutputPath = outputPath;
+        CloseReadSessionsCountAtWrite = CloseReadSessionsCount;
+        CopyPlan = copies;
         File.WriteAllText(outputPath, "patched");
     }
 

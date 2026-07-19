@@ -28,10 +28,15 @@ public sealed record ManifestPatch(
     IReadOnlyList<ManifestSetOperation>? SetOperations,
     IReadOnlyList<ManifestAddOperation>? AddOperations,
     ManifestReplaceFrom? ReplaceFrom = null,
-    string? ComponentTypeName = null);
+    string? ComponentTypeName = null,
+    ManifestCopyAssetFrom? CopyAssetFrom = null);
 
 public sealed record ManifestSetOperation(string FieldPath, JsonElement From, JsonElement To);
 
 public sealed record ManifestAddOperation(string FieldPath, JsonElement Value);
 
 public sealed record ManifestReplaceFrom(string AssetsFilePath, string MatchFieldPath);
+
+public sealed record ManifestCopyAssetFrom(
+    string AssetTypeName,
+    IReadOnlyDictionary<string, JsonElement> Match);

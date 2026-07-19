@@ -143,7 +143,7 @@ Mod.zip
 
 #### patches
 
-`patches` 是当前 target 文件中的变更规则列表。每个 patch 先用 `type` 和 `match` 定位 asset，再执行 `set`、`add` 或 `replaceAsset`。
+`patches` 是当前 target 文件中的变更规则列表。每个 patch 先用 `type` 和 `match` 定位 asset，再执行 `set`、`add`、`copyAsset` 或 `replaceAsset`。
 
 ```json
 "patches": [
@@ -162,7 +162,7 @@ Mod.zip
 ]
 ```
 
-用于安装的 patch 必须至少包含 `set`、`add` 或 `replaceAsset` 之一。
+用于安装的 patch 必须至少包含 `set`、`add`、`copyAsset` 或 `replaceAsset` 之一。
 
 ### optional
 
@@ -387,6 +387,38 @@ Mod.zip
 - `replaceAsset` 不能和 `set` 或 `add` 放在同一个 patch 中。
 - `replaceAsset` 不能和 `componentType` 放在同一个 patch 中。
 - 同一个目标 assets 文件中，如果存在 `replaceAsset`，就不能混入字段级 `set` 或 `add`。
+
+#### copyAsset
+
+`copyAsset` 用于在同一个目标 `.assets` 文件内完整复制另一个 asset。该文件中的普通 `set` 和
+`add` 补丁会先执行，随后才执行复制，因此目标会得到源 asset 打完补丁后的完整字段树。
+
+```json
+{
+  "type": "Material",
+  "match": {
+    "m_Name": "DiningChair_mtl"
+  },
+  "copyAsset": {
+    "from": {
+      "type": "Material",
+      "match": {
+        "m_Name": "DiningTable_mtl"
+      }
+    }
+  }
+}
+```
+
+规则：
+
+- 外层 `type` 和 `match` 必须唯一定位复制目标。
+- `copyAsset.from.type` 和 `copyAsset.from.match` 必须唯一定位同文件中的复制来源。
+- 来源和目标的实际 asset 类型必须一致，且不能是同一个 asset。
+- 复制保留目标 Path ID，并自动保留目标原有的标量字符串 `m_Name`；其余字段完整取自打完补丁后的来源。
+- `copyAsset` 不能与同一 patch 内的 `set`、`add`、`replaceAsset` 或 `componentType` 组合。
+- 第一版不支持链式或循环复制；任何复制来源都不能同时是另一条 `copyAsset` 的目标。
+- `copyAsset` 与 `replaceAsset` 不能用于同一个目标 assets 文件。
 
 ## 字段路径
 

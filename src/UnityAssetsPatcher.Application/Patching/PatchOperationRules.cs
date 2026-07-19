@@ -12,7 +12,8 @@ public static class PatchOperationRules
     public static bool HasPatchOperations(ManifestPatch target)
     {
         return HasFieldPatchOperations(target) ||
-               target.ReplaceFrom is not null;
+               target.ReplaceFrom is not null ||
+               target.CopyAssetFrom is not null;
     }
 
     public static bool HasFieldPatchOperations(ManifestPatch target)
@@ -26,12 +27,30 @@ public static class PatchOperationRules
         return targets.Any(target => target.ReplaceFrom is not null);
     }
 
+    public static bool HasCopyOperations(IReadOnlyList<ManifestPatch> targets)
+    {
+        return targets.Any(target => target.CopyAssetFrom is not null);
+    }
+
     public static void EnsureReplacementOperationsAreNotMixed(IReadOnlyList<ManifestPatch> targets)
     {
-        if (targets.Any(HasFieldPatchOperations))
+        if (targets.Any(HasFieldPatchOperations) || HasCopyOperations(targets))
         {
             throw new InvalidOperationException(
-                "Manifest 'replaceFrom' operations cannot be combined with 'set' or 'add' operations for the same assets file.");
+                "Manifest 'replaceAsset' operations cannot be combined with 'set', 'add', or 'copyAsset' operations for the same assets file.");
+        }
+    }
+
+    public static void EnsureCopyOperationsAreValid(IReadOnlyList<ManifestPatch> targets)
+    {
+        foreach (ManifestPatch target in targets.Where(target => target.CopyAssetFrom is not null))
+        {
+            if (HasFieldPatchOperations(target) || target.ReplaceFrom is not null ||
+                target.ComponentTypeName is not null)
+            {
+                throw new InvalidOperationException(
+                    "Manifest 'copyAsset' cannot be combined with 'set', 'add', 'replaceAsset', or 'componentType' in the same patch.");
+            }
         }
     }
 
@@ -43,6 +62,6 @@ public static class PatchOperationRules
         }
 
         throw new InvalidOperationException(
-            "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
+            "Patch config must contain a non-empty 'set', 'add', 'replaceAsset', or 'copyAsset' operation.");
     }
 }

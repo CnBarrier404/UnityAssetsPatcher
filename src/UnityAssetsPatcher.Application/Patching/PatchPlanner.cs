@@ -7,11 +7,22 @@ public sealed class PatchPlanner
 {
     private readonly FieldPatchPlanner _fieldPlanner;
     private readonly ReplacementPlanner _replacementPlanner;
+    private readonly CopyAssetPlanner? _copyAssetPlanner;
 
     public PatchPlanner(FieldPatchPlanner fieldPlanner, ReplacementPlanner replacementPlanner)
     {
         _fieldPlanner = fieldPlanner;
         _replacementPlanner = replacementPlanner;
+    }
+
+    public PatchPlanner(
+        FieldPatchPlanner fieldPlanner,
+        ReplacementPlanner replacementPlanner,
+        CopyAssetPlanner copyAssetPlanner)
+    {
+        _fieldPlanner = fieldPlanner;
+        _replacementPlanner = replacementPlanner;
+        _copyAssetPlanner = copyAssetPlanner;
     }
 
     public PatchPlanningResult Plan(PatchPlanningRequest request)
@@ -35,6 +46,20 @@ public sealed class PatchPlanner
                     request.AssetsFilePath, request.Targets, request.SourceAssetsPaths);
                 preview = output.Preview;
                 plan = new AssetReplacementPlan(output.Replacements);
+            }
+            else if (PatchOperationRules.HasCopyOperations(request.Targets))
+            {
+                FieldPatchPlanningOutput fieldOutput = _fieldPlanner.Plan(
+                    request.AssetsFilePath,
+                    request.Targets.Where(PatchOperationRules.HasFieldPatchOperations).ToArray());
+                CopyAssetPlanningOutput copyOutput = (_copyAssetPlanner ??
+                                                      throw new InvalidOperationException(
+                                                          "Copy asset planner is not configured.")).Plan(
+                    request.AssetsFilePath,
+                    request.Targets);
+                preview = new PatchPreviewResult(
+                    [.. fieldOutput.Preview.Assets, .. copyOutput.Preview.Assets]);
+                plan = new FieldPatchAndCopyPlan(fieldOutput.Assets, copyOutput.Copies);
             }
             else
             {
@@ -67,6 +92,7 @@ public sealed class PatchPlanner
         {
             FieldPatchPlan fieldPlan => fieldPlan.Assets.Count > 0,
             AssetReplacementPlan replacementPlan => replacementPlan.Replacements.Count > 0,
+            FieldPatchAndCopyPlan copyPlan => copyPlan.Copies.Count > 0,
             _ => throw new ArgumentOutOfRangeException(nameof(plan)),
         };
     }
@@ -91,13 +117,15 @@ public sealed class PatchPlanner
         if (!PatchOperationRules.HasPatchOperations(targets))
         {
             throw new InvalidOperationException(
-                "Patch config must contain a non-empty 'set', 'add', or 'replaceFrom' operation.");
+                "Patch config must contain a non-empty 'set', 'add', 'replaceAsset', or 'copyAsset' operation.");
         }
 
         if (PatchOperationRules.HasReplacementOperations(targets))
         {
             PatchOperationRules.EnsureReplacementOperationsAreNotMixed(targets);
         }
+
+        PatchOperationRules.EnsureCopyOperationsAreValid(targets);
     }
 }
 

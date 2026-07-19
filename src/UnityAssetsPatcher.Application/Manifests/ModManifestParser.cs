@@ -250,10 +250,11 @@ public static class ModManifestParser
         var setOperations = ReadSetOperations(patchElement);
         var addOperations = ReadAddOperations(patchElement);
         ManifestReplaceFrom? replaceFrom = ReadOptionalReplaceAsset(patchElement);
+        ManifestCopyAssetFrom? copyAssetFrom = ReadOptionalCopyAsset(patchElement);
         string? componentTypeName = ReadOptionalComponentTypeName(patchElement, assetTypeName, replaceFrom);
 
         return new ManifestPatch(assetsFileName, assetTypeName, match, setOperations, addOperations,
-            replaceFrom, componentTypeName);
+            replaceFrom, componentTypeName, copyAssetFrom);
     }
 
     private static string ReadAssetTypeName(JsonElement patchElement)
@@ -274,6 +275,31 @@ public static class ModManifestParser
         EnsureValidZipRelativePath(assetsFilePath, "replaceAsset fromFile");
 
         return new ManifestReplaceFrom(assetsFilePath, matchFieldPath);
+    }
+
+    private static ManifestCopyAssetFrom? ReadOptionalCopyAsset(JsonElement patchElement)
+    {
+        if (!JsonUtils.TryReadProperty(patchElement, "copyAsset", JsonValueKind.Object,
+                out JsonElement copyAssetElement))
+        {
+            return null;
+        }
+
+        JsonElement fromElement = JsonUtils.ReadRequiredProperty(
+            copyAssetElement,
+            "from",
+            JsonValueKind.Object,
+            "Manifest patch 'copyAsset'");
+        string assetTypeName = ReadRequiredString(fromElement, "type", "Manifest patch 'copyAsset.from'");
+        JsonElement matchElement = JsonUtils.ReadRequiredProperty(
+            fromElement,
+            "match",
+            JsonValueKind.Object,
+            "Manifest patch 'copyAsset.from'");
+
+        return new ManifestCopyAssetFrom(
+            assetTypeName,
+            ReadFieldValueMap(matchElement, "Manifest patch 'copyAsset.from.match' object"));
     }
 
     private static string? ReadOptionalComponentTypeName(

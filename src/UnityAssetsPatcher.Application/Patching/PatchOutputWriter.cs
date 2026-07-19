@@ -22,6 +22,8 @@ public sealed class PatchOutputWriter
             AssetReplacementPlan replacementPlan =>
                 WriteReplacements(assetsFilePath, outputPath, replacementPlan.Replacements),
             FieldPatchPlan fieldPlan => WriteFieldPatch(assetsFilePath, outputPath, fieldPlan.Assets),
+            FieldPatchAndCopyPlan copyPlan =>
+                WriteFieldPatchesAndCopies(assetsFilePath, outputPath, copyPlan),
             _ => throw new ArgumentOutOfRangeException(nameof(plan)),
         };
     }
@@ -85,6 +87,31 @@ public sealed class PatchOutputWriter
         }
 
         return new WriteTarget(outputPath);
+    }
+
+    private PatchApplyResult WriteFieldPatchesAndCopies(
+        string assetsFilePath,
+        string outputPath,
+        FieldPatchAndCopyPlan plan)
+    {
+        WriteTarget target = ResolveWriteTarget(assetsFilePath, outputPath);
+        var changedPatches = plan.FieldPatches
+            .Where(asset => asset.Operations.Count > 0)
+            .ToArray();
+        _assetsPatchWriter.WriteFieldPatchesAndCopies(
+            assetsFilePath,
+            target.OutputPath,
+            changedPatches,
+            plan.Copies);
+
+        return new PatchApplyResult(
+            target.OutputPath,
+            null,
+            changedPatches.Select(asset => asset.PathId)
+                .Concat(plan.Copies.Select(copy => copy.TargetPathId))
+                .Distinct()
+                .Count(),
+            changedPatches.Sum(asset => asset.Operations.Count) + plan.Copies.Count);
     }
 
     private sealed record WriteTarget(string OutputPath);

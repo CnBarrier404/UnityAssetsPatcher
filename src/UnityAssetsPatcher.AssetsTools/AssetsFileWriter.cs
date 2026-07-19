@@ -33,6 +33,15 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         WriteAssetsFile(inputPath, outputPath, session => ApplyReplacementPlan(session, plan));
     }
 
+    public void WriteFieldPatchesAndCopies(
+        string inputPath,
+        string outputPath,
+        IReadOnlyList<AssetFieldPatch> fieldPatches,
+        IReadOnlyList<AssetCopy> copies)
+    {
+        WriteAssetsFile(inputPath, outputPath, session => ApplyFieldPatchesAndCopies(session, fieldPatches, copies));
+    }
+
     public void Dispose()
     {
         if (_ownsContext)
@@ -128,6 +137,83 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
             AssetFileInfo assetInfo = session.AssetsFile.GetAssetInfo(asset.PathId);
             assetInfo.SetNewData(mutableField);
         }
+    }
+
+    private static void ApplyFieldPatchesAndCopies(
+        AssetsFileSession session,
+        IReadOnlyList<AssetFieldPatch> fieldPatches,
+        IReadOnlyList<AssetCopy> copies)
+    {
+        var mutableFields = new Dictionary<long, AssetTypeValueField>();
+
+        foreach (AssetFieldPatch asset in fieldPatches)
+        {
+            AssetTypeValueField mutableField = GetMutableField(session, mutableFields, asset.PathId);
+
+            foreach (FieldPatchOperation operation in asset.Operations)
+            {
+                AssetTypeValueField targetField = AssetFieldLocator.Find(mutableField, operation.Path)
+                                                  ?? throw new InvalidOperationException(
+                                                      $"Field not found for Path ID {asset.PathId}: {operation.Path}");
+                AssetFieldWriter.WriteJsonValue(targetField, operation.To);
+            }
+        }
+
+        foreach (AssetCopy copy in copies)
+        {
+            AssetTypeValueField sourceField = GetMutableField(session, mutableFields, copy.SourcePathId);
+            AssetTypeValueField currentTarget = GetMutableField(session, mutableFields, copy.TargetPathId);
+            AssetTypeValueField copiedField = sourceField.Clone();
+            PreserveName(currentTarget, copiedField, copy.TargetPathId);
+            mutableFields[copy.TargetPathId] = copiedField;
+        }
+
+        foreach ((long pathId, AssetTypeValueField field) in mutableFields)
+        {
+            AssetFileInfo assetInfo = session.AssetsFile.GetAssetInfo(pathId);
+            assetInfo.SetNewData(field);
+        }
+    }
+
+    private static AssetTypeValueField GetMutableField(
+        AssetsFileSession session,
+        IDictionary<long, AssetTypeValueField> mutableFields,
+        long pathId)
+    {
+        if (mutableFields.TryGetValue(pathId, out AssetTypeValueField? mutableField))
+        {
+            return mutableField;
+        }
+
+        AssetTypeValueField baseField = session.GetBaseField(pathId);
+
+        if (baseField.IsDummy)
+        {
+            throw new InvalidOperationException($"Asset not found or cannot be read: {pathId}");
+        }
+
+        mutableField = baseField.Clone();
+        mutableFields.Add(pathId, mutableField);
+
+        return mutableField;
+    }
+
+    private static void PreserveName(
+        AssetTypeValueField currentTarget,
+        AssetTypeValueField copiedField,
+        long targetPathId)
+    {
+        AssetTypeValueField? currentName = AssetFieldLocator.Find(currentTarget, "m_Name");
+        AssetTypeValueField? copiedName = AssetFieldLocator.Find(copiedField, "m_Name");
+
+        if (currentName?.Value?.ValueType != AssetValueType.String ||
+            copiedName?.Value?.ValueType != AssetValueType.String)
+        {
+            throw new InvalidOperationException(
+                $"Copy asset target Path ID {targetPathId} does not have a scalar string 'm_Name' field to preserve.");
+        }
+
+        copiedName.AsString = currentName.AsString;
     }
 
     private void ApplyReplacementPlan(AssetsFileSession targetSession, IReadOnlyList<AssetReplacement> plan)

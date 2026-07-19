@@ -35,6 +35,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<IFieldPatchOperationHandler, AddFieldPatchOperationHandler>();
         services.AddScoped<FieldPatchPlanner>();
         services.AddScoped<ReplacementPlanner>();
+        services.AddScoped<CopyAssetPlanner>();
         services.AddScoped<PatchPlanner>();
         services.AddScoped<PatchOutputWriter>();
     }

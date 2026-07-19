@@ -174,6 +174,12 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
             string outputPath,
             IReadOnlyList<AssetReplacement> plan) { }
 
+        public void WriteFieldPatchesAndCopies(
+            string inputPath,
+            string outputPath,
+            IReadOnlyList<AssetFieldPatch> fieldPatches,
+            IReadOnlyList<AssetCopy> copies) { }
+
         public void Dispose()
         {
             DisposeCount++;

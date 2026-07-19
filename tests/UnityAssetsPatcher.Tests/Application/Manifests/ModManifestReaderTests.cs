@@ -8,6 +8,43 @@ namespace UnityAssetsPatcher.Tests.Application.Manifests;
 
 public sealed class ModManifestReaderTests
 {
+    [Fact]
+    public void Load_WhenPatchCopiesFromSameFile_ReturnsCopyAssetRule()
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");
+        TestManifest.Write(
+            configPath,
+            """
+            {
+              "targets": [{
+                "file": "sharedassets6.assets",
+                "patches": [{
+                  "type": "Material",
+                  "match": { "m_Name": "Chair" },
+                  "copyAsset": {
+                    "from": {
+                      "type": "Material",
+                      "match": { "m_Name": "Table" }
+                    }
+                  }
+                }]
+              }]
+            }
+            """);
+
+        try
+        {
+            ManifestPatch patch = Assert.Single(new ModManifestReader().Load(configPath).Patches);
+
+            Assert.Equal("Material", patch.CopyAssetFrom?.AssetTypeName);
+            Assert.Equal("Table", patch.CopyAssetFrom?.Match["m_Name"].GetString());
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
     /// <summary>
     /// Verifies that a manifest can carry mod metadata while using target groups for patch behavior.
     /// </summary>
