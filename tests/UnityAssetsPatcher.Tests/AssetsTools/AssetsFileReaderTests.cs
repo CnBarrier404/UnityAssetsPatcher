@@ -87,7 +87,7 @@ public sealed class AssetsFileReaderTests
 
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory, "UnityAssetsPatcher.sln")))
+            if (File.Exists(Path.Combine(directory, "UnityAssetsPatcher.slnx")))
             {
                 return directory;
             }

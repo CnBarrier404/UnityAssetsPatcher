@@ -19,7 +19,7 @@ Main projects:
 Run from the repository root:
 
 ```powershell
-dotnet test UnityAssetsPatcher.sln
+dotnet test UnityAssetsPatcher.slnx
 dotnet run --project src\UnityAssetsPatcher\UnityAssetsPatcher.csproj
 dotnet run --project src\UnityAssetsPatcher\UnityAssetsPatcher.csproj -- --help
 ```
@@ -85,5 +85,5 @@ Additional code style rules are in `.agents/code-style.md`.
 - Add focused tests for behavior changes. Prefer `StubAssetsFileService` for application and presentation tests; use fixtures under `tests/RealTestAssets/` only for AssetsTools-dependent behavior.
 - When CLI behavior changes, cover parsing, output routing, exit codes, and mutation confirmation.
 - When backup records or transactions change, cover integrity, path trust, install layering, rollback, and recovery.
-- Run `dotnet test UnityAssetsPatcher.sln` before reporting code changes complete. Documentation-only changes do not require the test suite.
+- Run `dotnet test UnityAssetsPatcher.slnx` before reporting code changes complete. Documentation-only changes do not require the test suite.
 - Update relevant README, manifest guide, or changelog content when user-facing behavior changes.

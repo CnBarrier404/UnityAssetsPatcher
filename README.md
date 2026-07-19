@@ -110,7 +110,7 @@ dotnet run --project src\UnityAssetsPatcher\UnityAssetsPatcher.csproj
 ```
 
 ```powershell
-dotnet test UnityAssetsPatcher.sln
+dotnet test UnityAssetsPatcher.slnx
 ```
 
 项目结构：

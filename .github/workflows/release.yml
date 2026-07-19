@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SOLUTION_PATH: UnityAssetsPatcher.sln
+  SOLUTION_PATH: UnityAssetsPatcher.slnx
   PROJECT_PATH: src/UnityAssetsPatcher/UnityAssetsPatcher.csproj
   RUNTIME_IDENTIFIER: win-x64
 
@@ -54,7 +54,7 @@ jobs:
           "is_prerelease=$isPrerelease" >> $env:GITHUB_OUTPUT
 
       - name: Restore dependencies
-        run: dotnet restore ${{ env.SOLUTION_PATH }} --runtime ${{ env.RUNTIME_IDENTIFIER }}
+        run: dotnet restore ${{ env.SOLUTION_PATH }} --runtime ${{ env.RUNTIME_IDENTIFIER }} -p:PublishAot=true
 
       - name: Run tests
         run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
