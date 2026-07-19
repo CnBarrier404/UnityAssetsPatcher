@@ -82,7 +82,6 @@
   "UninstallPage_BackAction": "Back",
   "UninstallPage_CannotUninstallBlockingMods": "Cannot uninstall until the later mods listed below are uninstalled.",
   "UninstallPage_CannotUninstallIntegrityConflict": "Cannot uninstall because one or more installed files or backups no longer match the install record.",
-  "UninstallPage_LoadingInstalledMods": "Loading installed mods...",
   "UninstallPage_NoInstalledModsFound": "No installed mods found.",
   "UninstallPage_ReturnAction": "Return to main menu",
   "UninstallPage_UninstallAction": "Uninstall",

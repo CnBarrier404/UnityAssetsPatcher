@@ -92,7 +92,9 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         _isWorking = true;
-        ShowWorking(LocalizedStrings.UninstallPage_LoadingInstalledMods);
+        _body.RemoveAll();
+        _body.SetContentHeightForRows(0);
+        RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void ShowInstalledMods(IReadOnlyList<InstallRecordSummary> installed)

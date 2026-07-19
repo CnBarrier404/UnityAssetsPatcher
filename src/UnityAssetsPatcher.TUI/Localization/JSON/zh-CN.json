@@ -82,7 +82,6 @@
   "UninstallPage_BackAction": "返回",
   "UninstallPage_CannotUninstallBlockingMods": "请先卸载下列后安装的 Mod，再卸载此 Mod",
   "UninstallPage_CannotUninstallIntegrityConflict": "安装文件或备份与安装记录不一致，无法卸载",
-  "UninstallPage_LoadingInstalledMods": "正在加载已安装的 Mod……",
   "UninstallPage_NoInstalledModsFound": "未找到已安装的 Mod",
   "UninstallPage_ReturnAction": "返回主菜单",
   "UninstallPage_UninstallAction": "卸载",
