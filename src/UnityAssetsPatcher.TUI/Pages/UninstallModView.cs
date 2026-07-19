@@ -266,13 +266,19 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             return;
         }
 
-        Button uninstall = CreatePrimaryActionButton(LocalizedStrings.UninstallPage_UninstallAction, 0, row + 1);
-        uninstall.Accepted += (_, _) => Uninstall(preview);
-        Button backAction = CreateActionButton(LocalizedStrings.UninstallPage_BackAction, 0, row + 3);
-        backAction.Accepted += (_, _) => ShowInstalledMods();
-        _body.Add(uninstall, backAction);
-        _body.SetContentHeightForRows(row + 5);
-        uninstall.SetFocus();
+        var actions = new ConfirmationBar(
+            LocalizedStrings.UninstallPage_UninstallAction,
+            () => Uninstall(preview),
+            LocalizedStrings.UninstallPage_BackAction,
+            ShowInstalledMods,
+            ActionKind.Dangerous)
+        {
+            X = 0,
+            Y = row + 1,
+        };
+        _body.Add(actions);
+        _body.SetContentHeightForRows(row + 3);
+        actions.ConfirmButton.SetFocus();
     }
 
     private int AddRestoredPreviewFiles(IReadOnlyList<UninstallPreviewRestoredFileResult> files, int row)
@@ -454,10 +460,5 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     private static ActionButton CreateActionButton(string text, Pos x, Pos y)
     {
         return new ActionButton(text) { X = x, Y = y };
-    }
-
-    private static Button CreatePrimaryActionButton(string text, Pos x, Pos y)
-    {
-        return new ActionButton(text, ActionKind.Dangerous) { X = x, Y = y };
     }
 }

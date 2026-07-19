@@ -13,7 +13,8 @@ public sealed class ConfirmationBar : View
         string confirmText,
         Action confirmAction,
         string cancelText,
-        Action cancelAction)
+        Action cancelAction,
+        ActionKind confirmKind = ActionKind.Primary)
     {
         ArgumentNullException.ThrowIfNull(confirmText);
         ArgumentNullException.ThrowIfNull(confirmAction);
@@ -24,7 +25,7 @@ public sealed class ConfirmationBar : View
         Height = 1;
         CanFocus = true;
 
-        ConfirmButton = new ActionButton(confirmText, ActionKind.Primary)
+        ConfirmButton = new ActionButton(confirmText, confirmKind)
         {
             X = 0,
             Y = 0,

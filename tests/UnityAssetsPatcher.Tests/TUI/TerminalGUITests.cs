@@ -271,6 +271,20 @@ public sealed class TerminalGUITests : IDisposable
     }
 
     [Fact]
+    public void ConfirmationBar_WhenConfirmKindIsDangerous_UsesDangerousActionScheme()
+    {
+        using var actions = new ConfirmationBar(
+            "Uninstall",
+            () => { },
+            "Back",
+            () => { },
+            ActionKind.Dangerous);
+
+        Assert.Same(TerminalTheme.DangerousAction, actions.ConfirmButton.GetScheme());
+        Assert.Same(TerminalTheme.SecondaryAction, actions.CancelButton.GetScheme());
+    }
+
+    [Fact]
     public void SummaryTableView_UsesDisplayWidthForLabelColumn()
     {
         using var table = new SummaryTableView([("版本", "1.0"), ("Author", "Test")]);
