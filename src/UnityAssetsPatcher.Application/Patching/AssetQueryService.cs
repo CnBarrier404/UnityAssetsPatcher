@@ -3,6 +3,8 @@ using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
+public sealed record AssetQueryMatch(AssetInfo Asset, AssetField FieldTree);
+
 public sealed class AssetQueryService
 {
     private readonly IAssetsFileReader _assetsReader;
@@ -10,13 +12,6 @@ public sealed class AssetQueryService
     public AssetQueryService(IAssetsFileReader assetsReader)
     {
         _assetsReader = assetsReader;
-    }
-
-    public IEnumerable<AssetQueryMatch> FindMatches(
-        string assetsFilePath,
-        ManifestPatch patch)
-    {
-        return FindMatches(CreateContext(assetsFilePath), patch);
     }
 
     public AssetQueryContext CreateContext(string assetsFilePath)
@@ -28,10 +23,11 @@ public sealed class AssetQueryService
         AssetQueryContext context,
         ManifestPatch patch)
     {
-        IReadOnlyDictionary<long, AssetInfo>? assetsByPathId = patch.ComponentTypeName is null
+        var assetsByPathId = patch.ComponentTypeName is null
             ? null
             : context.AssetsByPathId;
-        IReadOnlyList<AssetInfo> ownerAssets = context.GetAssetsByType(patch.AssetTypeName);
+
+        var ownerAssets = context.GetAssetsByType(patch.AssetTypeName);
 
         foreach (AssetInfo asset in ownerAssets)
         {
@@ -47,12 +43,13 @@ public sealed class AssetQueryService
             if (patch.ComponentTypeName is not { } componentTypeName)
             {
                 yield return ownerMatch;
+
                 continue;
             }
 
-            IReadOnlyDictionary<long, AssetInfo> componentAssetsByPathId = assetsByPathId ??
-                                                                           throw new InvalidOperationException(
-                                                                               "Component target index was not initialized.");
+            var componentAssetsByPathId = assetsByPathId ??
+                                          throw new InvalidOperationException(
+                                              "Component target index was not initialized.");
 
             foreach (AssetQueryMatch componentMatch in FindComponentMatches(
                          context,
@@ -71,7 +68,7 @@ public sealed class AssetQueryService
         string componentTypeName,
         IReadOnlyDictionary<long, AssetInfo> assetsByPathId)
     {
-        AssetInfo[] componentAssets = ReadComponentPathIds(ownerMatch.FieldTree)
+        var componentAssets = ReadComponentPathIds(ownerMatch.FieldTree)
             .Select(assetsByPathId.GetValueOrDefault)
             .OfType<AssetInfo>()
             .Where(asset => string.Equals(asset.TypeName, componentTypeName, StringComparison.OrdinalIgnoreCase))
@@ -91,7 +88,7 @@ public sealed class AssetQueryService
         }
     }
 
-    private static IReadOnlyList<long> ReadComponentPathIds(AssetField gameObjectFieldTree)
+    private static long[] ReadComponentPathIds(AssetField gameObjectFieldTree)
     {
         AssetField? componentField = AssetFieldNavigator.Find(gameObjectFieldTree, "m_Component");
         AssetField? arrayField = AssetFieldNavigator.ResolveArray(componentField);
@@ -115,62 +112,5 @@ public sealed class AssetQueryService
             AssetFieldNavigator.Find(componentReferenceField, "m_PathID");
 
         return pathIdField?.Value is AssetFieldValue.Int64 value ? value.Value : null;
-    }
-}
-
-public sealed record AssetQueryMatch(
-    AssetInfo Asset,
-    AssetField FieldTree);
-
-public sealed class AssetQueryContext
-{
-    public IReadOnlyDictionary<long, AssetInfo> AssetsByPathId => _assetsByPathId.Value;
-
-    private IReadOnlyList<AssetInfo> Assets { get; }
-
-    private readonly IAssetsFileReader _assetsReader;
-    private readonly string _assetsFilePath;
-    private readonly Lazy<IReadOnlyDictionary<long, AssetInfo>> _assetsByPathId;
-
-    private readonly Dictionary<string, IReadOnlyList<AssetInfo>>
-        _assetsByType = new(StringComparer.OrdinalIgnoreCase);
-
-    private readonly Dictionary<long, AssetField> _fieldTrees = new();
-
-    public AssetQueryContext(IAssetsFileReader assetsReader, string assetsFilePath)
-    {
-        _assetsReader = assetsReader;
-        _assetsFilePath = assetsFilePath;
-        Assets = assetsReader.ReadAssets(assetsFilePath).ToArray();
-        _assetsByPathId =
-            new Lazy<IReadOnlyDictionary<long, AssetInfo>>(() => Assets.ToDictionary(asset => asset.PathId));
-    }
-
-    public IReadOnlyList<AssetInfo> GetAssetsByType(string assetTypeName)
-    {
-        if (_assetsByType.TryGetValue(assetTypeName, out IReadOnlyList<AssetInfo>? assets))
-        {
-            return assets;
-        }
-
-        assets = Assets
-            .Where(asset => string.Equals(asset.TypeName, assetTypeName, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        _assetsByType.Add(assetTypeName, assets);
-
-        return assets;
-    }
-
-    public AssetField ReadField(long pathId)
-    {
-        if (_fieldTrees.TryGetValue(pathId, out AssetField? fieldTree))
-        {
-            return fieldTree;
-        }
-
-        fieldTree = _assetsReader.ReadField(_assetsFilePath, pathId);
-        _fieldTrees.Add(pathId, fieldTree);
-
-        return fieldTree;
     }
 }

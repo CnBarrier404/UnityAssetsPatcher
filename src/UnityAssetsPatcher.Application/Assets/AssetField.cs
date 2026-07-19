@@ -2,18 +2,18 @@ namespace UnityAssetsPatcher.Application.Assets;
 
 public sealed class AssetField
 {
-    public IReadOnlyList<AssetField> Children { get; }
+    public IReadOnlyList<AssetField> Children => _children;
     public string Name { get; }
     public string TypeName { get; }
     public AssetFieldValue? Value { get; }
 
-    private readonly Dictionary<string, IReadOnlyList<AssetField>>? _childrenByName;
+    private readonly AssetField[] _children;
 
     public AssetField(
         string name,
         string typeName,
         AssetFieldValue? value,
-        IReadOnlyList<AssetField> children)
+        IEnumerable<AssetField> children)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(typeName);
@@ -22,53 +22,64 @@ public sealed class AssetField
         Name = name;
         TypeName = typeName;
         Value = value;
-        Children = children.ToArray();
-        _childrenByName = BuildChildrenByName(Children);
+        _children = children.ToArray();
     }
 
     public AssetField? FindChild(string name)
     {
-        var children = FindChildren(name);
+        ArgumentNullException.ThrowIfNull(name);
 
-        return children.Count > 0
-            ? children[0]
-            : null;
+        return _children.FirstOrDefault(child => string.Equals(child.Name, name, StringComparison.Ordinal));
     }
 
     public IReadOnlyList<AssetField> FindChildren(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
+        int firstMatchIndex = -1;
+        int lastMatchIndex = -1;
+        int matchCount = 0;
 
-        return _childrenByName is not null &&
-               _childrenByName.TryGetValue(name, out var children)
-            ? children
-            : [];
-    }
-
-    private static Dictionary<string, IReadOnlyList<AssetField>>? BuildChildrenByName(
-        IReadOnlyList<AssetField> children)
-    {
-        if (children.Count == 0)
+        for (int index = 0; index < _children.Length; index++)
         {
-            return null;
-        }
-
-        var builder = new Dictionary<string, List<AssetField>>(children.Count, StringComparer.Ordinal);
-
-        foreach (AssetField child in children)
-        {
-            if (!builder.TryGetValue(child.Name, out var namedChildren))
+            if (!string.Equals(_children[index].Name, name, StringComparison.Ordinal))
             {
-                namedChildren = [];
-                builder.Add(child.Name, namedChildren);
+                continue;
             }
 
-            namedChildren.Add(child);
+            firstMatchIndex = firstMatchIndex < 0 ? index : firstMatchIndex;
+            lastMatchIndex = index;
+            matchCount++;
         }
 
-        return builder.ToDictionary(
-            static pair => pair.Key,
-            static IReadOnlyList<AssetField> (pair) => pair.Value.ToArray(),
-            StringComparer.Ordinal);
+        if (matchCount == 0)
+        {
+            return [];
+        }
+
+        if (matchCount == _children.Length)
+        {
+            return _children;
+        }
+
+        if (lastMatchIndex - firstMatchIndex + 1 == matchCount)
+        {
+            return new ArraySegment<AssetField>(_children, firstMatchIndex, matchCount);
+        }
+
+        var matches = new AssetField[matchCount];
+        int matchIndex = 0;
+
+        foreach (AssetField child in _children)
+        {
+            if (!string.Equals(child.Name, name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            matches[matchIndex] = child;
+            matchIndex++;
+        }
+
+        return matches;
     }
 }

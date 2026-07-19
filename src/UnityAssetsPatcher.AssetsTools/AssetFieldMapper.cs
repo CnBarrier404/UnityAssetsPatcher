@@ -11,7 +11,7 @@ public static class AssetFieldMapper
             field.FieldName,
             field.TypeName,
             MapValue(field),
-            field.Children.Select(Map).ToArray());
+            field.Children.Select(Map));
     }
 
     public static AssetFieldValue? MapValue(AssetTypeValueField field)

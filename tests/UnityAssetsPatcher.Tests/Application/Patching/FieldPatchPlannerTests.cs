@@ -90,7 +90,7 @@ public sealed class FieldPatchPlannerTests
     }
 
     [Fact]
-    public void CreateWritePlan_WhenPatchHasMultipleResolvers_ReusesQueryContext()
+    public void CreateWritePlan_WhenPatchHasMultipleResolvers_DoesNotRetainResolverCandidateTrees()
     {
         var reader = new CountingAssetsFileReader(
             [
@@ -116,7 +116,10 @@ public sealed class FieldPatchPlannerTests
             ]));
 
         Assert.Equal([101L, 102L], assetPatch.Operations.Select(operation => operation.To.GetInt64()));
-        AssertAllAssetsReadOnce(reader);
+        Assert.Equal(1, reader.AssetsReadCount);
+        Assert.Equal(1, reader.GetFieldReadCount(1));
+        Assert.Equal(2, reader.GetFieldReadCount(101));
+        Assert.Equal(2, reader.GetFieldReadCount(102));
     }
 
     [Fact]

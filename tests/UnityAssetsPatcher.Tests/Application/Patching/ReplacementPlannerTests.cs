@@ -9,7 +9,7 @@ namespace UnityAssetsPatcher.Tests.Application.Patching;
 public sealed class ReplacementPlannerTests
 {
     [Fact]
-    public void CreateWritePlan_WhenPatchesShareSourceIndex_ReadsEachFieldTreeOnce()
+    public void CreateWritePlan_WhenPatchesShareSourceIndex_ReusesIndexWithoutRetainingTargetTrees()
     {
         var scenario = CreateTwoAssetScenario();
 
@@ -21,14 +21,14 @@ public sealed class ReplacementPlannerTests
         Assert.Equal(2, plan.Count);
         Assert.Equal((101L, 1L), (plan[0].SourcePathId, plan[0].TargetPathId));
         Assert.Equal((102L, 2L), (plan[1].SourcePathId, plan[1].TargetPathId));
-        Assert.Equal(1, scenario.Reader.GetFieldReadCount(TargetPath, 1));
-        Assert.Equal(1, scenario.Reader.GetFieldReadCount(TargetPath, 2));
+        Assert.Equal(2, scenario.Reader.GetFieldReadCount(TargetPath, 1));
+        Assert.Equal(2, scenario.Reader.GetFieldReadCount(TargetPath, 2));
         Assert.Equal(1, scenario.Reader.GetFieldReadCount(SourcePath, 101));
         Assert.Equal(1, scenario.Reader.GetFieldReadCount(SourcePath, 102));
     }
 
     [Fact]
-    public void CreatePreview_WhenPatchesShareSourceIndex_ReadsEachFieldTreeOnce()
+    public void CreatePreview_WhenPatchesShareSourceIndex_ReusesIndexWithoutRetainingTargetTrees()
     {
         var scenario = CreateTwoAssetScenario();
 
@@ -38,8 +38,11 @@ public sealed class ReplacementPlannerTests
             SourcePaths);
 
         Assert.Equal(2, preview.Assets.Count);
-        Assert.Equal(4, scenario.Reader.TotalFieldReadCount);
-        Assert.All(scenario.Reader.FieldReadCounts.Values, count => Assert.Equal(1, count));
+        Assert.Equal(6, scenario.Reader.TotalFieldReadCount);
+        Assert.Equal(2, scenario.Reader.GetFieldReadCount(TargetPath, 1));
+        Assert.Equal(2, scenario.Reader.GetFieldReadCount(TargetPath, 2));
+        Assert.Equal(1, scenario.Reader.GetFieldReadCount(SourcePath, 101));
+        Assert.Equal(1, scenario.Reader.GetFieldReadCount(SourcePath, 102));
     }
 
     [Fact]
