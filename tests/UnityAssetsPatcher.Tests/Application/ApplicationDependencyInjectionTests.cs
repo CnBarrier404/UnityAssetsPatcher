@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application;
@@ -14,14 +15,14 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
     [Fact]
     public void BuildServiceProvider_WithCompleteObjectGraph_ValidatesScopesAndBuild()
     {
-        using ServiceProvider provider = CreateServices(new RecordingAssetsFileServices())
+        using ServiceProvider provider = CreateServices(new StubAssetsFileService([]))
             .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
 
         Assert.NotNull(provider.GetRequiredService<IWorkflowService>());
     }
 
     [Fact]
-    public void BuildServiceProvider_WithoutAssetsFileServices_FailsValidation()
+    public void BuildServiceProvider_WithoutAssetsAccessScopeFactory_FailsValidation()
     {
         var services = new ServiceCollection();
         services.AddUnityAssetsPatcherApplication(_backupDirectory);
@@ -31,69 +32,104 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
     }
 
     [Fact]
-    public void AssetCalls_CreateAndDisposeOneIndependentReaderPerCall()
+    public void AssetCalls_CreateAndDisposeOneIndependentAccessScopePerCall()
     {
-        var assetsFileServices = new RecordingAssetsFileServices();
-        using ServiceProvider provider = CreateServices(assetsFileServices).BuildServiceProvider();
+        StubAssetsFileService assetsFileService = CreateAssetsFileService();
+        using ServiceProvider provider = CreateServices(assetsFileService).BuildServiceProvider();
         IWorkflowService workflows = provider.GetRequiredService<IWorkflowService>();
 
         workflows.InspectFields(new InspectFieldsRequest("first.assets", 1));
         workflows.InspectFields(new InspectFieldsRequest("second.assets", 2));
 
-        Assert.Equal(2, assetsFileServices.Readers.Count);
-        Assert.All(assetsFileServices.Readers, reader => Assert.Equal(1, reader.DisposeCount));
-        Assert.NotSame(assetsFileServices.Readers[0], assetsFileServices.Readers[1]);
-        Assert.Empty(assetsFileServices.Writers);
+        Assert.Equal(2, assetsFileService.ScopeCreateCount);
+        Assert.Equal(2, assetsFileService.ReaderCreateCount);
+        Assert.Equal(2, assetsFileService.WriterCreateCount);
+        Assert.Equal(2, assetsFileService.ScopeDisposeCount);
+        Assert.Equal(2, assetsFileService.ReaderDisposeCount);
+        Assert.Equal(2, assetsFileService.WriterDisposeCount);
     }
 
     [Fact]
-    public void AssetServices_InOneDependencyInjectionScope_CreateOneReaderAndWriter()
+    public void AssetServices_InOneDependencyInjectionScope_ShareOneLazyAccessScope()
     {
-        var assetsFileServices = new RecordingAssetsFileServices();
-        using ServiceProvider provider = CreateServices(assetsFileServices).BuildServiceProvider();
+        StubAssetsFileService assetsFileService = CreateAssetsFileService();
+        using ServiceProvider provider = CreateServices(assetsFileService).BuildServiceProvider();
 
         using (IServiceScope dependencyInjectionScope = provider.CreateScope())
         {
-            dependencyInjectionScope.ServiceProvider.GetRequiredService<IAssetsFileReader>();
-            dependencyInjectionScope.ServiceProvider.GetRequiredService<IAssetsFileReader>();
-            dependencyInjectionScope.ServiceProvider.GetRequiredService<IAssetsFileWriter>();
-            dependencyInjectionScope.ServiceProvider.GetRequiredService<IAssetsFileWriter>();
+            IAssetsAccessScope firstAccess = dependencyInjectionScope.ServiceProvider
+                .GetRequiredService<IAssetsAccessScope>();
+            IAssetsAccessScope secondAccess = dependencyInjectionScope.ServiceProvider
+                .GetRequiredService<IAssetsAccessScope>();
+            IAssetsFileReader firstReader = dependencyInjectionScope.ServiceProvider
+                .GetRequiredService<IAssetsFileReader>();
+            IAssetsFileReader secondReader = dependencyInjectionScope.ServiceProvider
+                .GetRequiredService<IAssetsFileReader>();
+            IAssetsFileWriter firstWriter = dependencyInjectionScope.ServiceProvider
+                .GetRequiredService<IAssetsFileWriter>();
+            IAssetsFileWriter secondWriter = dependencyInjectionScope.ServiceProvider
+                .GetRequiredService<IAssetsFileWriter>();
 
-            Assert.Single(assetsFileServices.Readers);
-            Assert.Single(assetsFileServices.Writers);
-            Assert.Equal(0, assetsFileServices.Readers[0].DisposeCount);
-            Assert.Equal(0, assetsFileServices.Writers[0].DisposeCount);
+            Assert.Same(firstAccess, secondAccess);
+            Assert.Same(firstReader, secondReader);
+            Assert.Same(firstWriter, secondWriter);
+            Assert.Equal(0, assetsFileService.ScopeCreateCount);
+
+            firstReader.ReadAssets("first.assets");
+
+            Assert.Equal(1, assetsFileService.ScopeCreateCount);
+            Assert.Equal(0, assetsFileService.ScopeDisposeCount);
         }
 
-        Assert.Equal(1, assetsFileServices.Readers[0].DisposeCount);
-        Assert.Equal(1, assetsFileServices.Writers[0].DisposeCount);
+        Assert.Equal(1, assetsFileService.ScopeDisposeCount);
+        Assert.Equal(1, assetsFileService.ReaderDisposeCount);
+        Assert.Equal(1, assetsFileService.WriterDisposeCount);
     }
 
     [Fact]
-    public void AssetCall_WhenReaderThrows_DisposesReaderOnce()
+    public void AssetCall_WhenReaderThrows_DisposesReaderWriterAndScopeOnce()
     {
-        var assetsFileServices = new RecordingAssetsFileServices(throwOnRead: true);
-        using ServiceProvider provider = CreateServices(assetsFileServices).BuildServiceProvider();
+        var assetsFileService = new StubAssetsFileService([]);
+        using ServiceProvider provider = CreateServices(assetsFileService).BuildServiceProvider();
         IWorkflowService workflows = provider.GetRequiredService<IWorkflowService>();
 
         Assert.Throws<InvalidOperationException>(() =>
             workflows.InspectFields(new InspectFieldsRequest("broken.assets", 1)));
 
-        RecordingAssetsFileReader reader = Assert.Single(assetsFileServices.Readers);
-        Assert.Equal(1, reader.DisposeCount);
-        Assert.Empty(assetsFileServices.Writers);
+        Assert.Equal(1, assetsFileService.ScopeCreateCount);
+        Assert.Equal(1, assetsFileService.ReaderCreateCount);
+        Assert.Equal(1, assetsFileService.WriterCreateCount);
+        Assert.Equal(1, assetsFileService.ScopeDisposeCount);
+        Assert.Equal(1, assetsFileService.ReaderDisposeCount);
+        Assert.Equal(1, assetsFileService.WriterDisposeCount);
     }
 
     [Fact]
-    public void BackupCall_DoesNotCreateAssetsFileAccess()
+    public void NonAssetCalls_DoNotCreateAssetsAccessScope()
     {
-        var assetsFileServices = new RecordingAssetsFileServices();
-        using ServiceProvider provider = CreateServices(assetsFileServices).BuildServiceProvider();
+        Directory.CreateDirectory(_backupDirectory);
+        string manifestPath = Path.Combine(_backupDirectory, "manifest.json");
+        File.WriteAllText(manifestPath, TestManifest.CreateJson(
+            """
+            {
+              "target": "sharedassets0.assets",
+              "type": "Camera",
+              "match": { "m_Name": "Old" },
+              "set": { "m_Name": { "from": "Old", "to": "New" } }
+            }
+            """));
+        var assetsFileService = new StubAssetsFileService([]);
+        using ServiceProvider provider = CreateServices(assetsFileService).BuildServiceProvider();
+        IWorkflowService workflows = provider.GetRequiredService<IWorkflowService>();
 
-        provider.GetRequiredService<IWorkflowService>().CheckPendingTransactions();
+        workflows.CheckManifest(manifestPath);
+        workflows.ListInstalledMods();
+        workflows.CheckPendingTransactions();
+        workflows.RecoverPendingTransactions(_backupDirectory);
 
-        Assert.Empty(assetsFileServices.Readers);
-        Assert.Empty(assetsFileServices.Writers);
+        Assert.Equal(0, assetsFileService.ScopeCreateCount);
+        Assert.Equal(0, assetsFileService.ReaderCreateCount);
+        Assert.Equal(0, assetsFileService.WriterCreateCount);
     }
 
     public void Dispose()
@@ -104,85 +140,26 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
         }
     }
 
-    private ServiceCollection CreateServices(RecordingAssetsFileServices assetsFileServices)
+    private ServiceCollection CreateServices(StubAssetsFileService assetsFileService)
     {
         var services = new ServiceCollection();
-        services.AddScoped<IAssetsFileReader>(_ => assetsFileServices.CreateReader());
-        services.AddScoped<IAssetsFileWriter>(_ => assetsFileServices.CreateWriter());
+        services.AddSingleton<IAssetsAccessScopeFactory>(assetsFileService);
         services.AddUnityAssetsPatcherApplication(_backupDirectory);
 
         return services;
     }
 
-    private sealed class RecordingAssetsFileServices(bool throwOnRead = false)
+    private static StubAssetsFileService CreateAssetsFileService()
     {
-        public List<RecordingAssetsFileReader> Readers { get; } = [];
-        public List<RecordingAssetsFileWriter> Writers { get; } = [];
+        var firstField = new AssetField("Base", "Base", null, []);
+        var secondField = new AssetField("Base", "Base", null, []);
 
-        public IAssetsFileReader CreateReader()
-        {
-            var reader = new RecordingAssetsFileReader(throwOnRead);
-            Readers.Add(reader);
-
-            return reader;
-        }
-
-        public IAssetsFileWriter CreateWriter()
-        {
-            var writer = new RecordingAssetsFileWriter();
-            Writers.Add(writer);
-
-            return writer;
-        }
-    }
-
-    private sealed class RecordingAssetsFileReader(bool throwOnRead) : IAssetsFileReader
-    {
-        public int DisposeCount { get; private set; }
-
-        public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
-        {
-            return [];
-        }
-
-        public AssetField ReadField(string assetsFilePath, long pathId)
-        {
-            if (throwOnRead)
+        return new StubAssetsFileService(
+            [],
+            new Dictionary<long, AssetField>
             {
-                throw new InvalidOperationException("Test read failure.");
-            }
-
-            return new AssetField("Base", "Base", null, []);
-        }
-
-        public void CloseReadSessions() { }
-
-        public void Dispose()
-        {
-            DisposeCount++;
-        }
-    }
-
-    private sealed class RecordingAssetsFileWriter : IAssetsFileWriter
-    {
-        public int DisposeCount { get; private set; }
-
-        public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan) { }
-
-        public void WriteReplacements(
-            string inputPath,
-            string outputPath,
-            IReadOnlyList<AssetReplacement> plan) { }
-
-        public void WriteFieldPatchesAndCopies(
-            string inputPath,
-            string outputPath,
-            IReadOnlyList<AssetFieldPatch> fieldPatches,
-            IReadOnlyList<AssetCopy> copies) { }
-
-        public void Dispose()
-        {
-            DisposeCount++;
-        }
+                [1] = firstField,
+                [2] = secondField,
+            });
     }
 }

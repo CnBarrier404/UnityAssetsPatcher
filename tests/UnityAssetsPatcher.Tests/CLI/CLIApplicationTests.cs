@@ -47,8 +47,7 @@ public sealed class CLIApplicationTests : IDisposable
         Directory.CreateDirectory(_temporaryDirectory);
         var assetsFileService = new StubAssetsFileService([]);
         _serviceProvider = new ServiceCollection()
-            .AddSingleton<IAssetsFileReader>(assetsFileService)
-            .AddSingleton<IAssetsFileWriter>(assetsFileService)
+            .AddSingleton<IAssetsAccessScopeFactory>(assetsFileService)
             .AddUnityAssetsPatcherApplication(Path.Combine(_temporaryDirectory, "backup"))
             .BuildServiceProvider();
     }

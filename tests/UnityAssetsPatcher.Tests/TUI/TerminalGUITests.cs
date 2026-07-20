@@ -150,8 +150,7 @@ public sealed class TerminalGUITests : IDisposable
     {
         var assetsFileService = new StubAssetsFileService([]);
         using ServiceProvider provider = new ServiceCollection()
-            .AddSingleton<IAssetsFileReader>(assetsFileService)
-            .AddSingleton<IAssetsFileWriter>(assetsFileService)
+            .AddSingleton<IAssetsAccessScopeFactory>(assetsFileService)
             .AddUnityAssetsPatcherApplication("backup")
             .AddUnityAssetsPatcherTUI(new AppInfo("Unity Assets Patcher", "dev"))
             .BuildServiceProvider(new ServiceProviderOptions

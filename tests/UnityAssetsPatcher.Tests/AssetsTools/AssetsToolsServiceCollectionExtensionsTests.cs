@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.AssetsTools;
 using Xunit;
@@ -8,42 +9,67 @@ namespace UnityAssetsPatcher.Tests.AssetsTools;
 public sealed class AssetsToolsServiceCollectionExtensionsTests
 {
     [Fact]
-    public void AddUnityAssetsPatcherAssetsTools_ReaderReturnsAssetData()
+    public void AddUnityAssetsPatcherAssetsTools_FactoryScopeReaderReturnsAssetData()
     {
         using ServiceProvider provider = CreateServiceProvider();
-        using IServiceScope scope = provider.CreateScope();
-        IAssetsFileReader reader = scope.ServiceProvider.GetRequiredService<IAssetsFileReader>();
+        IAssetsAccessScopeFactory factory = provider.GetRequiredService<IAssetsAccessScopeFactory>();
+        using IAssetsAccessScope scope = factory.CreateScope();
 
-        IReadOnlyList<AssetInfo> assets = reader.ReadAssets(GetRealAssetsFilePath());
+        IReadOnlyList<AssetInfo> assets = scope.Reader.ReadAssets(GetRealAssetsFilePath());
 
         Assert.NotEmpty(assets);
     }
 
     [Fact]
-    public void AddUnityAssetsPatcherAssetsTools_RegistersScopedReaderAndWriter()
+    public void AddUnityAssetsPatcherAssetsTools_RegistersSingletonFactoryAndContext()
     {
         using ServiceProvider provider = CreateServiceProvider();
-        using IServiceScope firstScope = provider.CreateScope();
-        IAssetsFileReader firstReader = firstScope.ServiceProvider.GetRequiredService<IAssetsFileReader>();
-        IAssetsFileWriter firstWriter = firstScope.ServiceProvider.GetRequiredService<IAssetsFileWriter>();
 
-        Assert.Same(firstReader, firstScope.ServiceProvider.GetRequiredService<IAssetsFileReader>());
-        Assert.Same(firstWriter, firstScope.ServiceProvider.GetRequiredService<IAssetsFileWriter>());
+        IAssetsAccessScopeFactory firstFactory = provider.GetRequiredService<IAssetsAccessScopeFactory>();
+        IAssetsAccessScopeFactory secondFactory = provider.GetRequiredService<IAssetsAccessScopeFactory>();
+        AssetsToolsContext firstContext = provider.GetRequiredService<AssetsToolsContext>();
+        AssetsToolsContext secondContext = provider.GetRequiredService<AssetsToolsContext>();
 
-        using IServiceScope secondScope = provider.CreateScope();
+        Assert.Same(firstFactory, secondFactory);
+        Assert.Same(firstContext, secondContext);
+    }
 
-        Assert.NotSame(firstReader, secondScope.ServiceProvider.GetRequiredService<IAssetsFileReader>());
-        Assert.NotSame(firstWriter, secondScope.ServiceProvider.GetRequiredService<IAssetsFileWriter>());
-        Assert.IsType<AssetsFileReader>(firstReader);
-        Assert.IsType<AssetsFileWriter>(firstWriter);
+    [Fact]
+    public void AddUnityAssetsPatcherAssetsTools_WithApplication_ValidatesCompleteObjectGraph()
+    {
+        using ServiceProvider provider = new ServiceCollection()
+            .AddUnityAssetsPatcherAssetsTools(() => File.OpenRead(GetRealTpkFilePath()))
+            .AddUnityAssetsPatcherApplication("backup")
+            .BuildServiceProvider(new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true,
+            });
+
+        Assert.NotNull(provider.GetRequiredService<IAssetsAccessScopeFactory>());
+    }
+
+    [Fact]
+    public void CreateScope_WhenCalledTwice_ReturnsIndependentReadersAndWriters()
+    {
+        using ServiceProvider provider = CreateServiceProvider();
+        IAssetsAccessScopeFactory factory = provider.GetRequiredService<IAssetsAccessScopeFactory>();
+        using IAssetsAccessScope firstScope = factory.CreateScope();
+        using IAssetsAccessScope secondScope = factory.CreateScope();
+
+        Assert.NotSame(firstScope, secondScope);
+        Assert.NotSame(firstScope.Reader, secondScope.Reader);
+        Assert.NotSame(firstScope.Writer, secondScope.Writer);
+        Assert.IsType<AssetsFileReader>(firstScope.Reader);
+        Assert.IsType<AssetsFileWriter>(firstScope.Writer);
     }
 
     [Fact]
     public void DisposeScope_DisposesReader()
     {
         using ServiceProvider provider = CreateServiceProvider();
-        IServiceScope scope = provider.CreateScope();
-        IAssetsFileReader reader = scope.ServiceProvider.GetRequiredService<IAssetsFileReader>();
+        IAssetsAccessScope scope = provider.GetRequiredService<IAssetsAccessScopeFactory>().CreateScope();
+        IAssetsFileReader reader = scope.Reader;
 
         scope.Dispose();
 

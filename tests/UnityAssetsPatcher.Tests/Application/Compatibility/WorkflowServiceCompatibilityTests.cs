@@ -224,8 +224,7 @@ public sealed class WorkflowServiceCompatibilityTests
         StubAssetsFileService assetsFileService)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IAssetsFileReader>(assetsFileService);
-        services.AddSingleton<IAssetsFileWriter>(assetsFileService);
+        services.AddSingleton<IAssetsAccessScopeFactory>(assetsFileService);
         services.AddUnityAssetsPatcherApplication(backupDirectory);
 
         return services.BuildServiceProvider(

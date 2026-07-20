@@ -2,7 +2,7 @@ using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.Tests.Support;
 
-internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWriter
+public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFileReader, IAssetsFileWriter
 {
     private readonly IReadOnlyList<AssetInfo> _result;
     private readonly IReadOnlyDictionary<long, AssetField> _fieldTrees;
@@ -39,8 +39,23 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     public int CloseReadSessionsCount { get; private set; }
     public int? CloseReadSessionsCountAtWrite { get; private set; }
     public bool? ReadFilesExistedAtClose { get; private set; }
+    public int ScopeCreateCount { get; private set; }
+    public int ScopeDisposeCount { get; private set; }
+    public int ReaderCreateCount { get; private set; }
+    public int ReaderDisposeCount { get; private set; }
+    public int WriterCreateCount { get; private set; }
+    public int WriterDisposeCount { get; private set; }
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
     public IReadOnlyList<AssetCopy> CopyPlan { get; private set; } = [];
+
+    public IAssetsAccessScope CreateScope()
+    {
+        ScopeCreateCount++;
+        ReaderCreateCount++;
+        WriterCreateCount++;
+
+        return new StubAssetsAccessScope(this);
+    }
 
     public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
     {
@@ -110,5 +125,129 @@ internal sealed class StubAssetsFileService : IAssetsFileReader, IAssetsFileWrit
     {
         ReadFilesExistedAtClose = _readPaths.All(File.Exists);
         CloseReadSessionsCount++;
+    }
+
+    private sealed class StubAssetsAccessScope : IAssetsAccessScope
+    {
+        public IAssetsFileReader Reader { get; }
+        public IAssetsFileWriter Writer { get; }
+
+        private readonly StubAssetsFileService _service;
+        private bool _disposed;
+
+        public StubAssetsAccessScope(StubAssetsFileService service)
+        {
+            _service = service;
+            Reader = new StubAssetsFileReader(service);
+            Writer = new StubAssetsFileWriter(service);
+        }
+
+        public void CloseReadSessions()
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            Reader.CloseReadSessions();
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            Reader.Dispose();
+            Writer.Dispose();
+            _service.ScopeDisposeCount++;
+        }
+    }
+
+    private sealed class StubAssetsFileReader : IAssetsFileReader
+    {
+        private readonly StubAssetsFileService _service;
+        private bool _disposed;
+
+        public StubAssetsFileReader(StubAssetsFileService service)
+        {
+            _service = service;
+        }
+
+        public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
+            return _service.ReadAssets(assetsFilePath);
+        }
+
+        public AssetField ReadField(string assetsFilePath, long pathId)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
+            return _service.ReadField(assetsFilePath, pathId);
+        }
+
+        public void CloseReadSessions()
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _service.CloseReadSessions();
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _service.ReaderDisposeCount++;
+        }
+    }
+
+    private sealed class StubAssetsFileWriter : IAssetsFileWriter
+    {
+        private readonly StubAssetsFileService _service;
+        private bool _disposed;
+
+        public StubAssetsFileWriter(StubAssetsFileService service)
+        {
+            _service = service;
+        }
+
+        public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _service.WriteFieldPatches(inputPath, outputPath, plan);
+        }
+
+        public void WriteReplacements(
+            string inputPath,
+            string outputPath,
+            IReadOnlyList<AssetReplacement> plan)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _service.WriteReplacements(inputPath, outputPath, plan);
+        }
+
+        public void WriteFieldPatchesAndCopies(
+            string inputPath,
+            string outputPath,
+            IReadOnlyList<AssetFieldPatch> fieldPatches,
+            IReadOnlyList<AssetCopy> copies)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _service.WriteFieldPatchesAndCopies(inputPath, outputPath, fieldPatches, copies);
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _service.WriterDisposeCount++;
+        }
     }
 }
