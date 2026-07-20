@@ -39,7 +39,9 @@ public sealed class FieldPatchOperationPlanner
                     operation.Value,
                     false,
                     true,
-                    $"Patch add operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': field is not an array.",
+                    CreateFailure(
+                        PatchDiagnosticCode.InvalidPatchConfiguration,
+                        $"Patch add operation cannot be applied for Path ID {pathId}, field '{operation.FieldPath}': field is not an array."),
                     PatchWriteValueValidation.None,
                     false)
             ];
@@ -70,8 +72,8 @@ public sealed class FieldPatchOperationPlanner
     {
         FieldValueSnapshot value = FieldValueSnapshot.ForSetOperation(field, operation);
         bool matches = field is not null && AssetFieldMatcher.MatchesValue(field, operation.From);
-        string? failureMessage = field is null || !matches || value is { IsArrayPatch: true, ArrayField: null }
-            ? CreateSetMismatchMessage(pathId, operation.FieldPath, value.OldValue, operation.From)
+        PatchDiagnostic? failure = field is null || !matches || value is { IsArrayPatch: true, ArrayField: null }
+            ? CreateSetMismatchFailure(pathId, operation.FieldPath, value.OldValue, operation.From)
             : null;
 
         return new FieldPatchOperationPlan(
@@ -81,7 +83,7 @@ public sealed class FieldPatchOperationPlanner
             operation.To,
             matches,
             true,
-            failureMessage,
+            failure,
             value.IsArrayPatch ? PatchWriteValueValidation.Array : PatchWriteValueValidation.Scalar,
             true,
             operation.FieldPath);
@@ -104,16 +106,16 @@ public sealed class FieldPatchOperationPlanner
                     operation.To,
                     false,
                     true,
-                    CreateSetMismatchMessage(pathId, operation.FieldPath, "<missing>", operation.From),
+                    CreateSetMismatchFailure(pathId, operation.FieldPath, "<missing>", operation.From),
                     PatchWriteValueValidation.None,
                     false)
             ];
         }
 
         bool parentMatches = AssetFieldMatcher.MatchesValue(field, operation.From);
-        string? parentFailureMessage = parentMatches
+        PatchDiagnostic? parentFailure = parentMatches
             ? null
-            : CreateSetMismatchMessage(
+            : CreateSetMismatchFailure(
                 pathId,
                 operation.FieldPath,
                 PatchFieldValueConverter.FormatObjectFieldValue(field),
@@ -127,7 +129,7 @@ public sealed class FieldPatchOperationPlanner
                 operation,
                 property,
                 parentMatches,
-                parentFailureMessage))
+                parentFailure))
             .ToArray();
     }
 
@@ -137,7 +139,7 @@ public sealed class FieldPatchOperationPlanner
         ManifestSetOperation operation,
         JsonProperty property,
         bool parentMatches,
-        string? parentFailureMessage)
+        PatchDiagnostic? parentFailure)
     {
         AssetField? child = PatchFieldValueConverter.Child(parentField, property.Name);
         string childPath = $"{operation.FieldPath}.{property.Name}";
@@ -150,7 +152,7 @@ public sealed class FieldPatchOperationPlanner
             child,
             from,
             isArrayPatch,
-            parentFailureMessage);
+            parentFailure);
 
         return new FieldPatchOperationPlan(
             childPath,
@@ -159,7 +161,7 @@ public sealed class FieldPatchOperationPlanner
             property.Value.Clone(),
             parentMatches && child is not null && (child.Value is not null || isArrayPatch),
             true,
-            writePolicy.FailureMessage,
+            writePolicy.Failure,
             writePolicy.ValueValidation,
             writePolicy.ValidateBeforeFailure);
     }
@@ -170,16 +172,18 @@ public sealed class FieldPatchOperationPlanner
         AssetField? child,
         JsonElement from,
         bool isArrayPatch,
-        string? parentFailureMessage)
+        PatchDiagnostic? parentFailure)
     {
-        if (parentFailureMessage is not null)
+        if (parentFailure is not null)
         {
-            return ChildWritePolicy.Failing(parentFailureMessage);
+            return ChildWritePolicy.Failing(parentFailure);
         }
 
         if (child is null)
         {
-            return ChildWritePolicy.Failing($"Field not found for Path ID {pathId}: {childPath}");
+            return ChildWritePolicy.Failing(CreateFailure(
+                PatchDiagnosticCode.FieldNotFound,
+                $"Field not found for Path ID {pathId}: {childPath}"));
         }
 
         if (isArrayPatch)
@@ -188,7 +192,7 @@ public sealed class FieldPatchOperationPlanner
         }
 
         return child.Value is null
-            ? ChildWritePolicy.FailingScalar(CreateSetMismatchMessage(pathId, childPath, "<missing>", from))
+            ? ChildWritePolicy.FailingScalar(CreateSetMismatchFailure(pathId, childPath, "<missing>", from))
             : ChildWritePolicy.ValidScalar();
     }
 
@@ -199,14 +203,20 @@ public sealed class FieldPatchOperationPlanner
             : child?.Value?.ToInvariantString() ?? "<missing>";
     }
 
-    private static string CreateSetMismatchMessage(
+    private static PatchDiagnostic CreateSetMismatchFailure(
         long pathId,
         string fieldPath,
         string oldValue,
         JsonElement expectedValue)
     {
-        return
-            $"Patch operation cannot be applied for Path ID {pathId}, field '{fieldPath}': current value {oldValue} does not match expected {JsonUtils.FormatElementValue(expectedValue)}.";
+        return CreateFailure(
+            PatchDiagnosticCode.ValueMismatch,
+            $"Patch operation cannot be applied for Path ID {pathId}, field '{fieldPath}': current value {oldValue} does not match expected {JsonUtils.FormatElementValue(expectedValue)}.");
+    }
+
+    private static PatchDiagnostic CreateFailure(PatchDiagnosticCode code, string detail)
+    {
+        return new PatchDiagnostic(code, "", Detail: detail);
     }
 
     private sealed record FieldValueSnapshot(
@@ -234,18 +244,18 @@ public sealed class FieldPatchOperationPlanner
     }
 
     private sealed record ChildWritePolicy(
-        string? FailureMessage,
+        PatchDiagnostic? Failure,
         PatchWriteValueValidation ValueValidation,
         bool ValidateBeforeFailure)
     {
-        public static ChildWritePolicy Failing(string failureMessage)
+        public static ChildWritePolicy Failing(PatchDiagnostic failure)
         {
-            return new ChildWritePolicy(failureMessage, PatchWriteValueValidation.None, false);
+            return new ChildWritePolicy(failure, PatchWriteValueValidation.None, false);
         }
 
-        public static ChildWritePolicy FailingScalar(string failureMessage)
+        public static ChildWritePolicy FailingScalar(PatchDiagnostic failure)
         {
-            return new ChildWritePolicy(failureMessage, PatchWriteValueValidation.Scalar, true);
+            return new ChildWritePolicy(failure, PatchWriteValueValidation.Scalar, true);
         }
 
         public static ChildWritePolicy ValidScalar()
@@ -267,7 +277,7 @@ public sealed record FieldPatchOperationPlan(
     JsonElement To,
     bool WillChange,
     bool WriteRequired,
-    string? WriteFailureMessage,
+    PatchDiagnostic? WriteFailure,
     PatchWriteValueValidation WriteValueValidation,
     bool ValidateBeforeFailure,
     string? WriteValueValidationPath = null);
@@ -290,9 +300,9 @@ public static class FieldPatchWriteOperationMapper
             ValidateWriteValue(operation);
         }
 
-        if (operation.WriteFailureMessage is not null)
+        if (operation.WriteFailure is not null)
         {
-            throw new InvalidOperationException(operation.WriteFailureMessage);
+            throw new PatchPlanningException(operation.WriteFailure);
         }
 
         if (!operation.ValidateBeforeFailure)

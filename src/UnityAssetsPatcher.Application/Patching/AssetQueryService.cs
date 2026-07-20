@@ -48,7 +48,8 @@ public sealed class AssetQueryService
             }
 
             var componentAssetsByPathId = assetsByPathId ??
-                                          throw new InvalidOperationException(
+                                          throw new PatchPlanningException(
+                                              PatchDiagnosticCode.InvalidPatchConfiguration,
                                               "Component target index was not initialized.");
 
             foreach (AssetQueryMatch componentMatch in FindComponentMatches(
@@ -76,7 +77,8 @@ public sealed class AssetQueryService
 
         if (componentAssets.Length > 1)
         {
-            throw new InvalidOperationException(
+            throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
                 $"GameObject Path ID {ownerMatch.Asset.PathId} contains multiple '{componentTypeName}' components.");
         }
 

@@ -54,7 +54,8 @@ public sealed class PatchPlanner
                     request.Targets.Where(PatchOperationRules.HasFieldPatchOperations).ToArray(),
                     request.IncludePreviewDetails);
                 CopyAssetPlanningOutput copyOutput = (_copyAssetPlanner ??
-                                                      throw new InvalidOperationException(
+                                                      throw new PatchPlanningException(
+                                                          PatchDiagnosticCode.InvalidPatchConfiguration,
                                                           "Copy asset planner is not configured.")).Plan(
                     request.AssetsFilePath,
                     request.Targets);
@@ -79,9 +80,12 @@ public sealed class PatchPlanner
 
             return new PatchPlanningResult(plan, preview, null);
         }
-        catch (Exception exception) when (exception is InvalidOperationException or FileNotFoundException)
+        catch (PatchPlanningException exception)
         {
-            PatchDiagnostic diagnostic = PatchDiagnosticClassifier.Classify(request.AssetsFilePath, exception);
+            PatchDiagnostic diagnostic = exception.Diagnostic with
+            {
+                AssetsFilePath = request.AssetsFilePath
+            };
 
             return new PatchPlanningResult(null, new PatchPreviewResult([], diagnostic), diagnostic);
         }
@@ -117,7 +121,8 @@ public sealed class PatchPlanner
     {
         if (!PatchOperationRules.HasPatchOperations(targets))
         {
-            throw new InvalidOperationException(
+            throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
                 "Patch config must contain a non-empty 'set', 'add', 'replaceAsset', or 'copyAsset' operation.");
         }
 
@@ -127,32 +132,5 @@ public sealed class PatchPlanner
         }
 
         PatchOperationRules.EnsureCopyOperationsAreValid(targets);
-    }
-}
-
-public static class PatchDiagnosticClassifier
-{
-    public static PatchDiagnostic Classify(string assetsFilePath, Exception exception)
-    {
-        string detail = exception.Message;
-        PatchDiagnosticCode code = detail switch
-        {
-            _ when detail.StartsWith("Path ID reference did not match", StringComparison.Ordinal) =>
-                PatchDiagnosticCode.PathIdReferenceNotFound,
-            _ when detail.StartsWith("Path ID reference matched multiple", StringComparison.Ordinal) =>
-                PatchDiagnosticCode.PathIdReferenceAmbiguous,
-            _ when detail.Contains("unsupported value type", StringComparison.Ordinal) =>
-                PatchDiagnosticCode.UnsupportedValue,
-            _ when detail.StartsWith("Field not found", StringComparison.Ordinal) =>
-                PatchDiagnosticCode.FieldNotFound,
-            _ when detail.Contains("does not match expected", StringComparison.Ordinal) =>
-                PatchDiagnosticCode.ValueMismatch,
-            _ when exception is FileNotFoundException => PatchDiagnosticCode.ReplacementSourceNotFound,
-            _ when detail.StartsWith("Replacement", StringComparison.Ordinal) =>
-                PatchDiagnosticCode.ReplacementMatchInvalid,
-            _ => PatchDiagnosticCode.InvalidPatchConfiguration,
-        };
-
-        return new PatchDiagnostic(code, assetsFilePath, Detail: detail);
     }
 }

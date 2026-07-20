@@ -33,18 +33,22 @@ public sealed class CopyAssetPlanner
 
             if (!string.Equals(target.Asset.TypeName, source.Asset.TypeName, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException(
+                throw new PatchPlanningException(
+                    PatchDiagnosticCode.InvalidPatchConfiguration,
                     $"Copy asset source type '{source.Asset.TypeName}' does not match target type '{target.Asset.TypeName}'.");
             }
 
             if (source.Asset.PathId == target.Asset.PathId)
             {
-                throw new InvalidOperationException("Copy asset source and target cannot be the same asset.");
+                throw new PatchPlanningException(
+                    PatchDiagnosticCode.InvalidPatchConfiguration,
+                    "Copy asset source and target cannot be the same asset.");
             }
 
             if (!targetPathIds.Add(target.Asset.PathId))
             {
-                throw new InvalidOperationException(
+                throw new PatchPlanningException(
+                    PatchDiagnosticCode.InvalidPatchConfiguration,
                     $"Copy asset target Path ID {target.Asset.PathId} is declared more than once.");
             }
 
@@ -63,7 +67,8 @@ public sealed class CopyAssetPlanner
 
         if (copies.Any(copy => targetPathIds.Contains(copy.SourcePathId)))
         {
-            throw new InvalidOperationException(
+            throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
                 "Chained or cyclic 'copyAsset' operations are not supported.");
         }
 
@@ -80,8 +85,12 @@ public sealed class CopyAssetPlanner
         return matches.Length switch
         {
             1 => matches[0],
-            0 => throw new InvalidOperationException($"Copy asset {role} did not match an asset."),
-            _ => throw new InvalidOperationException($"Copy asset {role} matched multiple assets."),
+            0 => throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
+                $"Copy asset {role} did not match an asset."),
+            _ => throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
+                $"Copy asset {role} matched multiple assets."),
         };
     }
 }

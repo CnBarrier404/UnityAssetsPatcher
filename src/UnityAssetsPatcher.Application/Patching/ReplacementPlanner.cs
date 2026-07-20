@@ -88,7 +88,8 @@ public sealed class ReplacementPlanner
 
                 if (!seenTargetValues.TryAdd(matchValue, targetMatch.Asset.PathId))
                 {
-                    throw new InvalidOperationException(
+                    throw new PatchPlanningException(
+                        PatchDiagnosticCode.ReplacementMatchInvalid,
                         $"Replacement target contains multiple '{patch.AssetTypeName}' assets with {replaceFrom.MatchFieldPath} '{matchValue}'.");
                 }
 
@@ -105,9 +106,11 @@ public sealed class ReplacementPlanner
 
                 yield return sourceMatches.Count switch
                 {
-                    0 => throw new InvalidOperationException(
+                    0 => throw new PatchPlanningException(
+                        PatchDiagnosticCode.ReplacementMatchInvalid,
                         $"Replacement source did not contain a '{patch.AssetTypeName}' asset with {replaceFrom.MatchFieldPath} '{matchValue}'."),
-                    > 1 => throw new InvalidOperationException(
+                    > 1 => throw new PatchPlanningException(
+                        PatchDiagnosticCode.ReplacementMatchInvalid,
                         $"Replacement source contains multiple '{patch.AssetTypeName}' assets with {replaceFrom.MatchFieldPath} '{matchValue}'."),
                     _ => new AssetReplacementMatch(
                         targetMatch.Asset,
@@ -127,7 +130,8 @@ public sealed class ReplacementPlanner
     {
         AssetField? field = AssetFieldNavigator.Find(fieldTree, matchFieldPath);
 
-        return field?.Value?.ToInvariantString() ?? throw new InvalidOperationException(
+        return field?.Value?.ToInvariantString() ?? throw new PatchPlanningException(
+            PatchDiagnosticCode.ReplacementMatchInvalid,
             $"Replacement {role} Path ID {pathId} does not contain scalar match field '{matchFieldPath}'.");
     }
 
@@ -142,7 +146,8 @@ public sealed class ReplacementPlanner
             return resolvedPath;
         }
 
-        throw new FileNotFoundException(
+        throw new PatchPlanningException(
+            PatchDiagnosticCode.ReplacementSourceNotFound,
             $"Replacement source assets file not found in package: {assetsFilePath}");
     }
 

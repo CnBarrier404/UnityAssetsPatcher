@@ -108,11 +108,12 @@ public sealed class ReplacementPlannerTests
             });
         var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
-        var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
+        var exception = Assert.Throws<PatchPlanningException>(() => builder.CreateWritePlan(
             TargetPath,
             [CreatePatch("A")],
             SourcePaths));
 
+        Assert.Equal(PatchDiagnosticCode.ReplacementMatchInvalid, exception.Diagnostic.Code);
         Assert.Equal(
             "Replacement source contains multiple 'AudioClip' assets with m_Name 'A'.",
             exception.Message);
@@ -135,11 +136,12 @@ public sealed class ReplacementPlannerTests
             });
         var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
-        var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
+        var exception = Assert.Throws<PatchPlanningException>(() => builder.CreateWritePlan(
             TargetPath,
             [CreatePatch("A")],
             SourcePaths));
 
+        Assert.Equal(PatchDiagnosticCode.ReplacementMatchInvalid, exception.Diagnostic.Code);
         Assert.Equal(
             "Replacement target contains multiple 'AudioClip' assets with m_Name 'A'.",
             exception.Message);
@@ -160,11 +162,12 @@ public sealed class ReplacementPlannerTests
             });
         var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
-        var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
+        var exception = Assert.Throws<PatchPlanningException>(() => builder.CreateWritePlan(
             TargetPath,
             [CreatePatch("A")],
             SourcePaths));
 
+        Assert.Equal(PatchDiagnosticCode.ReplacementMatchInvalid, exception.Diagnostic.Code);
         Assert.Equal(
             "Replacement source did not contain a 'AudioClip' asset with m_Name 'A'.",
             exception.Message);
@@ -186,11 +189,12 @@ public sealed class ReplacementPlannerTests
             });
         var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
-        var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
+        var exception = Assert.Throws<PatchPlanningException>(() => builder.CreateWritePlan(
             TargetPath,
             [CreatePatch("A", "m_Key")],
             SourcePaths));
 
+        Assert.Equal(PatchDiagnosticCode.ReplacementMatchInvalid, exception.Diagnostic.Code);
         Assert.Equal(
             "Replacement target Path ID 1 does not contain scalar match field 'm_Key'.",
             exception.Message);
@@ -213,11 +217,12 @@ public sealed class ReplacementPlannerTests
             });
         var builder = new ReplacementPlanner(new AssetQueryService(reader));
 
-        var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
+        var exception = Assert.Throws<PatchPlanningException>(() => builder.CreateWritePlan(
             TargetPath,
             [CreatePatch("1")],
             SourcePaths));
 
+        Assert.Equal(PatchDiagnosticCode.ReplacementMatchInvalid, exception.Diagnostic.Code);
         Assert.Equal(
             "Replacement source did not contain a 'AudioClip' asset with m_Name '1'.",
             exception.Message);

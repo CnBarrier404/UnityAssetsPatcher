@@ -177,10 +177,11 @@ public sealed class FieldPatchPlannerTests
             });
         FieldPatchPlanner builder = CreateFieldPatchPlanner(new AssetQueryService(reader));
 
-        var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
+        var exception = Assert.Throws<PatchPlanningException>(() => builder.CreateWritePlan(
             AssetsPath,
             [CreatePatch([CreateSetOperation("m_Reference", "Texture2D", "Missing")])]));
 
+        Assert.Equal(PatchDiagnosticCode.PathIdReferenceNotFound, exception.Diagnostic.Code);
         Assert.Equal(
             "Path ID reference did not match any assets for type 'Texture2D'.",
             exception.Message);
@@ -203,10 +204,11 @@ public sealed class FieldPatchPlannerTests
             });
         FieldPatchPlanner builder = CreateFieldPatchPlanner(new AssetQueryService(reader));
 
-        var exception = Assert.Throws<InvalidOperationException>(() => builder.CreateWritePlan(
+        var exception = Assert.Throws<PatchPlanningException>(() => builder.CreateWritePlan(
             AssetsPath,
             [CreatePatch([CreateSetOperation("m_Reference", "Texture2D", "Duplicate")])]));
 
+        Assert.Equal(PatchDiagnosticCode.PathIdReferenceAmbiguous, exception.Diagnostic.Code);
         Assert.Equal(
             "Path ID reference matched multiple assets for type 'Texture2D'.",
             exception.Message);

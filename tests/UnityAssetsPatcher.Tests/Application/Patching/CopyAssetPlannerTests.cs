@@ -31,10 +31,11 @@ public sealed class CopyAssetPlannerTests
         StubAssetsFileService assets = CreateAssets();
         var planner = new CopyAssetPlanner(new AssetQueryService(assets));
 
-        var exception = Assert.Throws<InvalidOperationException>(() => planner.Plan(
+        var exception = Assert.Throws<PatchPlanningException>(() => planner.Plan(
             "sharedassets6.assets",
             [CreateCopyPatch("Chair", "Table"), CreateCopyPatch("Table", "Other")]));
 
+        Assert.Equal(PatchDiagnosticCode.InvalidPatchConfiguration, exception.Diagnostic.Code);
         Assert.Contains("Chained or cyclic", exception.Message);
     }
 

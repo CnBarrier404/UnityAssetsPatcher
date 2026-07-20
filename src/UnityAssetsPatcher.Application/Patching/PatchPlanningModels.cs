@@ -56,8 +56,14 @@ public sealed class PatchPlanningException : InvalidOperationException
     public PatchDiagnostic Diagnostic { get; }
 
     public PatchPlanningException(PatchDiagnostic diagnostic)
-        : base(diagnostic.Code.ToString())
+        : base(diagnostic.Detail ?? diagnostic.Code.ToString())
     {
         Diagnostic = diagnostic;
     }
+
+    public PatchPlanningException(
+        PatchDiagnosticCode code,
+        string detail,
+        string assetsFilePath = "")
+        : this(new PatchDiagnostic(code, assetsFilePath, Detail: detail)) { }
 }

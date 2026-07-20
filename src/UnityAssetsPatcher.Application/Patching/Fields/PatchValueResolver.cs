@@ -51,9 +51,11 @@ public sealed class PatchValueResolver
         return matches.Length switch
         {
             1 => matches[0].PathId,
-            0 => throw new InvalidOperationException(
+            0 => throw new PatchPlanningException(
+                PatchDiagnosticCode.PathIdReferenceNotFound,
                 $"Path ID reference did not match any assets for type '{type}'."),
-            _ => throw new InvalidOperationException(
+            _ => throw new PatchPlanningException(
+                PatchDiagnosticCode.PathIdReferenceAmbiguous,
                 $"Path ID reference matched multiple assets for type '{type}'.")
         };
     }
@@ -77,14 +79,16 @@ public sealed class PatchValueResolver
         if (!resolver.TryGetProperty(propertyName, out JsonElement propertyElement) ||
             propertyElement.ValueKind != JsonValueKind.String)
         {
-            throw new InvalidOperationException(
+            throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
                 $"Path ID reference must contain a non-empty string '{propertyName}' property.");
         }
 
         string? value = propertyElement.GetString();
 
         return string.IsNullOrWhiteSpace(value)
-            ? throw new InvalidOperationException(
+            ? throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
                 $"Path ID reference must contain a non-empty string '{propertyName}' property.")
             : value;
     }
@@ -95,14 +99,18 @@ public sealed class PatchValueResolver
         if (!resolver.TryGetProperty("match", out JsonElement matchElement) ||
             matchElement.ValueKind != JsonValueKind.Object)
         {
-            throw new InvalidOperationException("Path ID reference must contain a 'match' object.");
+            throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
+                "Path ID reference must contain a 'match' object.");
         }
 
         var includeGroup = matchElement.EnumerateObject()
             .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal);
 
         return includeGroup.Count == 0
-            ? throw new InvalidOperationException("Path ID reference match object cannot be empty.")
+            ? throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
+                "Path ID reference match object cannot be empty.")
             : includeGroup;
     }
 }

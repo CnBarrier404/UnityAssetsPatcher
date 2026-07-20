@@ -37,25 +37,7 @@ public sealed class FieldPatchPlanner
             return new FieldPatchPlanningOutput([], new PatchPreviewResult([]));
         }
 
-        if (!includePreviewDetails)
-        {
-            return CreatePlanWithoutPreviewDetails(assetsFilePath, targets);
-        }
-
         var assetPlans = CreateAssetPlans(assetsFilePath, targets).ToArray();
-        var preview = new PatchPreviewResult(assetPlans
-            .Select(assetPlan => new PatchPreviewAssetResult(
-                assetPlan.Asset,
-                assetPlan.Operations
-                    .Select(operation => new PatchPreviewOperationResult(
-                        operation.Path,
-                        operation.OldValue,
-                        JsonUtils.FormatElementValue(operation.From),
-                        JsonUtils.FormatElementValue(operation.To),
-                        operation.WillChange))
-                    .ToArray()))
-            .ToArray());
-
         var operationGroups = new Dictionary<long, List<FieldPatchOperation>>();
 
         foreach (FieldPatchAssetPlan assetPlan in assetPlans)
@@ -75,35 +57,22 @@ public sealed class FieldPatchPlanner
         var assets = operationGroups
             .Select(group => new AssetFieldPatch(group.Key, group.Value))
             .ToArray();
+        var preview = new PatchPreviewResult(includePreviewDetails
+            ? assetPlans
+                .Select(assetPlan => new PatchPreviewAssetResult(
+                    assetPlan.Asset,
+                    assetPlan.Operations
+                        .Select(operation => new PatchPreviewOperationResult(
+                            operation.Path,
+                            operation.OldValue,
+                            JsonUtils.FormatElementValue(operation.From),
+                            JsonUtils.FormatElementValue(operation.To),
+                            operation.WillChange))
+                        .ToArray()))
+                .ToArray()
+            : []);
 
         return new FieldPatchPlanningOutput(assets, preview);
-    }
-
-    private FieldPatchPlanningOutput CreatePlanWithoutPreviewDetails(
-        string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets)
-    {
-        var operationGroups = new Dictionary<long, List<FieldPatchOperation>>();
-
-        foreach (FieldPatchAssetPlan assetPlan in CreateAssetPlans(assetsFilePath, targets))
-        {
-            if (!operationGroups.TryGetValue(assetPlan.Asset.PathId, out var operations))
-            {
-                operations = [];
-                operationGroups.Add(assetPlan.Asset.PathId, operations);
-            }
-
-            foreach (FieldPatchOperationPlan operation in assetPlan.Operations)
-            {
-                FieldPatchWriteOperationMapper.AddTo(operations, operation);
-            }
-        }
-
-        var assets = operationGroups
-            .Select(group => new AssetFieldPatch(group.Key, group.Value))
-            .ToArray();
-
-        return new FieldPatchPlanningOutput(assets, new PatchPreviewResult([]));
     }
 
     private IEnumerable<FieldPatchAssetPlan> CreateAssetPlans(
@@ -143,9 +112,11 @@ public sealed class FieldPatchPlanner
         return matches.Length switch
         {
             1 => matches[0],
-            0 => throw new InvalidOperationException(
+            0 => throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
                 $"No field patch operation handler is registered for '{operation.GetType().Name}'."),
-            _ => throw new InvalidOperationException(
+            _ => throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
                 $"Multiple field patch operation handlers are registered for '{operation.GetType().Name}'."),
         };
     }

@@ -105,7 +105,8 @@ public static class PatchFieldValueConverter
             return;
         }
 
-        throw new InvalidOperationException(
+        throw new PatchPlanningException(
+            PatchDiagnosticCode.UnsupportedValue,
             $"Patch operation for field '{path}' uses an unsupported value type: {value.ValueKind}.");
     }
 
@@ -147,7 +148,8 @@ public static class PatchFieldValueConverter
 
     private static AssetFieldValue GetArrayElementValue(AssetField field)
     {
-        return field.Value ?? throw new InvalidOperationException(
+        return field.Value ?? throw new PatchPlanningException(
+            PatchDiagnosticCode.InvalidPatchConfiguration,
             $"Array field '{field.Name}' contains a non-scalar element.");
     }
 
@@ -176,7 +178,9 @@ public static class PatchFieldValueConverter
                 writer.WriteNumberValue(doubleValue.Value);
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported scalar value type '{value.GetType().Name}'.");
+                throw new PatchPlanningException(
+                    PatchDiagnosticCode.InvalidPatchConfiguration,
+                    $"Unsupported scalar value type '{value.GetType().Name}'.");
         }
     }
 
@@ -239,7 +243,8 @@ public static class PatchFieldValueConverter
                     _doubles.Add(number.Value);
                     break;
                 default:
-                    throw new InvalidOperationException(
+                    throw new PatchPlanningException(
+                        PatchDiagnosticCode.InvalidPatchConfiguration,
                         $"Unsupported scalar value type '{value.GetType().Name}'.");
             }
         }

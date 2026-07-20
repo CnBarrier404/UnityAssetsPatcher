@@ -36,7 +36,8 @@ public static class PatchOperationRules
     {
         if (targets.Any(HasFieldPatchOperations) || HasCopyOperations(targets))
         {
-            throw new InvalidOperationException(
+            throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
                 "Manifest 'replaceAsset' operations cannot be combined with 'set', 'add', or 'copyAsset' operations for the same assets file.");
         }
     }
@@ -48,7 +49,8 @@ public static class PatchOperationRules
             if (HasFieldPatchOperations(target) || target.ReplaceFrom is not null ||
                 target.ComponentTypeName is not null)
             {
-                throw new InvalidOperationException(
+                throw new PatchPlanningException(
+                    PatchDiagnosticCode.InvalidPatchConfiguration,
                     "Manifest 'copyAsset' cannot be combined with 'set', 'add', 'replaceAsset', or 'componentType' in the same patch.");
             }
         }
@@ -61,7 +63,8 @@ public static class PatchOperationRules
             return;
         }
 
-        throw new InvalidOperationException(
+        throw new PatchPlanningException(
+            PatchDiagnosticCode.InvalidPatchConfiguration,
             "Patch config must contain a non-empty 'set', 'add', 'replaceAsset', or 'copyAsset' operation.");
     }
 }
