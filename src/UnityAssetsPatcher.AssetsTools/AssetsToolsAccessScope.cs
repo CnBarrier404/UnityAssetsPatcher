@@ -5,24 +5,51 @@ namespace UnityAssetsPatcher.AssetsTools;
 
 public sealed class AssetsToolsAccessScope : IAssetsAccessScope
 {
-    public IAssetsFileReader Reader { get; }
-    public IAssetsFileWriter Writer { get; }
+    public IAssetsFileReader Reader
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _reader ??= _readerFactory();
 
+            return _reader;
+        }
+    }
+
+    public IAssetsFileWriter Writer
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _writer ??= _writerFactory();
+
+            return _writer;
+        }
+    }
+
+    private readonly Func<IAssetsFileReader> _readerFactory;
+    private readonly Func<IAssetsFileWriter> _writerFactory;
+    private IAssetsFileReader? _reader;
+    private IAssetsFileWriter? _writer;
     private bool _disposed;
 
-    public AssetsToolsAccessScope(IAssetsFileReader reader, IAssetsFileWriter writer)
+    public AssetsToolsAccessScope(
+        Func<IAssetsFileReader> readerFactory,
+        Func<IAssetsFileWriter> writerFactory)
     {
-        ArgumentNullException.ThrowIfNull(reader);
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(readerFactory);
+        ArgumentNullException.ThrowIfNull(writerFactory);
 
-        Reader = reader;
-        Writer = writer;
+        _readerFactory = readerFactory;
+        _writerFactory = writerFactory;
     }
 
     public void CloseReadSessions()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        Reader.CloseReadSessions();
+        IAssetsFileReader? reader = _reader;
+        _reader = null;
+        reader?.Dispose();
     }
 
     public void Dispose()
@@ -34,10 +61,14 @@ public sealed class AssetsToolsAccessScope : IAssetsAccessScope
 
         _disposed = true;
         ExceptionDispatchInfo? firstException = null;
+        IAssetsFileReader? reader = _reader;
+        IAssetsFileWriter? writer = _writer;
+        _reader = null;
+        _writer = null;
 
         try
         {
-            Reader.Dispose();
+            reader?.Dispose();
         }
         catch (Exception exception)
         {
@@ -46,7 +77,7 @@ public sealed class AssetsToolsAccessScope : IAssetsAccessScope
 
         try
         {
-            Writer.Dispose();
+            writer?.Dispose();
         }
         catch (Exception exception)
         {

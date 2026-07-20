@@ -41,12 +41,6 @@ public sealed class AssetsFileReader : IAssetsFileReader
         return ReadSessionField(GetSession(Path.GetFullPath(assetsFilePath)), pathId);
     }
 
-    public void CloseReadSessions()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        CloseReadSessionsCore();
-    }
-
     public void Dispose()
     {
         if (_disposed)

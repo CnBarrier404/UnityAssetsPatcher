@@ -1,16 +1,16 @@
+using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Application.Assets;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
-internal sealed record InstallExecutionResult(
+public sealed record InstallExecutionResult(
     IReadOnlyList<InstallPatchAppliedFile> PatchedFiles,
     IReadOnlyList<InstallChange> CopiedFiles,
     string InstallId);
 
-internal sealed record InstallPatchAppliedFile(
+public sealed record InstallPatchAppliedFile(
     string Target,
     string AssetsFilePath,
     string BackupPath,
@@ -19,31 +19,26 @@ internal sealed record InstallPatchAppliedFile(
 
 public sealed class InstallExecutor
 {
-    private readonly PatchOutputWriter _patchOutputWriter;
-    private readonly IAssetsFileReader _assetsReader;
+    private sealed record InstallPatchPlanFile(string Target, string AssetsFilePath, PatchPlan PatchPlan);
+
     private readonly BackupRepository _backupRepository;
 
-    public InstallExecutor(
-        PatchOutputWriter patchOutputWriter,
-        IAssetsFileReader assetsReader,
-        BackupRepository backupRepository)
+    public InstallExecutor(BackupRepository backupRepository)
     {
-        _patchOutputWriter = patchOutputWriter;
-        _assetsReader = assetsReader;
         _backupRepository = backupRepository;
     }
 
-    public void CloseReadSessions()
+    public InstallExecutionResult Execute(
+        ModPackage package,
+        InstallAnalysis analysis,
+        IAssetsFileWriter assetsWriter,
+        StepTimer timings)
     {
-        _assetsReader.CloseReadSessions();
-    }
-
-    internal InstallExecutionResult Execute(InstallPlanSession<InstallWritePlan> session, StepTimer timings)
-    {
-        InstallWritePlan plan = session.Plan;
+        var patchOutputWriter = new PatchOutputWriter(assetsWriter);
+        var patchFiles = CreateRequiredPatchFiles(analysis);
         BackupRepositoryMetadata repository = _backupRepository.LoadMetadata();
         string installId = Guid.NewGuid().ToString("N");
-        string gameDirectory = Path.GetFullPath(plan.GameDirectory);
+        string gameDirectory = Path.GetFullPath(analysis.GameDirectory);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(gameDirectory);
         long sequence = InstallSequenceAllocator.Allocate(
             _backupRepository.ListRecords().Select(entry => entry.Record), fingerprint, repository.RepositoryId);
@@ -60,31 +55,36 @@ public sealed class InstallExecutor
 
         try
         {
-            CloseReadSessions();
             Directory.CreateDirectory(rollbackDirectory);
             Directory.CreateDirectory(preparedDirectory);
             Directory.CreateDirectory(backupsDirectory);
 
-            for (int index = 0; index < plan.PatchFiles.Count; index++)
+            for (int index = 0; index < patchFiles.Count; index++)
             {
-                InstallPatchPlanFile file = plan.PatchFiles[index];
+                InstallPatchPlanFile file = patchFiles[index];
                 string rollbackPath = Path.Combine(rollbackDirectory, $"assets-{index}.bin");
                 string preparedPath = Path.Combine(preparedDirectory, $"assets-{index}.bin");
                 string finalBackupPath = Path.Combine(backupsDirectory, $"assets-{index}.bin");
-                FileIntegrity before = FileIntegrity.Create(file.AssetsFilePath);
+                var before = FileIntegrity.Create(file.AssetsFilePath);
                 File.Copy(file.AssetsFilePath, rollbackPath, false);
-                if (!before.Matches(rollbackPath))
-                    throw new IOException($"Backup verification failed: {file.AssetsFilePath}");
 
-                PatchApplyResult result = timings.Measure("prepare-patch", () => _patchOutputWriter.Write(
+                if (!before.Matches(rollbackPath))
+                {
+                    throw new IOException($"Backup verification failed: {file.AssetsFilePath}");
+                }
+
+                PatchApplyResult result = timings.Measure("prepare-patch", () => patchOutputWriter.Write(
                     file.AssetsFilePath, preparedPath, file.PatchPlan));
+
                 if (result.OperationCount == 0)
                 {
                     File.Delete(rollbackPath);
+
                     continue;
                 }
 
-                FileIntegrity after = FileIntegrity.Create(preparedPath);
+                var after = FileIntegrity.Create(preparedPath);
+
                 File.Copy(rollbackPath, finalBackupPath, false);
                 transactionFiles.Add(new BackupTransactionFile(
                     BackupFileKind.Assets,
@@ -99,15 +99,20 @@ public sealed class InstallExecutor
                     result.AssetCount, result.OperationCount));
             }
 
-            for (int index = 0; index < plan.PayloadFiles.Count; index++)
+            for (int index = 0; index < analysis.PayloadFiles.Count; index++)
             {
-                InstallPayloadFilePlan file = plan.PayloadFiles[index];
+                InstallPayloadFilePlan file = analysis.PayloadFiles[index];
+
                 string preparedPath = Path.Combine(preparedDirectory, $"payload-{index}.bin");
-                session.Package.CopyPayloadFile(file.Source, preparedPath);
-                FileIntegrity after = FileIntegrity.Create(preparedPath);
+
+                package.CopyPayloadFile(file.Source, preparedPath);
+
+                var after = FileIntegrity.Create(preparedPath);
+
                 transactionFiles.Add(new BackupTransactionFile(BackupFileKind.Payload,
                     Path.GetRelativePath(gameDirectory, file.DestinationPath), null, after, null,
                     Path.GetRelativePath(temporaryDirectory, preparedPath)));
+
                 copied.Add(new InstallChange(InstallChangeKind.Payload, file.Source, file.DestinationPath));
             }
 
@@ -117,10 +122,10 @@ public sealed class InstallExecutor
                 sequence,
                 installId,
                 DateTimeOffset.Now,
-                session.Package.Manifest.Name,
-                session.Package.Manifest.Version,
-                session.Package.Manifest.Author,
-                session.Package.Manifest.Game,
+                analysis.Manifest.Name,
+                analysis.Manifest.Version,
+                analysis.Manifest.Author,
+                analysis.Manifest.Game,
                 patched.Select((file, index) => new InstallRecordPatchedFile(
                     file.Target,
                     Path.GetRelativePath(gameDirectory, file.AssetsFilePath),
@@ -135,10 +140,11 @@ public sealed class InstallExecutor
                             .After!))
                     .ToArray())
             {
-                OptionalGroups = session.Package.AppliedOptionalGroups.Count == 0
+                OptionalGroups = analysis.AppliedOptionalGroups.Count == 0
                     ? null
-                    : session.Package.AppliedOptionalGroups,
+                    : analysis.AppliedOptionalGroups,
             };
+
             _backupRepository.WriteRecord(record, preparedInstallDirectory);
 
             transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Install, installId,
@@ -149,21 +155,51 @@ public sealed class InstallExecutor
             ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
             _backupRepository.CommitInstall(preparedInstallDirectory, installId);
             Directory.Delete(temporaryDirectory, true);
+
             return new InstallExecutionResult(patched, copied, installId);
         }
         catch (Exception failure)
         {
-            if (!transactionSaved)
+            HandleFailure(failure, transactionSaved, transaction, temporaryDirectory, gameDirectory);
+
+            throw;
+        }
+    }
+
+    private static IReadOnlyList<InstallPatchPlanFile> CreateRequiredPatchFiles(InstallAnalysis analysis)
+    {
+        return analysis.Targets
+            .Select(target => new InstallPatchPlanFile(
+                target.Target,
+                target.AssetsFilePath,
+                target.PlanningResult.Plan ?? throw new InvalidOperationException(
+                    "Apply analysis did not contain a patch plan.")))
+            .ToArray();
+    }
+
+    private void HandleFailure(
+        Exception failure,
+        bool transactionSaved,
+        BackupTransaction? transaction,
+        string temporaryDirectory,
+        string gameDirectory)
+    {
+        if (!transactionSaved)
+        {
+            if (Directory.Exists(temporaryDirectory))
             {
-                if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, true);
-                throw;
+                Directory.Delete(temporaryDirectory, true);
             }
 
-            BackupRecoveryReport recovery = _backupRepository.RecoverTrustedUnderLock(transaction!, gameDirectory);
-            if (recovery.Status == BackupRepositoryStatus.Locked)
-                throw new BackupRecoveryException("Install failed and automatic rollback was unsafe.", recovery,
-                    failure);
-            throw;
+            return;
+        }
+
+        BackupRecoveryReport recovery = _backupRepository.RecoverTrustedUnderLock(transaction!, gameDirectory);
+
+        if (recovery.Status == BackupRepositoryStatus.Locked)
+        {
+            throw new
+                BackupRecoveryException("Install failed and automatic rollback was unsafe.", recovery, failure);
         }
     }
 
@@ -175,8 +211,11 @@ public sealed class InstallExecutor
         foreach (BackupTransactionFile file in transaction.Files)
         {
             string target = BackupFileSystem.ResolveTrustedPath(gameDirectory, file.RelativePath);
-            if (file.Before is null ? File.Exists(target) : !file.Before.Matches(target))
+
+            if (!file.Before?.Matches(target) ?? File.Exists(target))
+            {
                 throw new IOException($"Install target changed before mutation: {target}");
+            }
         }
 
         foreach (BackupTransactionFile file in transaction.Files)
@@ -184,6 +223,7 @@ public sealed class InstallExecutor
             string target = BackupFileSystem.ResolveTrustedPath(gameDirectory, file.RelativePath);
             string source = Path.GetFullPath(Path.Combine(temporaryDirectory,
                 file.PreparedRelativePath ?? throw new InvalidOperationException("Prepared file path is missing.")));
+
             if (file.Before is null)
             {
                 CopyNewAtomically(source, target);
@@ -194,7 +234,9 @@ public sealed class InstallExecutor
             }
 
             if (file.After is null || !file.After.Matches(target))
+            {
                 throw new IOException($"Installed file verification failed: {target}");
+            }
         }
     }
 
@@ -202,6 +244,7 @@ public sealed class InstallExecutor
     {
         string directory = Path.GetDirectoryName(destination)!;
         string temporary = Path.Combine(directory, $".{Path.GetFileName(destination)}.{Guid.NewGuid():N}.tmp");
+
         try
         {
             File.Copy(source, temporary, false);
@@ -209,7 +252,10 @@ public sealed class InstallExecutor
         }
         finally
         {
-            if (File.Exists(temporary)) File.Delete(temporary);
+            if (File.Exists(temporary))
+            {
+                File.Delete(temporary);
+            }
         }
     }
 }

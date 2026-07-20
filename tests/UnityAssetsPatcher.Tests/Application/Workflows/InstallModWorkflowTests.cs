@@ -483,6 +483,9 @@ public sealed class InstallModWorkflowTests
             Assert.Single(PatchChanges(result.Changes));
             Assert.True(assetsFileService.ReadFilesExistedAtClose);
             Assert.False(assetsFileService.WasCalled);
+            Assert.Equal(1, assetsFileService.ScopeDisposeCount);
+            Assert.Equal(1, assetsFileService.ReaderDisposeCount);
+            Assert.Equal(0, assetsFileService.WriterCreateCount);
         }
         finally
         {
@@ -531,7 +534,8 @@ public sealed class InstallModWorkflowTests
               ]
             }
             """);
-        var workflow = CreateWorkflow(new StubAssetsFileService(
+        string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var assetsFileService = new StubAssetsFileService(
             [new AssetInfo(4, "Camera")],
             new Dictionary<long, AssetField>
             {
@@ -543,7 +547,8 @@ public sealed class InstallModWorkflowTests
                         new AssetField("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
                     ]),
                 ]),
-            }));
+            });
+        var workflow = CreateWorkflow(assetsFileService, backupDirectory);
 
         try
         {
@@ -561,6 +566,13 @@ public sealed class InstallModWorkflowTests
             Assert.Equal("m_CullingMask.m_Bits", operation.Path);
             Assert.Equal("3211820983", operation.OldValue);
             Assert.Equal("original", File.ReadAllText(targetPath));
+            Assert.Equal(1, assetsFileService.ScopeCreateCount);
+            Assert.Equal(1, assetsFileService.ScopeDisposeCount);
+            Assert.Equal(1, assetsFileService.ReaderCreateCount);
+            Assert.Equal(1, assetsFileService.ReaderDisposeCount);
+            Assert.Equal(0, assetsFileService.WriterCreateCount);
+            Assert.Equal(0, assetsFileService.WriterDisposeCount);
+            Assert.False(Directory.Exists(backupDirectory));
         }
         finally
         {
@@ -684,7 +696,11 @@ public sealed class InstallModWorkflowTests
 
             Assert.Contains("Game directory could not be resolved", exception.Message);
             Assert.Contains("Missing Game", exception.Message);
-            Assert.Equal(1, assetsFileService.CloseReadSessionsCount);
+            Assert.Equal(0, assetsFileService.CloseReadSessionsCount);
+            Assert.Equal(1, assetsFileService.ScopeDisposeCount);
+            Assert.Equal(1, assetsFileService.ReaderCreateCount);
+            Assert.Equal(1, assetsFileService.ReaderDisposeCount);
+            Assert.Equal(0, assetsFileService.WriterCreateCount);
         }
         finally
         {
@@ -839,7 +855,11 @@ public sealed class InstallModWorkflowTests
 
             Assert.Contains("matched multiple files", exception.Message);
             Assert.False(assetsFileService.WasCalled);
-            Assert.Equal(1, assetsFileService.CloseReadSessionsCount);
+            Assert.Equal(0, assetsFileService.CloseReadSessionsCount);
+            Assert.Equal(1, assetsFileService.ScopeDisposeCount);
+            Assert.Equal(1, assetsFileService.ReaderCreateCount);
+            Assert.Equal(1, assetsFileService.ReaderDisposeCount);
+            Assert.Equal(0, assetsFileService.WriterCreateCount);
         }
         finally
         {
@@ -1292,6 +1312,10 @@ public sealed class InstallModWorkflowTests
                 "record.json",
                 SearchOption.AllDirectories));
             Assert.True(Directory.Exists(Path.Combine(backupDirectory, BackupRepository.TransactionDirectoryName)));
+            Assert.Equal(1, assetsFileService.CloseReadSessionsCount);
+            Assert.Equal(1, assetsFileService.ScopeDisposeCount);
+            Assert.Equal(1, assetsFileService.ReaderDisposeCount);
+            Assert.Equal(1, assetsFileService.WriterDisposeCount);
         }
         finally
         {
@@ -1383,24 +1407,20 @@ public sealed class InstallModWorkflowTests
         GameDirectoryResolver gameDirectoryResolver,
         string? backupDirectory = null)
     {
-        var assetQueryService = new AssetQueryService(assetsFileService);
-        var patchPlanBuilder = new PatchPlanner(
-            new FieldPatchPlanner(assetQueryService,
-                [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]),
-            new ReplacementPlanner(assetQueryService));
-        var planner = new InstallPlanner(
-            new ModManifestReader(),
+        var manifestReader = new ModManifestReader();
+        var planBuilder = new InstallPlanBuilder(
             new TargetAssetResolver(),
             gameDirectoryResolver,
-            patchPlanBuilder,
-            assetsFileService);
+            [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]);
         var backupStore = new BackupRepository(backupDirectory ??
                                                Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
-        var executor = new InstallExecutor(new PatchOutputWriter(assetsFileService), assetsFileService, backupStore);
+        var executor = new InstallExecutor(backupStore);
 
         return new InstallModWorkflow(
-            planner,
+            manifestReader,
+            planBuilder,
             executor,
-            backupStore);
+            backupStore,
+            assetsFileService);
     }
 }

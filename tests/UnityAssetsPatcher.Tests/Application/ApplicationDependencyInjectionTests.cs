@@ -43,10 +43,10 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
 
         Assert.Equal(2, assetsFileService.ScopeCreateCount);
         Assert.Equal(2, assetsFileService.ReaderCreateCount);
-        Assert.Equal(2, assetsFileService.WriterCreateCount);
+        Assert.Equal(0, assetsFileService.WriterCreateCount);
         Assert.Equal(2, assetsFileService.ScopeDisposeCount);
         Assert.Equal(2, assetsFileService.ReaderDisposeCount);
-        Assert.Equal(2, assetsFileService.WriterDisposeCount);
+        Assert.Equal(0, assetsFileService.WriterDisposeCount);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
 
         Assert.Equal(1, assetsFileService.ScopeDisposeCount);
         Assert.Equal(1, assetsFileService.ReaderDisposeCount);
-        Assert.Equal(1, assetsFileService.WriterDisposeCount);
+        Assert.Equal(0, assetsFileService.WriterDisposeCount);
     }
 
     [Fact]
@@ -98,10 +98,10 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
 
         Assert.Equal(1, assetsFileService.ScopeCreateCount);
         Assert.Equal(1, assetsFileService.ReaderCreateCount);
-        Assert.Equal(1, assetsFileService.WriterCreateCount);
+        Assert.Equal(0, assetsFileService.WriterCreateCount);
         Assert.Equal(1, assetsFileService.ScopeDisposeCount);
         Assert.Equal(1, assetsFileService.ReaderDisposeCount);
-        Assert.Equal(1, assetsFileService.WriterDisposeCount);
+        Assert.Equal(0, assetsFileService.WriterDisposeCount);
     }
 
     [Fact]

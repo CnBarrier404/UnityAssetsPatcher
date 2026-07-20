@@ -62,11 +62,6 @@ public sealed class ScopedAssetsFileReader : IAssetsFileReader
         return _scope.Reader.ReadField(assetsFilePath, pathId);
     }
 
-    public void CloseReadSessions()
-    {
-        _scope.CloseReadSessions();
-    }
-
     public void Dispose() { }
 }
 

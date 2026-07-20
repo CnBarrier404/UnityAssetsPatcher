@@ -1,35 +1,54 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InstallModWorkflow
 {
-    private readonly InstallPlanner _planner;
+    private readonly ModManifestReader _manifestReader;
+    private readonly InstallPlanBuilder _planBuilder;
     private readonly InstallExecutor _executor;
     private readonly BackupRepository _backupRepository;
+    private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
 
     public InstallModWorkflow(
-        InstallPlanner planner,
+        ModManifestReader manifestReader,
+        InstallPlanBuilder planBuilder,
         InstallExecutor executor,
-        BackupRepository backupRepository)
+        BackupRepository backupRepository,
+        IAssetsAccessScopeFactory assetsAccessScopeFactory)
     {
-        _planner = planner;
+        _manifestReader = manifestReader;
+        _planBuilder = planBuilder;
         _executor = executor;
         _backupRepository = backupRepository;
+        _assetsAccessScopeFactory = assetsAccessScopeFactory;
     }
 
     public InstallPreviewResult Preview(InstallRequest request)
     {
         var timings = new StepTimer();
-        using var session = _planner.BuildPreview(request, timings);
-        InstallPreviewPlan preview = session.Plan;
+        using ModPackage package = ModPackage.Open(
+            request.ZipFilePath,
+            request.SelectedOptionalGroups,
+            _manifestReader,
+            timings);
+        using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
+        InstallAnalysisMode mode = request.IncludePatchPreviewDetails
+            ? InstallAnalysisMode.PreviewDetailed
+            : InstallAnalysisMode.PreviewSummary;
+        InstallAnalysis analysis = _planBuilder.Analyze(
+            package,
+            request.GameDirectory,
+            mode,
+            assetsScope.Reader,
+            timings);
 
         return InstallResultMapper.ToPreviewResult(
-            session.Package,
-            preview.PatchFiles,
-            preview.Payload,
+            analysis,
             timings.BuildSnapshot());
     }
 
@@ -48,12 +67,28 @@ public sealed class InstallModWorkflow
                 recovery);
         }
 
-        using var session = _planner.BuildInstall(request, timings);
+        using ModPackage package = ModPackage.Open(
+            request.ZipFilePath,
+            request.SelectedOptionalGroups,
+            _manifestReader,
+            timings);
+        using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
+        InstallAnalysis analysis = _planBuilder.Analyze(
+            package,
+            request.GameDirectory,
+            InstallAnalysisMode.Apply,
+            assetsScope.Reader,
+            timings);
 
-        InstallExecutionResult execution = _executor.Execute(session, timings);
+        assetsScope.CloseReadSessions();
+        InstallExecutionResult execution = _executor.Execute(
+            package,
+            analysis,
+            assetsScope.Writer,
+            timings);
 
         return InstallResultMapper.ToInstallResult(
-                session.Package,
+                analysis,
                 execution.PatchedFiles,
                 execution.CopiedFiles,
                 execution.InstallId,

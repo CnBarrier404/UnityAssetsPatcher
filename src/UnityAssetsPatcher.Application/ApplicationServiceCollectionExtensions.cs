@@ -51,7 +51,7 @@ public static class ApplicationServiceCollectionExtensions
 
     private static void AddWorkflows(IServiceCollection services)
     {
-        services.AddScoped<InstallPlanner>();
+        services.AddScoped<InstallPlanBuilder>();
         services.AddScoped<InstallExecutor>();
         services.AddScoped<InstallModWorkflow>();
         services.AddScoped<InspectAssetsWorkflow>();

@@ -51,8 +51,6 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
     public IAssetsAccessScope CreateScope()
     {
         ScopeCreateCount++;
-        ReaderCreateCount++;
-        WriterCreateCount++;
 
         return new StubAssetsAccessScope(this);
     }
@@ -121,31 +119,58 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
 
     public void Dispose() { }
 
-    public void CloseReadSessions()
-    {
-        ReadFilesExistedAtClose = _readPaths.All(File.Exists);
-        CloseReadSessionsCount++;
-    }
-
     private sealed class StubAssetsAccessScope : IAssetsAccessScope
     {
-        public IAssetsFileReader Reader { get; }
-        public IAssetsFileWriter Writer { get; }
+        public IAssetsFileReader Reader
+        {
+            get
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+
+                if (_reader is null)
+                {
+                    _reader = new StubAssetsFileReader(_service);
+                    _service.ReaderCreateCount++;
+                }
+
+                return _reader;
+            }
+        }
+
+        public IAssetsFileWriter Writer
+        {
+            get
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+
+                if (_writer is null)
+                {
+                    _writer = new StubAssetsFileWriter(_service);
+                    _service.WriterCreateCount++;
+                }
+
+                return _writer;
+            }
+        }
 
         private readonly StubAssetsFileService _service;
+        private StubAssetsFileReader? _reader;
+        private StubAssetsFileWriter? _writer;
         private bool _disposed;
 
         public StubAssetsAccessScope(StubAssetsFileService service)
         {
             _service = service;
-            Reader = new StubAssetsFileReader(service);
-            Writer = new StubAssetsFileWriter(service);
         }
 
         public void CloseReadSessions()
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            Reader.CloseReadSessions();
+            _service.CloseReadSessionsCount++;
+            _service.ReadFilesExistedAtClose = _service._readPaths.All(File.Exists);
+            StubAssetsFileReader? reader = _reader;
+            _reader = null;
+            reader?.Dispose();
         }
 
         public void Dispose()
@@ -156,8 +181,12 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
             }
 
             _disposed = true;
-            Reader.Dispose();
-            Writer.Dispose();
+            StubAssetsFileReader? reader = _reader;
+            StubAssetsFileWriter? writer = _writer;
+            _reader = null;
+            _writer = null;
+            reader?.Dispose();
+            writer?.Dispose();
             _service.ScopeDisposeCount++;
         }
     }
@@ -186,12 +215,6 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
             return _service.ReadField(assetsFilePath, pathId);
         }
 
-        public void CloseReadSessions()
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            _service.CloseReadSessions();
-        }
-
         public void Dispose()
         {
             if (_disposed)
@@ -200,6 +223,7 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
             }
 
             _disposed = true;
+            _service.ReadFilesExistedAtClose = _service._readPaths.All(File.Exists);
             _service.ReaderDisposeCount++;
         }
     }

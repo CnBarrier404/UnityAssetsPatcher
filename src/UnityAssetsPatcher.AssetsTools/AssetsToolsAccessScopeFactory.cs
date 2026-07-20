@@ -14,9 +14,8 @@ public sealed class AssetsToolsAccessScopeFactory : IAssetsAccessScopeFactory
 
     public IAssetsAccessScope CreateScope()
     {
-        var reader = new AssetsFileReader(_context, ownsContext: false);
-        var writer = new AssetsFileWriter(_context);
-
-        return new AssetsToolsAccessScope(reader, writer);
+        return new AssetsToolsAccessScope(
+            () => new AssetsFileReader(_context, ownsContext: false),
+            () => new AssetsFileWriter(_context));
     }
 }

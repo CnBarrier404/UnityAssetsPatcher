@@ -39,8 +39,6 @@ public sealed class AssetQueryServiceTests
                 [new AssetField("m_Name", "string", new AssetFieldValue.String("Test"), [])]);
         }
 
-        public void CloseReadSessions() { }
-
         public void Dispose() { }
     }
 }

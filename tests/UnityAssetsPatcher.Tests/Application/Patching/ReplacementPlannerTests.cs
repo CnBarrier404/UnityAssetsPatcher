@@ -315,8 +315,6 @@ public sealed class ReplacementPlannerTests
             return _fieldsByAsset[key];
         }
 
-        public void CloseReadSessions() { }
-
         public void Dispose() { }
 
         public int GetAssetsReadCount(string assetsFilePath)

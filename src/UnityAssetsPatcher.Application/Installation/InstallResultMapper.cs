@@ -5,33 +5,34 @@ namespace UnityAssetsPatcher.Application.Installation;
 internal static class InstallResultMapper
 {
     public static InstallPreviewResult ToPreviewResult(
-        ModPackage package,
-        IReadOnlyList<InstallPatchPreviewFile> patchFiles,
-        IReadOnlyList<InstallChange> payloadPreview,
+        InstallAnalysis analysis,
         TimingSnapshot timing)
     {
-        var changes = patchFiles
+        var changes = analysis.Targets
             .Select(file => new InstallChange(
                 InstallChangeKind.Patch,
                 file.Target,
                 file.AssetsFilePath,
-                Preview: file.Preview))
-            .Concat(payloadPreview)
+                Preview: file.PlanningResult.Preview))
+            .Concat(analysis.PayloadFiles.Select(file => new InstallChange(
+                InstallChangeKind.Payload,
+                file.Source,
+                file.DestinationPath)))
             .ToArray();
 
         return new InstallPreviewResult(
-            package.Manifest.Name,
-            package.Manifest.Version,
-            package.Manifest.Author,
+            analysis.Manifest.Name,
+            analysis.Manifest.Version,
+            analysis.Manifest.Author,
             changes,
-            package.OptionalGroups
+            analysis.OptionalGroups
                 .Select(group => (group.Name, group.Description))
                 .ToArray(),
             timing);
     }
 
     public static InstallModResult ToInstallResult(
-        ModPackage package,
+        InstallAnalysis analysis,
         IReadOnlyList<InstallPatchAppliedFile> patchedFiles,
         IReadOnlyList<InstallChange> copiedFiles,
         string installId,
@@ -50,10 +51,10 @@ internal static class InstallResultMapper
 
         return new InstallModResult(
             installId,
-            package.Manifest.Name,
-            package.Manifest.Version,
+            analysis.Manifest.Name,
+            analysis.Manifest.Version,
             changes,
-            package.AppliedOptionalGroups,
+            analysis.AppliedOptionalGroups,
             timing);
     }
 }

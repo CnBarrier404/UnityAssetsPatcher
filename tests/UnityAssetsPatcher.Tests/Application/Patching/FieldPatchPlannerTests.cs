@@ -340,8 +340,6 @@ public sealed class FieldPatchPlannerTests
             return _fieldsByPathId[pathId];
         }
 
-        public void CloseReadSessions() { }
-
         public void Dispose() { }
 
         public int GetFieldReadCount(long pathId)

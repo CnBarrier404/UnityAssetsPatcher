@@ -7,28 +7,36 @@ namespace UnityAssetsPatcher.Tests.AssetsTools;
 public sealed class AssetsToolsAccessScopeTests
 {
     [Fact]
-    public void CloseReadSessions_WhenCalled_ForwardsToReader()
+    public void CloseReadSessions_WhenReaderWasCreated_DisposesAndRemovesReader()
     {
         var events = new List<string>();
-        var reader = new RecordingAssetsFileReader(events);
+        var readers = new List<RecordingAssetsFileReader>();
         var writer = new RecordingAssetsFileWriter(events);
-        using var scope = new AssetsToolsAccessScope(reader, writer);
+        using var scope = new AssetsToolsAccessScope(
+            () => CreateReader(readers, events),
+            () => writer);
+        IAssetsFileReader firstReader = scope.Reader;
 
         scope.CloseReadSessions();
         scope.CloseReadSessions();
+        IAssetsFileReader secondReader = scope.Reader;
 
-        Assert.Equal(2, reader.CloseReadSessionsCount);
-        Assert.Equal(0, reader.DisposeCount);
+        Assert.NotSame(firstReader, secondReader);
+        Assert.Equal(2, readers.Count);
+        Assert.Equal(1, readers[0].DisposeCount);
+        Assert.Equal(0, readers[1].DisposeCount);
         Assert.Equal(0, writer.DisposeCount);
     }
 
     [Fact]
-    public void Dispose_WhenCalledMultipleTimes_DisposesReaderThenWriterOnce()
+    public void Dispose_WhenCalledMultipleTimes_DisposesCreatedReaderThenWriterOnce()
     {
         var events = new List<string>();
         var reader = new RecordingAssetsFileReader(events);
         var writer = new RecordingAssetsFileWriter(events);
-        var scope = new AssetsToolsAccessScope(reader, writer);
+        var scope = new AssetsToolsAccessScope(() => reader, () => writer);
+        _ = scope.Reader;
+        _ = scope.Writer;
 
         scope.Dispose();
         scope.Dispose();
@@ -39,12 +47,39 @@ public sealed class AssetsToolsAccessScopeTests
     }
 
     [Fact]
+    public void Dispose_WhenResourcesWereNotRequested_DoesNotCreateThem()
+    {
+        int readerCreateCount = 0;
+        int writerCreateCount = 0;
+        var scope = new AssetsToolsAccessScope(
+            () =>
+            {
+                readerCreateCount++;
+
+                return new RecordingAssetsFileReader([]);
+            },
+            () =>
+            {
+                writerCreateCount++;
+
+                return new RecordingAssetsFileWriter([]);
+            });
+
+        scope.Dispose();
+
+        Assert.Equal(0, readerCreateCount);
+        Assert.Equal(0, writerCreateCount);
+    }
+
+    [Fact]
     public void Dispose_WhenReaderThrows_StillDisposesWriterAndRemainsIdempotent()
     {
         var events = new List<string>();
         var reader = new RecordingAssetsFileReader(events, throwOnDispose: true);
         var writer = new RecordingAssetsFileWriter(events);
-        var scope = new AssetsToolsAccessScope(reader, writer);
+        var scope = new AssetsToolsAccessScope(() => reader, () => writer);
+        _ = scope.Reader;
+        _ = scope.Writer;
 
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(scope.Dispose);
         scope.Dispose();
@@ -55,9 +90,18 @@ public sealed class AssetsToolsAccessScopeTests
         Assert.Equal(["reader", "writer"], events);
     }
 
+    private static RecordingAssetsFileReader CreateReader(
+        ICollection<RecordingAssetsFileReader> readers,
+        ICollection<string> events)
+    {
+        var reader = new RecordingAssetsFileReader(events);
+        readers.Add(reader);
+
+        return reader;
+    }
+
     private sealed class RecordingAssetsFileReader : IAssetsFileReader
     {
-        public int CloseReadSessionsCount { get; private set; }
         public int DisposeCount { get; private set; }
 
         private readonly ICollection<string> _events;
@@ -77,11 +121,6 @@ public sealed class AssetsToolsAccessScopeTests
         public AssetField ReadField(string assetsFilePath, long pathId)
         {
             throw new NotSupportedException();
-        }
-
-        public void CloseReadSessions()
-        {
-            CloseReadSessionsCount++;
         }
 
         public void Dispose()
