@@ -149,6 +149,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         var request = new InstallRequest(modPath, gameDirectory)
         {
             SelectedOptionalGroups = selectedGroups,
+            IncludePatchPreviewDetails = false,
         };
         bool started = _taskRunner.TryRun(
             () => _workflowService.PreviewInstall(request),

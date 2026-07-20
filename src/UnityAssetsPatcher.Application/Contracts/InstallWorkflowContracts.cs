@@ -5,6 +5,7 @@ namespace UnityAssetsPatcher.Application.Contracts;
 public sealed record InstallRequest(string ZipFilePath, string? GameDirectory)
 {
     public IReadOnlyList<string> SelectedOptionalGroups { get; init; } = [];
+    public bool IncludePatchPreviewDetails { get; init; } = true;
 }
 
 public sealed record InstallModResult(

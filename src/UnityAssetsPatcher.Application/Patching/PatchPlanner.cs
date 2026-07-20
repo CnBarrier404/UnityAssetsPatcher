@@ -51,7 +51,8 @@ public sealed class PatchPlanner
             {
                 FieldPatchPlanningOutput fieldOutput = _fieldPlanner.Plan(
                     request.AssetsFilePath,
-                    request.Targets.Where(PatchOperationRules.HasFieldPatchOperations).ToArray());
+                    request.Targets.Where(PatchOperationRules.HasFieldPatchOperations).ToArray(),
+                    request.IncludePreviewDetails);
                 CopyAssetPlanningOutput copyOutput = (_copyAssetPlanner ??
                                                       throw new InvalidOperationException(
                                                           "Copy asset planner is not configured.")).Plan(
@@ -64,7 +65,7 @@ public sealed class PatchPlanner
             else
             {
                 FieldPatchPlanningOutput output = _fieldPlanner.Plan(
-                    request.AssetsFilePath, request.Targets);
+                    request.AssetsFilePath, request.Targets, request.IncludePreviewDetails);
                 preview = output.Preview;
                 plan = new FieldPatchPlan(output.Assets);
             }

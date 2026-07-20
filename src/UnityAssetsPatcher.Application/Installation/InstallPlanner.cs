@@ -38,7 +38,8 @@ public sealed class InstallPlanner
                 _gameDirectoryResolver.ResolveRequired(request.GameDirectory, package.Manifest.Game);
             TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
             var payloadFiles = PlanPayloadFiles(package.Manifest, targets);
-            IReadOnlyList<InstallPatchPreviewFile> patchPreview = CreatePatchPreview(targets, package, timings);
+            IReadOnlyList<InstallPatchPreviewFile> patchPreview = CreatePatchPreview(
+                targets, package, timings, request.IncludePatchPreviewDetails);
             var payloadPreview = PreviewPayloadFiles(payloadFiles);
             var plan = new InstallPreviewPlan(patchPreview, payloadPreview);
             var session = new InstallPlanSession<InstallPreviewPlan>(package, plan, _assetsReader.CloseReadSessions);
@@ -91,13 +92,17 @@ public sealed class InstallPlanner
     private IReadOnlyList<InstallPatchPreviewFile> CreatePatchPreview(
         TargetAssetSet targets,
         ModPackage package,
-        StepTimer timings)
+        StepTimer timings,
+        bool includePreviewDetails)
     {
         var files = timings.Measure("analyze-changes", () => targets.Targets
             .Select(target =>
             {
                 PatchPlanningResult result = _patchPlanner.Plan(new PatchPlanningRequest(
-                    target.AssetsFilePath, target.Patches, package.PatchSourcePaths));
+                    target.AssetsFilePath, target.Patches, package.PatchSourcePaths)
+                {
+                    IncludePreviewDetails = includePreviewDetails,
+                });
 
                 return new InstallPatchPreviewFile(target.Name, target.AssetsFilePath, result.Preview);
             })

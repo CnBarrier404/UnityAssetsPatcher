@@ -6,7 +6,10 @@ namespace UnityAssetsPatcher.Application.Patching;
 public sealed record PatchPlanningRequest(
     string AssetsFilePath,
     IReadOnlyList<ManifestPatch> Targets,
-    IReadOnlyDictionary<string, string> SourceAssetsPaths);
+    IReadOnlyDictionary<string, string> SourceAssetsPaths)
+{
+    public bool IncludePreviewDetails { get; init; } = true;
+}
 
 public sealed record PatchPlanningResult(
     PatchPlan? Plan,

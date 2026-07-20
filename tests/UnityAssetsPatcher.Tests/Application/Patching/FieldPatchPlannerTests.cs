@@ -31,6 +31,28 @@ public sealed class FieldPatchPlannerTests
     }
 
     [Fact]
+    public void PatchPlanner_WhenPreviewDetailsAreDisabled_ProducesWritePlanWithoutOperationDetails()
+    {
+        TestScenario scenario = CreateSharedResolverScenario();
+        var planner = new PatchPlanner(
+            scenario.Builder,
+            new ReplacementPlanner(new AssetQueryService(scenario.Reader)));
+
+        PatchPlanningResult result = planner.Plan(new PatchPlanningRequest(
+            AssetsPath,
+            [CreatePatch([CreateSetOperation("m_Reference", "Texture2D", "Referenced")])],
+            new Dictionary<string, string>())
+        {
+            IncludePreviewDetails = false,
+        });
+
+        Assert.True(result.CanApply);
+        Assert.Empty(result.Preview.Assets);
+        Assert.Equal(2, Assert.IsType<FieldPatchPlan>(result.Plan).Assets.Count);
+        AssertAllAssetsReadOnce(scenario.Reader);
+    }
+
+    [Fact]
     public void PatchPlanner_WhenPathIdResolverDoesNotMatch_ReturnsStructuredDiagnostic()
     {
         var reader = new CountingAssetsFileReader(

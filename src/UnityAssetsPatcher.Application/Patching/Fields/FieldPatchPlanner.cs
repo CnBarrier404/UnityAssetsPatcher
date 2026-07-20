@@ -27,11 +27,19 @@ public sealed class FieldPatchPlanner
         return Plan(assetsFilePath, targets).Assets;
     }
 
-    public FieldPatchPlanningOutput Plan(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
+    public FieldPatchPlanningOutput Plan(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> targets,
+        bool includePreviewDetails = true)
     {
         if (!PatchOperationRules.HasPatchOperations(targets))
         {
             return new FieldPatchPlanningOutput([], new PatchPreviewResult([]));
+        }
+
+        if (!includePreviewDetails)
+        {
+            return CreatePlanWithoutPreviewDetails(assetsFilePath, targets);
         }
 
         var assetPlans = CreateAssetPlans(assetsFilePath, targets).ToArray();
@@ -69,6 +77,33 @@ public sealed class FieldPatchPlanner
             .ToArray();
 
         return new FieldPatchPlanningOutput(assets, preview);
+    }
+
+    private FieldPatchPlanningOutput CreatePlanWithoutPreviewDetails(
+        string assetsFilePath,
+        IReadOnlyList<ManifestPatch> targets)
+    {
+        var operationGroups = new Dictionary<long, List<FieldPatchOperation>>();
+
+        foreach (FieldPatchAssetPlan assetPlan in CreateAssetPlans(assetsFilePath, targets))
+        {
+            if (!operationGroups.TryGetValue(assetPlan.Asset.PathId, out var operations))
+            {
+                operations = [];
+                operationGroups.Add(assetPlan.Asset.PathId, operations);
+            }
+
+            foreach (FieldPatchOperationPlan operation in assetPlan.Operations)
+            {
+                FieldPatchWriteOperationMapper.AddTo(operations, operation);
+            }
+        }
+
+        var assets = operationGroups
+            .Select(group => new AssetFieldPatch(group.Key, group.Value))
+            .ToArray();
+
+        return new FieldPatchPlanningOutput(assets, new PatchPreviewResult([]));
     }
 
     private IEnumerable<FieldPatchAssetPlan> CreateAssetPlans(
