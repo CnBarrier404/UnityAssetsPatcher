@@ -1,5 +1,59 @@
 # Changelog
 
+## v0.5.0
+
+本次版本进一步提升了安装和卸载的可靠性，并为 Mod 作者新增同文件 asset 复制能力。
+
+### 新增
+
+- Manifest 新增 `copyAsset` 操作，可将同一 `.assets` 文件中的 asset 复制到另一个同类型 asset
+- `add` 现在支持向空数组添加标量值
+- CLI 和 TUI 新增中断操作恢复预览，只有在用户确认游戏目录后才会执行恢复
+
+### 修复
+
+- 修复浮点字段因微小精度差异而无法匹配的问题
+- 修复部分情况下 Mod 临时文件被占用而无法清理的问题
+- 修复更新检查可能受到 GitHub API 限流的问题
+- 调整卸载页面的时间和按钮布局，并修复部分空格键操作异常
+
+### 改进
+
+- 安装、卸载和中断恢复现在更加安全，遇到无法确认的文件状态时不会继续覆盖或删除文件
+- 优化大型 Assets 文件的处理速度和内存占用
+- Release 下载由 ZIP 改为可直接运行的 EXE，并提供 SHA-256 校验值
+
+### 升级说明
+
+- 安装记录和备份现在保存在 `%LOCALAPPDATA%\UnityAssetsPatcher\backup`。旧版本位于程序目录的备份不会自动迁移，升级前请先使用旧版本卸载已安装的 Mod（这个版本以及之前，根本就没人用，对吧）
+
+---
+
+This release further improves install and uninstall reliability and adds same-file asset copying for mod authors.
+
+### Added
+
+- Added the manifest `copyAsset` operation for copying an asset to another asset of the same type within one `.assets` file
+- `add` can now append scalar values to empty arrays
+- Added interrupted-operation recovery previews to the CLI and TUI; recovery runs only after the user confirms the game directory
+
+### Fixed
+
+- Fixed floating-point fields failing to match because of minor precision differences
+- Fixed mod temporary files remaining locked in some cases
+- Fixed update checks being affected by GitHub API rate limits
+- Adjusted uninstall timestamp and button layouts and fixed several unexpected space-key actions
+
+### Improved
+
+- Installs, uninstalls, and interrupted-operation recovery are now safer and will not overwrite or delete files when their state cannot be verified
+- Improved processing speed and memory usage for large assets files
+- Release downloads have changed from ZIP archives to directly runnable EXE files with SHA-256 checksums
+
+### Upgrade Notes
+
+- Install records and backups are now stored under `%LOCALAPPDATA%\UnityAssetsPatcher\backup`. Backups beside the executable from older versions are not migrated, so uninstall existing mods with the previous version before upgrading
+
 ## v0.4.0
 
 TUI 全面重构！交互界面已完整迁移到 Terminal.Gui，在导航、操作反馈、长内容展示和后台任务处理等方面提供了更好、更一致且更稳定的使用体验。同时新增完整的非交互式 CLI 和 Assets 文件浏览能力，进一步完善手动操作与自动化场景。
