@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
@@ -74,8 +75,11 @@ public sealed class CLIApplicationTests : IDisposable
         int exitCode = app.Run(["check", "--config", manifestPath, "--format", "json"]);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("\"command\": \"check\"", output.ToString());
-        Assert.Contains("\"name\": \"Example Mod\"", output.ToString());
+        using JsonDocument json = JsonDocument.Parse(output.ToString());
+        Assert.Equal(1, json.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("check", json.RootElement.GetProperty("command").GetString());
+        Assert.Equal("Example Mod", json.RootElement.GetProperty("data").GetProperty("name").GetString());
         Assert.Equal(string.Empty, error.ToString());
     }
 

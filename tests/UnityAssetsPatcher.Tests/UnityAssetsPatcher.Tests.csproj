@@ -22,4 +22,8 @@
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.LocalizationGenerator\UnityAssetsPatcher.LocalizationGenerator.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.TUI\UnityAssetsPatcher.TUI.csproj"/>
     </ItemGroup>
+    <ItemGroup>
+        <None Update="Application\Compatibility\Fixtures\*.json"
+              CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
 </Project>

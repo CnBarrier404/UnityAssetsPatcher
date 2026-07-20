@@ -147,6 +147,8 @@ public sealed class CLICommandSetTests : IDisposable
         Assert.Null(workflow.LastInstallRequest);
         Assert.Equal(string.Empty, output.ToString());
         using JsonDocument json = JsonDocument.Parse(error.ToString());
+        Assert.Equal(1, json.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("install.apply", json.RootElement.GetProperty("command").GetString());
         Assert.Equal("usage_error", json.RootElement.GetProperty("error").GetProperty("code").GetString());
         Assert.Contains("--yes", json.RootElement.GetProperty("error").GetProperty("message").GetString());
@@ -167,6 +169,7 @@ public sealed class CLICommandSetTests : IDisposable
 
         Assert.Equal(0, exitCode);
         using JsonDocument json = JsonDocument.Parse(output.ToString());
+        Assert.Equal(1, json.RootElement.GetProperty("schemaVersion").GetInt32());
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("install.apply", json.RootElement.GetProperty("command").GetString());
         Assert.Equal("0123456789abcdef",
@@ -260,6 +263,9 @@ public sealed class CLICommandSetTests : IDisposable
         Assert.Equal(1, exitCode);
         Assert.Equal(string.Empty, output.ToString());
         using JsonDocument json = JsonDocument.Parse(error.ToString());
+        Assert.Equal(1, json.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("uninstall.list", json.RootElement.GetProperty("command").GetString());
         Assert.Equal("command_failed", json.RootElement.GetProperty("error").GetProperty("code").GetString());
         Assert.Equal("file changed",
             json.RootElement.GetProperty("error").GetProperty("causes")[0].GetProperty("message").GetString());
