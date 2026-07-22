@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.5.1
+
+本次版本为旧版 Windows 控制台提供临时兼容支持，并引导用户切换到 Windows Terminal，以改善交互界面的显示效果。
+
+### 修复
+
+- Windows 下的交互界面现在使用专用终端驱动，改善旧版 Windows 控制台中的兼容性
+- 旧版控制台会使用明确的深色前景色和背景色，减少边框、文字和界面布局显示异常
+- Windows Terminal 等现代终端会继续沿用终端配置的背景色，不再被兼容配色覆盖
+
+### 改进
+
+- 检测到旧版 Windows 控制台时，界面会显示警告并建议切换到 Windows Terminal
+- 常见问题文档新增 Windows Terminal 的安装、默认终端切换和程序重启说明
+
+---
+
+This release adds temporary compatibility support for the legacy Windows console and guides users toward Windows Terminal for better interactive UI rendering.
+
+### Fixed
+
+- The interactive UI now uses the dedicated Windows terminal driver on Windows, improving compatibility with the legacy Windows console
+- Legacy consoles now use explicit dark foreground and background colors to reduce rendering issues with borders, text, and layouts
+- Modern terminals such as Windows Terminal continue to inherit their configured background colors instead of having them overridden by compatibility colors
+
+### Improved
+
+- The UI now warns when the legacy Windows console is detected and recommends switching to Windows Terminal
+- Added FAQ instructions for installing Windows Terminal, making it the default terminal, and restarting the application
+
 ## v0.5.0
 
 本次版本进一步提升了安装和卸载的可靠性，并为 Mod 作者新增同文件 asset 复制能力。
