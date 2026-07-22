@@ -15,7 +15,11 @@ public sealed class TerminalShellView : Window
     private readonly View _contentHost;
     private View? _content;
 
-    public TerminalShellView(IApplication application, AppInfo appInfo, string footerText)
+    public TerminalShellView(
+        IApplication application,
+        AppInfo appInfo,
+        string footerText,
+        string? warningText = null)
     {
         _application = application;
         Title = TerminalTitle;
@@ -35,6 +39,16 @@ public sealed class TerminalShellView : Window
 
         var footer = new TerminalFooterView(footerText);
         Add(banner, _contentHost, footer);
+
+        if (warningText is not null)
+        {
+            Add(new StyledLabel(warningText, TextRole.Preview)
+            {
+                X = 0,
+                Y = Pos.AnchorEnd(2),
+                Width = Dim.Fill(),
+            });
+        }
     }
 
     public void ShowContent(View content)

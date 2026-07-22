@@ -176,6 +176,38 @@ public sealed class TerminalGUITests : IDisposable
     }
 
     [Fact]
+    public void TerminalShellView_WhenWarningProvided_ShowsItAboveFooterWithPreviewScheme()
+    {
+        using Terminal.Gui.App.IApplication application = Terminal.Gui.App.Application.Create();
+        using var shell = new TerminalShellView(
+            application,
+            new AppInfo("Unity Assets Patcher", "dev"),
+            "Footer",
+            "Legacy console warning");
+        StyledLabel warning = Assert.Single(shell.SubViews.OfType<StyledLabel>());
+
+        Assert.Equal("Legacy console warning", warning.Text.ToString());
+        Assert.Same(TerminalTheme.Preview, warning.GetScheme());
+        Assert.Equal(Pos.AnchorEnd(2), warning.Y);
+    }
+
+    [Fact]
+    public void TerminalShellView_WhenWarningNotProvided_DoesNotChangeFooterOrContentLayout()
+    {
+        using Terminal.Gui.App.IApplication application = Terminal.Gui.App.Application.Create();
+        using var shell = new TerminalShellView(
+            application,
+            new AppInfo("Unity Assets Patcher", "dev"),
+            "Footer");
+        TerminalFooterView footer = Assert.Single(shell.SubViews.OfType<TerminalFooterView>());
+        View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
+
+        Assert.Empty(shell.SubViews.OfType<StyledLabel>());
+        Assert.Equal(Pos.AnchorEnd(1), footer.Y);
+        Assert.Equal(Dim.Fill(2), contentHost.Height);
+    }
+
+    [Fact]
     public void TerminalPathNormalizer_Normalize_RemovesQuotesAddedByTerminalDragAndDrop()
     {
         Assert.Equal(
@@ -202,6 +234,38 @@ public sealed class TerminalGUITests : IDisposable
         Assert.True(output.ReadOnly);
         Assert.Equal("result", output.Text.ToString());
         Assert.Same(TerminalTheme.Title, label.GetScheme());
+    }
+
+    [Fact]
+    public void TerminalTheme_Configure_WhenModernTerminal_InheritsTerminalColors()
+    {
+        TerminalTheme.Initialize(false);
+
+        Assert.Equal(Terminal.Gui.Drawing.Color.None, TerminalTheme.Base.Normal.Foreground);
+        Assert.All(
+            GetSchemes(),
+            scheme => Assert.Equal(Terminal.Gui.Drawing.Color.None, scheme.Normal.Background));
+    }
+
+    [Fact]
+    public void TerminalTheme_Configure_WhenLegacyConsole_UsesExplicitDarkColors()
+    {
+        var expectedForeground = new Terminal.Gui.Drawing.Color("#abb2bf");
+        var expectedBackground = new Terminal.Gui.Drawing.Color("#000000");
+
+        try
+        {
+            TerminalTheme.Initialize(true);
+
+            Assert.Equal(expectedForeground, TerminalTheme.Base.Normal.Foreground);
+            Assert.All(
+                GetSchemes(),
+                scheme => Assert.Equal(expectedBackground, scheme.Normal.Background));
+        }
+        finally
+        {
+            TerminalTheme.Initialize(false);
+        }
     }
 
     [Fact]
@@ -422,6 +486,26 @@ public sealed class TerminalGUITests : IDisposable
 
         Assert.Same(expectedException, actualException);
         Assert.False(runner.IsRunning);
+    }
+
+    private static Terminal.Gui.Drawing.Scheme[] GetSchemes()
+    {
+        return
+        [
+            TerminalTheme.Base,
+            TerminalTheme.Muted,
+            TerminalTheme.Selected,
+            TerminalTheme.Title,
+            TerminalTheme.Label,
+            TerminalTheme.SectionHeader,
+            TerminalTheme.Preview,
+            TerminalTheme.Error,
+            TerminalTheme.Success,
+            TerminalTheme.Interactive,
+            TerminalTheme.PrimaryAction,
+            TerminalTheme.SecondaryAction,
+            TerminalTheme.DangerousAction,
+        ];
     }
 
     private sealed class ThrowingWorkflowService : IWorkflowService

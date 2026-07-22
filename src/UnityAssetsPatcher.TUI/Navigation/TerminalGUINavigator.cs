@@ -1,6 +1,8 @@
 using Terminal.Gui.App;
+using Terminal.Gui.Drivers;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
@@ -28,10 +30,20 @@ public sealed class TerminalGUINavigator
 
     public int Run()
     {
-        using IApplication application = Terminal.Gui.App.Application.Create().Init();
+        using IApplication application = Terminal.Gui.App.Application.Create();
+        application.Init(OperatingSystem.IsWindows() ? DriverRegistry.Names.WINDOWS : null);
+        bool isLegacyConsole = application.Driver?.IsLegacyConsole == true;
+        TerminalTheme.Initialize(isLegacyConsole);
         var taskRunner = new TerminalTaskRunner(application.Invoke);
         var menuItems = CreateMenuItems(taskRunner);
-        using var shell = new TerminalShellView(application, _appInfo, LocalizedStrings.Layout_ShortcutHint);
+        string? warningText = isLegacyConsole
+            ? LocalizedStrings.Layout_LegacyConsoleWarning
+            : null;
+        using var shell = new TerminalShellView(
+            application,
+            _appInfo,
+            LocalizedStrings.Layout_ShortcutHint,
+            warningText);
         using var updateCancellation = new CancellationTokenSource();
         AvailableUpdate? availableUpdate = null;
         MainMenuView? visibleMainMenu = null;
