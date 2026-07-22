@@ -25,4 +25,8 @@
         <AdditionalFiles Include="Localization\JSON\*.json"/>
     </ItemGroup>
 
+    <PropertyGroup>
+        <AdditionalFileItemNames>$(AdditionalFileItemNames);EmbeddedResource</AdditionalFileItemNames>
+    </PropertyGroup>
+
 </Project>
