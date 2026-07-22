@@ -7,6 +7,7 @@ using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Patching.Fields;
+using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -94,7 +95,11 @@ public sealed class InstallModWorkflowTests
             Assert.Contains("\"installSequence\": 1", recordJson);
             Assert.DoesNotContain("\"gameDirectory\"", recordJson);
             Assert.DoesNotContain(targetPath, recordJson);
-            InstallRecord storedRecord = Assert.Single(new BackupRepository(backupDirectory).ListRecords()).Record;
+            InstallRecord storedRecord = Assert.Single(
+                new BackupRepository(
+                    backupDirectory,
+                    TestDependencies.FileOperations,
+                    TestDependencies.DirectoryOperations).ListRecords()).Record;
             Assert.Equal(storedRecord.Id, result.InstallId);
             InstallRecordPatchedFile storedFile = Assert.Single(storedRecord.PatchedFiles);
             Assert.Equal(FileIntegrity.Create(targetPath), storedFile.InstalledFile);
@@ -1413,14 +1418,20 @@ public sealed class InstallModWorkflowTests
             gameDirectoryResolver,
             [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]);
         var backupStore = new BackupRepository(backupDirectory ??
-                                               Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
-        var executor = new InstallExecutor(backupStore);
+                                               Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
+        var executor = new InstallExecutor(
+            backupStore,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
 
         return new InstallModWorkflow(
             manifestReader,
             planBuilder,
             executor,
             backupStore,
-            assetsFileService);
+            assetsFileService,
+            TestDependencies.DirectoryOperations);
     }
 }

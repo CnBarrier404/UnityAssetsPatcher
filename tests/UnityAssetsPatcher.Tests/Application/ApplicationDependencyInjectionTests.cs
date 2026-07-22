@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -25,6 +26,7 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
     public void BuildServiceProvider_WithoutAssetsAccessScopeFactory_FailsValidation()
     {
         var services = new ServiceCollection();
+        services.AddUnityAssetsPatcherInfrastructure();
         services.AddUnityAssetsPatcherApplication(_backupDirectory);
 
         Assert.Throws<AggregateException>(() => services.BuildServiceProvider(
@@ -144,6 +146,7 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
     {
         var services = new ServiceCollection();
         services.AddSingleton<IAssetsAccessScopeFactory>(assetsFileService);
+        services.AddUnityAssetsPatcherInfrastructure();
         services.AddUnityAssetsPatcherApplication(_backupDirectory);
 
         return services;

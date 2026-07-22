@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Tests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Backups;
@@ -10,12 +11,12 @@ public sealed class BackupRecoveryTests
     public void CheckInterruptedInstall_ReportsRecoveryRequiredWithoutChangingFiles()
     {
         using var scope = new TemporaryDirectories();
-        var store = new BackupRepository(scope.Backup);
+        var store = CreateBackupRepository(scope.Backup);
         BackupRepositoryMetadata repository = store.LoadMetadata();
         string temporary = store.CreateTransactionDirectory();
         string asset = Path.Combine(scope.Game, "data.assets");
         File.WriteAllText(asset, "modified");
-        BackupTransactionStore.Save(temporary, new BackupTransaction(
+        SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"),
             GameInstanceIdentity.CreateFingerprint(scope.Game),
             [
@@ -34,7 +35,7 @@ public sealed class BackupRecoveryTests
     public void RecoverInterruptedInstall_RestoresAssetsAndRemovesPayloadAndTempDirectory()
     {
         using var scope = new TemporaryDirectories();
-        var store = new BackupRepository(scope.Backup);
+        var store = CreateBackupRepository(scope.Backup);
         BackupRepositoryMetadata repository = store.LoadMetadata();
         string temporary = store.CreateTransactionDirectory();
         string rollbackDirectory = Path.Combine(temporary, "rollback");
@@ -46,7 +47,7 @@ public sealed class BackupRecoveryTests
         File.WriteAllText(rollback, "original");
         File.WriteAllText(payload, "payload");
         string installId = Guid.NewGuid().ToString("N");
-        BackupTransactionStore.Save(temporary, new BackupTransaction(
+        SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, installId,
             GameInstanceIdentity.CreateFingerprint(scope.Game),
             [
@@ -67,7 +68,7 @@ public sealed class BackupRecoveryTests
     public void RecoverInterruptedUninstall_RestoresInstalledAssetsAndPayload()
     {
         using var scope = new TemporaryDirectories();
-        var store = new BackupRepository(scope.Backup);
+        var store = CreateBackupRepository(scope.Backup);
         BackupRepositoryMetadata repository = store.LoadMetadata();
         string installId = Guid.NewGuid().ToString("N");
         store.WriteRecord(new InstallRecord(repository.RepositoryId,
@@ -83,7 +84,7 @@ public sealed class BackupRecoveryTests
         File.WriteAllText(asset, "original");
         File.WriteAllText(assetRollback, "modified");
         File.WriteAllText(payloadRollback, "payload");
-        BackupTransactionStore.Save(temporary, new BackupTransaction(
+        SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Uninstall, installId,
             GameInstanceIdentity.CreateFingerprint(scope.Game),
             [
@@ -105,12 +106,12 @@ public sealed class BackupRecoveryTests
     public void Recover_UnknownTargetState_LeavesEvidenceAndLocksRepository()
     {
         using var scope = new TemporaryDirectories();
-        var store = new BackupRepository(scope.Backup);
+        var store = CreateBackupRepository(scope.Backup);
         BackupRepositoryMetadata repository = store.LoadMetadata();
         string temporary = store.CreateTransactionDirectory();
         string asset = Path.Combine(scope.Game, "data.assets");
         File.WriteAllText(asset, "unknown");
-        BackupTransactionStore.Save(temporary, new BackupTransaction(
+        SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"),
             GameInstanceIdentity.CreateFingerprint(scope.Game),
             [
@@ -129,7 +130,7 @@ public sealed class BackupRecoveryTests
     public void PreviewInterruptedInstall_ListsActionsWithoutChangingFiles()
     {
         using var scope = new TemporaryDirectories();
-        var store = new BackupRepository(scope.Backup);
+        var store = CreateBackupRepository(scope.Backup);
         BackupRepositoryMetadata repository = store.LoadMetadata();
         string temporary = store.CreateTransactionDirectory();
         string rollbackDirectory = Path.Combine(temporary, "rollback");
@@ -139,7 +140,7 @@ public sealed class BackupRecoveryTests
         File.WriteAllText(asset, "modified");
         File.WriteAllText(payload, "payload");
         File.WriteAllText(Path.Combine(rollbackDirectory, "asset.bin"), "original");
-        BackupTransactionStore.Save(temporary, new BackupTransaction(
+        SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"),
             GameInstanceIdentity.CreateFingerprint(scope.Game),
             [
@@ -164,14 +165,14 @@ public sealed class BackupRecoveryTests
     public void Recover_LegacyJournalClaimsExternalRoot_DoesNotDeleteExternalFile()
     {
         using var scope = new TemporaryDirectories();
-        var store = new BackupRepository(scope.Backup);
+        var store = CreateBackupRepository(scope.Backup);
         BackupRepositoryMetadata repository = store.LoadMetadata();
         string temporary = store.CreateTransactionDirectory();
         string externalDirectory = Path.Combine(scope.Root, "external");
         Directory.CreateDirectory(externalDirectory);
         string externalFile = Path.Combine(externalDirectory, "important.txt");
         File.WriteAllText(externalFile, "important");
-        BackupTransactionStore.Save(temporary, new BackupTransaction(
+        SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"),
             GameInstanceIdentity.CreateFingerprint(externalDirectory),
             [new BackupTransactionFile(BackupFileKind.Payload, "important.txt", null, TextIntegrity("important"))]));
@@ -189,6 +190,23 @@ public sealed class BackupRecoveryTests
         Assert.Equal(BackupRepositoryStatus.Locked, result.Status);
         Assert.Equal("important", File.ReadAllText(externalFile));
         Assert.True(Directory.Exists(temporary));
+    }
+
+    private static BackupRepository CreateBackupRepository(string backupDirectory)
+    {
+        return new BackupRepository(
+            backupDirectory,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
+    }
+
+    private static void SaveTransaction(string transactionDirectory, BackupTransaction transaction)
+    {
+        BackupTransactionStore.Save(
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations,
+            transactionDirectory,
+            transaction);
     }
 
     private static FileIntegrity TextIntegrity(string value) =>

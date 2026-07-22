@@ -1,17 +1,21 @@
 using System.IO.Compression;
+using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
 public sealed class ModPackageArchive
 {
     private readonly string _packagePath;
+    private readonly IDirectoryOperations _directoryOperations;
 
     private const long MaxTotalModPackageExtractionSize = 10L * 1024L * 1024L * 1024L; // 10GB
     private const int CopyBufferSize = 81920;
 
-    public ModPackageArchive(string packagePath)
+    public ModPackageArchive(string packagePath, IDirectoryOperations directoryOperations)
     {
+        ArgumentNullException.ThrowIfNull(directoryOperations);
         _packagePath = packagePath;
+        _directoryOperations = directoryOperations;
     }
 
     public ZipArchive OpenRead()
@@ -37,7 +41,7 @@ public sealed class ModPackageArchive
         };
     }
 
-    public static void CopyEntryToNewFile(
+    public void CopyEntryToNewFile(
         ZipArchiveEntry entry,
         string destinationPath,
         ref long reservedUncompressedBytes)
@@ -50,7 +54,7 @@ public sealed class ModPackageArchive
 
         if (!string.IsNullOrEmpty(destinationDirectory))
         {
-            Directory.CreateDirectory(destinationDirectory);
+            _directoryOperations.Create(destinationDirectory);
         }
 
         string tempPath = Path.Combine(

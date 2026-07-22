@@ -11,6 +11,7 @@ Main projects:
 - `UnityAssetsPatcher.TUI`: interactive Terminal.Gui interface.
 - `UnityAssetsPatcher.Application`: asset models and contracts, manifests, workflows, patch planning, installation, backups, and updates.
 - `UnityAssetsPatcher.AssetsTools`: AssetsTools.NET integration.
+- `UnityAssetsPatcher.Infrastructure`: shared safe filesystem and path IO primitives.
 - `UnityAssetsPatcher.LocalizationGenerator`: localization source generator.
 - `UnityAssetsPatcher.Tests`: xUnit v3 tests.
 

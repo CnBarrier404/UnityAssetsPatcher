@@ -5,6 +5,7 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.CLI;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -48,6 +49,7 @@ public sealed class CLIApplicationTests : IDisposable
         var assetsFileService = new StubAssetsFileService([]);
         _serviceProvider = new ServiceCollection()
             .AddSingleton<IAssetsAccessScopeFactory>(assetsFileService)
+            .AddUnityAssetsPatcherInfrastructure()
             .AddUnityAssetsPatcherApplication(Path.Combine(_temporaryDirectory, "backup"))
             .BuildServiceProvider();
     }

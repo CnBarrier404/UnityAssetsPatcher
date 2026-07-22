@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
@@ -13,6 +14,7 @@ public sealed class ModPackage : IDisposable
     public ModManifest Manifest { get; }
 
     private readonly ModPackageArchive _archive;
+    private readonly IDirectoryOperations _directoryOperations;
     private readonly string? _temporaryDirectory;
     private long _reservedUncompressedBytes;
 
@@ -22,6 +24,7 @@ public sealed class ModPackage : IDisposable
         IReadOnlyList<string> appliedOptionalGroups,
         IReadOnlyDictionary<string, string> patchSourcePaths,
         ModPackageArchive archive,
+        IDirectoryOperations directoryOperations,
         string? temporaryDirectory,
         long reservedUncompressedBytes)
     {
@@ -30,6 +33,7 @@ public sealed class ModPackage : IDisposable
         AppliedOptionalGroups = appliedOptionalGroups;
         PatchSourcePaths = patchSourcePaths;
         _archive = archive;
+        _directoryOperations = directoryOperations;
         _temporaryDirectory = temporaryDirectory;
         _reservedUncompressedBytes = reservedUncompressedBytes;
     }
@@ -38,11 +42,13 @@ public sealed class ModPackage : IDisposable
         string modPackagePath,
         IReadOnlyList<string> selectedOptionalGroups,
         ModManifestReader manifestReader,
+        IDirectoryOperations directoryOperations,
         StepTimer timings)
     {
+        ArgumentNullException.ThrowIfNull(directoryOperations);
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
         long reservedUncompressedBytes = 0;
-        var packageArchive = new ModPackageArchive(modPackageFullPath);
+        var packageArchive = new ModPackageArchive(modPackageFullPath, directoryOperations);
 
         ZipArchive? archive = null;
 
@@ -72,7 +78,12 @@ public sealed class ModPackage : IDisposable
 
             (var patchSourcePaths, string? temporaryDirectory) =
                 timings.Measure("prepare-sources", () =>
-                    ExtractPatchSources(packageArchive, effectiveManifest, archive, ref reservedUncompressedBytes));
+                    ExtractPatchSources(
+                        packageArchive,
+                        directoryOperations,
+                        effectiveManifest,
+                        archive,
+                        ref reservedUncompressedBytes));
 
             return new ModPackage(
                 effectiveManifest,
@@ -80,6 +91,7 @@ public sealed class ModPackage : IDisposable
                 appliedOptionalGroups,
                 patchSourcePaths,
                 packageArchive,
+                directoryOperations,
                 temporaryDirectory,
                 reservedUncompressedBytes);
         }
@@ -94,14 +106,14 @@ public sealed class ModPackage : IDisposable
         using ZipArchive archive = _archive.OpenRead();
         ZipArchiveEntry entry = _archive.FindRequiredFileEntry(archive, source);
 
-        ModPackageArchive.CopyEntryToNewFile(entry, destinationPath, ref _reservedUncompressedBytes);
+        _archive.CopyEntryToNewFile(entry, destinationPath, ref _reservedUncompressedBytes);
     }
 
     public void Dispose()
     {
         if (_temporaryDirectory is not null && Directory.Exists(_temporaryDirectory))
         {
-            Directory.Delete(_temporaryDirectory, recursive: true);
+            _directoryOperations.Delete(_temporaryDirectory);
         }
     }
 
@@ -124,6 +136,7 @@ public sealed class ModPackage : IDisposable
 
     private static (IReadOnlyDictionary<string, string> Paths, string? TemporaryDirectory) ExtractPatchSources(
         ModPackageArchive packageArchive,
+        IDirectoryOperations directoryOperations,
         ModManifest manifest,
         ZipArchive archive,
         ref long reservedUncompressedBytes)
@@ -151,7 +164,7 @@ public sealed class ModPackage : IDisposable
                 ZipArchiveEntry entry = packageArchive.FindRequiredFileEntry(archive, source);
                 string destinationPath = ResolveUnderDirectory(temporaryDirectory, source);
 
-                ModPackageArchive.CopyEntryToNewFile(entry, destinationPath, ref reservedUncompressedBytes);
+                packageArchive.CopyEntryToNewFile(entry, destinationPath, ref reservedUncompressedBytes);
                 paths[source] = destinationPath;
             }
 
@@ -161,7 +174,7 @@ public sealed class ModPackage : IDisposable
         {
             if (Directory.Exists(temporaryDirectory))
             {
-                Directory.Delete(temporaryDirectory, recursive: true);
+                directoryOperations.Delete(temporaryDirectory);
             }
 
             throw;

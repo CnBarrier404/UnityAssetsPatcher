@@ -4,6 +4,7 @@ using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
+using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -61,7 +62,12 @@ public sealed class InstallPlanBuilderTests
 
         try
         {
-            using ModPackage package = ModPackage.Open(zipPath, [], new ModManifestReader(), new StepTimer());
+            using ModPackage package = ModPackage.Open(
+                zipPath,
+                [],
+                new ModManifestReader(),
+                TestDependencies.DirectoryOperations,
+                new StepTimer());
 
             InstallAnalysis detailed = builder.Analyze(
                 package,
@@ -145,7 +151,12 @@ public sealed class InstallPlanBuilderTests
 
         try
         {
-            using ModPackage package = ModPackage.Open(zipPath, [], new ModManifestReader(), new StepTimer());
+            using ModPackage package = ModPackage.Open(
+                zipPath,
+                [],
+                new ModManifestReader(),
+                TestDependencies.DirectoryOperations,
+                new StepTimer());
 
             InstallAnalysis detailed = builder.Analyze(
                 package,

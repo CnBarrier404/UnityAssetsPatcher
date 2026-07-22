@@ -1,4 +1,5 @@
 using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.Tests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Backups;
@@ -11,7 +12,10 @@ public sealed class BackupRepositoryTests
         string root = CreateRoot();
         try
         {
-            var store = new BackupRepository(Path.Combine(root, "backup"));
+            var store = new BackupRepository(
+                Path.Combine(root, "backup"),
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations);
 
             BackupRepositoryMetadata repository = store.LoadMetadata();
 
@@ -33,32 +37,13 @@ public sealed class BackupRepositoryTests
         string root = CreateRoot();
         try
         {
-            var store = new BackupRepository(Path.Combine(root, "backup"));
+            var store = new BackupRepository(
+                Path.Combine(root, "backup"),
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations);
             _ = store.LoadMetadata();
             Assert.Equal(store.TransactionDirectory, store.CreateTransactionDirectory());
             Assert.Throws<InvalidOperationException>(() => store.CreateTransactionDirectory());
-        }
-        finally
-        {
-            Directory.Delete(root, true);
-        }
-    }
-
-    [Fact]
-    public void RestoreAtomically_ReplacesTargetThroughTemporarySibling()
-    {
-        string root = CreateRoot();
-        try
-        {
-            string backup = Path.Combine(root, "backup.bin");
-            string target = Path.Combine(root, "target.bin");
-            File.WriteAllText(backup, "original");
-            File.WriteAllText(target, "modified");
-
-            BackupFileSystem.RestoreAtomically(backup, target);
-
-            Assert.Equal("original", File.ReadAllText(target));
-            Assert.Empty(Directory.EnumerateFiles(root, "*.tmp"));
         }
         finally
         {
@@ -72,7 +57,10 @@ public sealed class BackupRepositoryTests
         string root = CreateRoot();
         try
         {
-            var store = new BackupRepository(Path.Combine(root, "backup"));
+            var store = new BackupRepository(
+                Path.Combine(root, "backup"),
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations);
             string repositoryId = store.LoadMetadata().RepositoryId;
             string installId = Guid.NewGuid().ToString("N");
             string installDirectory = store.GetInstallDirectory(installId);
@@ -97,7 +85,10 @@ public sealed class BackupRepositoryTests
         string root = CreateRoot();
         try
         {
-            var store = new BackupRepository(Path.Combine(root, "backup"));
+            var store = new BackupRepository(
+                Path.Combine(root, "backup"),
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations);
             string repositoryId = store.LoadMetadata().RepositoryId;
             string installId = Guid.NewGuid().ToString("N");
             string installDirectory = store.GetInstallDirectory(installId);

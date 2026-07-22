@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application.Backups;
 
@@ -37,9 +37,17 @@ public static class BackupTransactionStore
 {
     public const string FileName = "transaction.json";
 
-    public static void Save(string transactionDirectory, BackupTransaction transaction)
+    public static void Save(
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations,
+        string transactionDirectory,
+        BackupTransaction transaction)
     {
-        BackupJsonStore.Save(Path.Combine(transactionDirectory, FileName), transaction,
+        BackupJsonStore.Save(
+            fileOperations,
+            directoryOperations,
+            Path.Combine(transactionDirectory, FileName),
+            transaction,
             BackupJsonContext.Default.BackupTransaction);
     }
 
@@ -54,25 +62,17 @@ public static class BackupTransactionStore
 
 internal static class BackupJsonStore
 {
-    public static void Save<T>(string path, T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
+    public static void Save<T>(
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations,
+        string path,
+        T value,
+        System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        string temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                       4096, FileOptions.WriteThrough))
-            {
-                JsonSerializer.Serialize(stream, value, typeInfo);
-                stream.Flush(true);
-            }
-
-            FileHelper.SafeMoveFile(temporaryPath, path, true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-        }
+        ArgumentNullException.ThrowIfNull(fileOperations);
+        ArgumentNullException.ThrowIfNull(directoryOperations);
+        directoryOperations.Create(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        fileOperations.Write(path, stream => { JsonSerializer.Serialize(stream, value, typeInfo); });
     }
 }
 

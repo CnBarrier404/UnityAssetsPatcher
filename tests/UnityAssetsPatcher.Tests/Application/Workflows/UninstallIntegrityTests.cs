@@ -3,6 +3,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Tests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Workflows;
@@ -140,7 +141,10 @@ public sealed class UninstallIntegrityTests
                         Path.GetRelativePath(gameDirectory, payloadPath),
                         FileIntegrity.Create(payloadPath)),
                 ]);
-            var store = new BackupRepository(backupDirectory);
+            var store = new BackupRepository(
+                backupDirectory,
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations);
             string committedInstallDirectory = store.GetInstallDirectory(record.Id);
             _ = store.LoadMetadata();
             Directory.Move(installDirectory, committedInstallDirectory);
@@ -158,7 +162,10 @@ public sealed class UninstallIntegrityTests
                 PayloadPath = payloadPath,
                 Workflow = new UninstallModWorkflow(
                     new UninstallPlanner(store, new GameDirectoryResolver([])),
-                    new UninstallExecutor(store),
+                    new UninstallExecutor(
+                        store,
+                        TestDependencies.FileOperations,
+                        TestDependencies.DirectoryOperations),
                     store),
             };
         }

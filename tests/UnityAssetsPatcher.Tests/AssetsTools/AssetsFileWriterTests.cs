@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Tests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.AssetsTools;
@@ -14,7 +15,10 @@ public sealed class AssetsFileWriterTests
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        using var writer = new AssetsFileWriter("AssetsRipper.tpk");
+        using var writer = new AssetsFileWriter(
+            "AssetsRipper.tpk",
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
 
         var exception = Assert.Throws<FileNotFoundException>(() =>
             writer.WriteFieldPatches(missingAssetsFile, outputPath, []));
@@ -31,7 +35,10 @@ public sealed class AssetsFileWriterTests
         string existingAssetsFile = Path.GetTempFileName();
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        using var writer = new AssetsFileWriter(missingTpkFile);
+        using var writer = new AssetsFileWriter(
+            missingTpkFile,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
 
         try
         {
@@ -57,7 +64,10 @@ public sealed class AssetsFileWriterTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingSourceAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        var writer = new AssetsFileWriter(missingTpkFile);
+        var writer = new AssetsFileWriter(
+            missingTpkFile,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
 
         try
         {

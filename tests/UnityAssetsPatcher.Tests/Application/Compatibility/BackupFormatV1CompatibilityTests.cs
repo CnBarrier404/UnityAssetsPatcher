@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Tests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Compatibility;
@@ -15,7 +16,10 @@ public sealed class BackupFormatV1CompatibilityTests
             scope.Backup,
             "committed-install-v1",
             new string('0', 64));
-        var repository = new BackupRepository(scope.Backup);
+        var repository = new BackupRepository(
+            scope.Backup,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
 
         BackupRepositoryMetadata metadata = repository.LoadMetadata();
         InstallRecordEntry entry = Assert.Single(repository.ListRecords());
@@ -194,7 +198,10 @@ public sealed class BackupFormatV1CompatibilityTests
     {
         CompatibilityFixture.InitializeRepository(scope.Backup);
 
-        return new BackupRepository(scope.Backup);
+        return new BackupRepository(
+            scope.Backup,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
     }
 
     private static void WriteGameFile(CompatibilityTestDirectory scope, string fileName, string contents)

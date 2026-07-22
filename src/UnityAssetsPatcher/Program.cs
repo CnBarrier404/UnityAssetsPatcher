@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.AssetsTools;
+using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Logging;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.CLI;
@@ -23,6 +24,7 @@ public sealed class Program
 
         using ServiceProvider serviceProvider = new ServiceCollection()
             .AddUnityAssetsPatcherLogging(logDirectory)
+            .AddUnityAssetsPatcherInfrastructure()
             .AddUnityAssetsPatcherAssetsTools(OpenTpkResource)
             .AddUnityAssetsPatcherApplication(backupDirectory)
             .AddUnityAssetsPatcherCLI()

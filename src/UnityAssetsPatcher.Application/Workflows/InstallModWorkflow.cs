@@ -3,6 +3,7 @@ using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -13,19 +14,23 @@ public sealed class InstallModWorkflow
     private readonly InstallExecutor _executor;
     private readonly BackupRepository _backupRepository;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
+    private readonly IDirectoryOperations _directoryOperations;
 
     public InstallModWorkflow(
         ModManifestReader manifestReader,
         InstallPlanBuilder planBuilder,
         InstallExecutor executor,
         BackupRepository backupRepository,
-        IAssetsAccessScopeFactory assetsAccessScopeFactory)
+        IAssetsAccessScopeFactory assetsAccessScopeFactory,
+        IDirectoryOperations directoryOperations)
     {
+        ArgumentNullException.ThrowIfNull(directoryOperations);
         _manifestReader = manifestReader;
         _planBuilder = planBuilder;
         _executor = executor;
         _backupRepository = backupRepository;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
+        _directoryOperations = directoryOperations;
     }
 
     public InstallPreviewResult Preview(InstallRequest request)
@@ -35,6 +40,7 @@ public sealed class InstallModWorkflow
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             _manifestReader,
+            _directoryOperations,
             timings);
         using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
         InstallAnalysisMode mode = request.IncludePatchPreviewDetails
@@ -71,6 +77,7 @@ public sealed class InstallModWorkflow
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             _manifestReader,
+            _directoryOperations,
             timings);
         using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
         InstallAnalysis analysis = _planBuilder.Analyze(

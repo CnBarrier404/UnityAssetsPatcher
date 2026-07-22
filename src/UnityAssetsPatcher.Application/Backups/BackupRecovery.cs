@@ -1,15 +1,25 @@
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application.Backups;
 
 internal sealed class BackupRecovery
 {
     private readonly BackupRepository _repository;
+    private readonly IFileOperations _fileOperations;
+    private readonly IDirectoryOperations _directoryOperations;
 
-    public BackupRecovery(BackupRepository repository)
+    public BackupRecovery(
+        BackupRepository repository,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations)
     {
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(fileOperations);
+        ArgumentNullException.ThrowIfNull(directoryOperations);
         _repository = repository;
+        _fileOperations = fileOperations;
+        _directoryOperations = directoryOperations;
     }
 
     public BackupRecoveryReport Check()
@@ -117,7 +127,7 @@ internal sealed class BackupRecovery
                 string target = BackupFileSystem.ResolveTrustedPath(trustedRoot, file.File.RelativePath);
                 if (file.Action == BackupRecoveryFileAction.Delete)
                 {
-                    File.Delete(target);
+                    _fileOperations.Delete(target);
                 }
                 else
                 {
@@ -272,7 +282,7 @@ internal sealed class BackupRecovery
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
         if (!file.Before!.Matches(rollback))
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
-        BackupFileSystem.RestoreAtomically(rollback, target);
+        _fileOperations.Copy(rollback, target);
         if (!file.Before.Matches(target))
             throw new InvalidOperationException($"Transaction rollback verification failed: {target}");
     }
@@ -280,7 +290,7 @@ internal sealed class BackupRecovery
     private void DeleteTransaction()
     {
         EnsureRealDirectory(_repository.TransactionDirectory, "Transaction directory");
-        Directory.Delete(_repository.TransactionDirectory, true);
+        _directoryOperations.Delete(_repository.TransactionDirectory);
     }
 
     private static void EnsureRealDirectory(string path, string description)
@@ -350,22 +360,6 @@ internal sealed class BackupRecovery
 
 public static class BackupFileSystem
 {
-    public static void RestoreAtomically(string sourcePath, string targetPath)
-    {
-        string directory = Path.GetDirectoryName(Path.GetFullPath(targetPath)) ??
-                           throw new InvalidOperationException($"Cannot resolve target directory: {targetPath}");
-        string tempPath = Path.Combine(directory, $".{Path.GetFileName(targetPath)}.{Guid.NewGuid():N}.tmp");
-        try
-        {
-            File.Copy(sourcePath, tempPath, false);
-            FileHelper.SafeMoveFile(tempPath, targetPath, true);
-        }
-        finally
-        {
-            if (File.Exists(tempPath)) File.Delete(tempPath);
-        }
-    }
-
     public static string ResolveTrustedPath(string rootDirectory, string relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath) ||

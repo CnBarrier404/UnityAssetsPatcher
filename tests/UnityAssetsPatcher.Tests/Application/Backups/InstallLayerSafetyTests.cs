@@ -3,6 +3,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Tests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Backups;
@@ -115,7 +116,10 @@ public sealed class InstallLayerSafetyTests
         string directory = CreateDirectory();
         try
         {
-            var store = new BackupRepository(directory);
+            var store = new BackupRepository(
+                directory,
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations);
             using BackupOperationLock owner = store.AcquireLock();
             Assert.Throws<InvalidOperationException>(() => store.AcquireLock());
         }
@@ -224,7 +228,10 @@ public sealed class InstallLayerSafetyTests
             string payload = Path.Combine(gameData, "first.payload");
             File.WriteAllText(payload, "payload");
 
-            var store = new BackupRepository(backup);
+            var store = new BackupRepository(
+                backup,
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations);
             string repositoryId = store.LoadMetadata().RepositoryId;
             string firstId = Guid.NewGuid().ToString("N");
             string secondId = Guid.NewGuid().ToString("N");
@@ -267,7 +274,10 @@ public sealed class InstallLayerSafetyTests
 
         public UninstallModWorkflow CreateWorkflow() => new(
             new UninstallPlanner(Store, new GameDirectoryResolver([])),
-            new UninstallExecutor(Store),
+            new UninstallExecutor(
+                Store,
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations),
             Store);
 
         public void Dispose()

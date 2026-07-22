@@ -4,6 +4,8 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Infrastructure.IO;
+using UnityAssetsPatcher.Tests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Workflows;
@@ -49,7 +51,7 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(backupPath))
             ],
             []);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store, new GameDirectoryResolver([steamRoot]));
 
@@ -107,7 +109,7 @@ public sealed class UninstallModWorkflowTests
                     TextIntegrity("original")),
             ],
             []);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -176,7 +178,7 @@ public sealed class UninstallModWorkflowTests
                 new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
                     FileIntegrity.Create(payloadPath)),
             ]);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -242,7 +244,7 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(backupPath)),
             ],
             []);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -318,7 +320,7 @@ public sealed class UninstallModWorkflowTests
                 new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
                     FileIntegrity.Create(payloadPath)),
             ]);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -397,7 +399,7 @@ public sealed class UninstallModWorkflowTests
                     TextIntegrity("second original")),
             ],
             []);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -472,7 +474,7 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(secondBackupPath)),
             ],
             []);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -547,7 +549,7 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(secondBackupPath)),
             ],
             []);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -630,19 +632,25 @@ public sealed class UninstallModWorkflowTests
             ],
             []);
 
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         int firstFileRestoreAttempts = 0;
-        var executor = new UninstallExecutor(store, (backupPath, targetPath) =>
-        {
-            if (targetPath == firstTargetPath && firstFileRestoreAttempts++ == 0)
+        IFileOperations fileOperations = TestDependencies.FileOperations;
+        var executor = new UninstallExecutor(
+            store,
+            fileOperations,
+            TestDependencies.DirectoryOperations,
+            (backupPath, targetPath) =>
             {
-                BackupFileSystem.RestoreAtomically(backupPath, targetPath);
-                return;
-            }
+                if (targetPath == firstTargetPath && firstFileRestoreAttempts++ == 0)
+                {
+                    fileOperations.Copy(backupPath, targetPath);
 
-            throw new IOException($"Simulated restore failure for: {targetPath}");
-        });
+                    return;
+                }
+
+                throw new IOException($"Simulated restore failure for: {targetPath}");
+            });
         var workflow = CreateWorkflow(store, executor: executor);
 
         try
@@ -673,7 +681,7 @@ public sealed class UninstallModWorkflowTests
     {
         string backupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string escapedDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         var workflow = CreateWorkflow(store);
 
         try
@@ -735,7 +743,7 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(backupPath)),
             ],
             []);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitInvalidRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -804,7 +812,7 @@ public sealed class UninstallModWorkflowTests
                     FileIntegrity.Create(backupPath)),
             ],
             []);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitInvalidRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -880,7 +888,7 @@ public sealed class UninstallModWorkflowTests
                     RelativeToGame(gameDirectory, escapedPayloadPath),
                     FileIntegrity.Create(escapedPayloadPath)),
             ]);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitInvalidRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -953,7 +961,7 @@ public sealed class UninstallModWorkflowTests
                 new InstallRecordCopiedFile("resources/modassets.resource", RelativeToGame(gameDirectory, payloadPath),
                     FileIntegrity.Create(payloadPath)),
             ]);
-        var store = new BackupRepository(backupDirectory);
+        var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         var workflow = CreateWorkflow(store);
 
@@ -1016,7 +1024,7 @@ public sealed class UninstallModWorkflowTests
                         RelativeToGame(gameDirectory, payloadPath),
                         FileIntegrity.Create(payloadPath))
                 ]);
-            var store = new BackupRepository(backupDirectory);
+            var store = CreateBackupRepository(backupDirectory);
             installDirectory = CommitRecord(store, record, installDirectory);
             var workflow = CreateWorkflow(store);
 
@@ -1072,8 +1080,19 @@ public sealed class UninstallModWorkflowTests
     {
         return new UninstallModWorkflow(
             new UninstallPlanner(store, gameDirectoryResolver ?? new GameDirectoryResolver([])),
-            executor ?? new UninstallExecutor(store),
+            executor ?? new UninstallExecutor(
+                store,
+                TestDependencies.FileOperations,
+                TestDependencies.DirectoryOperations),
             store);
+    }
+
+    private static BackupRepository CreateBackupRepository(string backupDirectory)
+    {
+        return new BackupRepository(
+            backupDirectory,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
     }
 
     private static string RelativeToGame(string gameDirectory, string path)

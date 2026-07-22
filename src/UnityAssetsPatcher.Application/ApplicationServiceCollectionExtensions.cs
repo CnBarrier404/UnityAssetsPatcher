@@ -8,6 +8,7 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Uninstallation;
+using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application;
 
@@ -20,7 +21,10 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<ModManifestReader>();
         services.AddSingleton(_ => new GameDirectoryResolver());
         services.AddSingleton<TargetAssetResolver>();
-        services.AddSingleton(new BackupRepository(backupDirectory));
+        services.AddSingleton(serviceProvider => new BackupRepository(
+            backupDirectory,
+            serviceProvider.GetRequiredService<IFileOperations>(),
+            serviceProvider.GetRequiredService<IDirectoryOperations>()));
         services.AddSingleton<IWorkflowService, WorkflowService>();
 
         AddAssetsAccess(services);

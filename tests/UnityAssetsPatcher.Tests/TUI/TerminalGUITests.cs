@@ -9,6 +9,7 @@ using Terminal.Gui.Input;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Pages;
@@ -151,6 +152,7 @@ public sealed class TerminalGUITests : IDisposable
         var assetsFileService = new StubAssetsFileService([]);
         using ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IAssetsAccessScopeFactory>(assetsFileService)
+            .AddUnityAssetsPatcherInfrastructure()
             .AddUnityAssetsPatcherApplication("backup")
             .AddUnityAssetsPatcherTUI(new AppInfo("Unity Assets Patcher", "dev"))
             .BuildServiceProvider(new ServiceProviderOptions

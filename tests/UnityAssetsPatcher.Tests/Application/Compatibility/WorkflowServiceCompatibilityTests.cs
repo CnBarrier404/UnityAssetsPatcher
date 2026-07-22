@@ -6,6 +6,8 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Infrastructure;
+using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -106,7 +108,10 @@ public sealed class WorkflowServiceCompatibilityTests
         string payloadPath = Path.Combine(scope.GameData, "mod.bin");
         File.WriteAllText(targetPath, "installed-assets");
         File.WriteAllText(payloadPath, "modified");
-        var repository = new BackupRepository(scope.Backup);
+        var repository = new BackupRepository(
+            scope.Backup,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
         BackupRepositoryMetadata metadata = repository.LoadMetadata();
         string fingerprint = GameInstanceIdentity.CreateFingerprint(scope.Game);
         DateTimeOffset targetInstalledAt = DateTimeOffset.Parse("2025-06-15T12:34:56+00:00");
@@ -225,6 +230,7 @@ public sealed class WorkflowServiceCompatibilityTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<IAssetsAccessScopeFactory>(assetsFileService);
+        services.AddUnityAssetsPatcherInfrastructure();
         services.AddUnityAssetsPatcherApplication(backupDirectory);
 
         return services.BuildServiceProvider(

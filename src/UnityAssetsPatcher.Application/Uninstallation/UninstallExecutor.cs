@@ -1,21 +1,35 @@
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application.Uninstallation;
 
 public sealed class UninstallExecutor
 {
     private readonly BackupRepository _backupRepository;
+    private readonly IFileOperations _fileOperations;
+    private readonly IDirectoryOperations _directoryOperations;
     private readonly Action<string, string> _restoreFile;
 
-    public UninstallExecutor(BackupRepository backupRepository) :
-        this(backupRepository, BackupFileSystem.RestoreAtomically) { }
+    public UninstallExecutor(
+        BackupRepository backupRepository,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations) :
+        this(backupRepository, fileOperations, directoryOperations, fileOperations.Copy) { }
 
-    public UninstallExecutor(BackupRepository backupRepository, Action<string, string> restoreFile)
+    public UninstallExecutor(
+        BackupRepository backupRepository,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations,
+        Action<string, string> restoreFile)
     {
         ArgumentNullException.ThrowIfNull(backupRepository);
+        ArgumentNullException.ThrowIfNull(fileOperations);
+        ArgumentNullException.ThrowIfNull(directoryOperations);
         ArgumentNullException.ThrowIfNull(restoreFile);
         _backupRepository = backupRepository;
+        _fileOperations = fileOperations;
+        _directoryOperations = directoryOperations;
         _restoreFile = restoreFile;
     }
 
@@ -29,7 +43,7 @@ public sealed class UninstallExecutor
         BackupRepositoryMetadata repository = _backupRepository.LoadMetadata();
         string temporaryDirectory = _backupRepository.CreateTransactionDirectory();
         string rollbackDirectory = Path.Combine(temporaryDirectory, "rollback");
-        Directory.CreateDirectory(rollbackDirectory);
+        _directoryOperations.Create(rollbackDirectory);
         var files = new List<BackupTransactionFile>();
         bool transactionSaved = false;
         BackupTransaction? transaction = null;
@@ -63,7 +77,7 @@ public sealed class UninstallExecutor
 
             transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Uninstall,
                 plan.Record.Id, plan.Record.GameInstanceFingerprint, files);
-            BackupTransactionStore.Save(temporaryDirectory, transaction);
+            BackupTransactionStore.Save(_fileOperations, _directoryOperations, temporaryDirectory, transaction);
             transactionSaved = true;
 
             var restoredFiles = new List<UninstallRestoredFileResult>();
@@ -88,13 +102,13 @@ public sealed class UninstallExecutor
 
                 if (!file.InstalledFile.Matches(file.DestinationPath))
                     throw new IOException($"Payload changed during uninstall: {file.DestinationPath}");
-                File.Delete(file.DestinationPath);
+                _fileOperations.Delete(file.DestinationPath);
                 deletedFiles.Add(new UninstallDeletedFileResult(file.DestinationPath, true));
             }
 
             string removedInstall = Path.Combine(temporaryDirectory, "removed-install");
-            Directory.Move(plan.InstallDirectory, removedInstall);
-            Directory.Delete(temporaryDirectory, true);
+            _directoryOperations.Move(plan.InstallDirectory, removedInstall);
+            _directoryOperations.Delete(temporaryDirectory);
             return new UninstallModResult(plan.Record.Id, plan.Record.ModName, plan.Record.ModVersion,
                 restoredFiles, deletedFiles);
         }
@@ -102,7 +116,7 @@ public sealed class UninstallExecutor
         {
             if (!transactionSaved)
             {
-                if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, true);
+                if (Directory.Exists(temporaryDirectory)) _directoryOperations.Delete(temporaryDirectory);
                 throw;
             }
 

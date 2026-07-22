@@ -2,6 +2,7 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
@@ -22,10 +23,20 @@ public sealed class InstallExecutor
     private sealed record InstallPatchPlanFile(string Target, string AssetsFilePath, PatchPlan PatchPlan);
 
     private readonly BackupRepository _backupRepository;
+    private readonly IFileOperations _fileOperations;
+    private readonly IDirectoryOperations _directoryOperations;
 
-    public InstallExecutor(BackupRepository backupRepository)
+    public InstallExecutor(
+        BackupRepository backupRepository,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations)
     {
+        ArgumentNullException.ThrowIfNull(backupRepository);
+        ArgumentNullException.ThrowIfNull(fileOperations);
+        ArgumentNullException.ThrowIfNull(directoryOperations);
         _backupRepository = backupRepository;
+        _fileOperations = fileOperations;
+        _directoryOperations = directoryOperations;
     }
 
     public InstallExecutionResult Execute(
@@ -55,9 +66,9 @@ public sealed class InstallExecutor
 
         try
         {
-            Directory.CreateDirectory(rollbackDirectory);
-            Directory.CreateDirectory(preparedDirectory);
-            Directory.CreateDirectory(backupsDirectory);
+            _directoryOperations.Create(rollbackDirectory);
+            _directoryOperations.Create(preparedDirectory);
+            _directoryOperations.Create(backupsDirectory);
 
             for (int index = 0; index < patchFiles.Count; index++)
             {
@@ -149,12 +160,12 @@ public sealed class InstallExecutor
 
             transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Install, installId,
                 fingerprint, transactionFiles);
-            BackupTransactionStore.Save(temporaryDirectory, transaction);
+            BackupTransactionStore.Save(_fileOperations, _directoryOperations, temporaryDirectory, transaction);
             transactionSaved = true;
 
             ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
             _backupRepository.CommitInstall(preparedInstallDirectory, installId);
-            Directory.Delete(temporaryDirectory, true);
+            _directoryOperations.Delete(temporaryDirectory);
 
             return new InstallExecutionResult(patched, copied, installId);
         }
@@ -188,7 +199,7 @@ public sealed class InstallExecutor
         {
             if (Directory.Exists(temporaryDirectory))
             {
-                Directory.Delete(temporaryDirectory, true);
+                _directoryOperations.Delete(temporaryDirectory);
             }
 
             return;
@@ -203,7 +214,7 @@ public sealed class InstallExecutor
         }
     }
 
-    private static void ApplyPreparedFiles(
+    private void ApplyPreparedFiles(
         BackupTransaction transaction,
         string temporaryDirectory,
         string gameDirectory)
@@ -224,37 +235,11 @@ public sealed class InstallExecutor
             string source = Path.GetFullPath(Path.Combine(temporaryDirectory,
                 file.PreparedRelativePath ?? throw new InvalidOperationException("Prepared file path is missing.")));
 
-            if (file.Before is null)
-            {
-                CopyNewAtomically(source, target);
-            }
-            else
-            {
-                BackupFileSystem.RestoreAtomically(source, target);
-            }
+            _fileOperations.Copy(source, target);
 
             if (file.After is null || !file.After.Matches(target))
             {
                 throw new IOException($"Installed file verification failed: {target}");
-            }
-        }
-    }
-
-    private static void CopyNewAtomically(string source, string destination)
-    {
-        string directory = Path.GetDirectoryName(destination)!;
-        string temporary = Path.Combine(directory, $".{Path.GetFileName(destination)}.{Guid.NewGuid():N}.tmp");
-
-        try
-        {
-            File.Copy(source, temporary, false);
-            File.Move(temporary, destination, false);
-        }
-        finally
-        {
-            if (File.Exists(temporary))
-            {
-                File.Delete(temporary);
             }
         }
     }

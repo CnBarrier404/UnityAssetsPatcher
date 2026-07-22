@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.AssetsTools;
+using UnityAssetsPatcher.Infrastructure;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.AssetsTools;
@@ -38,6 +39,7 @@ public sealed class AssetsToolsServiceCollectionExtensionsTests
     public void AddUnityAssetsPatcherAssetsTools_WithApplication_ValidatesCompleteObjectGraph()
     {
         using ServiceProvider provider = new ServiceCollection()
+            .AddUnityAssetsPatcherInfrastructure()
             .AddUnityAssetsPatcherAssetsTools(() => File.OpenRead(GetRealTpkFilePath()))
             .AddUnityAssetsPatcherApplication("backup")
             .BuildServiceProvider(new ServiceProviderOptions
@@ -79,6 +81,7 @@ public sealed class AssetsToolsServiceCollectionExtensionsTests
     private static ServiceProvider CreateServiceProvider()
     {
         return new ServiceCollection()
+            .AddUnityAssetsPatcherInfrastructure()
             .AddUnityAssetsPatcherAssetsTools(() => File.OpenRead(GetRealTpkFilePath()))
             .BuildServiceProvider(new ServiceProviderOptions
             {

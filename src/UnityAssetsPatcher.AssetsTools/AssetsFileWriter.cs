@@ -1,6 +1,6 @@
 using AssetsTools.NET;
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Infrastructure.IO;
 using AssetsToolsNetFileWriter = AssetsTools.NET.AssetsFileWriter;
 
 namespace UnityAssetsPatcher.AssetsTools;
@@ -8,17 +8,34 @@ namespace UnityAssetsPatcher.AssetsTools;
 public sealed class AssetsFileWriter : IAssetsFileWriter
 {
     private readonly AssetsToolsContext _context;
+    private readonly IFileOperations _fileOperations;
+    private readonly IDirectoryOperations _directoryOperations;
     private readonly bool _ownsContext;
 
-    public AssetsFileWriter(string tpkFilePath)
-        : this(new AssetsToolsContext(tpkFilePath), ownsContext: true) { }
+    public AssetsFileWriter(
+        string tpkFilePath,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations)
+        : this(new AssetsToolsContext(tpkFilePath), fileOperations, directoryOperations, ownsContext: true) { }
 
-    public AssetsFileWriter(AssetsToolsContext context)
-        : this(context, ownsContext: false) { }
+    public AssetsFileWriter(
+        AssetsToolsContext context,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations)
+        : this(context, fileOperations, directoryOperations, ownsContext: false) { }
 
-    private AssetsFileWriter(AssetsToolsContext context, bool ownsContext)
+    private AssetsFileWriter(
+        AssetsToolsContext context,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations,
+        bool ownsContext)
     {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(fileOperations);
+        ArgumentNullException.ThrowIfNull(directoryOperations);
         _context = context;
+        _fileOperations = fileOperations;
+        _directoryOperations = directoryOperations;
         _ownsContext = ownsContext;
     }
 
@@ -52,35 +69,17 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
 
     private void WriteAssetsFile(string inputPath, string outputPath, Action<AssetsFileSession> applyChanges)
     {
-        string? outputDirectory = Path.GetDirectoryName(outputPath);
-        string tempPath = CreateTempPath(outputPath, outputDirectory);
-
-        try
+        using (AssetsFileSession session = AssetsFileSession.Open(inputPath, _context))
         {
-            using (AssetsFileSession session = AssetsFileSession.Open(inputPath, _context))
+            string? outputDirectory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(outputDirectory))
             {
-                if (!string.IsNullOrEmpty(outputDirectory))
-                {
-                    Directory.CreateDirectory(outputDirectory);
-                }
-
-                applyChanges(session);
-                WriteSessionToFile(session, tempPath);
+                _directoryOperations.Create(outputDirectory);
             }
 
-            FileHelper.SafeMoveFile(tempPath, outputPath, overwrite: true);
+            applyChanges(session);
+            _fileOperations.Write(outputPath, outputStream => WriteSessionToStream(session, outputStream));
         }
-        finally
-        {
-            DeleteIfExists(tempPath);
-        }
-    }
-
-    private static string CreateTempPath(string outputPath, string? outputDirectory)
-    {
-        return Path.Combine(
-            string.IsNullOrEmpty(outputDirectory) ? Directory.GetCurrentDirectory() : outputDirectory,
-            $".{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
     }
 
     private static void ValidateReplacementSources(IReadOnlyList<AssetReplacement> plan)
@@ -98,19 +97,10 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         }
     }
 
-    private static void WriteSessionToFile(AssetsFileSession session, string outputPath)
+    private static void WriteSessionToStream(AssetsFileSession session, Stream outputStream)
     {
-        using FileStream outputStream = File.Create(outputPath);
         var writer = new AssetsToolsNetFileWriter(outputStream);
         session.AssetsFile.Write(writer);
-    }
-
-    private static void DeleteIfExists(string path)
-    {
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
     }
 
     private static void ApplyPatchPlan(AssetsFileSession session, IReadOnlyList<AssetFieldPatch> plan)
