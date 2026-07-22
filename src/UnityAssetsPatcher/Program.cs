@@ -1,25 +1,28 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.AssetsTools;
+using UnityAssetsPatcher.Logging;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.CLI;
 
 namespace UnityAssetsPatcher;
 
-public static class Program
+public sealed class Program
 {
     private const string TpkResourceName = "resources.tpk";
 
     public static int Main(string[] args)
     {
-        string backupDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "UnityAssetsPatcher",
-            "backup");
+        string appDataDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UnityAssetsPatcher");
+        string backupDirectory = Path.Combine(appDataDirectory, "backup");
+        string logDirectory = Path.Combine(appDataDirectory, "logs");
 
         AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
 
         using ServiceProvider serviceProvider = new ServiceCollection()
+            .AddUnityAssetsPatcherLogging(logDirectory)
             .AddUnityAssetsPatcherAssetsTools(OpenTpkResource)
             .AddUnityAssetsPatcherApplication(backupDirectory)
             .AddUnityAssetsPatcherCLI()
@@ -29,6 +32,9 @@ public static class Program
                 ValidateOnBuild = true,
                 ValidateScopes = true,
             });
+
+        var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Application started");
 
         return args.Length > 0
             ? serviceProvider.GetRequiredService<CLIApplication>().Run(args)

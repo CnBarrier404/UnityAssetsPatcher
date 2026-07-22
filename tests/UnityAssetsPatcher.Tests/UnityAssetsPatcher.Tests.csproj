@@ -16,6 +16,7 @@
         </PackageReference>
     </ItemGroup>
     <ItemGroup>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher\UnityAssetsPatcher.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.CLI\UnityAssetsPatcher.CLI.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.AssetsTools\UnityAssetsPatcher.AssetsTools.csproj"/>
