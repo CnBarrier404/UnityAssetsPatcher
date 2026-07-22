@@ -30,6 +30,10 @@ Pass a command to use the non-interactive CLI. Run the help commands to see the 
 
 Installation records and backups are stored in `%LOCALAPPDATA%\UnityAssetsPatcher` by default. Keep this folder available to uninstall mods or recover interrupted operations.
 
+## Frequently Asked Questions
+
+See the [FAQ](docs/faq_EN.md).
+
 ## Creating Mods
 
 A mod package is a zip archive containing exactly one `manifest.json`. The manifest can describe target assets files, field modifications, asset replacements, payload files, and optional content.

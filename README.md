@@ -30,6 +30,10 @@ Unity Assets Patcher 是一款用于浏览 Unity assets 文件及安装、卸载
 
 安装记录和备份默认保存在 `%LOCALAPPDATA%\UnityAssetsPatcher` 中。请保留该文件夹，以便正常卸载 Mod 或恢复意外中断的操作。
 
+## 常见问题
+
+请参阅 [常见问题](docs/faq.md)。
+
 ## Mod 创建
 
 Mod 包采用 zip 格式，其中必须包含且只能包含一个 `manifest.json`。Manifest 可用于描述目标 assets 文件、字段修改、asset 替换、payload 文件及可选内容。
