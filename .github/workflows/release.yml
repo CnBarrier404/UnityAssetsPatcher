@@ -143,11 +143,9 @@ jobs:
 
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
 
-          $changelogPath = @("docs/changelog.md", "docs/CHANGELOG.md") |
-            Where-Object { Test-Path $_ } |
-            Select-Object -First 1
+          $changelogPath = "CHANGELOG.md"
 
-          if (-not $changelogPath) {
+          if (-not (Test-Path $changelogPath)) {
             $fallbackNotes | Set-Content -Path $notesPath -Encoding utf8
             "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
             exit 0
