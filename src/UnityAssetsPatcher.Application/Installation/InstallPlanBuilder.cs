@@ -1,7 +1,8 @@
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Installation;
 

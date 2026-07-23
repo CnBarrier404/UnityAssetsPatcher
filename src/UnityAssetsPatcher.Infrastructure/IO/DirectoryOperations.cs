@@ -1,3 +1,5 @@
+using UnityAssetsPatcher.Abstractions.IO;
+
 namespace UnityAssetsPatcher.Infrastructure.IO;
 
 public sealed class DirectoryOperations : IDirectoryOperations

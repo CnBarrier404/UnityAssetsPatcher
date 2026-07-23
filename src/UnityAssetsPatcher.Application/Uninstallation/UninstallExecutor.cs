@@ -1,6 +1,6 @@
+using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Application.Uninstallation;
 

@@ -1,6 +1,6 @@
 using System.CommandLine;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.CLI;
 

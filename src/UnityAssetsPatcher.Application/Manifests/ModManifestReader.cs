@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Json;
+using UnityAssetsPatcher.Domain.Json;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 

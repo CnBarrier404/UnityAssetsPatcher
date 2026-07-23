@@ -1,9 +1,10 @@
 using System.Text.Json;
+using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.Json;
 using UnityAssetsPatcher.Application.Patching.Fields;
+using UnityAssetsPatcher.Domain.Assets;
+using UnityAssetsPatcher.Domain.Json;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Patching;

@@ -1,5 +1,5 @@
-using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Infrastructure.IO;
+using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Abstractions.IO;
 
 namespace UnityAssetsPatcher.AssetsTools;
 

@@ -1,10 +1,10 @@
 using System.Text.Json;
+using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Workflows;
-using UnityAssetsPatcher.Infrastructure.IO;
 using UnityAssetsPatcher.Tests;
 using Xunit;
 

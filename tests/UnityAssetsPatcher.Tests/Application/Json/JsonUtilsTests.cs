@@ -1,5 +1,5 @@
 using System.Text.Json;
-using UnityAssetsPatcher.Application.Json;
+using UnityAssetsPatcher.Domain.Json;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Json;

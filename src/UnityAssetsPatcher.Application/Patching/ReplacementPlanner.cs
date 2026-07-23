@@ -1,5 +1,6 @@
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
 

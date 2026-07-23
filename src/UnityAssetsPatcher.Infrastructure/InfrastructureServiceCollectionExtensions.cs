@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Infrastructure.IO;
 
 namespace UnityAssetsPatcher.Infrastructure;

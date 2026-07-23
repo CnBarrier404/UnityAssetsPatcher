@@ -1,5 +1,5 @@
 using System.Runtime.ExceptionServices;
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Abstractions.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 

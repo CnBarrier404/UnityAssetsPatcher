@@ -1,5 +1,6 @@
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Domain.Assets;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Patching;

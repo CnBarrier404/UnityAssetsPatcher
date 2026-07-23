@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace UnityAssetsPatcher.Application.Assets;
+namespace UnityAssetsPatcher.Domain.Assets;
 
 public abstract record AssetFieldValue
 {

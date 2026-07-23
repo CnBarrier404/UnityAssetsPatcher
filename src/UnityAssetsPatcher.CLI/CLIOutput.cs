@@ -4,8 +4,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.CLI;
 

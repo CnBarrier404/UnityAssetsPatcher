@@ -1,9 +1,10 @@
+using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Backups;
-using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Infrastructure.IO;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 

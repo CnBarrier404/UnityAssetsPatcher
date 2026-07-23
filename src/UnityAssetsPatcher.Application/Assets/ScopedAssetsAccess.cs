@@ -1,3 +1,6 @@
+using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Domain.Assets;
+
 namespace UnityAssetsPatcher.Application.Assets;
 
 public sealed class ScopedAssetsAccess : IAssetsAccessScope

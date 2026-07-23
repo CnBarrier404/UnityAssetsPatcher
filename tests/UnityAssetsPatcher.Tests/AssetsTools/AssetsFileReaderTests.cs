@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Reflection;
 using UnityAssetsPatcher.AssetsTools;
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Domain.Assets;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.AssetsTools;

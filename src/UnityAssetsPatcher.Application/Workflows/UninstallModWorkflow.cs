@@ -1,6 +1,6 @@
+using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Uninstallation;
-using UnityAssetsPatcher.Application.Backups;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 

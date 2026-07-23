@@ -1,9 +1,9 @@
-using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
+using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;

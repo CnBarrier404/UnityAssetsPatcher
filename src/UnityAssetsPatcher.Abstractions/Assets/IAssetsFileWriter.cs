@@ -1,4 +1,6 @@
-namespace UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Domain.Assets;
+
+namespace UnityAssetsPatcher.Abstractions.Assets;
 
 public interface IAssetsFileWriter : IDisposable
 {

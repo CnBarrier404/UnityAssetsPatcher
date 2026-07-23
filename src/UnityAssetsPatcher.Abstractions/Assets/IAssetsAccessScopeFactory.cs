@@ -1,4 +1,4 @@
-namespace UnityAssetsPatcher.Application.Assets;
+namespace UnityAssetsPatcher.Abstractions.Assets;
 
 public interface IAssetsAccessScopeFactory
 {

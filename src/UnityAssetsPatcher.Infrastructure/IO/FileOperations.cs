@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using UnityAssetsPatcher.Abstractions.IO;
 
 namespace UnityAssetsPatcher.Infrastructure.IO;
 

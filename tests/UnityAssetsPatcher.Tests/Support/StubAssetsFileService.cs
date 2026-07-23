@@ -1,4 +1,5 @@
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Tests.Support;
 

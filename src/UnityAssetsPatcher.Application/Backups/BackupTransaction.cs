@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using UnityAssetsPatcher.Infrastructure.IO;
+using UnityAssetsPatcher.Abstractions.IO;
 
 namespace UnityAssetsPatcher.Application.Backups;
 

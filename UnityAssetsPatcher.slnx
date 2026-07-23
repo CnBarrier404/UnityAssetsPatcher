@@ -6,6 +6,8 @@
     </Configurations>
     <Folder Name="/src/">
         <Project Path="src/UnityAssetsPatcher/UnityAssetsPatcher.csproj"/>
+        <Project Path="src/UnityAssetsPatcher.Domain/UnityAssetsPatcher.Domain.csproj"/>
+        <Project Path="src/UnityAssetsPatcher.Abstractions/UnityAssetsPatcher.Abstractions.csproj"/>
         <Project Path="src/UnityAssetsPatcher.AssetsTools/UnityAssetsPatcher.AssetsTools.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Infrastructure/UnityAssetsPatcher.Infrastructure.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Application/UnityAssetsPatcher.Application.csproj"/>

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace UnityAssetsPatcher.Application.Json;
+namespace UnityAssetsPatcher.Domain.Json;
 
 public static class JsonElementFactory
 {

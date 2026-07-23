@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Updates;
-using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.TUI.Navigation;
 
 namespace UnityAssetsPatcher.TUI;

@@ -23,6 +23,8 @@
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.LocalizationGenerator\UnityAssetsPatcher.LocalizationGenerator.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.TUI\UnityAssetsPatcher.TUI.csproj"/>
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.Infrastructure\UnityAssetsPatcher.Infrastructure.csproj"/>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher.Abstractions\UnityAssetsPatcher.Abstractions.csproj"/>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher.Domain\UnityAssetsPatcher.Domain.csproj"/>
     </ItemGroup>
     <ItemGroup>
         <None Update="Application\Compatibility\Fixtures\*.json"

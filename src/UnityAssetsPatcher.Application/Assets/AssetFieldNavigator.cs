@@ -1,3 +1,5 @@
+using UnityAssetsPatcher.Domain.Assets;
+
 namespace UnityAssetsPatcher.Application.Assets;
 
 public static class AssetFieldNavigator

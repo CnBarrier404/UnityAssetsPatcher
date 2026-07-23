@@ -1,7 +1,7 @@
 using System.Text.Json;
-using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 

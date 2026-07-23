@@ -1,8 +1,8 @@
+using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Assets;
-using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 

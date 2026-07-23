@@ -1,6 +1,6 @@
-using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Json;
+using UnityAssetsPatcher.Domain.Assets;
+using UnityAssetsPatcher.Domain.Json;
 
 namespace UnityAssetsPatcher.Application.Patching.Fields;
 

@@ -1,5 +1,5 @@
 using System.Text.Json;
 
-namespace UnityAssetsPatcher.Application.Assets;
+namespace UnityAssetsPatcher.Domain.Assets;
 
 public sealed record FieldPatchOperation(string Path, JsonElement To);

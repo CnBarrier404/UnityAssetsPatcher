@@ -1,6 +1,6 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Workflows;
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 

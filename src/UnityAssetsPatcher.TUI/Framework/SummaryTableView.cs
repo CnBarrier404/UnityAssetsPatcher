@@ -1,5 +1,5 @@
-using Terminal.Gui.Views;
 using Terminal.Gui.Text;
+using Terminal.Gui.Views;
 
 namespace UnityAssetsPatcher.TUI.Framework;
 

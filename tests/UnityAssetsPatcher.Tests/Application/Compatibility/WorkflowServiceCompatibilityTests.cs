@@ -1,11 +1,12 @@
 using System.IO.Compression;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;

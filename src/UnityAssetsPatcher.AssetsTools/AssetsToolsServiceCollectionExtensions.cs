@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Abstractions.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 

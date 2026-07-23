@@ -1,5 +1,5 @@
 using System.Text;
-using UnityAssetsPatcher.Infrastructure.IO;
+using UnityAssetsPatcher.Abstractions.IO;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Infrastructure.IO;

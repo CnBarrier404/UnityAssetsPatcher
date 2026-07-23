@@ -1,8 +1,9 @@
-using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Infrastructure.IO;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Installation;
 

@@ -1,4 +1,4 @@
-namespace UnityAssetsPatcher.Application.Assets;
+namespace UnityAssetsPatcher.Domain.Assets;
 
 public static class AssetFieldPath
 {

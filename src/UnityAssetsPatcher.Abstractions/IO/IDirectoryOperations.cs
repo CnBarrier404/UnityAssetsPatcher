@@ -1,4 +1,4 @@
-namespace UnityAssetsPatcher.Infrastructure.IO;
+namespace UnityAssetsPatcher.Abstractions.IO;
 
 public interface IDirectoryOperations
 {

@@ -2,10 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.AssetsTools;
+using UnityAssetsPatcher.CLI;
 using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Logging;
 using UnityAssetsPatcher.TUI;
-using UnityAssetsPatcher.CLI;
 
 namespace UnityAssetsPatcher;
 
