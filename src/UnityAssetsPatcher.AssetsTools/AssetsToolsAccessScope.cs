@@ -15,12 +15,6 @@ public sealed class AssetsToolsAccessScope : IAssetsAccessScope
     private bool _disposed;
 
     public AssetsToolsAccessScope(
-        Func<Stream> openTpkStream,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations)
-        : this(new ClassPackageCache(openTpkStream), fileOperations, directoryOperations) { }
-
-    public AssetsToolsAccessScope(
         ClassPackageCache classPackageCache,
         IFileOperations fileOperations,
         IDirectoryOperations directoryOperations)

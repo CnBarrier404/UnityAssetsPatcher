@@ -18,8 +18,6 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
     private readonly ClassPackageCache _classPackageCache;
     private bool _disposed;
 
-    public AssetsFileReader(Func<Stream> openTpkStream) : this(new ClassPackageCache(openTpkStream)) { }
-
     public AssetsFileReader(ClassPackageCache classPackageCache)
     {
         ArgumentNullException.ThrowIfNull(classPackageCache);

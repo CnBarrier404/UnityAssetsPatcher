@@ -12,12 +12,6 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
     private readonly IDirectoryOperations _directoryOperations;
 
     public AssetsFileWriter(
-        Func<Stream> openTpkStream,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations)
-        : this(new ClassPackageCache(openTpkStream), fileOperations, directoryOperations) { }
-
-    public AssetsFileWriter(
         ClassPackageCache classPackageCache,
         IFileOperations fileOperations,
         IDirectoryOperations directoryOperations)

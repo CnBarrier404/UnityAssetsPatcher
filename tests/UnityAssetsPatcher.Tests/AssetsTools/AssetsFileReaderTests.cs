@@ -13,12 +13,13 @@ public sealed class AssetsFileReaderTests
     public void ReadAssetsAndField_WhenReaderInstanceIsReused_ReturnsAssetData()
     {
         int classPackageOpenCount = 0;
-        using var reader = new AssetsFileReader(() =>
-        {
-            classPackageOpenCount++;
+        using var reader = new AssetsFileReader(
+            new ClassPackageCache(() =>
+            {
+                classPackageOpenCount++;
 
-            return OpenRealTpkStream();
-        });
+                return OpenRealTpkStream();
+            }));
 
         var assets = reader.ReadAssets(GetRealAssetsFilePath());
         AssetInfo asset = Assert.Single(assets.Take(1));
@@ -45,7 +46,7 @@ public sealed class AssetsFileReaderTests
     public void ReadAssets_WhenAssetsFileDoesNotExist_ThrowsClearError()
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        using var service = new AssetsFileReader(OpenRealTpkStream);
+        using var service = new AssetsFileReader(new ClassPackageCache(OpenRealTpkStream));
 
         var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssets(missingAssetsFile));
 
@@ -60,7 +61,8 @@ public sealed class AssetsFileReaderTests
     {
         string existingAssetsFile = Path.GetTempFileName();
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        using var service = new AssetsFileReader(() => File.OpenRead(missingTpkFile));
+        using var service = new AssetsFileReader(
+            new ClassPackageCache(() => File.OpenRead(missingTpkFile)));
 
         try
         {

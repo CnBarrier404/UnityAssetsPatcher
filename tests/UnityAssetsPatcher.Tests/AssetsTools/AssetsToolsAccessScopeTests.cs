@@ -44,7 +44,7 @@ public sealed class AssetsToolsAccessScopeTests
     private static AssetsToolsAccessScope CreateScope()
     {
         return new AssetsToolsAccessScope(
-            OpenRealTpkStream,
+            new ClassPackageCache(OpenRealTpkStream),
             TestDependencies.FileOperations,
             TestDependencies.DirectoryOperations);
     }

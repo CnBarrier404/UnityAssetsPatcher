@@ -21,7 +21,7 @@ public sealed class AssetsFileWriterTests
                 new AssetFieldPatch(4, [new FieldPatchOperation("m_Name", JsonElementFactory.String("Changed"))]),
                 new AssetFieldPatch(1, [new FieldPatchOperation("m_Assets.Array", JsonElementFactory.Array([]))]),
             ]);
-            using var reader = new AssetsFileReader(OpenRealTpkStream);
+            using var reader = new AssetsFileReader(new ClassPackageCache(OpenRealTpkStream));
 
             Assert.Equal("Changed", Find(reader.ReadField(outputPath, 4), "m_Name").Value?.ToInvariantString());
             Assert.Empty(Find(reader.ReadField(outputPath, 1), "m_Assets.Array").Children);
@@ -52,7 +52,7 @@ public sealed class AssetsFileWriterTests
             [
                 new AssetFieldPatch(4, [new FieldPatchOperation("m_Name", JsonElementFactory.String("Second"))]),
             ]);
-            using var reader = new AssetsFileReader(OpenRealTpkStream);
+            using var reader = new AssetsFileReader(new ClassPackageCache(OpenRealTpkStream));
 
             Assert.Equal("Text", Find(reader.ReadField(firstPath, 4), "m_Name").Value?.ToInvariantString());
             Assert.Equal("Second", Find(reader.ReadField(secondPath, 4), "m_Name").Value?.ToInvariantString());
@@ -80,7 +80,7 @@ public sealed class AssetsFileWriterTests
             [
                 new AssetReplacement(sourcePath, 4, 4),
             ]);
-            using var reader = new AssetsFileReader(OpenRealTpkStream);
+            using var reader = new AssetsFileReader(new ClassPackageCache(OpenRealTpkStream));
 
             Assert.Equal("Replacement", Find(reader.ReadField(outputPath, 4), "m_Name").Value?.ToInvariantString());
             Assert.Equal("Text",
@@ -100,12 +100,12 @@ public sealed class AssetsFileWriterTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.assets");
         int classPackageOpenCount = 0;
         var writer = new AssetsFileWriter(
-            () =>
+            new ClassPackageCache(() =>
             {
                 classPackageOpenCount++;
 
                 return OpenRealTpkStream();
-            },
+            }),
             TestDependencies.FileOperations,
             TestDependencies.DirectoryOperations);
         File.Copy(GetRealAssetsFilePath(), sourcePath);
@@ -135,7 +135,7 @@ public sealed class AssetsFileWriterTests
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         var writer = new AssetsFileWriter(
-            () => throw new InvalidOperationException("TPK should not be opened."),
+            new ClassPackageCache(() => throw new InvalidOperationException("TPK should not be opened.")),
             TestDependencies.FileOperations,
             TestDependencies.DirectoryOperations);
 
@@ -155,7 +155,7 @@ public sealed class AssetsFileWriterTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
         var writer = new AssetsFileWriter(
-            () => File.OpenRead(missingTpkFile),
+            new ClassPackageCache(() => File.OpenRead(missingTpkFile)),
             TestDependencies.FileOperations,
             TestDependencies.DirectoryOperations);
 
@@ -184,7 +184,7 @@ public sealed class AssetsFileWriterTests
         string missingSourceAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
         var writer = new AssetsFileWriter(
-            () => File.OpenRead(missingTpkFile),
+            new ClassPackageCache(() => File.OpenRead(missingTpkFile)),
             TestDependencies.FileOperations,
             TestDependencies.DirectoryOperations);
 
@@ -208,7 +208,7 @@ public sealed class AssetsFileWriterTests
     private static AssetsFileWriter CreateRealWriter()
     {
         return new AssetsFileWriter(
-            OpenRealTpkStream,
+            new ClassPackageCache(OpenRealTpkStream),
             TestDependencies.FileOperations,
             TestDependencies.DirectoryOperations);
     }
