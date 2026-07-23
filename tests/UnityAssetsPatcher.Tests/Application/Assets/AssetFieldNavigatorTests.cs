@@ -69,6 +69,64 @@ public sealed class AssetFieldNavigatorTests
         Assert.Null(field);
     }
 
+    [Fact]
+    public void Find_WhenResolverIsReused_CachesVisitedChildIndexesAndDescendantIndex()
+    {
+        var first = new MutableField("first");
+        var second = new MutableField("second");
+        var container = new MutableField("container", [first, second]);
+        var target = new MutableField("target");
+        var root = new MutableField("root", [container, target]);
+        var enumerationCounts = new Dictionary<MutableField, int>(ReferenceEqualityComparer.Instance);
+        var resolver = new AssetFieldPathResolver<MutableField>(
+            root,
+            field => field.Name,
+            field =>
+            {
+                enumerationCounts[field] = enumerationCounts.GetValueOrDefault(field) + 1;
+
+                return field.Children;
+            },
+            field => field.Value,
+            (field, name) => field.Children.Where(child => child.Name == name));
+
+        MutableField? firstResult = resolver.Find("container.first");
+        MutableField? secondResult = resolver.Find("container.second");
+        MutableField? targetResult = resolver.Find("target");
+        MutableField? repeatedTargetResult = resolver.Find("target");
+
+        Assert.Same(first, firstResult);
+        Assert.Same(second, secondResult);
+        Assert.Same(target, targetResult);
+        Assert.Same(target, repeatedTargetResult);
+        Assert.All(
+            new[] { root, container, first, second, target },
+            field => Assert.Equal(1, enumerationCounts[field]));
+    }
+
+    [Fact]
+    public void InvalidateStructure_WhenTreeStructureChanges_RebuildsIndexes()
+    {
+        var root = new MutableField("root");
+        var resolver = new AssetFieldPathResolver<MutableField>(
+            root,
+            field => field.Name,
+            field => field.Children,
+            field => field.Value,
+            (field, name) => field.Children.Where(child => child.Name == name));
+        var added = new MutableField("added");
+
+        Assert.Null(resolver.Find("added"));
+
+        root.Children.Add(added);
+
+        Assert.Null(resolver.Find("added"));
+
+        resolver.InvalidateStructure();
+
+        Assert.Same(added, resolver.Find("added"));
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
@@ -199,5 +257,19 @@ public sealed class AssetFieldNavigatorTests
                     ]),
                 ]),
             ]);
+    }
+
+    private sealed class MutableField
+    {
+        public List<MutableField> Children { get; }
+        public string Name { get; }
+        public string? Value { get; }
+
+        public MutableField(string name, IEnumerable<MutableField>? children = null, string? value = null)
+        {
+            Name = name;
+            Children = children?.ToList() ?? [];
+            Value = value;
+        }
     }
 }

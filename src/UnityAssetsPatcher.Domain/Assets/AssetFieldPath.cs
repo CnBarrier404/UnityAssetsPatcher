@@ -2,10 +2,6 @@ namespace UnityAssetsPatcher.Domain.Assets;
 
 public static class AssetFieldPath
 {
-    private sealed record Segment(string Name, Selector? Selector);
-
-    private sealed record Selector(string FieldName, string Value);
-
     public static TField? Find<TField>(
         TField root,
         string path,
@@ -15,18 +11,84 @@ public static class AssetFieldPath
         Func<TField, string, IEnumerable<TField>> getChildrenByName)
         where TField : class
     {
-        var segments = Parse(path);
+        var resolver = new AssetFieldPathResolver<TField>(
+            root,
+            getName,
+            getChildren,
+            getValue,
+            getChildrenByName,
+            cacheLookups: false);
+
+        return resolver.Find(path);
+    }
+}
+
+public sealed class AssetFieldPathResolver<TField> where TField : class
+{
+    private readonly TField _root;
+    private readonly Func<TField, string> _getName;
+    private readonly Func<TField, IEnumerable<TField>> _getChildren;
+    private readonly Func<TField, string?> _getValue;
+    private readonly Func<TField, string, IEnumerable<TField>> _getChildrenByName;
+    private readonly bool _cacheLookups;
+
+    private readonly Dictionary<TField, ChildIndex> _childIndexes =
+        new(ReferenceEqualityComparer.Instance);
+
+    private Dictionary<string, TField>? _firstDescendantsByName;
+
+    private sealed record Segment(string Name, Selector? Selector);
+
+    private sealed record Selector(string FieldName, string Value);
+
+    private sealed record ChildIndex(
+        IReadOnlyList<TField> Children,
+        IReadOnlyDictionary<string, IReadOnlyList<TField>> ChildrenByName);
+
+    public AssetFieldPathResolver(
+        TField root,
+        Func<TField, string> getName,
+        Func<TField, IEnumerable<TField>> getChildren,
+        Func<TField, string?> getValue,
+        Func<TField, string, IEnumerable<TField>> getChildrenByName,
+        bool cacheLookups = true)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(getName);
+        ArgumentNullException.ThrowIfNull(getChildren);
+        ArgumentNullException.ThrowIfNull(getValue);
+        ArgumentNullException.ThrowIfNull(getChildrenByName);
+
+        _root = root;
+        _getName = getName;
+        _getChildren = getChildren;
+        _getValue = getValue;
+        _getChildrenByName = getChildrenByName;
+        _cacheLookups = cacheLookups;
+    }
+
+    public TField? Find(string path)
+    {
+        IReadOnlyList<Segment> segments = Parse(path);
 
         if (segments is [{ Selector: null }])
         {
-            return FindDescendantByName(root, segments[0].Name, getName, getChildren);
+            if (!_cacheLookups)
+            {
+                return FindDescendantByName(_root, segments[0].Name);
+            }
+
+            EnsureDescendantIndex();
+            _firstDescendantsByName!.TryGetValue(segments[0].Name, out TField? descendant);
+
+            return descendant;
         }
 
-        TField? current = root;
+        TField? current = _root;
 
         foreach (Segment segment in segments)
         {
-            current = FindChild(current, segment, getValue, getChildrenByName);
+            current = FindChild(current, segment);
 
             if (current is null)
             {
@@ -35,6 +97,12 @@ public static class AssetFieldPath
         }
 
         return current;
+    }
+
+    public void InvalidateStructure()
+    {
+        _childIndexes.Clear();
+        _firstDescendantsByName = null;
     }
 
     private static IReadOnlyList<Segment> Parse(string path)
@@ -77,32 +145,45 @@ public static class AssetFieldPath
         return new Segment(name, new Selector(selector[..equalsIndex], selector[(equalsIndex + 1)..]));
     }
 
-    private static TField? FindDescendantByName<TField>(
-        TField field,
-        string name,
-        Func<TField, string> getName,
-        Func<TField, IEnumerable<TField>> getChildren)
-        where TField : class
+    private void EnsureDescendantIndex()
     {
-        if (string.Equals(getName(field), name, StringComparison.Ordinal))
+        if (_firstDescendantsByName is not null)
+        {
+            return;
+        }
+
+        var descendantsByName = new Dictionary<string, TField>(StringComparer.Ordinal);
+        IndexDescendants(_root, descendantsByName);
+        _firstDescendantsByName = descendantsByName;
+    }
+
+    private TField? FindDescendantByName(TField field, string name)
+    {
+        if (string.Equals(_getName(field), name, StringComparison.Ordinal))
         {
             return field;
         }
 
-        return getChildren(field)
-            .Select(child => FindDescendantByName(child, name, getName, getChildren))
+        return _getChildren(field)
+            .Select(child => FindDescendantByName(child, name))
             .OfType<TField>()
             .FirstOrDefault();
     }
 
-    private static TField? FindChild<TField>(
-        TField field,
-        Segment segment,
-        Func<TField, string?> getValue,
-        Func<TField, string, IEnumerable<TField>> getChildrenByName)
-        where TField : class
+    private void IndexDescendants(TField field, IDictionary<string, TField> descendantsByName)
     {
-        var candidates = getChildrenByName(field, segment.Name);
+        descendantsByName.TryAdd(_getName(field), field);
+        ChildIndex childIndex = GetChildIndex(field);
+
+        foreach (TField child in childIndex.Children)
+        {
+            IndexDescendants(child, descendantsByName);
+        }
+    }
+
+    private TField? FindChild(TField field, Segment segment)
+    {
+        IEnumerable<TField> candidates = FindChildren(field, segment.Name);
 
         if (segment.Selector is null)
         {
@@ -110,19 +191,62 @@ public static class AssetFieldPath
         }
 
         return candidates.FirstOrDefault(child =>
-            MatchesSelector(child, segment.Selector, getValue, getChildrenByName));
+            MatchesSelector(child, segment.Selector));
     }
 
-    private static bool MatchesSelector<TField>(
-        TField field,
-        Selector selector,
-        Func<TField, string?> getValue,
-        Func<TField, string, IEnumerable<TField>> getChildrenByName)
-        where TField : class
+    private bool MatchesSelector(TField field, Selector selector)
     {
-        TField? selectorField = getChildrenByName(field, selector.FieldName).FirstOrDefault();
+        TField? selectorField = FindChildren(field, selector.FieldName).FirstOrDefault();
 
         return selectorField is not null &&
-               string.Equals(getValue(selectorField), selector.Value, StringComparison.Ordinal);
+               string.Equals(_getValue(selectorField), selector.Value, StringComparison.Ordinal);
+    }
+
+    private IEnumerable<TField> FindChildren(TField field, string name)
+    {
+        if (!_cacheLookups)
+        {
+            return _getChildrenByName(field, name);
+        }
+
+        ChildIndex childIndex = GetChildIndex(field);
+
+        return childIndex.ChildrenByName.TryGetValue(name, out IReadOnlyList<TField>? children)
+            ? children
+            : [];
+    }
+
+    private ChildIndex GetChildIndex(TField field)
+    {
+        if (_childIndexes.TryGetValue(field, out ChildIndex? childIndex))
+        {
+            return childIndex;
+        }
+
+        var childrenByName = new Dictionary<string, List<TField>>(StringComparer.Ordinal);
+        var children = new List<TField>();
+
+        foreach (TField child in _getChildren(field))
+        {
+            children.Add(child);
+            string name = _getName(child);
+
+            if (!childrenByName.TryGetValue(name, out List<TField>? namedChildren))
+            {
+                namedChildren = [];
+                childrenByName.Add(name, namedChildren);
+            }
+
+            namedChildren.Add(child);
+        }
+
+        IReadOnlyDictionary<string, IReadOnlyList<TField>> readOnlyChildrenByName = childrenByName.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlyList<TField>)pair.Value,
+            StringComparer.Ordinal);
+        childIndex = new ChildIndex(children, readOnlyChildrenByName);
+        _childIndexes.Add(field, childIndex);
+
+        return childIndex;
     }
 }

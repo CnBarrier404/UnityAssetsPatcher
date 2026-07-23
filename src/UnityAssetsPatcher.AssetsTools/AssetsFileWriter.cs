@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AssetsTools.NET;
 using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Abstractions.IO;
@@ -115,18 +116,42 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         IDictionary<long, AssetTypeValueField> mutableFields,
         IReadOnlyList<AssetFieldPatch> fieldPatches)
     {
+        var fieldLocators = new Dictionary<long, AssetFieldLocator>();
+
         foreach (AssetFieldPatch asset in fieldPatches)
         {
             AssetTypeValueField mutableField = GetMutableField(session, mutableFields, asset.PathId);
+            AssetFieldLocator fieldLocator = GetFieldLocator(fieldLocators, asset.PathId, mutableField);
 
             foreach (FieldPatchOperation operation in asset.Operations)
             {
-                AssetTypeValueField targetField = AssetFieldLocator.Find(mutableField, operation.Path)
+                AssetTypeValueField targetField = fieldLocator.Find(operation.Path)
                                                   ?? throw new InvalidOperationException(
                                                       $"Field not found for Path ID {asset.PathId}: {operation.Path}");
                 AssetFieldWriter.WriteJsonValue(targetField, operation.To);
+
+                if (operation.To.ValueKind == JsonValueKind.Array)
+                {
+                    fieldLocator.InvalidateStructure();
+                }
             }
         }
+    }
+
+    private static AssetFieldLocator GetFieldLocator(
+        Dictionary<long, AssetFieldLocator> fieldLocators,
+        long pathId,
+        AssetTypeValueField mutableField)
+    {
+        if (fieldLocators.TryGetValue(pathId, out AssetFieldLocator? fieldLocator))
+        {
+            return fieldLocator;
+        }
+
+        fieldLocator = new AssetFieldLocator(mutableField);
+        fieldLocators.Add(pathId, fieldLocator);
+
+        return fieldLocator;
     }
 
     private static void SetAssetData(AssetsFileSession session,
