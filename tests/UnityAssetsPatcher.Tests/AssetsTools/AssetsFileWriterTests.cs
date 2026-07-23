@@ -93,6 +93,39 @@ public sealed class AssetsFileWriterTests
         }
     }
 
+    [Fact]
+    public void WriteReplacements_WhenTargetAndSourceSessionsAreOpened_LoadsClassPackageOnce()
+    {
+        string sourcePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.assets");
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.assets");
+        int classPackageOpenCount = 0;
+        var writer = new AssetsFileWriter(
+            () =>
+            {
+                classPackageOpenCount++;
+
+                return OpenRealTpkStream();
+            },
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
+        File.Copy(GetRealAssetsFilePath(), sourcePath);
+
+        try
+        {
+            writer.WriteReplacements(GetRealAssetsFilePath(), outputPath,
+            [
+                new AssetReplacement(sourcePath, 4, 4),
+            ]);
+
+            Assert.Equal(1, classPackageOpenCount);
+        }
+        finally
+        {
+            File.Delete(sourcePath);
+            File.Delete(outputPath);
+        }
+    }
+
     /// <summary>
     /// Verifies that patch writing returns a clear error with the file path when the target assets file is missing.
     /// </summary>

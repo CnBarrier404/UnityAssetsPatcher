@@ -13,15 +13,17 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
         .Distinct()
         .ToDictionary(type => (int)type, type => Enum.GetName(type) ?? "Unknown");
 
-    private readonly Func<Stream> _openTpkStream;
     private readonly Dictionary<string, AssetsFileSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<AssetInfo>> _assets = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ClassPackageCache _classPackageCache;
     private bool _disposed;
 
-    public AssetsFileReader(Func<Stream> openTpkStream)
+    public AssetsFileReader(Func<Stream> openTpkStream) : this(new ClassPackageCache(openTpkStream)) { }
+
+    public AssetsFileReader(ClassPackageCache classPackageCache)
     {
-        ArgumentNullException.ThrowIfNull(openTpkStream);
-        _openTpkStream = openTpkStream;
+        ArgumentNullException.ThrowIfNull(classPackageCache);
+        _classPackageCache = classPackageCache;
     }
 
     public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
@@ -93,7 +95,7 @@ public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
             return session;
         }
 
-        session = AssetsFileSession.Open(fullPath, _openTpkStream);
+        session = AssetsFileSession.Open(fullPath, _classPackageCache);
         _sessions.Add(fullPath, session);
 
         return session;

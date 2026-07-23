@@ -5,7 +5,7 @@ namespace UnityAssetsPatcher.AssetsTools;
 
 public sealed class AssetsToolsAccessScopeFactory : IAssetsAccessScopeFactory
 {
-    private readonly Func<Stream> _openTpkStream;
+    private readonly ClassPackageCache _classPackageCache;
     private readonly IFileOperations _fileOperations;
     private readonly IDirectoryOperations _directoryOperations;
 
@@ -17,13 +17,13 @@ public sealed class AssetsToolsAccessScopeFactory : IAssetsAccessScopeFactory
         ArgumentNullException.ThrowIfNull(openTpkStream);
         ArgumentNullException.ThrowIfNull(fileOperations);
         ArgumentNullException.ThrowIfNull(directoryOperations);
-        _openTpkStream = openTpkStream;
+        _classPackageCache = new ClassPackageCache(openTpkStream);
         _fileOperations = fileOperations;
         _directoryOperations = directoryOperations;
     }
 
     public IAssetsAccessScope CreateScope()
     {
-        return new AssetsToolsAccessScope(_openTpkStream, _fileOperations, _directoryOperations);
+        return new AssetsToolsAccessScope(_classPackageCache, _fileOperations, _directoryOperations);
     }
 }

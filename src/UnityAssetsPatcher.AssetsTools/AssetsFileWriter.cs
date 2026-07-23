@@ -7,7 +7,7 @@ namespace UnityAssetsPatcher.AssetsTools;
 
 public sealed class AssetsFileWriter : IAssetsFileWriter
 {
-    private readonly Func<Stream> _openTpkStream;
+    private readonly ClassPackageCache _classPackageCache;
     private readonly IFileOperations _fileOperations;
     private readonly IDirectoryOperations _directoryOperations;
 
@@ -15,12 +15,18 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         Func<Stream> openTpkStream,
         IFileOperations fileOperations,
         IDirectoryOperations directoryOperations)
+        : this(new ClassPackageCache(openTpkStream), fileOperations, directoryOperations) { }
+
+    public AssetsFileWriter(
+        ClassPackageCache classPackageCache,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations)
     {
-        ArgumentNullException.ThrowIfNull(openTpkStream);
+        ArgumentNullException.ThrowIfNull(classPackageCache);
         ArgumentNullException.ThrowIfNull(fileOperations);
         ArgumentNullException.ThrowIfNull(directoryOperations);
 
-        _openTpkStream = openTpkStream;
+        _classPackageCache = classPackageCache;
         _fileOperations = fileOperations;
         _directoryOperations = directoryOperations;
     }
@@ -56,7 +62,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
 
         _fileOperations.Write(outputPath, outputStream =>
         {
-            using AssetsFileSession session = AssetsFileSession.Open(inputPath, _openTpkStream);
+            using AssetsFileSession session = AssetsFileSession.Open(inputPath, _classPackageCache);
 
             applyChanges.Invoke(session);
 
@@ -184,7 +190,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         foreach (var sourceGroup in plan.GroupBy(replacement => replacement.SourceAssetsFilePath,
                      StringComparer.OrdinalIgnoreCase))
         {
-            using AssetsFileSession sourceSession = AssetsFileSession.Open(sourceGroup.Key, _openTpkStream);
+            using AssetsFileSession sourceSession = AssetsFileSession.Open(sourceGroup.Key, _classPackageCache);
 
             foreach (AssetReplacement replacement in sourceGroup)
             {

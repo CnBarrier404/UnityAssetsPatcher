@@ -18,10 +18,21 @@ public sealed class AssetsToolsAccessScope : IAssetsAccessScope
         Func<Stream> openTpkStream,
         IFileOperations fileOperations,
         IDirectoryOperations directoryOperations)
+        : this(new ClassPackageCache(openTpkStream), fileOperations, directoryOperations) { }
+
+    public AssetsToolsAccessScope(
+        ClassPackageCache classPackageCache,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations)
     {
-        _reader = new AssetsFileReader(openTpkStream);
+        ArgumentNullException.ThrowIfNull(classPackageCache);
+        ArgumentNullException.ThrowIfNull(fileOperations);
+        ArgumentNullException.ThrowIfNull(directoryOperations);
+
+        _reader = new AssetsFileReader(classPackageCache);
         Reader = new SynchronizedReader(this);
-        Writer = new SynchronizedWriter(this, new AssetsFileWriter(openTpkStream, fileOperations, directoryOperations));
+        Writer = new SynchronizedWriter(this,
+            new AssetsFileWriter(classPackageCache, fileOperations, directoryOperations));
     }
 
     public void Dispose()

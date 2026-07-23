@@ -7,35 +7,39 @@ public sealed class AssetsFileSession : IDisposable
 {
     public AssetsFile AssetsFile => _instance.file;
 
+    private readonly ClassPackageCache _classPackageCache;
     private readonly AssetsManager _manager;
     private readonly AssetsFileInstance _instance;
     private string? _loadedClassDatabaseVersion;
     private bool _disposed;
 
-    private AssetsFileSession(AssetsManager manager, AssetsFileInstance instance)
+    private AssetsFileSession(
+        ClassPackageCache classPackageCache,
+        AssetsManager manager,
+        AssetsFileInstance instance)
     {
+        _classPackageCache = classPackageCache;
         _manager = manager;
         _instance = instance;
     }
 
-    public static AssetsFileSession Open(string assetsFilePath, Func<Stream> openTpkStream)
+    public static AssetsFileSession Open(string assetsFilePath, ClassPackageCache classPackageCache)
     {
-        ArgumentNullException.ThrowIfNull(openTpkStream);
+        ArgumentNullException.ThrowIfNull(classPackageCache);
 
         if (!File.Exists(assetsFilePath))
         {
             throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
         }
 
+        classPackageCache.EnsureLoaded();
         var manager = new AssetsManager();
 
         try
         {
-            using Stream tpkStream = openTpkStream();
-            manager.LoadClassPackage(tpkStream);
             AssetsFileInstance instance = manager.LoadAssetsFile(Path.GetFullPath(assetsFilePath), loadDeps: false);
 
-            return new AssetsFileSession(manager, instance);
+            return new AssetsFileSession(classPackageCache, manager, instance);
         }
         catch
         {
@@ -87,7 +91,7 @@ public sealed class AssetsFileSession : IDisposable
             return;
         }
 
-        _manager.LoadClassDatabaseFromPackage(unityVersion);
+        _classPackageCache.LoadClassDatabase(_manager, unityVersion);
         _loadedClassDatabaseVersion = unityVersion;
     }
 }

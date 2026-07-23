@@ -64,6 +64,33 @@ public sealed class AssetsToolsServiceCollectionExtensionsTests
     }
 
     [Fact]
+    public void CreateScope_WhenSeparateScopesOpenSessions_LoadsClassPackageOnce()
+    {
+        int classPackageOpenCount = 0;
+        using ServiceProvider provider = new ServiceCollection()
+            .AddUnityAssetsPatcherInfrastructure()
+            .AddUnityAssetsPatcherAssetsTools(() =>
+            {
+                classPackageOpenCount++;
+
+                return File.OpenRead(GetRealTpkFilePath());
+            })
+            .BuildServiceProvider(new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true,
+            });
+        IAssetsAccessScopeFactory factory = provider.GetRequiredService<IAssetsAccessScopeFactory>();
+        using IAssetsAccessScope firstScope = factory.CreateScope();
+        using IAssetsAccessScope secondScope = factory.CreateScope();
+
+        firstScope.Reader.ReadField(GetRealAssetsFilePath(), 4);
+        secondScope.Reader.ReadField(GetRealAssetsFilePath(), 4);
+
+        Assert.Equal(1, classPackageOpenCount);
+    }
+
+    [Fact]
     public void DisposeScope_DisposesReader()
     {
         using ServiceProvider provider = CreateServiceProvider();
