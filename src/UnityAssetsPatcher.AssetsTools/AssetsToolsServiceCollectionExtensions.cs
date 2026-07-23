@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Abstractions.IO;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
@@ -9,8 +10,11 @@ public static class AssetsToolsServiceCollectionExtensions
         this IServiceCollection services,
         Func<Stream> openTpkStream)
     {
-        services.AddSingleton(_ => new AssetsToolsContext(openTpkStream));
-        services.AddSingleton<IAssetsAccessScopeFactory, AssetsToolsAccessScopeFactory>();
+        ArgumentNullException.ThrowIfNull(openTpkStream);
+        services.AddSingleton<IAssetsAccessScopeFactory>(provider => new AssetsToolsAccessScopeFactory(
+            openTpkStream,
+            provider.GetRequiredService<IFileOperations>(),
+            provider.GetRequiredService<IDirectoryOperations>()));
 
         return services;
     }

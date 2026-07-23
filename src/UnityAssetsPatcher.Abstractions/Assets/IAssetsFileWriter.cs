@@ -2,7 +2,7 @@ using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Abstractions.Assets;
 
-public interface IAssetsFileWriter : IDisposable
+public interface IAssetsFileWriter
 {
     public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan);
     public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan);

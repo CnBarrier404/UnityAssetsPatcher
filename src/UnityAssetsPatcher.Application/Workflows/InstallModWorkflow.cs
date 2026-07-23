@@ -88,7 +88,6 @@ public sealed class InstallModWorkflow
             assetsScope.Reader,
             timings);
 
-        assetsScope.CloseReadSessions();
         InstallExecutionResult execution = _executor.Execute(
             package,
             analysis,

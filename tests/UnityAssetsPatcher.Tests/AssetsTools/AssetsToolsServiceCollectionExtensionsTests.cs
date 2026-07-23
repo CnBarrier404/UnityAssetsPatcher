@@ -23,17 +23,15 @@ public sealed class AssetsToolsServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddUnityAssetsPatcherAssetsTools_RegistersSingletonFactoryAndContext()
+    public void AddUnityAssetsPatcherAssetsTools_RegistersSingletonFactoryWithoutSharedContext()
     {
         using ServiceProvider provider = CreateServiceProvider();
 
         IAssetsAccessScopeFactory firstFactory = provider.GetRequiredService<IAssetsAccessScopeFactory>();
         IAssetsAccessScopeFactory secondFactory = provider.GetRequiredService<IAssetsAccessScopeFactory>();
-        AssetsToolsContext firstContext = provider.GetRequiredService<AssetsToolsContext>();
-        AssetsToolsContext secondContext = provider.GetRequiredService<AssetsToolsContext>();
 
         Assert.Same(firstFactory, secondFactory);
-        Assert.Same(firstContext, secondContext);
+        Assert.Null(provider.GetService<AssetsFileReader>());
     }
 
     [Fact]
@@ -63,8 +61,6 @@ public sealed class AssetsToolsServiceCollectionExtensionsTests
         Assert.NotSame(firstScope, secondScope);
         Assert.NotSame(firstScope.Reader, secondScope.Reader);
         Assert.NotSame(firstScope.Writer, secondScope.Writer);
-        Assert.IsType<AssetsFileReader>(firstScope.Reader);
-        Assert.IsType<AssetsFileWriter>(firstScope.Writer);
     }
 
     [Fact]

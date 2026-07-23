@@ -143,6 +143,7 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
             get
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
+                CloseReadSessionsCore();
 
                 if (_writer is null)
                 {
@@ -164,9 +165,8 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
             _service = service;
         }
 
-        public void CloseReadSessions()
+        private void CloseReadSessionsCore()
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
             _service.CloseReadSessionsCount++;
             _service.ReadFilesExistedAtClose = _service._readPaths.All(File.Exists);
             StubAssetsFileReader? reader = _reader;

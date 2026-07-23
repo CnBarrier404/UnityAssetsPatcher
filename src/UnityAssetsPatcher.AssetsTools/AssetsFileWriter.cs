@@ -2,42 +2,27 @@ using AssetsTools.NET;
 using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Domain.Assets;
-using AssetsToolsNetFileWriter = AssetsTools.NET.AssetsFileWriter;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
 public sealed class AssetsFileWriter : IAssetsFileWriter
 {
-    private readonly AssetsToolsContext _context;
+    private readonly Func<Stream> _openTpkStream;
     private readonly IFileOperations _fileOperations;
     private readonly IDirectoryOperations _directoryOperations;
-    private readonly bool _ownsContext;
 
     public AssetsFileWriter(
-        string tpkFilePath,
+        Func<Stream> openTpkStream,
         IFileOperations fileOperations,
         IDirectoryOperations directoryOperations)
-        : this(new AssetsToolsContext(tpkFilePath), fileOperations, directoryOperations, ownsContext: true) { }
-
-    public AssetsFileWriter(
-        AssetsToolsContext context,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations)
-        : this(context, fileOperations, directoryOperations, ownsContext: false) { }
-
-    private AssetsFileWriter(
-        AssetsToolsContext context,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations,
-        bool ownsContext)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(openTpkStream);
         ArgumentNullException.ThrowIfNull(fileOperations);
         ArgumentNullException.ThrowIfNull(directoryOperations);
-        _context = context;
+
+        _openTpkStream = openTpkStream;
         _fileOperations = fileOperations;
         _directoryOperations = directoryOperations;
-        _ownsContext = ownsContext;
     }
 
     public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
@@ -60,27 +45,23 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         WriteAssetsFile(inputPath, outputPath, session => ApplyFieldPatchesAndCopies(session, fieldPatches, copies));
     }
 
-    public void Dispose()
-    {
-        if (_ownsContext)
-        {
-            _context.Dispose();
-        }
-    }
-
     private void WriteAssetsFile(string inputPath, string outputPath, Action<AssetsFileSession> applyChanges)
     {
-        using (AssetsFileSession session = AssetsFileSession.Open(inputPath, _context))
-        {
-            string? outputDirectory = Path.GetDirectoryName(outputPath);
-            if (!string.IsNullOrEmpty(outputDirectory))
-            {
-                _directoryOperations.Create(outputDirectory);
-            }
+        string? outputDirectory = Path.GetDirectoryName(outputPath);
 
-            applyChanges(session);
-            _fileOperations.Write(outputPath, outputStream => WriteSessionToStream(session, outputStream));
+        if (!string.IsNullOrEmpty(outputDirectory))
+        {
+            _directoryOperations.Create(outputDirectory);
         }
+
+        _fileOperations.Write(outputPath, outputStream =>
+        {
+            using AssetsFileSession session = AssetsFileSession.Open(inputPath, _openTpkStream);
+
+            applyChanges.Invoke(session);
+
+            WriteSessionToStream(session, outputStream);
+        });
     }
 
     private static void ValidateReplacementSources(IReadOnlyList<AssetReplacement> plan)
@@ -91,43 +72,21 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         {
             if (!File.Exists(sourceAssetsFilePath))
             {
-                throw new FileNotFoundException(
-                    $"Assets file not found: {sourceAssetsFilePath}",
-                    sourceAssetsFilePath);
+                throw new FileNotFoundException($"Assets file not found: {sourceAssetsFilePath}", sourceAssetsFilePath);
             }
         }
     }
 
     private static void WriteSessionToStream(AssetsFileSession session, Stream outputStream)
     {
-        var writer = new AssetsToolsNetFileWriter(outputStream);
-        session.AssetsFile.Write(writer);
+        session.WriteTo(outputStream);
     }
 
     private static void ApplyPatchPlan(AssetsFileSession session, IReadOnlyList<AssetFieldPatch> plan)
     {
-        foreach (AssetFieldPatch asset in plan)
-        {
-            AssetTypeValueField baseField = session.GetBaseField(asset.PathId);
-
-            if (baseField.IsDummy)
-            {
-                throw new InvalidOperationException($"Asset not found or cannot be read: {asset.PathId}");
-            }
-
-            AssetTypeValueField mutableField = baseField.Clone();
-
-            foreach (FieldPatchOperation operation in asset.Operations)
-            {
-                AssetTypeValueField targetField = AssetFieldLocator.Find(mutableField, operation.Path)
-                                                  ?? throw new InvalidOperationException(
-                                                      $"Field not found for Path ID {asset.PathId}: {operation.Path}");
-                AssetFieldWriter.WriteJsonValue(targetField, operation.To);
-            }
-
-            AssetFileInfo assetInfo = session.AssetsFile.GetAssetInfo(asset.PathId);
-            assetInfo.SetNewData(mutableField);
-        }
+        var mutableFields = new Dictionary<long, AssetTypeValueField>();
+        ApplyFieldPatches(session, mutableFields, plan);
+        SetAssetData(session, mutableFields);
     }
 
     private static void ApplyFieldPatchesAndCopies(
@@ -137,6 +96,25 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
     {
         var mutableFields = new Dictionary<long, AssetTypeValueField>();
 
+        ApplyFieldPatches(session, mutableFields, fieldPatches);
+
+        foreach (AssetCopy copy in copies)
+        {
+            AssetTypeValueField sourceField = GetMutableField(session, mutableFields, copy.SourcePathId);
+            AssetTypeValueField currentTarget = GetMutableField(session, mutableFields, copy.TargetPathId);
+            AssetTypeValueField copiedField = sourceField.Clone();
+            PreserveName(currentTarget, copiedField, copy.TargetPathId);
+            mutableFields[copy.TargetPathId] = copiedField;
+        }
+
+        SetAssetData(session, mutableFields);
+    }
+
+    private static void ApplyFieldPatches(
+        AssetsFileSession session,
+        IDictionary<long, AssetTypeValueField> mutableFields,
+        IReadOnlyList<AssetFieldPatch> fieldPatches)
+    {
         foreach (AssetFieldPatch asset in fieldPatches)
         {
             AssetTypeValueField mutableField = GetMutableField(session, mutableFields, asset.PathId);
@@ -149,20 +127,14 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
                 AssetFieldWriter.WriteJsonValue(targetField, operation.To);
             }
         }
+    }
 
-        foreach (AssetCopy copy in copies)
-        {
-            AssetTypeValueField sourceField = GetMutableField(session, mutableFields, copy.SourcePathId);
-            AssetTypeValueField currentTarget = GetMutableField(session, mutableFields, copy.TargetPathId);
-            AssetTypeValueField copiedField = sourceField.Clone();
-            PreserveName(currentTarget, copiedField, copy.TargetPathId);
-            mutableFields[copy.TargetPathId] = copiedField;
-        }
-
+    private static void SetAssetData(AssetsFileSession session,
+        IEnumerable<KeyValuePair<long, AssetTypeValueField>> mutableFields)
+    {
         foreach ((long pathId, AssetTypeValueField field) in mutableFields)
         {
-            AssetFileInfo assetInfo = session.AssetsFile.GetAssetInfo(pathId);
-            assetInfo.SetNewData(field);
+            session.SetData(pathId, field);
         }
     }
 
@@ -212,7 +184,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         foreach (var sourceGroup in plan.GroupBy(replacement => replacement.SourceAssetsFilePath,
                      StringComparer.OrdinalIgnoreCase))
         {
-            using AssetsFileSession sourceSession = AssetsFileSession.Open(sourceGroup.Key, _context);
+            using AssetsFileSession sourceSession = AssetsFileSession.Open(sourceGroup.Key, _openTpkStream);
 
             foreach (AssetReplacement replacement in sourceGroup)
             {
@@ -232,8 +204,7 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
                         $"Target asset not found or cannot be read: {replacement.TargetPathId}");
                 }
 
-                AssetFileInfo assetInfo = targetSession.AssetsFile.GetAssetInfo(replacement.TargetPathId);
-                assetInfo.SetNewData(sourceField.Clone());
+                targetSession.SetData(replacement.TargetPathId, sourceField.Clone());
             }
         }
     }

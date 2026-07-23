@@ -17,11 +17,6 @@ public sealed class ScopedAssetsAccess : IAssetsAccessScope
         _scope = new Lazy<IAssetsAccessScope>(scopeFactory.CreateScope);
     }
 
-    public void CloseReadSessions()
-    {
-        GetScope().CloseReadSessions();
-    }
-
     public void Dispose()
     {
         if (_disposed)
@@ -64,8 +59,6 @@ public sealed class ScopedAssetsFileReader : IAssetsFileReader
     {
         return _scope.Reader.ReadField(assetsFilePath, pathId);
     }
-
-    public void Dispose() { }
 }
 
 public sealed class ScopedAssetsFileWriter : IAssetsFileWriter
@@ -96,6 +89,4 @@ public sealed class ScopedAssetsFileWriter : IAssetsFileWriter
     {
         _scope.Writer.WriteFieldPatchesAndCopies(inputPath, outputPath, fieldPatches, copies);
     }
-
-    public void Dispose() { }
 }

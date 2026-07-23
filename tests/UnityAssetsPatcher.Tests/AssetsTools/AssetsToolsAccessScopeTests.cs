@@ -1,6 +1,5 @@
 using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.AssetsTools;
-using UnityAssetsPatcher.Domain.Assets;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.AssetsTools;
@@ -8,171 +7,84 @@ namespace UnityAssetsPatcher.Tests.AssetsTools;
 public sealed class AssetsToolsAccessScopeTests
 {
     [Fact]
-    public void CloseReadSessions_WhenReaderWasCreated_DisposesAndRemovesReader()
+    public void Dispose_WhenCalledMultipleTimes_RemainsIdempotentAndRejectsAccess()
     {
-        var events = new List<string>();
-        var readers = new List<RecordingAssetsFileReader>();
-        var writer = new RecordingAssetsFileWriter(events);
-        using var scope = new AssetsToolsAccessScope(
-            () => CreateReader(readers, events),
-            () => writer);
-        IAssetsFileReader firstReader = scope.Reader;
+        var scope = CreateScope();
+        IAssetsFileReader reader = scope.Reader;
 
-        scope.CloseReadSessions();
-        scope.CloseReadSessions();
-        IAssetsFileReader secondReader = scope.Reader;
+        scope.Dispose();
+        scope.Dispose();
 
-        Assert.NotSame(firstReader, secondReader);
-        Assert.Equal(2, readers.Count);
-        Assert.Equal(1, readers[0].DisposeCount);
-        Assert.Equal(0, readers[1].DisposeCount);
-        Assert.Equal(0, writer.DisposeCount);
+        Assert.Throws<ObjectDisposedException>(() => reader.ReadAssets(GetRealAssetsFilePath()));
     }
 
     [Fact]
-    public void Dispose_WhenCalledMultipleTimes_DisposesCreatedReaderThenWriterOnce()
+    public void WriteFieldPatches_WhenFileWasReadFirst_AutomaticallyClosesReadSession()
     {
-        var events = new List<string>();
-        var reader = new RecordingAssetsFileReader(events);
-        var writer = new RecordingAssetsFileWriter(events);
-        var scope = new AssetsToolsAccessScope(() => reader, () => writer);
-        _ = scope.Reader;
-        _ = scope.Writer;
+        string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.assets");
+        var scope = CreateScope();
+        IReadOnlyList<UnityAssetsPatcher.Domain.Assets.AssetInfo> expected =
+            scope.Reader.ReadAssets(GetRealAssetsFilePath());
 
-        scope.Dispose();
-        scope.Dispose();
-
-        Assert.Equal(1, reader.DisposeCount);
-        Assert.Equal(1, writer.DisposeCount);
-        Assert.Equal(["reader", "writer"], events);
-    }
-
-    [Fact]
-    public void Dispose_WhenResourcesWereNotRequested_DoesNotCreateThem()
-    {
-        int readerCreateCount = 0;
-        int writerCreateCount = 0;
-        var scope = new AssetsToolsAccessScope(
-            () =>
-            {
-                readerCreateCount++;
-
-                return new RecordingAssetsFileReader([]);
-            },
-            () =>
-            {
-                writerCreateCount++;
-
-                return new RecordingAssetsFileWriter([]);
-            });
-
-        scope.Dispose();
-
-        Assert.Equal(0, readerCreateCount);
-        Assert.Equal(0, writerCreateCount);
-    }
-
-    [Fact]
-    public void Dispose_WhenReaderThrows_StillDisposesWriterAndRemainsIdempotent()
-    {
-        var events = new List<string>();
-        var reader = new RecordingAssetsFileReader(events, throwOnDispose: true);
-        var writer = new RecordingAssetsFileWriter(events);
-        var scope = new AssetsToolsAccessScope(() => reader, () => writer);
-        _ = scope.Reader;
-        _ = scope.Writer;
-
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(scope.Dispose);
-        scope.Dispose();
-
-        Assert.Equal("Test reader dispose failure.", exception.Message);
-        Assert.Equal(1, reader.DisposeCount);
-        Assert.Equal(1, writer.DisposeCount);
-        Assert.Equal(["reader", "writer"], events);
-    }
-
-    private static RecordingAssetsFileReader CreateReader(
-        ICollection<RecordingAssetsFileReader> readers,
-        ICollection<string> events)
-    {
-        var reader = new RecordingAssetsFileReader(events);
-        readers.Add(reader);
-
-        return reader;
-    }
-
-    private sealed class RecordingAssetsFileReader : IAssetsFileReader
-    {
-        public int DisposeCount { get; private set; }
-
-        private readonly ICollection<string> _events;
-        private readonly bool _throwOnDispose;
-
-        public RecordingAssetsFileReader(ICollection<string> events, bool throwOnDispose = false)
+        try
         {
-            _events = events;
-            _throwOnDispose = throwOnDispose;
+            scope.Writer.WriteFieldPatches(GetRealAssetsFilePath(), outputPath, []);
+            IReadOnlyList<UnityAssetsPatcher.Domain.Assets.AssetInfo> actual = scope.Reader.ReadAssets(outputPath);
+
+            Assert.Equal(expected, actual);
+            scope.Dispose();
         }
-
-        public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
+        finally
         {
-            throw new NotSupportedException();
+            scope.Dispose();
+            File.Delete(outputPath);
         }
+    }
 
-        public AssetField ReadField(string assetsFilePath, long pathId)
+    private static AssetsToolsAccessScope CreateScope()
+    {
+        return new AssetsToolsAccessScope(
+            OpenRealTpkStream,
+            TestDependencies.FileOperations,
+            TestDependencies.DirectoryOperations);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        string? directory = Directory.GetCurrentDirectory();
+
+        while (directory is not null)
         {
-            throw new NotSupportedException();
-        }
-
-        public void Dispose()
-        {
-            DisposeCount++;
-            _events.Add("reader");
-
-            if (_throwOnDispose)
+            if (File.Exists(Path.Combine(directory, "UnityAssetsPatcher.slnx")))
             {
-                throw new InvalidOperationException("Test reader dispose failure.");
+                return directory;
             }
+
+            directory = Directory.GetParent(directory)?.FullName;
         }
+
+        throw new InvalidOperationException("Repository root was not found.");
     }
 
-    private sealed class RecordingAssetsFileWriter : IAssetsFileWriter
+    private static string GetRealAssetsFilePath()
     {
-        public int DisposeCount { get; private set; }
+        return Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "UnityAssetsPatcher.Tests",
+            "RealTestAssets",
+            "sharedassets0.assets");
+    }
 
-        private readonly ICollection<string> _events;
+    private static Stream OpenRealTpkStream()
+    {
+        string path = Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "UnityAssetsPatcher",
+            "Assets",
+            "resources.tpk");
 
-        public RecordingAssetsFileWriter(ICollection<string> events)
-        {
-            _events = events;
-        }
-
-        public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void WriteReplacements(
-            string inputPath,
-            string outputPath,
-            IReadOnlyList<AssetReplacement> plan)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void WriteFieldPatchesAndCopies(
-            string inputPath,
-            string outputPath,
-            IReadOnlyList<AssetFieldPatch> fieldPatches,
-            IReadOnlyList<AssetCopy> copies)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Dispose()
-        {
-            DisposeCount++;
-            _events.Add("writer");
-        }
+        return File.OpenRead(path);
     }
 }

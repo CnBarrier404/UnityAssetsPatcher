@@ -6,18 +6,22 @@ using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-public sealed class AssetsFileReader : IAssetsFileReader
+public sealed class AssetsFileReader : IAssetsFileReader, IDisposable
 {
-    private readonly AssetsToolsContext _context;
-    private readonly bool _ownsContext;
+    private static readonly IReadOnlyDictionary<int, string> TypeNames = Enum
+        .GetValues<AssetClassID>()
+        .Distinct()
+        .ToDictionary(type => (int)type, type => Enum.GetName(type) ?? "Unknown");
+
+    private readonly Func<Stream> _openTpkStream;
     private readonly Dictionary<string, AssetsFileSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<AssetInfo>> _assets = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
-    public AssetsFileReader(AssetsToolsContext context, bool ownsContext = true)
+    public AssetsFileReader(Func<Stream> openTpkStream)
     {
-        _context = context;
-        _ownsContext = ownsContext;
+        ArgumentNullException.ThrowIfNull(openTpkStream);
+        _openTpkStream = openTpkStream;
     }
 
     public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
@@ -25,7 +29,7 @@ public sealed class AssetsFileReader : IAssetsFileReader
         ObjectDisposedException.ThrowIf(_disposed, this);
         string fullPath = Path.GetFullPath(assetsFilePath);
 
-        if (_assets.TryGetValue(fullPath, out IReadOnlyList<AssetInfo>? assets))
+        if (_assets.TryGetValue(fullPath, out var assets))
         {
             return assets;
         }
@@ -42,6 +46,13 @@ public sealed class AssetsFileReader : IAssetsFileReader
         return ReadSessionField(GetSession(Path.GetFullPath(assetsFilePath)), pathId);
     }
 
+    public void CloseSessions()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        CloseReadSessionsCore();
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -51,11 +62,6 @@ public sealed class AssetsFileReader : IAssetsFileReader
 
         _disposed = true;
         CloseReadSessionsCore();
-
-        if (_ownsContext)
-        {
-            _context.Dispose();
-        }
     }
 
     private void CloseReadSessionsCore()
@@ -87,7 +93,7 @@ public sealed class AssetsFileReader : IAssetsFileReader
             return session;
         }
 
-        session = AssetsFileSession.Open(fullPath, _context);
+        session = AssetsFileSession.Open(fullPath, _openTpkStream);
         _sessions.Add(fullPath, session);
 
         return session;
@@ -95,9 +101,11 @@ public sealed class AssetsFileReader : IAssetsFileReader
 
     private static AssetInfo[] ReadSessionAssets(AssetsFileSession session)
     {
-        return session.AssetsFile.Metadata.AssetInfos
-            .Select(info => new AssetInfo(info.PathId, GetTypeName(info.TypeId)))
-            .ToArray();
+        return
+        [
+            .. session.AssetsFile.Metadata.AssetInfos
+                .Select(info => new AssetInfo(info.PathId, GetTypeName(info.TypeId)))
+        ];
     }
 
     private static AssetField ReadSessionField(AssetsFileSession session, long pathId)
@@ -111,6 +119,6 @@ public sealed class AssetsFileReader : IAssetsFileReader
 
     private static string GetTypeName(int typeId)
     {
-        return Enum.IsDefined(typeof(AssetClassID), typeId) ? ((AssetClassID)typeId).ToString() : "Unknown";
+        return TypeNames.GetValueOrDefault(typeId, "Unknown");
     }
 }

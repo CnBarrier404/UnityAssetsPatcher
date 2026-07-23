@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Reflection;
 using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.Domain.Assets;
 using Xunit;
@@ -14,7 +12,13 @@ public sealed class AssetsFileReaderTests
     [Fact]
     public void ReadAssetsAndField_WhenReaderInstanceIsReused_ReturnsAssetData()
     {
-        using var reader = new AssetsFileReader(new AssetsToolsContext(GetRealTpkFilePath()));
+        int classPackageOpenCount = 0;
+        using var reader = new AssetsFileReader(() =>
+        {
+            classPackageOpenCount++;
+
+            return OpenRealTpkStream();
+        });
 
         var assets = reader.ReadAssets(GetRealAssetsFilePath());
         AssetInfo asset = Assert.Single(assets.Take(1));
@@ -31,6 +35,7 @@ public sealed class AssetsFileReaderTests
         Assert.Equal(fieldTree.Name, repeatedFieldTree.Name);
         Assert.Equal(fieldTree.TypeName, repeatedFieldTree.TypeName);
         Assert.Equal(fieldTree.Children.Count, repeatedFieldTree.Children.Count);
+        Assert.Equal(1, classPackageOpenCount);
     }
 
     /// <summary>
@@ -40,7 +45,7 @@ public sealed class AssetsFileReaderTests
     public void ReadAssets_WhenAssetsFileDoesNotExist_ThrowsClearError()
     {
         string missingAssetsFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
-        using var service = new AssetsFileReader(new AssetsToolsContext("AssetsRipper.tpk"));
+        using var service = new AssetsFileReader(OpenRealTpkStream);
 
         var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssets(missingAssetsFile));
 
@@ -55,30 +60,18 @@ public sealed class AssetsFileReaderTests
     {
         string existingAssetsFile = Path.GetTempFileName();
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
-        using var service = new AssetsFileReader(new AssetsToolsContext(missingTpkFile));
+        using var service = new AssetsFileReader(() => File.OpenRead(missingTpkFile));
 
         try
         {
             var exception = Assert.Throws<FileNotFoundException>(() => service.ReadAssets(existingAssetsFile));
 
-            Assert.Equal($"TPK file not found: {missingTpkFile}", exception.Message);
+            Assert.Equal(missingTpkFile, exception.FileName);
         }
         finally
         {
             File.Delete(existingAssetsFile);
         }
-    }
-
-    [Fact]
-    public void Dispose_WhenSessionDisposeFails_ClearsSessionCacheAndRethrows()
-    {
-        var reader = new AssetsFileReader(new AssetsToolsContext(GetRealTpkFilePath()));
-        IDictionary sessions = GetPrivateDictionary(reader, "_sessions");
-        sessions.Add(GetRealAssetsFilePath(), null);
-
-        Assert.Throws<NullReferenceException>(reader.Dispose);
-
-        Assert.Empty(sessions);
     }
 
     private static string FindRepositoryRoot()
@@ -108,24 +101,15 @@ public sealed class AssetsFileReaderTests
             "sharedassets0.assets");
     }
 
-    private static string GetRealTpkFilePath()
+    private static Stream OpenRealTpkStream()
     {
-        return Path.Combine(
+        string path = Path.Combine(
             FindRepositoryRoot(),
             "src",
             "UnityAssetsPatcher",
             "Assets",
             "resources.tpk");
-    }
 
-    private static IDictionary GetPrivateDictionary(AssetsFileReader reader, string fieldName)
-    {
-        FieldInfo field = typeof(AssetsFileReader).GetField(
-                              fieldName,
-                              BindingFlags.Instance | BindingFlags.NonPublic) ??
-                          throw new InvalidOperationException($"Field not found: {fieldName}");
-
-        return (IDictionary)(field.GetValue(reader) ??
-                             throw new InvalidOperationException($"Field value was null: {fieldName}"));
+        return File.OpenRead(path);
     }
 }

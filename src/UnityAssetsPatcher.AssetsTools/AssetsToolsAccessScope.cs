@@ -1,89 +1,126 @@
-using System.Runtime.ExceptionServices;
 using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
 public sealed class AssetsToolsAccessScope : IAssetsAccessScope
 {
-    public IAssetsFileReader Reader
-    {
-        get
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            _reader ??= _readerFactory();
+    public IAssetsFileReader Reader { get; }
+    public IAssetsFileWriter Writer { get; }
 
-            return _reader;
-        }
-    }
-
-    public IAssetsFileWriter Writer
-    {
-        get
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            _writer ??= _writerFactory();
-
-            return _writer;
-        }
-    }
-
-    private readonly Func<IAssetsFileReader> _readerFactory;
-    private readonly Func<IAssetsFileWriter> _writerFactory;
-    private IAssetsFileReader? _reader;
-    private IAssetsFileWriter? _writer;
+    private readonly Lock _gate = new();
+    private readonly AssetsFileReader _reader;
+    private bool _writing;
     private bool _disposed;
 
     public AssetsToolsAccessScope(
-        Func<IAssetsFileReader> readerFactory,
-        Func<IAssetsFileWriter> writerFactory)
+        Func<Stream> openTpkStream,
+        IFileOperations fileOperations,
+        IDirectoryOperations directoryOperations)
     {
-        ArgumentNullException.ThrowIfNull(readerFactory);
-        ArgumentNullException.ThrowIfNull(writerFactory);
-
-        _readerFactory = readerFactory;
-        _writerFactory = writerFactory;
-    }
-
-    public void CloseReadSessions()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        IAssetsFileReader? reader = _reader;
-        _reader = null;
-        reader?.Dispose();
+        _reader = new AssetsFileReader(openTpkStream);
+        Reader = new SynchronizedReader(this);
+        Writer = new SynchronizedWriter(this, new AssetsFileWriter(openTpkStream, fileOperations, directoryOperations));
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_gate)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _reader.Dispose();
+        }
+    }
+
+    private T Read<T>(Func<AssetsFileReader, T> operation)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
+            if (_writing)
+            {
+                throw new InvalidOperationException(
+                    "Assets files cannot be read while a write is in progress in the same scope.");
+            }
+
+            return operation.Invoke(_reader);
+        }
+    }
+
+    private void Write(Action operation)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _reader.CloseSessions();
+            _writing = true;
+
+            try
+            {
+                operation.Invoke();
+            }
+            finally
+            {
+                _writing = false;
+            }
+        }
+    }
+
+    private sealed class SynchronizedReader : IAssetsFileReader
+    {
+        private readonly AssetsToolsAccessScope _scope;
+
+        public SynchronizedReader(AssetsToolsAccessScope scope)
+        {
+            _scope = scope;
         }
 
-        _disposed = true;
-        ExceptionDispatchInfo? firstException = null;
-        IAssetsFileReader? reader = _reader;
-        IAssetsFileWriter? writer = _writer;
-        _reader = null;
-        _writer = null;
-
-        try
+        public IReadOnlyList<AssetInfo> ReadAssets(string assetsFilePath)
         {
-            reader?.Dispose();
-        }
-        catch (Exception exception)
-        {
-            firstException = ExceptionDispatchInfo.Capture(exception);
+            return _scope.Read(reader => reader.ReadAssets(assetsFilePath));
         }
 
-        try
+        public AssetField ReadField(string assetsFilePath, long pathId)
         {
-            writer?.Dispose();
+            return _scope.Read(reader => reader.ReadField(assetsFilePath, pathId));
         }
-        catch (Exception exception)
+    }
+
+    private sealed class SynchronizedWriter : IAssetsFileWriter
+    {
+        private readonly AssetsToolsAccessScope _scope;
+        private readonly AssetsFileWriter _writer;
+
+        public SynchronizedWriter(AssetsToolsAccessScope scope, AssetsFileWriter writer)
         {
-            firstException ??= ExceptionDispatchInfo.Capture(exception);
+            _scope = scope;
+            _writer = writer;
         }
 
-        firstException?.Throw();
+        public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
+        {
+            _scope.Write(() => _writer.WriteFieldPatches(inputPath, outputPath, plan));
+        }
+
+        public void WriteReplacements(string inputPath, string outputPath, IReadOnlyList<AssetReplacement> plan)
+        {
+            _scope.Write(() => _writer.WriteReplacements(inputPath, outputPath, plan));
+        }
+
+        public void WriteFieldPatchesAndCopies(
+            string inputPath,
+            string outputPath,
+            IReadOnlyList<AssetFieldPatch> fieldPatches,
+            IReadOnlyList<AssetCopy> copies)
+        {
+            _scope.Write(() => _writer.WriteFieldPatchesAndCopies(inputPath, outputPath, fieldPatches, copies));
+        }
     }
 }

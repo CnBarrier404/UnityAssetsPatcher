@@ -3,41 +3,43 @@ using AssetsTools.NET.Extra;
 
 namespace UnityAssetsPatcher.AssetsTools;
 
-internal sealed class AssetsFileSession : IDisposable
+public sealed class AssetsFileSession : IDisposable
 {
-    private AssetsFileInstance AssetsFileInstance { get; }
+    public AssetsFile AssetsFile => _instance.file;
 
-    public AssetsFile AssetsFile => AssetsFileInstance.file;
+    private readonly AssetsManager _manager;
+    private readonly AssetsFileInstance _instance;
+    private string? _loadedClassDatabaseVersion;
+    private bool _disposed;
 
-    private readonly AssetsToolsContext _context;
-
-    private AssetsFileSession(AssetsToolsContext context, AssetsFileInstance assetsFileInstance)
+    private AssetsFileSession(AssetsManager manager, AssetsFileInstance instance)
     {
-        _context = context;
-        AssetsFileInstance = assetsFileInstance;
+        _manager = manager;
+        _instance = instance;
     }
 
-    public static AssetsFileSession Open(string assetsFilePath, AssetsToolsContext context)
+    public static AssetsFileSession Open(string assetsFilePath, Func<Stream> openTpkStream)
     {
+        ArgumentNullException.ThrowIfNull(openTpkStream);
+
         if (!File.Exists(assetsFilePath))
         {
             throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
         }
 
-        AssetsFileInstance? assetsFileInstance = null;
+        var manager = new AssetsManager();
 
         try
         {
-            assetsFileInstance = context.LoadAssetsFile(assetsFilePath);
+            using Stream tpkStream = openTpkStream();
+            manager.LoadClassPackage(tpkStream);
+            AssetsFileInstance instance = manager.LoadAssetsFile(Path.GetFullPath(assetsFilePath), loadDeps: false);
 
-            return new AssetsFileSession(context, assetsFileInstance);
+            return new AssetsFileSession(manager, instance);
         }
         catch
         {
-            if (assetsFileInstance is not null)
-            {
-                context.UnloadAssetsFile(assetsFileInstance);
-            }
+            manager.UnloadAll(unloadClassData: true);
 
             throw;
         }
@@ -45,11 +47,47 @@ internal sealed class AssetsFileSession : IDisposable
 
     public AssetTypeValueField GetBaseField(long pathId)
     {
-        return _context.GetBaseField(AssetsFileInstance, pathId);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        EnsureClassDatabaseLoaded();
+
+        return _manager.GetBaseField(_instance, pathId);
+    }
+
+    public void SetData(long pathId, AssetTypeValueField field)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        AssetFileInfo assetInfo = AssetsFile.GetAssetInfo(pathId);
+        assetInfo.SetNewData(field);
+    }
+
+    public void WriteTo(Stream outputStream)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var writer = new global::AssetsTools.NET.AssetsFileWriter(outputStream);
+        AssetsFile.Write(writer);
     }
 
     public void Dispose()
     {
-        _context.UnloadAssetsFile(AssetsFileInstance);
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _manager.UnloadAll(unloadClassData: true);
+    }
+
+    private void EnsureClassDatabaseLoaded()
+    {
+        string unityVersion = AssetsFile.Metadata.UnityVersion;
+
+        if (string.Equals(_loadedClassDatabaseVersion, unityVersion, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _manager.LoadClassDatabaseFromPackage(unityVersion);
+        _loadedClassDatabaseVersion = unityVersion;
     }
 }
