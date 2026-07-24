@@ -107,17 +107,36 @@ public static class UninstallPathValidator
         string relativePath,
         string description)
     {
+        if (string.IsNullOrWhiteSpace(relativePath) ||
+            Path.IsPathRooted(relativePath) ||
+            Path.GetPathRoot(relativePath)?.Length > 0 ||
+            ContainsNavigationSegment(relativePath))
+        {
+            throw new InvalidOperationException($"Invalid uninstall {description}: {relativePath}");
+        }
+
         try
         {
             return fileSystemOperations.ResolveWithinDirectory(rootDirectory, relativePath);
         }
+        catch (InvalidOperationException exception)
+        {
+            throw new InvalidOperationException(
+                $"Uninstall {description} must be inside its trusted directory: {relativePath}", exception);
+        }
         catch (Exception exception) when (
-            exception is ArgumentException or InvalidOperationException or NotSupportedException
-                or PathTooLongException)
+            exception is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new InvalidOperationException(
                 $"Invalid uninstall {description}: {relativePath}", exception);
         }
+    }
+
+    private static bool ContainsNavigationSegment(string path)
+    {
+        return path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries)
+            .Any(segment => segment is "." or "..");
     }
 
     private static bool IsPathInsideDirectory(string fullPath, string fullDirectory)
