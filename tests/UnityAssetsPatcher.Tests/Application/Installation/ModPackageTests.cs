@@ -43,7 +43,7 @@ public sealed class ModPackageTests
                 zipPath,
                 ["bonus CAMERA"],
                 new ModManifestReader(),
-                TestDependencies.DirectoryOperations,
+                TestDependencies.FileSystemOperations,
                 new StepTimer());
 
             Assert.Equal(["Bonus camera"], package.AppliedOptionalGroups);
@@ -92,7 +92,7 @@ public sealed class ModPackageTests
                     zipPath,
                     [],
                     new ModManifestReader(),
-                    TestDependencies.DirectoryOperations,
+                    TestDependencies.FileSystemOperations,
                     new StepTimer()));
 
             Assert.Contains("Zip package exceeds the maximum allowed total uncompressed size", exception.Message);
@@ -137,7 +137,7 @@ public sealed class ModPackageTests
                 zipPath,
                 [],
                 new ModManifestReader(),
-                TestDependencies.DirectoryOperations,
+                TestDependencies.FileSystemOperations,
                 new StepTimer());
 
             var exception = Assert.Throws<InvalidOperationException>(() =>

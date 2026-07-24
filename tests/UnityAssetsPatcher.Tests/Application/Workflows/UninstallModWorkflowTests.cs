@@ -32,7 +32,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -90,7 +90,7 @@ public sealed class UninstallModWorkflowTests
         File.WriteAllText(targetPath, "patched");
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -156,7 +156,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -225,7 +225,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -298,7 +298,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -372,7 +372,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -447,7 +447,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -522,7 +522,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -604,7 +604,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -635,16 +635,15 @@ public sealed class UninstallModWorkflowTests
         var store = CreateBackupRepository(backupDirectory);
         installDirectory = CommitRecord(store, record, installDirectory);
         int firstFileRestoreAttempts = 0;
-        IFileOperations fileOperations = TestDependencies.FileOperations;
+        IFileSystemOperations fileSystemOperations = TestDependencies.FileSystemOperations;
         var executor = new UninstallExecutor(
             store,
-            fileOperations,
-            TestDependencies.DirectoryOperations,
+            fileSystemOperations,
             (backupPath, targetPath) =>
             {
                 if (targetPath == firstTargetPath && firstFileRestoreAttempts++ == 0)
                 {
-                    fileOperations.Copy(backupPath, targetPath);
+                    fileSystemOperations.CopyFile(backupPath, targetPath);
 
                     return;
                 }
@@ -724,7 +723,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -793,7 +792,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -865,7 +864,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -939,7 +938,7 @@ public sealed class UninstallModWorkflowTests
 
         var record = new InstallRecord(
             string.Empty,
-            GameInstanceIdentity.CreateFingerprint(gameDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
             1,
             "install-1",
             DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -1010,7 +1009,7 @@ public sealed class UninstallModWorkflowTests
             File.WriteAllText(payloadPath, "victim payload");
             var record = new InstallRecord(
                 string.Empty,
-                GameInstanceIdentity.CreateFingerprint(gameDirectory),
+                GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
                 1,
                 "install-1",
                 DateTimeOffset.Parse("2026-06-18T14:30:22Z"),
@@ -1079,11 +1078,13 @@ public sealed class UninstallModWorkflowTests
         UninstallExecutor? executor = null)
     {
         return new UninstallModWorkflow(
-            new UninstallPlanner(store, gameDirectoryResolver ?? new GameDirectoryResolver([])),
+            new UninstallPlanner(
+                store,
+                gameDirectoryResolver ?? new GameDirectoryResolver([]),
+                TestDependencies.FileSystemOperations),
             executor ?? new UninstallExecutor(
                 store,
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations),
+                TestDependencies.FileSystemOperations),
             store);
     }
 
@@ -1091,8 +1092,7 @@ public sealed class UninstallModWorkflowTests
     {
         return new BackupRepository(
             backupDirectory,
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
     }
 
     private static string RelativeToGame(string gameDirectory, string path)

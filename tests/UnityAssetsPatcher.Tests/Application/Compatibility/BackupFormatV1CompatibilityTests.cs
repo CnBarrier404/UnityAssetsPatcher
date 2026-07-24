@@ -18,8 +18,7 @@ public sealed class BackupFormatV1CompatibilityTests
             new string('0', 64));
         var repository = new BackupRepository(
             scope.Backup,
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
 
         BackupRepositoryMetadata metadata = repository.LoadMetadata();
         InstallRecordEntry entry = Assert.Single(repository.ListRecords());
@@ -58,7 +57,7 @@ public sealed class BackupFormatV1CompatibilityTests
     {
         using CompatibilityTestDirectory scope = new();
         BackupRepository repository = InitializeRepository(scope);
-        string fingerprint = GameInstanceIdentity.CreateFingerprint(scope.Game);
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game);
         string transactionDirectory = CompatibilityFixture.CopyTransaction(
             scope.Backup,
             "install-transaction-uncommitted-v1.json",
@@ -104,7 +103,7 @@ public sealed class BackupFormatV1CompatibilityTests
     {
         using CompatibilityTestDirectory scope = new();
         BackupRepository repository = InitializeRepository(scope);
-        string fingerprint = GameInstanceIdentity.CreateFingerprint(scope.Game);
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game);
         CompatibilityFixture.CopyInstallRecord(scope.Backup, "committed-install-v1", fingerprint);
         string transactionDirectory = CompatibilityFixture.CopyTransaction(
             scope.Backup,
@@ -135,7 +134,7 @@ public sealed class BackupFormatV1CompatibilityTests
     {
         using CompatibilityTestDirectory scope = new();
         BackupRepository repository = InitializeRepository(scope);
-        string fingerprint = GameInstanceIdentity.CreateFingerprint(scope.Game);
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game);
         CompatibilityFixture.CopyInstallRecord(scope.Backup, "pending-uninstall-v1", fingerprint);
         string transactionDirectory = CompatibilityFixture.CopyTransaction(
             scope.Backup,
@@ -168,7 +167,7 @@ public sealed class BackupFormatV1CompatibilityTests
     {
         using CompatibilityTestDirectory scope = new();
         BackupRepository repository = InitializeRepository(scope);
-        string fingerprint = GameInstanceIdentity.CreateFingerprint(scope.Game);
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game);
         string transactionDirectory = CompatibilityFixture.CopyTransaction(
             scope.Backup,
             "uninstall-transaction-committed-v1.json",
@@ -200,8 +199,7 @@ public sealed class BackupFormatV1CompatibilityTests
 
         return new BackupRepository(
             scope.Backup,
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
     }
 
     private static void WriteGameFile(CompatibilityTestDirectory scope, string fileName, string contents)

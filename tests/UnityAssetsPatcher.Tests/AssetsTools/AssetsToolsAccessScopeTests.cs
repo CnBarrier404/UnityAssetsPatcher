@@ -45,8 +45,7 @@ public sealed class AssetsToolsAccessScopeTests
     {
         return new AssetsToolsAccessScope(
             new ClassPackageCache(OpenRealTpkStream),
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
     }
 
     private static string FindRepositoryRoot()

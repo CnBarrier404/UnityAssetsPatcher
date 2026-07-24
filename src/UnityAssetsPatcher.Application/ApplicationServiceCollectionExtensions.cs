@@ -24,8 +24,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<TargetAssetResolver>();
         services.AddSingleton(serviceProvider => new BackupRepository(
             backupDirectory,
-            serviceProvider.GetRequiredService<IFileOperations>(),
-            serviceProvider.GetRequiredService<IDirectoryOperations>()));
+            serviceProvider.GetRequiredService<IFileSystemOperations>()));
         services.AddSingleton<IWorkflowService, WorkflowService>();
 
         AddAssetsAccess(services);

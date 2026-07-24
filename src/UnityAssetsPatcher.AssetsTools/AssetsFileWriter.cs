@@ -9,21 +9,17 @@ namespace UnityAssetsPatcher.AssetsTools;
 public sealed class AssetsFileWriter : IAssetsFileWriter
 {
     private readonly ClassPackageCache _classPackageCache;
-    private readonly IFileOperations _fileOperations;
-    private readonly IDirectoryOperations _directoryOperations;
+    private readonly IFileSystemOperations _fileSystemOperations;
 
     public AssetsFileWriter(
         ClassPackageCache classPackageCache,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations)
+        IFileSystemOperations fileSystemOperations)
     {
         ArgumentNullException.ThrowIfNull(classPackageCache);
-        ArgumentNullException.ThrowIfNull(fileOperations);
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
         _classPackageCache = classPackageCache;
-        _fileOperations = fileOperations;
-        _directoryOperations = directoryOperations;
+        _fileSystemOperations = fileSystemOperations;
     }
 
     public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
@@ -52,10 +48,10 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
 
         if (!string.IsNullOrEmpty(outputDirectory))
         {
-            _directoryOperations.Create(outputDirectory);
+            _fileSystemOperations.CreateDirectory(outputDirectory);
         }
 
-        _fileOperations.Write(outputPath, outputStream =>
+        _fileSystemOperations.WriteFile(outputPath, outputStream =>
         {
             using AssetsFileSession session = AssetsFileSession.Open(inputPath, _classPackageCache);
 

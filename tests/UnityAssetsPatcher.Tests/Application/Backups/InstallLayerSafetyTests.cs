@@ -17,9 +17,12 @@ public sealed class InstallLayerSafetyTests
         try
         {
             string fingerprint = GameInstanceIdentity.CreateFingerprint(
+                TestDependencies.FileSystemOperations,
                 Path.Combine(directory, ".", "child", ".."));
 
-            Assert.Equal(GameInstanceIdentity.CreateFingerprint(directory), fingerprint);
+            Assert.Equal(
+                GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, directory),
+                fingerprint);
             Assert.Matches("^[0-9a-f]{64}$", fingerprint);
         }
         finally
@@ -118,8 +121,7 @@ public sealed class InstallLayerSafetyTests
         {
             var store = new BackupRepository(
                 directory,
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations);
+                TestDependencies.FileSystemOperations);
             using BackupOperationLock owner = store.AcquireLock();
             Assert.Throws<InvalidOperationException>(() => store.AcquireLock());
         }
@@ -230,8 +232,7 @@ public sealed class InstallLayerSafetyTests
 
             var store = new BackupRepository(
                 backup,
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations);
+                TestDependencies.FileSystemOperations);
             string repositoryId = store.LoadMetadata().RepositoryId;
             string firstId = Guid.NewGuid().ToString("N");
             string secondId = Guid.NewGuid().ToString("N");
@@ -243,7 +244,7 @@ public sealed class InstallLayerSafetyTests
             Directory.CreateDirectory(Path.GetDirectoryName(secondBackup)!);
             File.WriteAllText(firstBackup, "original");
             File.WriteAllText(secondBackup, "first");
-            string fingerprint = GameInstanceIdentity.CreateFingerprint(game);
+            string fingerprint = GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, game);
 
             store.WriteRecord(CreateScenarioRecord(
                 repositoryId, firstId, "First Mod", 1, fingerprint, game, firstDirectory, firstAssets, firstBackup,
@@ -273,11 +274,10 @@ public sealed class InstallLayerSafetyTests
         }
 
         public UninstallModWorkflow CreateWorkflow() => new(
-            new UninstallPlanner(Store, new GameDirectoryResolver([])),
+            new UninstallPlanner(Store, new GameDirectoryResolver([]), TestDependencies.FileSystemOperations),
             new UninstallExecutor(
                 Store,
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations),
+                TestDependencies.FileSystemOperations),
             Store);
 
         public void Dispose()

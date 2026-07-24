@@ -106,8 +106,7 @@ public sealed class AssetsFileWriterTests
 
                 return OpenRealTpkStream();
             }),
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
         File.Copy(GetRealAssetsFilePath(), sourcePath);
 
         try
@@ -136,8 +135,7 @@ public sealed class AssetsFileWriterTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.assets");
         var writer = new AssetsFileWriter(
             new ClassPackageCache(() => throw new InvalidOperationException("TPK should not be opened.")),
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
 
         var exception = Assert.Throws<FileNotFoundException>(() =>
             writer.WriteFieldPatches(missingAssetsFile, outputPath, []));
@@ -156,8 +154,7 @@ public sealed class AssetsFileWriterTests
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
         var writer = new AssetsFileWriter(
             new ClassPackageCache(() => File.OpenRead(missingTpkFile)),
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
 
         try
         {
@@ -185,8 +182,7 @@ public sealed class AssetsFileWriterTests
         string missingTpkFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tpk");
         var writer = new AssetsFileWriter(
             new ClassPackageCache(() => File.OpenRead(missingTpkFile)),
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
 
         try
         {
@@ -209,8 +205,7 @@ public sealed class AssetsFileWriterTests
     {
         return new AssetsFileWriter(
             new ClassPackageCache(OpenRealTpkStream),
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
     }
 
     private static AssetField Find(AssetField root, string path)

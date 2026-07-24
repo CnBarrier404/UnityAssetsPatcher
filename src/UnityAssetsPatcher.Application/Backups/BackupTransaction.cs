@@ -38,14 +38,12 @@ public static class BackupTransactionStore
     public const string FileName = "transaction.json";
 
     public static void Save(
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations,
+        IFileSystemOperations fileSystemOperations,
         string transactionDirectory,
         BackupTransaction transaction)
     {
         BackupJsonStore.Save(
-            fileOperations,
-            directoryOperations,
+            fileSystemOperations,
             Path.Combine(transactionDirectory, FileName),
             transaction,
             BackupJsonContext.Default.BackupTransaction);
@@ -63,16 +61,14 @@ public static class BackupTransactionStore
 internal static class BackupJsonStore
 {
     public static void Save<T>(
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations,
+        IFileSystemOperations fileSystemOperations,
         string path,
         T value,
         System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
     {
-        ArgumentNullException.ThrowIfNull(fileOperations);
-        ArgumentNullException.ThrowIfNull(directoryOperations);
-        directoryOperations.Create(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        fileOperations.Write(path, stream => { JsonSerializer.Serialize(stream, value, typeInfo); });
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        fileSystemOperations.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        fileSystemOperations.WriteFile(path, stream => { JsonSerializer.Serialize(stream, value, typeInfo); });
     }
 }
 

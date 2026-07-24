@@ -66,7 +66,7 @@ public sealed class InstallPlanBuilderTests
                 zipPath,
                 [],
                 new ModManifestReader(),
-                TestDependencies.DirectoryOperations,
+                TestDependencies.FileSystemOperations,
                 new StepTimer());
 
             InstallAnalysis detailed = builder.Analyze(
@@ -155,7 +155,7 @@ public sealed class InstallPlanBuilderTests
                 zipPath,
                 [],
                 new ModManifestReader(),
-                TestDependencies.DirectoryOperations,
+                TestDependencies.FileSystemOperations,
                 new StepTimer());
 
             InstallAnalysis detailed = builder.Analyze(

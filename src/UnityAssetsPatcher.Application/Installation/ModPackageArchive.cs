@@ -6,16 +6,16 @@ namespace UnityAssetsPatcher.Application.Installation;
 public sealed class ModPackageArchive
 {
     private readonly string _packagePath;
-    private readonly IDirectoryOperations _directoryOperations;
+    private readonly IFileSystemOperations _fileSystemOperations;
 
     private const long MaxTotalModPackageExtractionSize = 10L * 1024L * 1024L * 1024L; // 10GB
     private const int CopyBufferSize = 81920;
 
-    public ModPackageArchive(string packagePath, IDirectoryOperations directoryOperations)
+    public ModPackageArchive(string packagePath, IFileSystemOperations fileSystemOperations)
     {
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _packagePath = packagePath;
-        _directoryOperations = directoryOperations;
+        _fileSystemOperations = fileSystemOperations;
     }
 
     public ZipArchive OpenRead()
@@ -54,7 +54,7 @@ public sealed class ModPackageArchive
 
         if (!string.IsNullOrEmpty(destinationDirectory))
         {
-            _directoryOperations.Create(destinationDirectory);
+            _fileSystemOperations.CreateDirectory(destinationDirectory);
         }
 
         string tempPath = Path.Combine(

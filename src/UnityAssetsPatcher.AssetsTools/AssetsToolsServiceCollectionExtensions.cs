@@ -13,8 +13,7 @@ public static class AssetsToolsServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(openTpkStream);
         services.AddSingleton<IAssetsAccessScopeFactory>(provider => new AssetsToolsAccessScopeFactory(
             openTpkStream,
-            provider.GetRequiredService<IFileOperations>(),
-            provider.GetRequiredService<IDirectoryOperations>()));
+            provider.GetRequiredService<IFileSystemOperations>()));
 
         return services;
     }

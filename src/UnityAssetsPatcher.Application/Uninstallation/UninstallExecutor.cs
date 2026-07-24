@@ -7,35 +7,31 @@ namespace UnityAssetsPatcher.Application.Uninstallation;
 public sealed class UninstallExecutor
 {
     private readonly BackupRepository _backupRepository;
-    private readonly IFileOperations _fileOperations;
-    private readonly IDirectoryOperations _directoryOperations;
+    private readonly IFileSystemOperations _fileSystemOperations;
     private readonly Action<string, string> _restoreFile;
 
     public UninstallExecutor(
         BackupRepository backupRepository,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations) :
-        this(backupRepository, fileOperations, directoryOperations, fileOperations.Copy) { }
+        IFileSystemOperations fileSystemOperations) :
+        this(backupRepository, fileSystemOperations, fileSystemOperations.CopyFile) { }
 
     public UninstallExecutor(
         BackupRepository backupRepository,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations,
+        IFileSystemOperations fileSystemOperations,
         Action<string, string> restoreFile)
     {
         ArgumentNullException.ThrowIfNull(backupRepository);
-        ArgumentNullException.ThrowIfNull(fileOperations);
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(restoreFile);
         _backupRepository = backupRepository;
-        _fileOperations = fileOperations;
-        _directoryOperations = directoryOperations;
+        _fileSystemOperations = fileSystemOperations;
         _restoreFile = restoreFile;
     }
 
     public UninstallModResult Execute(UninstallPlan plan)
     {
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
+            _fileSystemOperations,
             _backupRepository.BackupDirectory, plan.InstallDirectory, plan.GameDirectory, plan.Record);
         UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
         ValidateUninstallAccess(paths, plan.InstallDirectory);
@@ -43,7 +39,7 @@ public sealed class UninstallExecutor
         BackupRepositoryMetadata repository = _backupRepository.LoadMetadata();
         string temporaryDirectory = _backupRepository.CreateTransactionDirectory();
         string rollbackDirectory = Path.Combine(temporaryDirectory, "rollback");
-        _directoryOperations.Create(rollbackDirectory);
+        _fileSystemOperations.CreateDirectory(rollbackDirectory);
         var files = new List<BackupTransactionFile>();
         bool transactionSaved = false;
         BackupTransaction? transaction = null;
@@ -77,7 +73,7 @@ public sealed class UninstallExecutor
 
             transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Uninstall,
                 plan.Record.Id, plan.Record.GameInstanceFingerprint, files);
-            BackupTransactionStore.Save(_fileOperations, _directoryOperations, temporaryDirectory, transaction);
+            BackupTransactionStore.Save(_fileSystemOperations, temporaryDirectory, transaction);
             transactionSaved = true;
 
             var restoredFiles = new List<UninstallRestoredFileResult>();
@@ -102,13 +98,13 @@ public sealed class UninstallExecutor
 
                 if (!file.InstalledFile.Matches(file.DestinationPath))
                     throw new IOException($"Payload changed during uninstall: {file.DestinationPath}");
-                _fileOperations.Delete(file.DestinationPath);
+                _fileSystemOperations.DeleteFile(file.DestinationPath);
                 deletedFiles.Add(new UninstallDeletedFileResult(file.DestinationPath, true));
             }
 
             string removedInstall = Path.Combine(temporaryDirectory, "removed-install");
-            _directoryOperations.Move(plan.InstallDirectory, removedInstall);
-            _directoryOperations.Delete(temporaryDirectory);
+            _fileSystemOperations.MoveDirectory(plan.InstallDirectory, removedInstall);
+            _fileSystemOperations.DeleteDirectory(temporaryDirectory);
             return new UninstallModResult(plan.Record.Id, plan.Record.ModName, plan.Record.ModVersion,
                 restoredFiles, deletedFiles);
         }
@@ -116,7 +112,7 @@ public sealed class UninstallExecutor
         {
             if (!transactionSaved)
             {
-                if (Directory.Exists(temporaryDirectory)) _directoryOperations.Delete(temporaryDirectory);
+                if (Directory.Exists(temporaryDirectory)) _fileSystemOperations.DeleteDirectory(temporaryDirectory);
                 throw;
             }
 

@@ -24,20 +24,16 @@ public sealed class InstallExecutor
     private sealed record InstallPatchPlanFile(string Target, string AssetsFilePath, PatchPlan PatchPlan);
 
     private readonly BackupRepository _backupRepository;
-    private readonly IFileOperations _fileOperations;
-    private readonly IDirectoryOperations _directoryOperations;
+    private readonly IFileSystemOperations _fileSystemOperations;
 
     public InstallExecutor(
         BackupRepository backupRepository,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations)
+        IFileSystemOperations fileSystemOperations)
     {
         ArgumentNullException.ThrowIfNull(backupRepository);
-        ArgumentNullException.ThrowIfNull(fileOperations);
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _backupRepository = backupRepository;
-        _fileOperations = fileOperations;
-        _directoryOperations = directoryOperations;
+        _fileSystemOperations = fileSystemOperations;
     }
 
     public InstallExecutionResult Execute(
@@ -50,8 +46,8 @@ public sealed class InstallExecutor
         var patchFiles = CreateRequiredPatchFiles(analysis);
         BackupRepositoryMetadata repository = _backupRepository.LoadMetadata();
         string installId = Guid.NewGuid().ToString("N");
-        string gameDirectory = Path.GetFullPath(analysis.GameDirectory);
-        string fingerprint = GameInstanceIdentity.CreateFingerprint(gameDirectory);
+        string gameDirectory = _fileSystemOperations.ResolveExistingDirectory(analysis.GameDirectory);
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(_fileSystemOperations, gameDirectory);
         long sequence = InstallSequenceAllocator.Allocate(
             _backupRepository.ListRecords().Select(entry => entry.Record), fingerprint, repository.RepositoryId);
         string temporaryDirectory = _backupRepository.CreateTransactionDirectory();
@@ -67,9 +63,9 @@ public sealed class InstallExecutor
 
         try
         {
-            _directoryOperations.Create(rollbackDirectory);
-            _directoryOperations.Create(preparedDirectory);
-            _directoryOperations.Create(backupsDirectory);
+            _fileSystemOperations.CreateDirectory(rollbackDirectory);
+            _fileSystemOperations.CreateDirectory(preparedDirectory);
+            _fileSystemOperations.CreateDirectory(backupsDirectory);
 
             for (int index = 0; index < patchFiles.Count; index++)
             {
@@ -161,12 +157,12 @@ public sealed class InstallExecutor
 
             transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Install, installId,
                 fingerprint, transactionFiles);
-            BackupTransactionStore.Save(_fileOperations, _directoryOperations, temporaryDirectory, transaction);
+            BackupTransactionStore.Save(_fileSystemOperations, temporaryDirectory, transaction);
             transactionSaved = true;
 
             ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
             _backupRepository.CommitInstall(preparedInstallDirectory, installId);
-            _directoryOperations.Delete(temporaryDirectory);
+            _fileSystemOperations.DeleteDirectory(temporaryDirectory);
 
             return new InstallExecutionResult(patched, copied, installId);
         }
@@ -200,7 +196,7 @@ public sealed class InstallExecutor
         {
             if (Directory.Exists(temporaryDirectory))
             {
-                _directoryOperations.Delete(temporaryDirectory);
+                _fileSystemOperations.DeleteDirectory(temporaryDirectory);
             }
 
             return;
@@ -222,7 +218,7 @@ public sealed class InstallExecutor
     {
         foreach (BackupTransactionFile file in transaction.Files)
         {
-            string target = BackupFileSystem.ResolveTrustedPath(gameDirectory, file.RelativePath);
+            string target = _fileSystemOperations.ResolveWithinDirectory(gameDirectory, file.RelativePath);
 
             if (!file.Before?.Matches(target) ?? File.Exists(target))
             {
@@ -232,11 +228,11 @@ public sealed class InstallExecutor
 
         foreach (BackupTransactionFile file in transaction.Files)
         {
-            string target = BackupFileSystem.ResolveTrustedPath(gameDirectory, file.RelativePath);
+            string target = _fileSystemOperations.ResolveWithinDirectory(gameDirectory, file.RelativePath);
             string source = Path.GetFullPath(Path.Combine(temporaryDirectory,
                 file.PreparedRelativePath ?? throw new InvalidOperationException("Prepared file path is missing.")));
 
-            _fileOperations.Copy(source, target);
+            _fileSystemOperations.CopyFile(source, target);
 
             if (file.After is null || !file.After.Matches(target))
             {

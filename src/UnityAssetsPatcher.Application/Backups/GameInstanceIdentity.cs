@@ -1,47 +1,21 @@
 using System.Security.Cryptography;
 using System.Text;
+using UnityAssetsPatcher.Abstractions.IO;
 
 namespace UnityAssetsPatcher.Application.Backups;
 
 public static class GameInstanceIdentity
 {
-    public static string CreateFingerprint(string gameDirectory)
+    public static string CreateFingerprint(
+        IFileSystemOperations fileSystemOperations,
+        string gameDirectory)
     {
-        byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(ResolveDirectory(gameDirectory)));
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
+
+        string resolved = fileSystemOperations.ResolveExistingDirectory(gameDirectory);
+        string identity = OperatingSystem.IsWindows() ? resolved.ToUpperInvariant() : resolved;
+        byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
 
         return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
-
-    public static string ResolveDirectory(string gameDirectory)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
-
-        string fullPath = Path.GetFullPath(gameDirectory);
-
-        if (!Directory.Exists(fullPath))
-        {
-            throw new DirectoryNotFoundException($"Game directory not found: {fullPath}");
-        }
-
-        string root = Path.GetPathRoot(fullPath)
-                      ?? throw new InvalidOperationException($"Cannot resolve game directory: {gameDirectory}");
-        string resolved = root;
-        foreach (string segment in fullPath[root.Length..].Split(
-                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                     StringSplitOptions.RemoveEmptyEntries))
-        {
-            resolved = Path.Combine(resolved, segment);
-            var info = new DirectoryInfo(resolved);
-
-            if (info.LinkTarget is not null)
-            {
-                resolved = info.ResolveLinkTarget(true)?.FullName
-                           ?? throw new InvalidOperationException($"Cannot resolve game directory: {gameDirectory}");
-            }
-        }
-
-        resolved = Path.TrimEndingDirectorySeparator(Path.GetFullPath(resolved));
-
-        return OperatingSystem.IsWindows() ? resolved.ToUpperInvariant() : resolved;
     }
 }

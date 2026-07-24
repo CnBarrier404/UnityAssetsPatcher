@@ -8,8 +8,7 @@ public static class InfrastructureServiceCollectionExtensions
 {
     public static IServiceCollection AddUnityAssetsPatcherInfrastructure(this IServiceCollection services)
     {
-        services.AddSingleton<IFileOperations, FileOperations>();
-        services.AddSingleton<IDirectoryOperations, DirectoryOperations>();
+        services.AddSingleton<IFileSystemOperations, FileSystemOperations>();
 
         return services;
     }

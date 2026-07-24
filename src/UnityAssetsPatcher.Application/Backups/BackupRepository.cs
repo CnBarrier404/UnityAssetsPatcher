@@ -13,8 +13,7 @@ public sealed class BackupRepository
 
     private const string RecordFileName = "record.json";
 
-    private readonly IFileOperations _fileOperations;
-    private readonly IDirectoryOperations _directoryOperations;
+    private readonly IFileSystemOperations _fileSystemOperations;
 
     public string BackupDirectory { get; }
     public string InstalledDirectory => Path.Combine(BackupDirectory, InstalledDirectoryName);
@@ -24,15 +23,12 @@ public sealed class BackupRepository
 
     public BackupRepository(
         string backupDirectory,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations)
+        IFileSystemOperations fileSystemOperations)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(backupDirectory);
-        ArgumentNullException.ThrowIfNull(fileOperations);
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         BackupDirectory = Path.GetFullPath(backupDirectory);
-        _fileOperations = fileOperations;
-        _directoryOperations = directoryOperations;
+        _fileSystemOperations = fileSystemOperations;
     }
 
     public BackupOperationLock AcquireLock()
@@ -59,7 +55,7 @@ public sealed class BackupRepository
     {
         if (Directory.Exists(TransactionDirectory))
             throw new InvalidOperationException("The backup repository contains an unfinished transaction.");
-        _directoryOperations.Create(TransactionDirectory);
+        _fileSystemOperations.CreateDirectory(TransactionDirectory);
         return TransactionDirectory;
     }
 
@@ -73,8 +69,8 @@ public sealed class BackupRepository
     {
         string destination = GetInstallDirectory(installId);
         if (Directory.Exists(destination)) throw new IOException($"Install record already exists: {installId}");
-        _directoryOperations.Create(InstalledDirectory);
-        _directoryOperations.Move(preparedInstallDirectory, destination);
+        _fileSystemOperations.CreateDirectory(InstalledDirectory);
+        _fileSystemOperations.MoveDirectory(preparedInstallDirectory, destination);
     }
 
     public void WriteRecord(InstallRecord record, string installDirectory)
@@ -93,8 +89,7 @@ public sealed class BackupRepository
             throw new InvalidOperationException("Install records must be saved under the installed directory.");
 
         BackupJsonStore.Save(
-            _fileOperations,
-            _directoryOperations,
+            _fileSystemOperations,
             Path.Combine(installDirectory, RecordFileName),
             record,
             BackupJsonContext.Default.InstallRecord);
@@ -129,41 +124,40 @@ public sealed class BackupRepository
     public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory)
     {
         using BackupOperationLock operationLock = AcquireLock();
-        return new BackupRecovery(this, _fileOperations, _directoryOperations).Preview(gameDirectory);
+        return new BackupRecovery(this, _fileSystemOperations).Preview(gameDirectory);
     }
 
     public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory)
     {
         using BackupOperationLock operationLock = AcquireLock();
-        return new BackupRecovery(this, _fileOperations, _directoryOperations).Recover(gameDirectory);
+        return new BackupRecovery(this, _fileSystemOperations).Recover(gameDirectory);
     }
 
     public BackupRecoveryReport CheckPendingTransactions()
     {
         using BackupOperationLock operationLock = AcquireLock();
 
-        return new BackupRecovery(this, _fileOperations, _directoryOperations).Check();
+        return new BackupRecovery(this, _fileSystemOperations).Check();
     }
 
     public BackupRecoveryReport CheckPendingTransactionsUnderLock() =>
-        new BackupRecovery(this, _fileOperations, _directoryOperations).Check();
+        new BackupRecovery(this, _fileSystemOperations).Check();
 
     public BackupRecoveryReport RecoverTrustedUnderLock(BackupTransaction transaction, string gameDirectory) =>
-        new BackupRecovery(this, _fileOperations, _directoryOperations).RecoverTrusted(transaction, gameDirectory);
+        new BackupRecovery(this, _fileSystemOperations).RecoverTrusted(transaction, gameDirectory);
 
     private void EnsureInitialized()
     {
-        _directoryOperations.Create(BackupDirectory);
+        _fileSystemOperations.CreateDirectory(BackupDirectory);
         if (File.Exists(MetadataPath)) return;
 
         var metadata = new BackupRepositoryMetadata(CurrentRepositoryFormatVersion, Guid.NewGuid().ToString("N"));
         BackupJsonStore.Save(
-            _fileOperations,
-            _directoryOperations,
+            _fileSystemOperations,
             MetadataPath,
             metadata,
             BackupJsonContext.Default.BackupRepositoryMetadata);
-        _directoryOperations.Create(InstalledDirectory);
+        _fileSystemOperations.CreateDirectory(InstalledDirectory);
     }
 
     private static InstallRecord ReadRecordCore(string installDirectory, string repositoryId)

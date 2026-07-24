@@ -117,7 +117,7 @@ public sealed class UninstallIntegrityTests
 
             var record = new InstallRecord(
                 string.Empty,
-                GameInstanceIdentity.CreateFingerprint(gameDirectory),
+                GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, gameDirectory),
                 1,
                 "install-1",
                 DateTimeOffset.UnixEpoch,
@@ -143,8 +143,7 @@ public sealed class UninstallIntegrityTests
                 ]);
             var store = new BackupRepository(
                 backupDirectory,
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations);
+                TestDependencies.FileSystemOperations);
             string committedInstallDirectory = store.GetInstallDirectory(record.Id);
             _ = store.LoadMetadata();
             Directory.Move(installDirectory, committedInstallDirectory);
@@ -161,11 +160,13 @@ public sealed class UninstallIntegrityTests
                 BackupPath = committedBackupPath,
                 PayloadPath = payloadPath,
                 Workflow = new UninstallModWorkflow(
-                    new UninstallPlanner(store, new GameDirectoryResolver([])),
+                    new UninstallPlanner(
+                        store,
+                        new GameDirectoryResolver([]),
+                        TestDependencies.FileSystemOperations),
                     new UninstallExecutor(
                         store,
-                        TestDependencies.FileOperations,
-                        TestDependencies.DirectoryOperations),
+                        TestDependencies.FileSystemOperations),
                     store),
             };
         }

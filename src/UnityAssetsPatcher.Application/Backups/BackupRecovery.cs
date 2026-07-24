@@ -6,20 +6,16 @@ namespace UnityAssetsPatcher.Application.Backups;
 internal sealed class BackupRecovery
 {
     private readonly BackupRepository _repository;
-    private readonly IFileOperations _fileOperations;
-    private readonly IDirectoryOperations _directoryOperations;
+    private readonly IFileSystemOperations _fileSystemOperations;
 
     public BackupRecovery(
         BackupRepository repository,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations)
+        IFileSystemOperations fileSystemOperations)
     {
         ArgumentNullException.ThrowIfNull(repository);
-        ArgumentNullException.ThrowIfNull(fileOperations);
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _repository = repository;
-        _fileOperations = fileOperations;
-        _directoryOperations = directoryOperations;
+        _fileSystemOperations = fileSystemOperations;
     }
 
     public BackupRecoveryReport Check()
@@ -58,7 +54,7 @@ internal sealed class BackupRecovery
         string? trustedRoot = null;
         try
         {
-            trustedRoot = GameInstanceIdentity.ResolveDirectory(gameDirectory);
+            trustedRoot = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
             RecoveryPlan plan = BuildPlan(transaction, trustedRoot);
             return new BackupRecoveryPreview(
                 BackupRepositoryStatus.RecoveryRequired,
@@ -91,7 +87,7 @@ internal sealed class BackupRecovery
             BackupTransaction? transaction = LoadTransaction();
             if (transaction is null) return BackupRecoveryReport.Clean;
 
-            string trustedRoot = GameInstanceIdentity.ResolveDirectory(gameDirectory);
+            string trustedRoot = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
             return Apply(transaction, trustedRoot);
         }
         catch (Exception exception)
@@ -107,7 +103,7 @@ internal sealed class BackupRecovery
             BackupRepositoryMetadata metadata = _repository.LoadMetadata();
             _ = _repository.ListRecords();
             ValidateTransaction(transaction, metadata.RepositoryId);
-            string trustedRoot = GameInstanceIdentity.ResolveDirectory(gameDirectory);
+            string trustedRoot = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
             return Apply(transaction, trustedRoot);
         }
         catch (Exception exception)
@@ -124,10 +120,10 @@ internal sealed class BackupRecovery
             foreach (RecoveryFile file in plan.Files.Reverse())
             {
                 if (file.Action == BackupRecoveryFileAction.NoChange) continue;
-                string target = BackupFileSystem.ResolveTrustedPath(trustedRoot, file.File.RelativePath);
+                string target = _fileSystemOperations.ResolveWithinDirectory(trustedRoot, file.File.RelativePath);
                 if (file.Action == BackupRecoveryFileAction.Delete)
                 {
-                    _fileOperations.Delete(target);
+                    _fileSystemOperations.DeleteFile(target);
                 }
                 else
                 {
@@ -144,14 +140,16 @@ internal sealed class BackupRecovery
 
     private RecoveryPlan BuildPlan(BackupTransaction transaction, string trustedRoot)
     {
-        if (!string.Equals(GameInstanceIdentity.CreateFingerprint(trustedRoot), transaction.GameInstanceFingerprint,
+        if (!string.Equals(
+                GameInstanceIdentity.CreateFingerprint(_fileSystemOperations, trustedRoot),
+                transaction.GameInstanceFingerprint,
                 StringComparison.Ordinal))
         {
             throw new InvalidOperationException("The selected game directory does not match the pending transaction.");
         }
 
         string installDirectory = _repository.GetInstallDirectory(transaction.InstallId);
-        string removedDirectory = BackupFileSystem.ResolveTrustedPath(_repository.TransactionDirectory,
+        string removedDirectory = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
             "removed-install");
         bool committed = transaction.Kind == BackupOperationKind.Install
             ? Directory.Exists(installDirectory)
@@ -177,7 +175,7 @@ internal sealed class BackupRecovery
         var files = new List<RecoveryFile>();
         foreach (BackupTransactionFile file in transaction.Files)
         {
-            string target = BackupFileSystem.ResolveTrustedPath(trustedRoot, file.RelativePath);
+            string target = _fileSystemOperations.ResolveWithinDirectory(trustedRoot, file.RelativePath);
             FileState state = Inspect(target, file.Before, file.After);
             if (committed)
             {
@@ -270,7 +268,7 @@ internal sealed class BackupRecovery
 
     private void ValidateRollback(BackupTransactionFile file)
     {
-        string rollback = BackupFileSystem.ResolveTrustedPath(_repository.TransactionDirectory,
+        string rollback = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
         if (!file.Before!.Matches(rollback))
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
@@ -278,11 +276,11 @@ internal sealed class BackupRecovery
 
     private void RestoreOriginalFile(BackupTransactionFile file, string target)
     {
-        string rollback = BackupFileSystem.ResolveTrustedPath(_repository.TransactionDirectory,
+        string rollback = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
         if (!file.Before!.Matches(rollback))
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
-        _fileOperations.Copy(rollback, target);
+        _fileSystemOperations.CopyFile(rollback, target);
         if (!file.Before.Matches(target))
             throw new InvalidOperationException($"Transaction rollback verification failed: {target}");
     }
@@ -290,7 +288,7 @@ internal sealed class BackupRecovery
     private void DeleteTransaction()
     {
         EnsureRealDirectory(_repository.TransactionDirectory, "Transaction directory");
-        _directoryOperations.Delete(_repository.TransactionDirectory);
+        _fileSystemOperations.DeleteDirectory(_repository.TransactionDirectory);
     }
 
     private static void EnsureRealDirectory(string path, string description)
@@ -355,49 +353,5 @@ internal sealed class BackupRecovery
         Before,
         After,
         Unknown,
-    }
-}
-
-public static class BackupFileSystem
-{
-    public static string ResolveTrustedPath(string rootDirectory, string relativePath)
-    {
-        if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath) ||
-            relativePath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries).Any(segment => segment is "." or ".."))
-            throw new InvalidOperationException($"Invalid transaction target path: {relativePath}");
-
-        string root = ResolveExistingLinks(rootDirectory);
-        string path = ResolveExistingLinks(Path.Combine(root, relativePath));
-        string prefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
-        return !path.StartsWith(prefix, OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal)
-            ? throw new InvalidOperationException($"Transaction target escapes the trusted directory: {relativePath}")
-            : path;
-    }
-
-    private static string ResolveExistingLinks(string path)
-    {
-        string fullPath = Path.GetFullPath(path);
-        string root = Path.GetPathRoot(fullPath)
-                      ?? throw new InvalidOperationException($"Cannot resolve trusted path: {path}");
-        string resolved = root;
-        foreach (string segment in fullPath[root.Length..].Split(
-                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                     StringSplitOptions.RemoveEmptyEntries))
-        {
-            resolved = Path.Combine(resolved, segment);
-            FileSystemInfo? info = Directory.Exists(resolved)
-                ? new DirectoryInfo(resolved)
-                : File.Exists(resolved)
-                    ? new FileInfo(resolved)
-                    : null;
-            if (info?.LinkTarget is not null)
-                resolved = info.ResolveLinkTarget(returnFinalTarget: true)?.FullName
-                           ?? throw new InvalidOperationException($"Cannot resolve trusted path: {path}");
-        }
-
-        return Path.GetFullPath(resolved);
     }
 }

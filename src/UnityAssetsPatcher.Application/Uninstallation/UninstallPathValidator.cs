@@ -1,14 +1,20 @@
+using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Backups;
 
 namespace UnityAssetsPatcher.Application.Uninstallation;
 
 public static class UninstallPathValidator
 {
-    public static void ValidateInstallDirectory(string backupDirectory, string installDirectory)
+    public static void ValidateInstallDirectory(
+        IFileSystemOperations fileSystemOperations,
+        string backupDirectory,
+        string installDirectory)
     {
-        string fullBackupDirectory = GetResolvedPath(
-            Path.Combine(backupDirectory, BackupRepository.InstalledDirectoryName), "installed records directory");
-        string fullInstallDirectory = GetResolvedPath(installDirectory, "install directory");
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
+
+        string fullBackupDirectory = fileSystemOperations.ResolveExistingDirectory(
+            Path.Combine(backupDirectory, BackupRepository.InstalledDirectoryName));
+        string fullInstallDirectory = fileSystemOperations.ResolveExistingDirectory(installDirectory);
 
         if (PathsEqual(fullInstallDirectory, fullBackupDirectory) ||
             !IsPathInsideDirectory(fullInstallDirectory, fullBackupDirectory))
@@ -19,6 +25,7 @@ public static class UninstallPathValidator
     }
 
     public static UninstallResolvedPaths ResolveRecordPaths(
+        IFileSystemOperations fileSystemOperations,
         string backupDirectory,
         string installDirectory,
         string gameDirectory,
@@ -27,32 +34,35 @@ public static class UninstallPathValidator
         ArgumentNullException.ThrowIfNull(record);
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
 
-        ValidateInstallDirectory(backupDirectory, installDirectory);
+        ValidateInstallDirectory(fileSystemOperations, backupDirectory, installDirectory);
 
-        string fullInstallDirectory = GetResolvedPath(installDirectory, "install directory");
-        string fullGameDirectory = GetExistingDirectoryPath(gameDirectory, "game directory");
+        string fullInstallDirectory = fileSystemOperations.ResolveExistingDirectory(installDirectory);
+        string fullGameDirectory = fileSystemOperations.ResolveExistingDirectory(gameDirectory);
 
         var patchedFiles = record.PatchedFiles
-            .Select(file => ResolvePatchedFile(fullInstallDirectory, fullGameDirectory, file))
+            .Select(file => ResolvePatchedFile(fileSystemOperations, fullInstallDirectory, fullGameDirectory, file))
             .ToArray();
 
         var copiedFiles = record.CopiedFiles
-            .Select(file => ResolveCopiedFile(fullGameDirectory, file))
+            .Select(file => ResolveCopiedFile(fileSystemOperations, fullGameDirectory, file))
             .ToArray();
 
         return new UninstallResolvedPaths(fullGameDirectory, patchedFiles, copiedFiles);
     }
 
     private static UninstallResolvedPatchedFile ResolvePatchedFile(
+        IFileSystemOperations fileSystemOperations,
         string fullInstallDirectory,
         string fullGameDirectory,
         InstallRecordPatchedFile file)
     {
         string backupPath = ResolveRelativePath(
+            fileSystemOperations,
             fullInstallDirectory,
             file.BackupRelativePath,
             "backup path");
         string assetsFilePath = ResolveRelativePath(
+            fileSystemOperations,
             fullGameDirectory,
             file.AssetsFileRelativePath,
             "assets file path");
@@ -72,10 +82,12 @@ public static class UninstallPathValidator
     }
 
     private static UninstallResolvedCopiedFile ResolveCopiedFile(
+        IFileSystemOperations fileSystemOperations,
         string fullGameDirectory,
         InstallRecordCopiedFile file)
     {
         string destinationPath = ResolveRelativePath(
+            fileSystemOperations,
             fullGameDirectory,
             file.DestinationRelativePath,
             "payload destination path");
@@ -89,41 +101,23 @@ public static class UninstallPathValidator
         return new UninstallResolvedCopiedFile(destinationPath, file.InstalledFile);
     }
 
-    private static string ResolveRelativePath(string rootDirectory, string relativePath, string description)
+    private static string ResolveRelativePath(
+        IFileSystemOperations fileSystemOperations,
+        string rootDirectory,
+        string relativePath,
+        string description)
     {
-        if (string.IsNullOrWhiteSpace(relativePath) ||
-            Path.IsPathRooted(relativePath) ||
-            Path.GetPathRoot(relativePath)?.Length > 0 ||
-            ContainsNavigationSegment(relativePath))
+        try
         {
-            throw new InvalidOperationException($"Invalid uninstall {description}: {relativePath}");
+            return fileSystemOperations.ResolveWithinDirectory(rootDirectory, relativePath);
         }
-
-        string resolvedPath = GetResolvedPath(Path.Combine(rootDirectory, relativePath), description);
-
-        if (!IsPathInsideDirectory(resolvedPath, rootDirectory))
+        catch (Exception exception) when (
+            exception is ArgumentException or InvalidOperationException or NotSupportedException
+                or PathTooLongException)
         {
             throw new InvalidOperationException(
-                $"Uninstall {description} must be inside its trusted directory: {relativePath}");
+                $"Invalid uninstall {description}: {relativePath}", exception);
         }
-
-        return resolvedPath;
-    }
-
-    private static bool ContainsNavigationSegment(string path)
-    {
-        return path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries)
-            .Any(segment => segment is "." or "..");
-    }
-
-    private static string GetExistingDirectoryPath(string path, string description)
-    {
-        string resolvedPath = GetResolvedPath(path, description);
-
-        return Directory.Exists(resolvedPath)
-            ? resolvedPath
-            : throw new DirectoryNotFoundException($"Game directory not found: {resolvedPath}");
     }
 
     private static bool IsPathInsideDirectory(string fullPath, string fullDirectory)
@@ -147,50 +141,6 @@ public static class UninstallPathValidator
             Path.GetFileName(leftPath),
             Path.GetFileName(rightPath),
             PathComparison);
-    }
-
-    private static string GetResolvedPath(string path, string description)
-    {
-        try
-        {
-            string fullPath = Path.GetFullPath(path);
-            string root = Path.GetPathRoot(fullPath) ??
-                          throw new InvalidOperationException($"Cannot resolve uninstall {description}: {path}");
-            string resolvedPath = root;
-            string[] segments = fullPath[root.Length..]
-                .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                    StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (string segment in segments)
-            {
-                resolvedPath = Path.Combine(resolvedPath, segment);
-
-                FileSystemInfo? link = GetLink(resolvedPath);
-                if (link?.LinkTarget is not null)
-                {
-                    resolvedPath = link.ResolveLinkTarget(returnFinalTarget: true)?.FullName ??
-                                   throw new InvalidOperationException(
-                                       $"Cannot resolve uninstall {description}: {path}");
-                }
-            }
-
-            return resolvedPath;
-        }
-        catch (Exception exception) when (
-            exception is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            throw new InvalidOperationException($"Invalid uninstall {description}: {path}", exception);
-        }
-    }
-
-    private static FileSystemInfo? GetLink(string path)
-    {
-        if (Directory.Exists(path))
-        {
-            return new DirectoryInfo(path);
-        }
-
-        return File.Exists(path) ? new FileInfo(path) : null;
     }
 
     private static string EnsureTrailingDirectorySeparator(string path)

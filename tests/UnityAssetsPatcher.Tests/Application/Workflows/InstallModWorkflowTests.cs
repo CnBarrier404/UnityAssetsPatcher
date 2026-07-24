@@ -98,8 +98,7 @@ public sealed class InstallModWorkflowTests
             InstallRecord storedRecord = Assert.Single(
                 new BackupRepository(
                     backupDirectory,
-                    TestDependencies.FileOperations,
-                    TestDependencies.DirectoryOperations).ListRecords()).Record;
+                    TestDependencies.FileSystemOperations).ListRecords()).Record;
             Assert.Equal(storedRecord.Id, result.InstallId);
             InstallRecordPatchedFile storedFile = Assert.Single(storedRecord.PatchedFiles);
             Assert.Equal(FileIntegrity.Create(targetPath), storedFile.InstalledFile);
@@ -1419,12 +1418,10 @@ public sealed class InstallModWorkflowTests
             [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]);
         var backupStore = new BackupRepository(backupDirectory ??
                                                Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
         var executor = new InstallExecutor(
             backupStore,
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
 
         return new InstallModWorkflow(
             manifestReader,
@@ -1432,6 +1429,6 @@ public sealed class InstallModWorkflowTests
             executor,
             backupStore,
             assetsFileService,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
     }
 }

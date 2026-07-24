@@ -16,17 +16,15 @@ public sealed class AssetsToolsAccessScope : IAssetsAccessScope
 
     public AssetsToolsAccessScope(
         ClassPackageCache classPackageCache,
-        IFileOperations fileOperations,
-        IDirectoryOperations directoryOperations)
+        IFileSystemOperations fileSystemOperations)
     {
         ArgumentNullException.ThrowIfNull(classPackageCache);
-        ArgumentNullException.ThrowIfNull(fileOperations);
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
         _reader = new AssetsFileReader(classPackageCache);
         Reader = new SynchronizedReader(this);
         Writer = new SynchronizedWriter(this,
-            new AssetsFileWriter(classPackageCache, fileOperations, directoryOperations));
+            new AssetsFileWriter(classPackageCache, fileSystemOperations));
     }
 
     public void Dispose()

@@ -14,7 +14,7 @@ public sealed class ModPackage : IDisposable
     public ModManifest Manifest { get; }
 
     private readonly ModPackageArchive _archive;
-    private readonly IDirectoryOperations _directoryOperations;
+    private readonly IFileSystemOperations _fileSystemOperations;
     private readonly string? _temporaryDirectory;
     private long _reservedUncompressedBytes;
 
@@ -24,7 +24,7 @@ public sealed class ModPackage : IDisposable
         IReadOnlyList<string> appliedOptionalGroups,
         IReadOnlyDictionary<string, string> patchSourcePaths,
         ModPackageArchive archive,
-        IDirectoryOperations directoryOperations,
+        IFileSystemOperations fileSystemOperations,
         string? temporaryDirectory,
         long reservedUncompressedBytes)
     {
@@ -33,7 +33,7 @@ public sealed class ModPackage : IDisposable
         AppliedOptionalGroups = appliedOptionalGroups;
         PatchSourcePaths = patchSourcePaths;
         _archive = archive;
-        _directoryOperations = directoryOperations;
+        _fileSystemOperations = fileSystemOperations;
         _temporaryDirectory = temporaryDirectory;
         _reservedUncompressedBytes = reservedUncompressedBytes;
     }
@@ -42,13 +42,13 @@ public sealed class ModPackage : IDisposable
         string modPackagePath,
         IReadOnlyList<string> selectedOptionalGroups,
         ModManifestReader manifestReader,
-        IDirectoryOperations directoryOperations,
+        IFileSystemOperations fileSystemOperations,
         StepTimer timings)
     {
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
         long reservedUncompressedBytes = 0;
-        var packageArchive = new ModPackageArchive(modPackageFullPath, directoryOperations);
+        var packageArchive = new ModPackageArchive(modPackageFullPath, fileSystemOperations);
 
         ZipArchive? archive = null;
 
@@ -80,7 +80,7 @@ public sealed class ModPackage : IDisposable
                 timings.Measure("prepare-sources", () =>
                     ExtractPatchSources(
                         packageArchive,
-                        directoryOperations,
+                        fileSystemOperations,
                         effectiveManifest,
                         archive,
                         ref reservedUncompressedBytes));
@@ -91,7 +91,7 @@ public sealed class ModPackage : IDisposable
                 appliedOptionalGroups,
                 patchSourcePaths,
                 packageArchive,
-                directoryOperations,
+                fileSystemOperations,
                 temporaryDirectory,
                 reservedUncompressedBytes);
         }
@@ -113,7 +113,7 @@ public sealed class ModPackage : IDisposable
     {
         if (_temporaryDirectory is not null && Directory.Exists(_temporaryDirectory))
         {
-            _directoryOperations.Delete(_temporaryDirectory);
+            _fileSystemOperations.DeleteDirectory(_temporaryDirectory);
         }
     }
 
@@ -136,7 +136,7 @@ public sealed class ModPackage : IDisposable
 
     private static (IReadOnlyDictionary<string, string> Paths, string? TemporaryDirectory) ExtractPatchSources(
         ModPackageArchive packageArchive,
-        IDirectoryOperations directoryOperations,
+        IFileSystemOperations fileSystemOperations,
         ModManifest manifest,
         ZipArchive archive,
         ref long reservedUncompressedBytes)
@@ -174,7 +174,7 @@ public sealed class ModPackage : IDisposable
         {
             if (Directory.Exists(temporaryDirectory))
             {
-                directoryOperations.Delete(temporaryDirectory);
+                fileSystemOperations.DeleteDirectory(temporaryDirectory);
             }
 
             throw;

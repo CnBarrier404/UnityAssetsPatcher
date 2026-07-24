@@ -15,7 +15,7 @@ public sealed class InstallModWorkflow
     private readonly InstallExecutor _executor;
     private readonly BackupRepository _backupRepository;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
-    private readonly IDirectoryOperations _directoryOperations;
+    private readonly IFileSystemOperations _fileSystemOperations;
 
     public InstallModWorkflow(
         ModManifestReader manifestReader,
@@ -23,15 +23,15 @@ public sealed class InstallModWorkflow
         InstallExecutor executor,
         BackupRepository backupRepository,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
-        IDirectoryOperations directoryOperations)
+        IFileSystemOperations fileSystemOperations)
     {
-        ArgumentNullException.ThrowIfNull(directoryOperations);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _manifestReader = manifestReader;
         _planBuilder = planBuilder;
         _executor = executor;
         _backupRepository = backupRepository;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
-        _directoryOperations = directoryOperations;
+        _fileSystemOperations = fileSystemOperations;
     }
 
     public InstallPreviewResult Preview(InstallRequest request)
@@ -41,7 +41,7 @@ public sealed class InstallModWorkflow
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             _manifestReader,
-            _directoryOperations,
+            _fileSystemOperations,
             timings);
         using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
         InstallAnalysisMode mode = request.IncludePatchPreviewDetails
@@ -78,7 +78,7 @@ public sealed class InstallModWorkflow
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             _manifestReader,
-            _directoryOperations,
+            _fileSystemOperations,
             timings);
         using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
         InstallAnalysis analysis = _planBuilder.Analyze(

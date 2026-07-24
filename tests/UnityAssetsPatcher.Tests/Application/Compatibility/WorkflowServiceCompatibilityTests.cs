@@ -111,10 +111,9 @@ public sealed class WorkflowServiceCompatibilityTests
         File.WriteAllText(payloadPath, "modified");
         var repository = new BackupRepository(
             scope.Backup,
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
         BackupRepositoryMetadata metadata = repository.LoadMetadata();
-        string fingerprint = GameInstanceIdentity.CreateFingerprint(scope.Game);
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game);
         DateTimeOffset targetInstalledAt = DateTimeOffset.Parse("2025-06-15T12:34:56+00:00");
         DateTimeOffset blockerInstalledAt = DateTimeOffset.Parse("2025-06-16T12:34:56+00:00");
         InstallRecord target = CreateInstallRecord(
@@ -146,7 +145,7 @@ public sealed class WorkflowServiceCompatibilityTests
         Assert.Equal("1.0.0", preview.ModVersion);
         Assert.Equal(targetInstalledAt, preview.InstalledAt);
         Assert.Equal(
-            GameInstanceIdentity.ResolveDirectory(scope.Game),
+            TestDependencies.FileSystemOperations.ResolveExistingDirectory(scope.Game),
             preview.GameDirectory,
             StringComparer.OrdinalIgnoreCase);
         Assert.False(preview.CanUninstall);
@@ -176,7 +175,7 @@ public sealed class WorkflowServiceCompatibilityTests
 
         Assert.Equal(BackupRepositoryStatus.Clean, clean.Status);
 
-        string fingerprint = GameInstanceIdentity.CreateFingerprint(scope.Game);
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game);
         string transactionDirectory = CompatibilityFixture.CopyTransaction(
             scope.Backup,
             "install-transaction-uncommitted-v1.json",

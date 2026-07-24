@@ -14,8 +14,7 @@ public sealed class BackupRepositoryTests
         {
             var store = new BackupRepository(
                 Path.Combine(root, "backup"),
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations);
+                TestDependencies.FileSystemOperations);
 
             BackupRepositoryMetadata repository = store.LoadMetadata();
 
@@ -39,8 +38,7 @@ public sealed class BackupRepositoryTests
         {
             var store = new BackupRepository(
                 Path.Combine(root, "backup"),
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations);
+                TestDependencies.FileSystemOperations);
             _ = store.LoadMetadata();
             Assert.Equal(store.TransactionDirectory, store.CreateTransactionDirectory());
             Assert.Throws<InvalidOperationException>(() => store.CreateTransactionDirectory());
@@ -59,8 +57,7 @@ public sealed class BackupRepositoryTests
         {
             var store = new BackupRepository(
                 Path.Combine(root, "backup"),
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations);
+                TestDependencies.FileSystemOperations);
             string repositoryId = store.LoadMetadata().RepositoryId;
             string installId = Guid.NewGuid().ToString("N");
             string installDirectory = store.GetInstallDirectory(installId);
@@ -87,8 +84,7 @@ public sealed class BackupRepositoryTests
         {
             var store = new BackupRepository(
                 Path.Combine(root, "backup"),
-                TestDependencies.FileOperations,
-                TestDependencies.DirectoryOperations);
+                TestDependencies.FileSystemOperations);
             string repositoryId = store.LoadMetadata().RepositoryId;
             string installId = Guid.NewGuid().ToString("N");
             string installDirectory = store.GetInstallDirectory(installId);

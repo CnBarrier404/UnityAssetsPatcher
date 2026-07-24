@@ -18,7 +18,7 @@ public sealed class BackupRecoveryTests
         File.WriteAllText(asset, "modified");
         SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"),
-            GameInstanceIdentity.CreateFingerprint(scope.Game),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game),
             [
                 new BackupTransactionFile(BackupFileKind.Assets, "data.assets",
                     TextIntegrity("original"), TextIntegrity("modified"), Path.Combine("rollback", "asset.bin"))
@@ -49,7 +49,7 @@ public sealed class BackupRecoveryTests
         string installId = Guid.NewGuid().ToString("N");
         SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, installId,
-            GameInstanceIdentity.CreateFingerprint(scope.Game),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game),
             [
                 new BackupTransactionFile(BackupFileKind.Assets, "data.assets",
                     TextIntegrity("original"), TextIntegrity("modified"), Path.Combine("rollback", "asset.bin")),
@@ -72,7 +72,8 @@ public sealed class BackupRecoveryTests
         BackupRepositoryMetadata repository = store.LoadMetadata();
         string installId = Guid.NewGuid().ToString("N");
         store.WriteRecord(new InstallRecord(repository.RepositoryId,
-            GameInstanceIdentity.CreateFingerprint(scope.Game), 1, installId, DateTimeOffset.UnixEpoch,
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game), 1, installId,
+            DateTimeOffset.UnixEpoch,
             "Mod", "1", "Tests", null, [], []), store.GetInstallDirectory(installId));
         string temporary = store.CreateTransactionDirectory();
         string rollbackDirectory = Path.Combine(temporary, "rollback");
@@ -86,7 +87,7 @@ public sealed class BackupRecoveryTests
         File.WriteAllText(payloadRollback, "payload");
         SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Uninstall, installId,
-            GameInstanceIdentity.CreateFingerprint(scope.Game),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game),
             [
                 new BackupTransactionFile(BackupFileKind.Assets, "data.assets",
                     TextIntegrity("modified"), TextIntegrity("original"), Path.Combine("rollback", "asset.bin")),
@@ -113,7 +114,7 @@ public sealed class BackupRecoveryTests
         File.WriteAllText(asset, "unknown");
         SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"),
-            GameInstanceIdentity.CreateFingerprint(scope.Game),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game),
             [
                 new BackupTransactionFile(BackupFileKind.Assets, "data.assets",
                     TextIntegrity("original"), TextIntegrity("modified"), Path.Combine("rollback", "asset.bin"))
@@ -142,7 +143,7 @@ public sealed class BackupRecoveryTests
         File.WriteAllText(Path.Combine(rollbackDirectory, "asset.bin"), "original");
         SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"),
-            GameInstanceIdentity.CreateFingerprint(scope.Game),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, scope.Game),
             [
                 new BackupTransactionFile(BackupFileKind.Assets, "data.assets",
                     TextIntegrity("original"), TextIntegrity("modified"), Path.Combine("rollback", "asset.bin")),
@@ -174,7 +175,7 @@ public sealed class BackupRecoveryTests
         File.WriteAllText(externalFile, "important");
         SaveTransaction(temporary, new BackupTransaction(
             repository.RepositoryId, BackupOperationKind.Install, Guid.NewGuid().ToString("N"),
-            GameInstanceIdentity.CreateFingerprint(externalDirectory),
+            GameInstanceIdentity.CreateFingerprint(TestDependencies.FileSystemOperations, externalDirectory),
             [new BackupTransactionFile(BackupFileKind.Payload, "important.txt", null, TextIntegrity("important"))]));
         string journalPath = Path.Combine(temporary, BackupTransactionStore.FileName);
         string journal = File.ReadAllText(journalPath).Replace(
@@ -196,15 +197,13 @@ public sealed class BackupRecoveryTests
     {
         return new BackupRepository(
             backupDirectory,
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations);
+            TestDependencies.FileSystemOperations);
     }
 
     private static void SaveTransaction(string transactionDirectory, BackupTransaction transaction)
     {
         BackupTransactionStore.Save(
-            TestDependencies.FileOperations,
-            TestDependencies.DirectoryOperations,
+            TestDependencies.FileSystemOperations,
             transactionDirectory,
             transaction);
     }

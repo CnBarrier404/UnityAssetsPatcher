@@ -1,3 +1,4 @@
+using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
@@ -13,11 +14,19 @@ public sealed class UninstallPlanner
 {
     private readonly BackupRepository _backupRepository;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
+    private readonly IFileSystemOperations _fileSystemOperations;
 
-    public UninstallPlanner(BackupRepository backupRepository, GameDirectoryResolver gameDirectoryResolver)
+    public UninstallPlanner(
+        BackupRepository backupRepository,
+        GameDirectoryResolver gameDirectoryResolver,
+        IFileSystemOperations fileSystemOperations)
     {
+        ArgumentNullException.ThrowIfNull(backupRepository);
+        ArgumentNullException.ThrowIfNull(gameDirectoryResolver);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _backupRepository = backupRepository;
         _gameDirectoryResolver = gameDirectoryResolver;
+        _fileSystemOperations = fileSystemOperations;
     }
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
@@ -35,6 +44,7 @@ public sealed class UninstallPlanner
         var blockers = InstallLayerAnalyzer.FindBlockingRecords(
             record, _backupRepository.ListRecords());
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
+            _fileSystemOperations,
             _backupRepository.BackupDirectory,
             installDirectory,
             gameDirectory,
@@ -98,6 +108,7 @@ public sealed class UninstallPlanner
         }
 
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
+            _fileSystemOperations,
             _backupRepository.BackupDirectory,
             installDirectory,
             gameDirectory,
@@ -132,9 +143,9 @@ public sealed class UninstallPlanner
         throw new KeyNotFoundException($"Install record not found: {installId}");
     }
 
-    private static void ValidateGameInstance(InstallRecord record, string gameDirectory)
+    private void ValidateGameInstance(InstallRecord record, string gameDirectory)
     {
-        string fingerprint = GameInstanceIdentity.CreateFingerprint(gameDirectory);
+        string fingerprint = GameInstanceIdentity.CreateFingerprint(_fileSystemOperations, gameDirectory);
         if (!string.Equals(record.GameInstanceFingerprint, fingerprint, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
