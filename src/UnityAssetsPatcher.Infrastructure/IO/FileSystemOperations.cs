@@ -30,6 +30,17 @@ public sealed class FileSystemOperations : IFileSystemOperations
             : NormalizeDirectory(resolved);
     }
 
+    public string ResolveExistingFile(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        string resolved = ResolveExistingLinks(path);
+
+        return !File.Exists(resolved)
+            ? throw new FileNotFoundException($"File not found: {resolved}", resolved)
+            : Path.GetFullPath(resolved);
+    }
+
     public string ResolveWithinDirectory(string rootDirectory, string relativePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
@@ -42,13 +53,34 @@ public sealed class FileSystemOperations : IFileSystemOperations
 
         string root = ResolveExistingDirectory(rootDirectory);
         string resolved = ResolveExistingLinks(Path.Combine(root, relativePath));
-        string prefix = Path.EndsInDirectorySeparator(root)
-            ? root
-            : root + Path.DirectorySeparatorChar;
 
-        return !resolved.StartsWith(prefix, PathComparison)
+        return !IsPathWithinDirectory(resolved, root)
             ? throw new InvalidOperationException($"Path escapes the trusted directory: {relativePath}")
             : Path.GetFullPath(resolved);
+    }
+
+    public bool PathsEqual(string leftPath, string rightPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(leftPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rightPath);
+
+        return PathComparer.Equals(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(leftPath)),
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(rightPath)));
+    }
+
+    public bool IsPathWithinDirectory(string path, string directory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        string fullPath = Path.GetFullPath(path);
+        string fullDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        string prefix = Path.EndsInDirectorySeparator(fullDirectory)
+            ? fullDirectory
+            : fullDirectory + Path.DirectorySeparatorChar;
+
+        return fullPath.StartsWith(prefix, PathComparison);
     }
 
     public void WriteFile(string destinationPath, Action<Stream> writer)

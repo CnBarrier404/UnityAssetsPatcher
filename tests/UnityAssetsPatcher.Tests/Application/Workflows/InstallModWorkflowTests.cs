@@ -1413,7 +1413,7 @@ public sealed class InstallModWorkflowTests
     {
         var manifestReader = new ModManifestReader();
         var planBuilder = new InstallPlanBuilder(
-            new TargetAssetResolver(),
+            new TargetAssetResolver(TestDependencies.FileSystemOperations),
             gameDirectoryResolver,
             [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]);
         var backupStore = new BackupRepository(backupDirectory ??

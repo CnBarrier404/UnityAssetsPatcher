@@ -1,9 +1,18 @@
+using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
 public sealed class TargetAssetResolver
 {
+    private readonly IFileSystemOperations _fileSystemOperations;
+
+    public TargetAssetResolver(IFileSystemOperations fileSystemOperations)
+    {
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        _fileSystemOperations = fileSystemOperations;
+    }
+
     public TargetAssetSet Execute(string gameDirectory, ModManifest manifest, StepTimer timings)
     {
         var targetPaths = timings.Measure("find-game-files", () => ResolveTargetPaths(
@@ -18,16 +27,11 @@ public sealed class TargetAssetResolver
         return new TargetAssetSet(targets);
     }
 
-    public static Dictionary<string, string> ResolveTargetPaths(
+    public Dictionary<string, string> ResolveTargetPaths(
         string gameDirectory,
         IEnumerable<string> targetNames)
     {
-        string fullGameDirectory = GetResolvedPath(gameDirectory);
-
-        if (!Directory.Exists(fullGameDirectory))
-        {
-            throw new DirectoryNotFoundException($"Game directory not found: {fullGameDirectory}");
-        }
+        string fullGameDirectory = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
 
         string[] distinctTargetNames = targetNames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var matchesByTarget = distinctTargetNames.ToDictionary(
@@ -48,9 +52,9 @@ public sealed class TargetAssetResolver
 
             if (targetNameSet.Contains(fileName))
             {
-                string resolvedFilePath = GetResolvedPath(filePath);
+                string resolvedFilePath = _fileSystemOperations.ResolveExistingFile(filePath);
 
-                if (!IsPathInsideDirectory(resolvedFilePath, fullGameDirectory))
+                if (!_fileSystemOperations.IsPathWithinDirectory(resolvedFilePath, fullGameDirectory))
                 {
                     throw new InvalidOperationException(
                         $"Target '{fileName}' resolved outside game directory: {filePath}");
@@ -83,53 +87,6 @@ public sealed class TargetAssetResolver
 
         return resolvedTargets;
     }
-
-    public static string GetResolvedPath(string path)
-    {
-        string fullPath = Path.GetFullPath(path);
-        string root = Path.GetPathRoot(fullPath) ??
-                      throw new InvalidOperationException($"Cannot resolve path: {path}");
-        string resolvedPath = root;
-        string[] segments = fullPath[root.Length..]
-            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (string segment in segments)
-        {
-            resolvedPath = Path.Combine(resolvedPath, segment);
-            FileSystemInfo? entry = GetFileSystemInfo(resolvedPath);
-
-            if (entry?.LinkTarget is not null)
-            {
-                resolvedPath = entry.ResolveLinkTarget(returnFinalTarget: true)?.FullName ??
-                               throw new InvalidOperationException($"Cannot resolve path: {path}");
-            }
-        }
-
-        return Path.GetFullPath(resolvedPath);
-    }
-
-    public static bool IsPathInsideDirectory(string fullPath, string fullDirectory)
-    {
-        string directory = fullDirectory.TrimEnd(
-            Path.DirectorySeparatorChar,
-            Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-
-        return fullPath.StartsWith(directory, PathComparison);
-    }
-
-    public static FileSystemInfo? GetFileSystemInfo(string path)
-    {
-        if (Directory.Exists(path))
-        {
-            return new DirectoryInfo(path);
-        }
-
-        return File.Exists(path) ? new FileInfo(path) : null;
-    }
-
-    private static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 }
 
 public sealed record TargetAsset(string Name, string AssetsFilePath, IReadOnlyList<ManifestPatch> Patches);

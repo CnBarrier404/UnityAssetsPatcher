@@ -162,7 +162,7 @@ public sealed class ModPackage : IDisposable
             foreach (string source in replacementSources)
             {
                 ZipArchiveEntry entry = packageArchive.FindRequiredFileEntry(archive, source);
-                string destinationPath = ResolveUnderDirectory(temporaryDirectory, source);
+                string destinationPath = ResolveUnderDirectory(fileSystemOperations, temporaryDirectory, source);
 
                 packageArchive.CopyEntryToNewFile(entry, destinationPath, ref reservedUncompressedBytes);
                 paths[source] = destinationPath;
@@ -181,17 +181,16 @@ public sealed class ModPackage : IDisposable
         }
     }
 
-    private static string ResolveUnderDirectory(string rootDirectory, string relativePath)
+    private static string ResolveUnderDirectory(
+        IFileSystemOperations fileSystemOperations,
+        string rootDirectory,
+        string relativePath)
     {
         string fullRootDirectory = Path.GetFullPath(rootDirectory);
         string fullPath = Path.GetFullPath(Path.Combine(
             fullRootDirectory,
             relativePath.Replace('/', Path.DirectorySeparatorChar)));
-        string rootWithSeparator = fullRootDirectory.EndsWith(Path.DirectorySeparatorChar)
-            ? fullRootDirectory
-            : fullRootDirectory + Path.DirectorySeparatorChar;
-
-        if (!fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+        if (!fileSystemOperations.IsPathWithinDirectory(fullPath, fullRootDirectory))
         {
             throw new InvalidOperationException(
                 $"Zip payload source cannot escape its extraction directory: {relativePath}");

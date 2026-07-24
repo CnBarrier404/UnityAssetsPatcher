@@ -1,4 +1,5 @@
 using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Assets;
 
@@ -7,10 +8,16 @@ namespace UnityAssetsPatcher.Application.Patching;
 public sealed class PatchOutputWriter
 {
     private readonly IAssetsFileWriter _assetsPatchWriter;
+    private readonly IFileSystemOperations _fileSystemOperations;
 
-    public PatchOutputWriter(IAssetsFileWriter assetsPatchWriter)
+    public PatchOutputWriter(
+        IAssetsFileWriter assetsPatchWriter,
+        IFileSystemOperations fileSystemOperations)
     {
+        ArgumentNullException.ThrowIfNull(assetsPatchWriter);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _assetsPatchWriter = assetsPatchWriter;
+        _fileSystemOperations = fileSystemOperations;
     }
 
     public PatchApplyResult Write(
@@ -65,17 +72,14 @@ public sealed class PatchOutputWriter
         return new PatchApplyResult(target.OutputPath, null, plan.Count, plan.Count);
     }
 
-    private static WriteTarget ResolveWriteTarget(string assetsFilePath, string outputPath)
+    private WriteTarget ResolveWriteTarget(string assetsFilePath, string outputPath)
     {
         if (!File.Exists(assetsFilePath))
         {
             throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
         }
 
-        bool overwritesInput = string.Equals(
-            Path.GetFullPath(outputPath),
-            Path.GetFullPath(assetsFilePath),
-            StringComparison.OrdinalIgnoreCase);
+        bool overwritesInput = _fileSystemOperations.PathsEqual(outputPath, assetsFilePath);
 
         if (overwritesInput)
         {

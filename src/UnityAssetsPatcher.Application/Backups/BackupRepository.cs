@@ -82,10 +82,10 @@ public sealed class BackupRepository
 
         string expectedDirectory = GetInstallDirectory(record.Id);
         string fullInstallDirectory = Path.GetFullPath(installDirectory);
-        string transactionPrefix = Path.TrimEndingDirectorySeparator(TransactionDirectory) +
-                                   Path.DirectorySeparatorChar;
-        bool isPreparedInstall = fullInstallDirectory.StartsWith(transactionPrefix, PathComparison);
-        if (!isPreparedInstall && !string.Equals(fullInstallDirectory, expectedDirectory, PathComparison))
+        bool isPreparedInstall = _fileSystemOperations.IsPathWithinDirectory(
+            fullInstallDirectory,
+            TransactionDirectory);
+        if (!isPreparedInstall && !_fileSystemOperations.PathsEqual(fullInstallDirectory, expectedDirectory))
             throw new InvalidOperationException("Install records must be saved under the installed directory.");
 
         BackupJsonStore.Save(
@@ -114,8 +114,9 @@ public sealed class BackupRepository
         InstallRecordEntry[] records = Directory.EnumerateDirectories(InstalledDirectory)
             .Select(directory => new InstallRecordEntry(directory, ReadRecordCore(directory, repositoryId)))
             .ToArray();
-        if (records.Any(entry => !string.Equals(Path.GetFileName(entry.InstallDirectory), entry.Record.Id,
-                PathComparison)))
+        if (records.Any(entry => !_fileSystemOperations.PathsEqual(
+                entry.InstallDirectory,
+                GetInstallDirectory(entry.Record.Id))))
             throw new InvalidOperationException("Installed directory name does not match its install record ID.");
         InstallRecordValidator.ValidateAll(records.Select(entry => entry.Record), repositoryId);
         return records;
@@ -177,7 +178,4 @@ public sealed class BackupRepository
             id.Contains(Path.AltDirectorySeparatorChar))
             throw new InvalidOperationException($"Invalid install ID: {id}");
     }
-
-    private static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 }

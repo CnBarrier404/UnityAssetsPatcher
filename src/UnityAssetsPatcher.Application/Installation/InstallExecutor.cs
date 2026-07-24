@@ -42,7 +42,7 @@ public sealed class InstallExecutor
         IAssetsFileWriter assetsWriter,
         StepTimer timings)
     {
-        var patchOutputWriter = new PatchOutputWriter(assetsWriter);
+        var patchOutputWriter = new PatchOutputWriter(assetsWriter, _fileSystemOperations);
         var patchFiles = CreateRequiredPatchFiles(analysis);
         BackupRepositoryMetadata repository = _backupRepository.LoadMetadata();
         string installId = Guid.NewGuid().ToString("N");

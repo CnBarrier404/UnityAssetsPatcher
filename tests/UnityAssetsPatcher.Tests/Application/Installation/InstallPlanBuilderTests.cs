@@ -210,7 +210,7 @@ public sealed class InstallPlanBuilderTests
     private static InstallPlanBuilder CreateBuilder()
     {
         return new InstallPlanBuilder(
-            new TargetAssetResolver(),
+            new TargetAssetResolver(TestDependencies.FileSystemOperations),
             new GameDirectoryResolver(),
             [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]);
     }

@@ -17,9 +17,10 @@ public sealed class TargetAssetResolverTests
         {
             File.WriteAllText(targetPath, "asset");
 
-            Dictionary<string, string> targets = TargetAssetResolver.ResolveTargetPaths(
-                gameDirectory,
-                ["sharedassets0.assets"]);
+            Dictionary<string, string> targets =
+                new TargetAssetResolver(TestDependencies.FileSystemOperations).ResolveTargetPaths(
+                    gameDirectory,
+                    ["sharedassets0.assets"]);
 
             Assert.Equal(Path.GetFullPath(targetPath), targets["sharedassets0.assets"]);
         }
@@ -50,7 +51,8 @@ public sealed class TargetAssetResolverTests
             File.WriteAllText(externalTarget, "external asset");
 
             var exception = Assert.Throws<FileNotFoundException>(() =>
-                TargetAssetResolver.ResolveTargetPaths(gameDirectory, ["sharedassets0.assets"]));
+                new TargetAssetResolver(TestDependencies.FileSystemOperations).ResolveTargetPaths(
+                    gameDirectory, ["sharedassets0.assets"]));
 
             Assert.Contains("was not found under game directory", exception.Message);
             Assert.Equal("external asset", File.ReadAllText(externalTarget));
@@ -82,7 +84,8 @@ public sealed class TargetAssetResolverTests
             }
 
             Assert.Throws<FileNotFoundException>(() =>
-                TargetAssetResolver.ResolveTargetPaths(gameDirectory, ["sharedassets0.assets"]));
+                new TargetAssetResolver(TestDependencies.FileSystemOperations).ResolveTargetPaths(
+                    gameDirectory, ["sharedassets0.assets"]));
             Assert.Equal("external asset", File.ReadAllText(externalTarget));
         }
         finally

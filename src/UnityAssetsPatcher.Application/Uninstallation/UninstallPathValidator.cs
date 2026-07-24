@@ -16,8 +16,8 @@ public static class UninstallPathValidator
             Path.Combine(backupDirectory, BackupRepository.InstalledDirectoryName));
         string fullInstallDirectory = fileSystemOperations.ResolveExistingDirectory(installDirectory);
 
-        if (PathsEqual(fullInstallDirectory, fullBackupDirectory) ||
-            !IsPathInsideDirectory(fullInstallDirectory, fullBackupDirectory))
+        if (fileSystemOperations.PathsEqual(fullInstallDirectory, fullBackupDirectory) ||
+            !fileSystemOperations.IsPathWithinDirectory(fullInstallDirectory, fullBackupDirectory))
         {
             throw new InvalidOperationException(
                 $"Install directory must be inside the backup directory: {installDirectory}");
@@ -56,6 +56,11 @@ public static class UninstallPathValidator
         string fullGameDirectory,
         InstallRecordPatchedFile file)
     {
+        if (!string.Equals(file.Target, Path.GetFileName(file.Target), StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Patched target must be a file name: {file.Target}");
+        }
+
         string backupPath = ResolveRelativePath(
             fileSystemOperations,
             fullInstallDirectory,
@@ -67,7 +72,9 @@ public static class UninstallPathValidator
             file.AssetsFileRelativePath,
             "assets file path");
 
-        if (!FileNamesEqual(assetsFilePath, file.Target))
+        if (!fileSystemOperations.PathsEqual(
+                assetsFilePath,
+                Path.Combine(Path.GetDirectoryName(assetsFilePath)!, Path.GetFileName(file.Target))))
         {
             throw new InvalidOperationException(
                 $"Patched assets file name must match target file name: {file.AssetsFileRelativePath}");
@@ -92,7 +99,9 @@ public static class UninstallPathValidator
             file.DestinationRelativePath,
             "payload destination path");
 
-        if (!FileNamesEqual(destinationPath, file.Source))
+        if (!fileSystemOperations.PathsEqual(
+                destinationPath,
+                Path.Combine(Path.GetDirectoryName(destinationPath)!, Path.GetFileName(file.Source))))
         {
             throw new InvalidOperationException(
                 $"Payload destination file name must match source file name: {file.DestinationRelativePath}");
@@ -138,44 +147,6 @@ public static class UninstallPathValidator
                 StringSplitOptions.RemoveEmptyEntries)
             .Any(segment => segment is "." or "..");
     }
-
-    private static bool IsPathInsideDirectory(string fullPath, string fullDirectory)
-    {
-        string directory = EnsureTrailingDirectorySeparator(fullDirectory);
-
-        return fullPath.StartsWith(directory, PathComparison);
-    }
-
-    private static bool PathsEqual(string left, string right)
-    {
-        return string.Equals(
-            TrimTrailingDirectorySeparator(left),
-            TrimTrailingDirectorySeparator(right),
-            PathComparison);
-    }
-
-    private static bool FileNamesEqual(string leftPath, string rightPath)
-    {
-        return string.Equals(
-            Path.GetFileName(leftPath),
-            Path.GetFileName(rightPath),
-            PathComparison);
-    }
-
-    private static string EnsureTrailingDirectorySeparator(string path)
-    {
-        string trimmed = TrimTrailingDirectorySeparator(path);
-
-        return trimmed + Path.DirectorySeparatorChar;
-    }
-
-    private static string TrimTrailingDirectorySeparator(string path)
-    {
-        return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-    }
-
-    private static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 }
 
 public sealed record UninstallResolvedPaths(
