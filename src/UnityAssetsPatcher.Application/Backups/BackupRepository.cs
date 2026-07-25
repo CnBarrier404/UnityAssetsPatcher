@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Backups;
 
-public sealed class BackupRepository
+public sealed class BackupRepository : IBackupService
 {
     public const int CurrentRepositoryFormatVersion = 1;
     public const string RepositoryFileName = "repository.json";
@@ -146,6 +146,26 @@ public sealed class BackupRepository
 
     public BackupRecoveryReport RecoverTrustedUnderLock(BackupTransaction transaction, string gameDirectory) =>
         new BackupRecovery(this, _fileSystemOperations).RecoverTrusted(transaction, gameDirectory);
+
+    public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
+    {
+        return ListInstalled();
+    }
+
+    public BackupRecoveryReport CheckRecovery()
+    {
+        return CheckPendingTransactions();
+    }
+
+    public BackupRecoveryPreview PreviewRecovery(string gameDirectory)
+    {
+        return PreviewPendingTransaction(gameDirectory);
+    }
+
+    public BackupRecoveryReport Recover(string gameDirectory)
+    {
+        return RecoverPendingTransactions(gameDirectory);
+    }
 
     private void EnsureInitialized()
     {
