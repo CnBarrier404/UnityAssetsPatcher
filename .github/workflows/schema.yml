@@ -1,0 +1,46 @@
+name: Schema CI
+
+on:
+  push:
+    paths:
+      - "schema/**"
+      - ".github/workflows/schema.yml"
+  pull_request:
+    paths:
+      - "schema/**"
+      - ".github/workflows/schema.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: schema-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate JSON Schema
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install validator
+        run: npm install --no-save --package-lock=false --ignore-scripts ajv@8.17.1
+
+      - name: Compile schema
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const Ajv2020 = require("ajv/dist/2020");
+          const schema = JSON.parse(fs.readFileSync("schema/schema-v1.json", "utf8"));
+          new Ajv2020({ strict: true }).compile(schema);
+          console.log("Schema is valid.");
+          NODE

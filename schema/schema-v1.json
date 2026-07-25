@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uap.cnbarrier.com/schema-v1.json",
+  "title": "Unity Assets Patcher Mod Manifest v1",
+  "description": "Structural authoring schema for Unity Assets Patcher mod manifests using schemaVersion 1. Runtime validation is performed by Unity Assets Patcher.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "name",
+    "author",
+    "version",
+    "targets"
+  ],
+  "properties": {
+    "$schema": {
+      "title": "Schema",
+      "description": "Enables validation and completion in JSON Schema-aware editors.",
+      "const": "https://uap.cnbarrier.com/schema-v1.json"
+    },
+    "schemaVersion": {
+      "title": "Schema version",
+      "const": 1
+    },
+    "name": {
+      "title": "Mod name",
+      "type": "string"
+    },
+    "author": {
+      "title": "Author",
+      "type": "string"
+    },
+    "version": {
+      "title": "Mod version",
+      "description": "Semantic versioning is recommended but not required.",
+      "type": "string"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "game": {
+      "title": "Game name",
+      "description": "The game name used for automatic Steam installation discovery.",
+      "type": "string"
+    },
+    "copyFiles": {
+      "title": "Payload files",
+      "description": "Files copied from the mod archive into the resolved assets directory.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/copyFile"
+      }
+    },
+    "targets": {
+      "title": "Required targets",
+      "description": "Asset-file patch groups that are always applied.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/target"
+      }
+    },
+    "optional": {
+      "title": "Optional groups",
+      "description": "Independent content groups that users may opt into during installation.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/optionalGroup"
+      }
+    }
+  },
+  "$defs": {
+    "fieldValueMap": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "copyFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "title": "Archive source path",
+          "type": "string"
+        }
+      }
+    },
+    "setOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "description": "The value expected before the patch is applied."
+        },
+        "to": {
+          "description": "The value written by the patch. A $pathId reference may be used where supported."
+        }
+      }
+    },
+    "setMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/setOperation"
+      }
+    },
+    "addMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array"
+      }
+    },
+    "replaceAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fromFile",
+        "matchField"
+      ],
+      "properties": {
+        "fromFile": {
+          "description": "The path of the source assets file in the mod archive.",
+          "type": "string"
+        },
+        "matchField": {
+          "description": "The field used to associate target and replacement assets.",
+          "type": "string"
+        }
+      }
+    },
+    "copyAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from"
+      ],
+      "properties": {
+        "from": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "match"
+          ],
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "match": {
+              "$ref": "#/$defs/fieldValueMap"
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "match"
+      ],
+      "properties": {
+        "type": {
+          "title": "Asset type",
+          "type": "string"
+        },
+        "match": {
+          "title": "Target match",
+          "$ref": "#/$defs/fieldValueMap"
+        },
+        "componentType": {
+          "title": "Component type",
+          "description": "Selects a component attached to a matched GameObject.",
+          "type": "string"
+        },
+        "set": {
+          "title": "Set operations",
+          "$ref": "#/$defs/setMap"
+        },
+        "add": {
+          "title": "Add operations",
+          "$ref": "#/$defs/addMap"
+        },
+        "replaceAsset": {
+          "title": "Asset replacement",
+          "$ref": "#/$defs/replaceAsset"
+        },
+        "copyAsset": {
+          "title": "Asset copy",
+          "$ref": "#/$defs/copyAsset"
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "patches"
+      ],
+      "properties": {
+        "file": {
+          "title": "Assets file",
+          "type": "string"
+        },
+        "patches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/patch"
+          }
+        }
+      }
+    },
+    "optionalGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "title": "Group name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Group description",
+          "type": "string"
+        },
+        "copyFiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/copyFile"
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target"
+          }
+        }
+      }
+    }
+  }
+}

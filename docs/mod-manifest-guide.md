@@ -5,6 +5,20 @@ Manifest 用来描述 Mod 元数据、目标游戏、需要复制的 payload 文
 
 ## 快速开始
 
+### 编辑器校验
+
+项目提供 [JSON Schema](https://uap.cnbarrier.com/schema-v1.json)。
+
+在 manifest 顶层加入 `$schema` 后，VS Code、JetBrains IDE 等支持 JSON Schema 的编辑器即可提供字段补全，并在编辑时标记结构和类型错误：
+
+```json
+{
+  "$schema": "https://uap.cnbarrier.com/schema-v1.json"
+}
+```
+
+Schema 用于辅助编写 manifest，并会标记未知字段以帮助发现拼写错误。路径安全、操作组合、文件是否存在、asset 是否唯一匹配以及可选内容冲突等规则由 Unity Assets Patcher 的生产代码验证，因此发布 Mod 前仍应使用 `check` 命令验证，并执行安装预览。
+
 ### Mod 包结构
 
 Mod 包是一个 zip 文件，内部必须包含且只能包含一个 `manifest.json`。
@@ -31,6 +45,7 @@ Mod.zip
 
 ```json
 {
+  "$schema": "https://uap.cnbarrier.com/schema-v1.json",
   "schemaVersion": 1,
   "name": "Camera Tweak",
   "author": "Example",
@@ -94,6 +109,7 @@ Mod.zip
 
 | 字段          | 必填 | 说明                                                                                                      |
 | ------------- | ---- | --------------------------------------------------------------------------------------------------------- |
+| `$schema`     | 否   | JSON Schema 地址。建议设为 `https://uap.cnbarrier.com/schema-v1.json`，以启用编辑器校验与补全。           |
 | `schemaVersion` | 是 | Manifest 格式版本。当前必须为整数 `1`；缺失或不受支持的版本会被拒绝。                                    |
 | `name`        | 是   | Mod 名称。                                                                                                |
 | `author`      | 是   | Mod 作者。                                                                                                |
