@@ -182,8 +182,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     private void ShowWorking(string text)
     {
         _body.RemoveAll();
-        var status = new StyledLabel(text, TextRole.Preview)
-            { X = 0, Y = 0, Width = Dim.Fill() };
+        var status = new WorkingIndicator(text) { X = 0, Y = 0 };
         _body.Add(status);
         _body.SetContentHeightForRows(2);
         RenderRequested?.Invoke(this, EventArgs.Empty);

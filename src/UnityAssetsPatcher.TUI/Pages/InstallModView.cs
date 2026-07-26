@@ -22,7 +22,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private readonly TerminalTaskRunner _taskRunner;
     private readonly Action _returnToMainMenu;
     private readonly InputField _modPath;
-    private readonly StyledLabel _message;
+    private readonly WorkingIndicator _message;
     private readonly ScrollableContentView _form;
     private InputField? _gameDirectory;
     private View? _optionalGroupArea;
@@ -84,7 +84,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             Width = Dim.Fill(),
         };
         _modPath.Accepted += (_, _) => Preview();
-        _message = new StyledLabel
+        _message = new WorkingIndicator
         {
             X = 0,
             Y = Pos.Bottom(_modPath) + 2,
@@ -189,7 +189,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
         _isWorking = true;
         _form.Enabled = false;
-        ShowInfo(LocalizedStrings.InstallPage_AnalyzingMod);
+        ShowBusy(LocalizedStrings.InstallPage_AnalyzingMod);
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -367,12 +367,9 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private void ShowWorking(string text)
     {
         _form.RemoveAll();
-        _form.Add(new StyledLabel(text, TextRole.Preview)
-        {
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-        });
+        _message.Y = 0;
+        _form.Add(_message);
+        ShowBusy(text);
         _form.SetContentHeightForRows(2);
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
@@ -434,14 +431,21 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private void ShowInfo(string message)
     {
         _message.Visible = true;
-        _message.Text = message;
+        _message.Still(message);
         _message.SetScheme(TerminalTheme.Muted);
+    }
+
+    private void ShowBusy(string message)
+    {
+        _message.Visible = true;
+        _message.Spin(message);
+        _message.SetScheme(TerminalTheme.Preview);
     }
 
     private void ShowError(string message)
     {
         _message.Visible = true;
-        _message.Text = message;
+        _message.Still(message);
         _message.SetScheme(TerminalTheme.Error);
     }
 
@@ -454,7 +458,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private void ClearMessage()
     {
-        _message.Text = string.Empty;
+        _message.Still(string.Empty);
         _message.Visible = false;
     }
 

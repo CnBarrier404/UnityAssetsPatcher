@@ -355,8 +355,8 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     private void ShowWorking()
     {
         _body.RemoveAll();
-        var status = new StyledLabel(LocalizedStrings.InspectPage_Analyzing, TextRole.Preview)
-            { X = 0, Y = 0, Width = Dim.Fill() };
+        var status = new WorkingIndicator(LocalizedStrings.InspectPage_Analyzing)
+            { X = 0, Y = 0 };
         _body.Add(status);
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
