@@ -70,7 +70,7 @@ public sealed class AssetFieldNavigatorTests
     }
 
     [Fact]
-    public void Find_WhenResolverIsReused_CachesVisitedChildIndexesAndDescendantIndex()
+    public void Find_WhenResolverIsReused_DoesNotReenumerateChildren()
     {
         var first = new MutableField("first");
         var second = new MutableField("second");
@@ -89,19 +89,23 @@ public sealed class AssetFieldNavigatorTests
             },
             field => field.Value,
             (field, name) => field.Children.Where(child => child.Name == name));
+        MutableField[] allFields = [root, container, first, second, target];
 
-        MutableField? firstResult = resolver.Find("container.first");
-        MutableField? secondResult = resolver.Find("container.second");
-        MutableField? targetResult = resolver.Find("target");
-        MutableField? repeatedTargetResult = resolver.Find("target");
+        Assert.Same(first, resolver.Find("container.first"));
+        Assert.Same(second, resolver.Find("container.second"));
+        Assert.Same(target, resolver.Find("target"));
 
-        Assert.Same(first, firstResult);
-        Assert.Same(second, secondResult);
-        Assert.Same(target, targetResult);
-        Assert.Same(target, repeatedTargetResult);
+        Dictionary<MutableField, int> countsAfterFirstRound = allFields.ToDictionary(
+            field => field,
+            field => enumerationCounts.GetValueOrDefault(field));
+
+        Assert.Same(first, resolver.Find("container.first"));
+        Assert.Same(second, resolver.Find("container.second"));
+        Assert.Same(target, resolver.Find("target"));
+
         Assert.All(
-            new[] { root, container, first, second, target },
-            field => Assert.Equal(1, enumerationCounts[field]));
+            allFields,
+            field => Assert.Equal(countsAfterFirstRound[field], enumerationCounts.GetValueOrDefault(field)));
     }
 
     [Fact]

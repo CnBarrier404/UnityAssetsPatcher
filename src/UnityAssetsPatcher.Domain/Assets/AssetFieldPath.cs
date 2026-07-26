@@ -35,7 +35,7 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
     private readonly Dictionary<TField, ChildIndex> _childIndexes =
         new(ReferenceEqualityComparer.Instance);
 
-    private Dictionary<string, TField>? _firstDescendantsByName;
+    private readonly Dictionary<string, TField?> _firstDescendantsByName = new(StringComparer.Ordinal);
 
     private sealed record Segment(string Name, Selector? Selector);
 
@@ -43,7 +43,7 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
 
     private sealed record ChildIndex(
         IReadOnlyList<TField> Children,
-        IReadOnlyDictionary<string, IReadOnlyList<TField>> ChildrenByName);
+        IReadOnlyDictionary<string, List<TField>> ChildrenByName);
 
     public AssetFieldPathResolver(
         TField root,
@@ -78,8 +78,13 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
                 return FindDescendantByName(_root, segments[0].Name);
             }
 
-            EnsureDescendantIndex();
-            _firstDescendantsByName!.TryGetValue(segments[0].Name, out TField? descendant);
+            if (_firstDescendantsByName.TryGetValue(segments[0].Name, out TField? memoized))
+            {
+                return memoized;
+            }
+
+            TField? descendant = FindDescendantByName(_root, segments[0].Name);
+            _firstDescendantsByName.Add(segments[0].Name, descendant);
 
             return descendant;
         }
@@ -102,7 +107,7 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
     public void InvalidateStructure()
     {
         _childIndexes.Clear();
-        _firstDescendantsByName = null;
+        _firstDescendantsByName.Clear();
     }
 
     private static IReadOnlyList<Segment> Parse(string path)
@@ -145,18 +150,6 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
         return new Segment(name, new Selector(selector[..equalsIndex], selector[(equalsIndex + 1)..]));
     }
 
-    private void EnsureDescendantIndex()
-    {
-        if (_firstDescendantsByName is not null)
-        {
-            return;
-        }
-
-        var descendantsByName = new Dictionary<string, TField>(StringComparer.Ordinal);
-        IndexDescendants(_root, descendantsByName);
-        _firstDescendantsByName = descendantsByName;
-    }
-
     private TField? FindDescendantByName(TField field, string name)
     {
         if (string.Equals(_getName(field), name, StringComparison.Ordinal))
@@ -164,21 +157,17 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
             return field;
         }
 
-        return _getChildren(field)
-            .Select(child => FindDescendantByName(child, name))
-            .OfType<TField>()
-            .FirstOrDefault();
-    }
-
-    private void IndexDescendants(TField field, IDictionary<string, TField> descendantsByName)
-    {
-        descendantsByName.TryAdd(_getName(field), field);
-        ChildIndex childIndex = GetChildIndex(field);
-
-        foreach (TField child in childIndex.Children)
+        foreach (TField child in _getChildren(field))
         {
-            IndexDescendants(child, descendantsByName);
+            TField? match = FindDescendantByName(child, name);
+
+            if (match is not null)
+            {
+                return match;
+            }
         }
+
+        return null;
     }
 
     private TField? FindChild(TField field, Segment segment)
@@ -211,7 +200,7 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
 
         ChildIndex childIndex = GetChildIndex(field);
 
-        return childIndex.ChildrenByName.TryGetValue(name, out IReadOnlyList<TField>? children)
+        return childIndex.ChildrenByName.TryGetValue(name, out List<TField>? children)
             ? children
             : [];
     }
@@ -240,11 +229,7 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
             namedChildren.Add(child);
         }
 
-        IReadOnlyDictionary<string, IReadOnlyList<TField>> readOnlyChildrenByName = childrenByName.ToDictionary(
-            pair => pair.Key,
-            pair => (IReadOnlyList<TField>)pair.Value,
-            StringComparer.Ordinal);
-        childIndex = new ChildIndex(children, readOnlyChildrenByName);
+        childIndex = new ChildIndex(children, childrenByName);
         _childIndexes.Add(field, childIndex);
 
         return childIndex;
