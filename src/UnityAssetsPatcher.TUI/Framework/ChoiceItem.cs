@@ -1,9 +1,12 @@
+using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 
 namespace UnityAssetsPatcher.TUI.Framework;
 
 public sealed class ChoiceItem : View
 {
+    private const int DescriptionGap = 4;
+
     public ActionButton Button { get; }
     public StyledLabel Description { get; }
 
@@ -12,11 +15,11 @@ public sealed class ChoiceItem : View
         Width = Dim.Fill();
         Height = 1;
         CanFocus = true;
-        Button = new ActionButton(text) { X = 0, Y = 0, Width = 30 };
+        Button = new ActionButton(text) { X = 0, Y = 0, Width = Dim.Auto() };
 
         Description = new StyledLabel(description, TextRole.Muted)
         {
-            X = 36,
+            X = Pos.Right(Button) + DescriptionGap,
             Y = 0,
             Width = Dim.Fill(),
         };
@@ -27,5 +30,22 @@ public sealed class ChoiceItem : View
         };
 
         Add(Button, Description);
+    }
+
+    public static void AlignDescriptions(IReadOnlyList<ChoiceItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        int width = items.Max(item => item.Button.Text.GetColumns());
+
+        foreach (ChoiceItem item in items)
+        {
+            item.Button.Width = width;
+        }
     }
 }

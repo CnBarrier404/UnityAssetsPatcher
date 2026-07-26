@@ -35,6 +35,8 @@ public sealed class BackupRecoveryView : View
         });
         Add(new StyledLabel(details, TextRole.Error) { X = 0, Y = 4, Width = Dim.Fill() });
 
+        var choices = new List<ChoiceItem>();
+
         if (recovery.Status == BackupRepositoryStatus.RecoveryRequired)
         {
             var input = new InputField { X = 0, Y = 7, Width = Dim.Fill() };
@@ -51,6 +53,7 @@ public sealed class BackupRecoveryView : View
             Initialized += (_, _) => input.SetFocus();
             Add(new StyledLabel($"{LocalizedStrings.BackupRecovery_GameDirectoryPrompt}: ", TextRole.Label)
                 { X = 0, Y = 6 }, input, previewChoice);
+            choices.Add(previewChoice);
         }
         else
         {
@@ -61,6 +64,7 @@ public sealed class BackupRecoveryView : View
             retryChoice.Button.Accepted += (_, _) => retry();
             Initialized += (_, _) => retryChoice.Button.SetFocus();
             Add(retryChoice);
+            choices.Add(retryChoice);
         }
 
         var exitChoice = new ChoiceItem(
@@ -69,6 +73,8 @@ public sealed class BackupRecoveryView : View
             { X = 0, Y = 12 };
         exitChoice.Button.Accepted += (_, _) => exit();
         Add(exitChoice);
+        choices.Add(exitChoice);
+        ChoiceItem.AlignDescriptions(choices);
     }
 }
 
@@ -95,6 +101,7 @@ public sealed class BackupRecoveryPreviewView : View
             { X = 0, Y = 6, Width = Dim.Fill() });
 
         int actionRow = 8 + preview.Files.Count;
+        var choices = new List<ChoiceItem>();
         if (preview.CanRecover)
         {
             var applyChoice = new ChoiceItem(
@@ -104,6 +111,7 @@ public sealed class BackupRecoveryPreviewView : View
             applyChoice.Button.Accepted += (_, _) => apply();
             Initialized += (_, _) => applyChoice.Button.SetFocus();
             body.Add(applyChoice);
+            choices.Add(applyChoice);
         }
 
         var backChoice = new ChoiceItem(
@@ -117,6 +125,9 @@ public sealed class BackupRecoveryPreviewView : View
         backChoice.Button.Accepted += (_, _) => back();
         exitChoice.Button.Accepted += (_, _) => exit();
         body.Add(backChoice, exitChoice);
+        choices.Add(backChoice);
+        choices.Add(exitChoice);
+        ChoiceItem.AlignDescriptions(choices);
         body.SetContentHeightForRows(actionRow + 7);
         Add(body);
     }

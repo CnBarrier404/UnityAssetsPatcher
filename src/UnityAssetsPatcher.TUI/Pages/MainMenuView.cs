@@ -64,6 +64,7 @@ public sealed class MainMenuView : View
             row += 2;
         }
 
+        ChoiceItem.AlignDescriptions(_choices);
         Initialized += (_, _) => firstButton?.SetFocus();
     }
 

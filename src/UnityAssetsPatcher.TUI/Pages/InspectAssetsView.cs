@@ -80,24 +80,25 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
         _body.RemoveAll();
 
-        Button list = AddChoice(
+        ChoiceItem list = AddChoice(
             LocalizedStrings.InspectPage_ListAssetsTitle,
             LocalizedStrings.InspectPage_ListAssetsDescription,
             0);
 
-        list.Accepted += (_, _) => ShowListPathInput();
+        list.Button.Accepted += (_, _) => ShowListPathInput();
 
-        Button fields = AddChoice(
+        ChoiceItem fields = AddChoice(
             LocalizedStrings.InspectPage_ShowFieldsTitle,
             LocalizedStrings.InspectPage_ShowFieldsDescription,
             2);
 
-        fields.Accepted += (_, _) => ShowFieldsInput();
+        fields.Button.Accepted += (_, _) => ShowFieldsInput();
 
-        list.SetFocus();
+        ChoiceItem.AlignDescriptions([list, fields]);
+        list.Button.SetFocus();
     }
 
-    private ActionButton AddChoice(string text, string description, int row)
+    private ChoiceItem AddChoice(string text, string description, int row)
     {
         var choice = new ChoiceItem(text, description)
         {
@@ -106,7 +107,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
         _body.Add(choice);
 
-        return choice.Button;
+        return choice;
     }
 
     private void ShowListPathInput()

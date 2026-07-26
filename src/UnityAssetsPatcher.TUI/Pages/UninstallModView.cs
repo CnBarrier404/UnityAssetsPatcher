@@ -119,26 +119,26 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         int row = 0;
-        Button? firstButton = null;
+        var choices = new List<ChoiceItem>();
         foreach (InstallRecordSummary record in installed)
         {
-            Button button = AddInstalledMod(record, row);
-            firstButton ??= button;
+            choices.Add(AddInstalledMod(record, row));
             row += 2;
         }
 
+        ChoiceItem.AlignDescriptions(choices);
         _body.SetContentHeightForRows(row);
-        firstButton!.SetFocus();
+        choices[0].Button.SetFocus();
     }
 
-    private Button AddInstalledMod(InstallRecordSummary record, int row)
+    private ChoiceItem AddInstalledMod(InstallRecordSummary record, int row)
     {
         string installedAt = FormatInstalledAt(record.InstalledAt);
         string details = record.GameName is null ? installedAt : $"{installedAt} | {record.GameName}";
         var choice = new ChoiceItem($"{record.ModName} {record.ModVersion}", details) { X = 0, Y = row };
         choice.Button.Accepted += (_, _) => Preview(record.InstallId, null);
         _body.Add(choice);
-        return choice.Button;
+        return choice;
     }
 
     private void Preview(string installId, string? gameDirectory)
