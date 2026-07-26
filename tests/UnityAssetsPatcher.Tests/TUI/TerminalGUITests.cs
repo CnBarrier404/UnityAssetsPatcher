@@ -141,10 +141,14 @@ public sealed class TerminalGUITests : IDisposable
         menu.ShowAvailableUpdate(update);
         menu.ShowAvailableUpdate(update);
 
+        StyledLabel[] updateLabels = menu.SubViews
+            .SelectMany(view => view.SubViews.Append(view))
+            .OfType<StyledLabel>()
+            .Where(label => label.Text?.ToString().Contains("v1.0.0") == true)
+            .ToArray();
+
         Assert.True(firstChoice.Button.HasFocus);
-        Assert.Contains(menu.SubViews, view => view.Text?.ToString().Contains("v1.0.0") == true);
-        Assert.Equal(2, menu.SubViews.OfType<StyledLabel>().Count(label =>
-            label.Text?.ToString().Contains("v1.0.0") == true));
+        Assert.Equal(2, updateLabels.Length);
     }
 
     [Fact]

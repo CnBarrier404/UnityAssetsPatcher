@@ -12,7 +12,7 @@ public sealed class MainMenuView : View
     public event EventHandler<TerminalMenuItem>? ItemSelected;
 
     private readonly List<ChoiceItem> _choices = [];
-    private readonly int _recoveryRows;
+    private readonly View _updateArea;
     private bool _hasUpdate;
 
     public MainMenuView(IReadOnlyList<TerminalMenuItem> items, AvailableUpdate? availableUpdate,
@@ -20,16 +20,8 @@ public sealed class MainMenuView : View
     {
         ArgumentNullException.ThrowIfNull(items);
         recovery ??= BackupRecoveryReport.Clean;
-        _recoveryRows = recovery.Status == BackupRepositoryStatus.Clean ? 0 : 2;
-        int headingRow = (availableUpdate is null ? 0 : 3) + _recoveryRows;
 
-        var heading = new StyledLabel(LocalizedStrings.MainMenu_Title, TextRole.Title)
-        {
-            X = 0,
-            Y = headingRow,
-        };
-
-        Add(heading);
+        StyledLabel? recoveryLabel = null;
 
         if (recovery.Status != BackupRepositoryStatus.Clean)
         {
@@ -38,30 +30,55 @@ public sealed class MainMenuView : View
                     recovery.Issues.FirstOrDefault()?.Message ?? string.Empty)
                 : string.Format(LocalizedStrings.BackupRecovery_RecoveredFormat, recovery.Operations.Count);
 
-            Add(new StyledLabel(text,
+            recoveryLabel = new StyledLabel(text,
                 recovery.Status == BackupRepositoryStatus.Locked ? TextRole.Error : TextRole.Preview)
             {
                 X = 0,
                 Y = 0,
                 Width = Dim.Fill(),
-            });
+            };
+
+            Add(recoveryLabel);
         }
 
-        int row = headingRow + 2;
+        _updateArea = new View
+        {
+            X = 0,
+            Y = recoveryLabel is null ? 0 : Pos.Bottom(recoveryLabel) + 1,
+            Width = Dim.Fill(),
+            Height = Dim.Auto(),
+        };
+
+        var heading = new StyledLabel(LocalizedStrings.MainMenu_Title, TextRole.Title)
+        {
+            X = 0,
+            Y = Pos.Bottom(_updateArea),
+        };
+
+        Add(_updateArea, heading);
 
         if (availableUpdate is not null)
         {
-            AddUpdate(availableUpdate, _recoveryRows);
+            AddUpdate(availableUpdate);
             _hasUpdate = true;
         }
 
+        View previous = heading;
         ActionButton? firstButton = null;
 
         foreach (TerminalMenuItem item in items)
         {
-            ActionButton button = AddChoice(item, row);
-            firstButton ??= button;
-            row += 2;
+            var choice = new ChoiceItem(item.Title, item.Description)
+            {
+                X = 0,
+                Y = Pos.Bottom(previous) + 1,
+            };
+
+            choice.Button.Accepted += (_, _) => ItemSelected?.Invoke(this, item);
+            _choices.Add(choice);
+            Add(choice);
+            firstButton ??= choice.Button;
+            previous = choice;
         }
 
         ChoiceItem.AlignDescriptions(_choices);
@@ -77,26 +94,17 @@ public sealed class MainMenuView : View
             return;
         }
 
-        AddUpdate(update, _recoveryRows);
+        AddUpdate(update);
         _hasUpdate = true;
-
-        StyledLabel heading = SubViews.OfType<StyledLabel>().Single(view =>
-            string.Equals(view.Text?.ToString(), LocalizedStrings.MainMenu_Title, StringComparison.Ordinal));
-        heading.Y = _recoveryRows + 3;
-
-        for (int index = 0; index < _choices.Count; index++)
-        {
-            _choices[index].Y = _recoveryRows + 5 + (index * 2);
-        }
     }
 
-    private void AddUpdate(AvailableUpdate update, int row)
+    private void AddUpdate(AvailableUpdate update)
     {
         var available = new StyledLabel(
             string.Format(LocalizedStrings.Update_AvailableFormat, update.Version), TextRole.Preview)
         {
             X = 0,
-            Y = row,
+            Y = 0,
             Width = Dim.Fill(),
         };
 
@@ -104,24 +112,12 @@ public sealed class MainMenuView : View
             TextRole.Muted)
         {
             X = 0,
-            Y = row + 1,
+            Y = 1,
             Width = Dim.Fill(),
         };
 
-        Add(available, download);
-    }
+        var spacer = new View { X = 0, Y = 2, Width = 1, Height = 1 };
 
-    private ActionButton AddChoice(TerminalMenuItem item, int row)
-    {
-        var choice = new ChoiceItem(item.Title, item.Description)
-        {
-            X = 0, Y = row
-        };
-
-        choice.Button.Accepted += (_, _) => ItemSelected?.Invoke(this, item);
-        _choices.Add(choice);
-        Add(choice);
-
-        return choice.Button;
+        _updateArea.Add(available, download, spacer);
     }
 }
