@@ -187,11 +187,11 @@ public sealed class AssetsFileWriter : IAssetsFileWriter
         AssetTypeValueField copiedField,
         long targetPathId)
     {
-        AssetTypeValueField? currentName = AssetFieldLocator.Find(currentTarget, "m_Name");
-        AssetTypeValueField? copiedName = AssetFieldLocator.Find(copiedField, "m_Name");
+        AssetTypeValueField currentName = currentTarget["m_Name"];
+        AssetTypeValueField copiedName = copiedField["m_Name"];
 
-        if (currentName?.Value?.ValueType != AssetValueType.String ||
-            copiedName?.Value?.ValueType != AssetValueType.String)
+        if (currentName.Value?.ValueType != AssetValueType.String ||
+            copiedName.Value?.ValueType != AssetValueType.String)
         {
             throw new InvalidOperationException(
                 $"Copy asset target Path ID {targetPathId} does not have a scalar string 'm_Name' field to preserve.");

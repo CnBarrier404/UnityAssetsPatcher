@@ -29,9 +29,4 @@ public sealed class AssetFieldLocator
     {
         _resolver.InvalidateStructure();
     }
-
-    public static AssetTypeValueField? Find(AssetTypeValueField field, string path)
-    {
-        return new AssetFieldLocator(field).Find(path);
-    }
 }
