@@ -40,7 +40,7 @@
   "InstallPage_GameDirectoryPrompt": "游戏目录",
   "InstallPage_InstallAction": "安装",
   "InstallPage_InstallingMod": "正在安装 Mod……",
-  "InstallPage_ModZipPathPrompt": "Mod zip 路径",
+  "InstallPage_ModZipPathPrompt": "Mod zip 路径（支持拖入文件以自动填写路径）：",
   "InstallPage_OptionalGroupsHeader": "该 Mod 包含以下附加内容：",
   "InstallPage_ReturnAction": "返回主菜单",
   "InstallPage_SubmitAction": "提交",

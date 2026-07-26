@@ -40,7 +40,7 @@
   "InstallPage_GameDirectoryPrompt": "Game directory",
   "InstallPage_InstallAction": "Install",
   "InstallPage_InstallingMod": "Installing mod...",
-  "InstallPage_ModZipPathPrompt": "Mod zip path",
+  "InstallPage_ModZipPathPrompt": "Mod zip path (drag the file onto the window to fill in the path automatically): ",
   "InstallPage_OptionalGroupsHeader": "This mod includes optional content:",
   "InstallPage_ReturnAction": "Return to main menu",
   "InstallPage_SubmitAction": "Submit",

@@ -75,7 +75,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             CanFocus = true,
         };
         _form.SetContentHeightForRows(3);
-        string pathPrompt = $"{LocalizedStrings.InstallPage_ModZipPathPrompt}: ";
+        string pathPrompt = $"{LocalizedStrings.InstallPage_ModZipPathPrompt}";
         var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
         _modPath = new InputField
         {
