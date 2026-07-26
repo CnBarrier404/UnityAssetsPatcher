@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Assets;
@@ -24,7 +25,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<TargetAssetResolver>();
         services.AddSingleton(serviceProvider => new BackupRepository(
             backupDirectory,
-            serviceProvider.GetRequiredService<IFileSystemOperations>()));
+            serviceProvider.GetRequiredService<IFileSystemOperations>(),
+            serviceProvider.GetService<ILogger<BackupRepository>>()));
         services.AddSingleton<IBackupService>(serviceProvider =>
             serviceProvider.GetRequiredService<BackupRepository>());
         services.AddSingleton<IWorkflowService, WorkflowService>();

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Uninstallation;
@@ -9,12 +11,18 @@ public sealed class UninstallModWorkflow
     private readonly UninstallPlanner _planner;
     private readonly UninstallExecutor _executor;
     private readonly BackupRepository _backupRepository;
+    private readonly ILogger<UninstallModWorkflow> _logger;
 
-    public UninstallModWorkflow(UninstallPlanner planner, UninstallExecutor executor, BackupRepository backupRepository)
+    public UninstallModWorkflow(
+        UninstallPlanner planner,
+        UninstallExecutor executor,
+        BackupRepository backupRepository,
+        ILogger<UninstallModWorkflow>? logger = null)
     {
         _planner = planner;
         _executor = executor;
         _backupRepository = backupRepository;
+        _logger = logger ?? NullLogger<UninstallModWorkflow>.Instance;
     }
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
@@ -29,6 +37,7 @@ public sealed class UninstallModWorkflow
 
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
+        _logger.LogInformation("Uninstalling mod install {InstallId}", request.InstallId);
         using BackupOperationLock operationLock = _backupRepository.AcquireLock();
         BackupRecoveryReport recovery = _backupRepository.CheckPendingTransactionsUnderLock();
         if (recovery.Status != BackupRepositoryStatus.Clean)
@@ -40,6 +49,15 @@ public sealed class UninstallModWorkflow
         }
 
         UninstallPlan plan = _planner.BuildUninstall(request);
-        return _executor.Execute(plan) with { Recovery = recovery };
+        UninstallModResult result = _executor.Execute(plan) with { Recovery = recovery };
+
+        _logger.LogInformation(
+            "Uninstalled {ModName} {ModVersion}: {RestoredFileCount} files restored, {DeletedFileCount} files deleted",
+            result.ModName,
+            result.ModVersion,
+            result.RestoredFiles.Count,
+            result.DeletedFiles.Count);
+
+        return result;
     }
 }

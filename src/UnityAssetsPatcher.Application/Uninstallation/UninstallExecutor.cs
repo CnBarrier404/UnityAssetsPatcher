@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
@@ -9,16 +11,19 @@ public sealed class UninstallExecutor
     private readonly BackupRepository _backupRepository;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly Action<string, string> _restoreFile;
-
-    public UninstallExecutor(
-        BackupRepository backupRepository,
-        IFileSystemOperations fileSystemOperations) :
-        this(backupRepository, fileSystemOperations, fileSystemOperations.CopyFile) { }
+    private readonly ILogger<UninstallExecutor> _logger;
 
     public UninstallExecutor(
         BackupRepository backupRepository,
         IFileSystemOperations fileSystemOperations,
-        Action<string, string> restoreFile)
+        ILogger<UninstallExecutor>? logger = null) :
+        this(backupRepository, fileSystemOperations, fileSystemOperations.CopyFile, logger) { }
+
+    public UninstallExecutor(
+        BackupRepository backupRepository,
+        IFileSystemOperations fileSystemOperations,
+        Action<string, string> restoreFile,
+        ILogger<UninstallExecutor>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(backupRepository);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
@@ -26,6 +31,7 @@ public sealed class UninstallExecutor
         _backupRepository = backupRepository;
         _fileSystemOperations = fileSystemOperations;
         _restoreFile = restoreFile;
+        _logger = logger ?? NullLogger<UninstallExecutor>.Instance;
     }
 
     public UninstallModResult Execute(UninstallPlan plan)
@@ -35,6 +41,12 @@ public sealed class UninstallExecutor
             _backupRepository.BackupDirectory, plan.InstallDirectory, plan.GameDirectory, plan.Record);
         UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
         ValidateUninstallAccess(paths, plan.InstallDirectory);
+
+        _logger.LogInformation(
+            "Executing uninstall of install {InstallId} ({ModName} {ModVersion})",
+            plan.Record.Id,
+            plan.Record.ModName,
+            plan.Record.ModVersion);
 
         BackupRepositoryMetadata repository = _backupRepository.LoadMetadata();
         string temporaryDirectory = _backupRepository.CreateTransactionDirectory();
@@ -84,6 +96,7 @@ public sealed class UninstallExecutor
                 _restoreFile(file.BackupPath, file.AssetsFilePath);
                 if (!file.BackupFile.Matches(file.AssetsFilePath))
                     throw new IOException($"Restored assets verification failed: {file.AssetsFilePath}");
+                _logger.LogDebug("Restored {AssetsFilePath} from backup", file.AssetsFilePath);
                 restoredFiles.Add(new UninstallRestoredFileResult(file.Target, file.AssetsFilePath));
             }
 
@@ -99,6 +112,7 @@ public sealed class UninstallExecutor
                 if (!file.InstalledFile.Matches(file.DestinationPath))
                     throw new IOException($"Payload changed during uninstall: {file.DestinationPath}");
                 _fileSystemOperations.DeleteFile(file.DestinationPath);
+                _logger.LogDebug("Deleted payload {DestinationPath}", file.DestinationPath);
                 deletedFiles.Add(new UninstallDeletedFileResult(file.DestinationPath, true));
             }
 
@@ -112,15 +126,23 @@ public sealed class UninstallExecutor
         {
             if (!transactionSaved)
             {
+                _logger.LogError(failure,
+                    "Uninstall failed before the transaction was saved; temporary files removed");
                 if (Directory.Exists(temporaryDirectory)) _fileSystemOperations.DeleteDirectory(temporaryDirectory);
                 throw;
             }
 
+            _logger.LogError(failure,
+                "Uninstall failed after the transaction was saved; attempting automatic rollback");
             BackupRecoveryReport recovery =
                 _backupRepository.RecoverTrustedUnderLock(transaction!, paths.GameDirectory);
             if (recovery.Status == BackupRepositoryStatus.Locked)
+            {
+                _logger.LogWarning("Automatic rollback was unsafe; manual recovery is required");
                 throw new BackupRecoveryException("Uninstall failed and automatic rollback was unsafe.", recovery,
                     failure);
+            }
+
             throw;
         }
     }

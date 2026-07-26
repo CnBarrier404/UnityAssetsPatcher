@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Contracts;
 
@@ -14,6 +16,7 @@ public sealed class BackupRepository : IBackupService
     private const string RecordFileName = "record.json";
 
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly ILogger<BackupRepository> _logger;
 
     public string BackupDirectory { get; }
     public string InstalledDirectory => Path.Combine(BackupDirectory, InstalledDirectoryName);
@@ -23,12 +26,14 @@ public sealed class BackupRepository : IBackupService
 
     public BackupRepository(
         string backupDirectory,
-        IFileSystemOperations fileSystemOperations)
+        IFileSystemOperations fileSystemOperations,
+        ILogger<BackupRepository>? logger = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(backupDirectory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         BackupDirectory = Path.GetFullPath(backupDirectory);
         _fileSystemOperations = fileSystemOperations;
+        _logger = logger ?? NullLogger<BackupRepository>.Instance;
     }
 
     public BackupOperationLock AcquireLock()
@@ -130,8 +135,11 @@ public sealed class BackupRepository : IBackupService
 
     public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory)
     {
+        _logger.LogInformation("Recovering pending transactions for {GameDirectory}", gameDirectory);
         using BackupOperationLock operationLock = AcquireLock();
-        return new BackupRecovery(this, _fileSystemOperations).Recover(gameDirectory);
+        BackupRecoveryReport report = new BackupRecovery(this, _fileSystemOperations).Recover(gameDirectory);
+        _logger.LogInformation("Recovery finished with status {RecoveryStatus}", report.Status);
+        return report;
     }
 
     public BackupRecoveryReport CheckPendingTransactions()
@@ -144,8 +152,17 @@ public sealed class BackupRepository : IBackupService
     public BackupRecoveryReport CheckPendingTransactionsUnderLock() =>
         new BackupRecovery(this, _fileSystemOperations).Check();
 
-    public BackupRecoveryReport RecoverTrustedUnderLock(BackupTransaction transaction, string gameDirectory) =>
-        new BackupRecovery(this, _fileSystemOperations).RecoverTrusted(transaction, gameDirectory);
+    public BackupRecoveryReport RecoverTrustedUnderLock(BackupTransaction transaction, string gameDirectory)
+    {
+        _logger.LogInformation(
+            "Rolling back {OperationKind} transaction for install {InstallId}",
+            transaction.Kind,
+            transaction.InstallId);
+        BackupRecoveryReport report =
+            new BackupRecovery(this, _fileSystemOperations).RecoverTrusted(transaction, gameDirectory);
+        _logger.LogInformation("Rollback finished with status {RecoveryStatus}", report.Status);
+        return report;
+    }
 
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
     {
@@ -179,6 +196,7 @@ public sealed class BackupRepository : IBackupService
             metadata,
             BackupJsonContext.Default.BackupRepositoryMetadata);
         _fileSystemOperations.CreateDirectory(InstalledDirectory);
+        _logger.LogInformation("Initialized backup repository at {BackupDirectory}", BackupDirectory);
     }
 
     private static InstallRecord ReadRecordCore(string installDirectory, string repositoryId)

@@ -15,17 +15,20 @@ public sealed class TerminalGUINavigator
     private readonly IUpdateChecker _updateChecker;
     private readonly IWorkflowService _workflowService;
     private readonly TerminalSettings _settings;
+    private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
 
     public TerminalGUINavigator(
         AppInfo appInfo,
         IUpdateChecker updateChecker,
         IWorkflowService workflowService,
-        TerminalSettings settings)
+        TerminalSettings settings,
+        ILoggingLevelSwitch? loggingLevelSwitch = null)
     {
         _appInfo = appInfo;
         _updateChecker = updateChecker;
         _workflowService = workflowService;
         _settings = settings;
+        _loggingLevelSwitch = loggingLevelSwitch;
     }
 
     public int Run()
@@ -208,7 +211,7 @@ public sealed class TerminalGUINavigator
             new TerminalMenuItem(
                 LocalizedStrings.MainMenu_Settings_Title,
                 LocalizedStrings.MainMenu_Settings_Description,
-                returnToMainMenu => new SettingsView(_settings, returnToMainMenu)),
+                returnToMainMenu => new SettingsView(_settings, returnToMainMenu, _loggingLevelSwitch)),
         ];
     }
 }

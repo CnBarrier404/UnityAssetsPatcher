@@ -69,7 +69,7 @@
   "Prompt_InvalidIntegerFormat": "{0} 必须是整数",
   "Prompt_InvalidPositiveIntegerFormat": "{0} 必须是大于 0 的整数",
   "Prompt_LabelRequiredFormat": "{0} 为必填项",
-  "SettingsPage_VerboseLoggingDescription": "显示详细安装预览日志和各安装阶段耗时",
+  "SettingsPage_VerboseLoggingDescription": "仅在协助开发者定位问题时开启",
   "SettingsPage_VerboseLoggingName": "详细输出",
   "Summary_AssetUnit": "assets",
   "Summary_Assets": "Assets",

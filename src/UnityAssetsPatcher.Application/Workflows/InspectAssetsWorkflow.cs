@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Assets;
@@ -7,10 +9,14 @@ namespace UnityAssetsPatcher.Application.Workflows;
 public sealed class InspectAssetsWorkflow
 {
     private readonly IAssetsFileReader _assetsReader;
+    private readonly ILogger<InspectAssetsWorkflow> _logger;
 
-    public InspectAssetsWorkflow(IAssetsFileReader assetsReader)
+    public InspectAssetsWorkflow(
+        IAssetsFileReader assetsReader,
+        ILogger<InspectAssetsWorkflow>? logger = null)
     {
         _assetsReader = assetsReader;
+        _logger = logger ?? NullLogger<InspectAssetsWorkflow>.Instance;
     }
 
     public InspectListResult List(InspectListRequest request)
@@ -25,6 +31,12 @@ public sealed class InspectAssetsWorkflow
                 asset.TypeName,
                 ReadName(request.AssetsFilePath, asset.PathId)))
             .ToArray();
+
+        _logger.LogInformation(
+            "Inspected {AssetsFilePath}: {ListedAssetCount} of {TotalAssetCount} assets listed",
+            request.AssetsFilePath,
+            summaries.Length,
+            assets.Count);
 
         return new InspectListResult(summaries, assets.Count);
     }

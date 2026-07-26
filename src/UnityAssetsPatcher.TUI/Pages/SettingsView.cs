@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 
@@ -10,7 +12,10 @@ public sealed class SettingsView : View
     private readonly TerminalSettings _settings;
     private readonly ToggleItem _verboseOutput;
 
-    public SettingsView(TerminalSettings settings, Action returnToMainMenu)
+    public SettingsView(
+        TerminalSettings settings,
+        Action returnToMainMenu,
+        ILoggingLevelSwitch? loggingLevelSwitch = null)
     {
         _settings = settings;
 
@@ -45,7 +50,17 @@ public sealed class SettingsView : View
             Y = 3,
         };
         _verboseOutput.IsSelected = _settings.VerboseOutput;
-        _verboseOutput.IsSelectedChanged += (_, _) => { _settings.VerboseOutput = _verboseOutput.IsSelected; };
+        _verboseOutput.IsSelectedChanged += (_, _) =>
+        {
+            _settings.VerboseOutput = _verboseOutput.IsSelected;
+
+            if (loggingLevelSwitch is not null)
+            {
+                loggingLevelSwitch.MinimumLevel = _verboseOutput.IsSelected
+                    ? LogLevel.Debug
+                    : LogLevel.Information;
+            }
+        };
         Add(heading, description, _verboseOutput);
     }
 }

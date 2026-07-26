@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Backups;
@@ -16,6 +18,7 @@ public sealed class InstallModWorkflow
     private readonly BackupRepository _backupRepository;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly ILogger<InstallModWorkflow> _logger;
 
     public InstallModWorkflow(
         ModManifestReader manifestReader,
@@ -23,7 +26,8 @@ public sealed class InstallModWorkflow
         InstallExecutor executor,
         BackupRepository backupRepository,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
-        IFileSystemOperations fileSystemOperations)
+        IFileSystemOperations fileSystemOperations,
+        ILogger<InstallModWorkflow>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _manifestReader = manifestReader;
@@ -32,10 +36,12 @@ public sealed class InstallModWorkflow
         _backupRepository = backupRepository;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
+        _logger = logger ?? NullLogger<InstallModWorkflow>.Instance;
     }
 
     public InstallPreviewResult Preview(InstallRequest request)
     {
+        _logger.LogInformation("Previewing mod install from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
         using ModPackage package = ModPackage.Open(
             request.ZipFilePath,
@@ -61,6 +67,7 @@ public sealed class InstallModWorkflow
 
     public InstallModResult Install(InstallRequest request)
     {
+        _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
 
         using BackupOperationLock operationLock = _backupRepository.AcquireLock();
@@ -93,6 +100,14 @@ public sealed class InstallModWorkflow
             analysis,
             assetsScope.Writer,
             timings);
+
+        _logger.LogInformation(
+            "Installed {ModName} {ModVersion}: {PatchedFileCount} files patched, {CopiedFileCount} files copied, install id {InstallId}",
+            analysis.Manifest.Name,
+            analysis.Manifest.Version,
+            execution.PatchedFiles.Count,
+            execution.CopiedFiles.Count,
+            execution.InstallId);
 
         return InstallResultMapper.ToInstallResult(
                 analysis,

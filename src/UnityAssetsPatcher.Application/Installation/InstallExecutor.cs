@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Abstractions.IO;
 using UnityAssetsPatcher.Application.Backups;
@@ -25,15 +27,18 @@ public sealed class InstallExecutor
 
     private readonly BackupRepository _backupRepository;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly ILogger<InstallExecutor> _logger;
 
     public InstallExecutor(
         BackupRepository backupRepository,
-        IFileSystemOperations fileSystemOperations)
+        IFileSystemOperations fileSystemOperations,
+        ILogger<InstallExecutor>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(backupRepository);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _backupRepository = backupRepository;
         _fileSystemOperations = fileSystemOperations;
+        _logger = logger ?? NullLogger<InstallExecutor>.Instance;
     }
 
     public InstallExecutionResult Execute(
@@ -50,6 +55,13 @@ public sealed class InstallExecutor
         string fingerprint = GameInstanceIdentity.CreateFingerprint(_fileSystemOperations, gameDirectory);
         long sequence = InstallSequenceAllocator.Allocate(
             _backupRepository.ListRecords().Select(entry => entry.Record), fingerprint, repository.RepositoryId);
+        _logger.LogInformation(
+            "Executing install {InstallId} for {ModName} {ModVersion} in {GameDirectory}",
+            installId,
+            analysis.Manifest.Name,
+            analysis.Manifest.Version,
+            gameDirectory);
+
         string temporaryDirectory = _backupRepository.CreateTransactionDirectory();
         string rollbackDirectory = Path.Combine(temporaryDirectory, "rollback");
         string preparedDirectory = Path.Combine(temporaryDirectory, "prepared");
@@ -86,10 +98,17 @@ public sealed class InstallExecutor
 
                 if (result.OperationCount == 0)
                 {
+                    _logger.LogDebug("No patch operations applied to {AssetsFilePath}; skipping", file.AssetsFilePath);
                     File.Delete(rollbackPath);
 
                     continue;
                 }
+
+                _logger.LogInformation(
+                    "Prepared patch for {AssetsFilePath}: {AssetCount} assets, {OperationCount} operations",
+                    file.AssetsFilePath,
+                    result.AssetCount,
+                    result.OperationCount);
 
                 var after = FileIntegrity.Create(preparedPath);
 
@@ -113,6 +132,7 @@ public sealed class InstallExecutor
 
                 string preparedPath = Path.Combine(preparedDirectory, $"payload-{index}.bin");
 
+                _logger.LogDebug("Preparing payload {Source} for {DestinationPath}", file.Source, file.DestinationPath);
                 package.CopyPayloadFile(file.Source, preparedPath);
 
                 var after = FileIntegrity.Create(preparedPath);
@@ -163,6 +183,7 @@ public sealed class InstallExecutor
             ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
             _backupRepository.CommitInstall(preparedInstallDirectory, installId);
             _fileSystemOperations.DeleteDirectory(temporaryDirectory);
+            _logger.LogInformation("Committed install {InstallId}", installId);
 
             return new InstallExecutionResult(patched, copied, installId);
         }
@@ -194,6 +215,8 @@ public sealed class InstallExecutor
     {
         if (!transactionSaved)
         {
+            _logger.LogError(failure, "Install failed before the transaction was saved; temporary files removed");
+
             if (Directory.Exists(temporaryDirectory))
             {
                 _fileSystemOperations.DeleteDirectory(temporaryDirectory);
@@ -202,10 +225,12 @@ public sealed class InstallExecutor
             return;
         }
 
+        _logger.LogError(failure, "Install failed after the transaction was saved; attempting automatic rollback");
         BackupRecoveryReport recovery = _backupRepository.RecoverTrustedUnderLock(transaction!, gameDirectory);
 
         if (recovery.Status == BackupRepositoryStatus.Locked)
         {
+            _logger.LogWarning("Automatic rollback was unsafe; manual recovery is required");
             throw new
                 BackupRecoveryException("Install failed and automatic rollback was unsafe.", recovery, failure);
         }
