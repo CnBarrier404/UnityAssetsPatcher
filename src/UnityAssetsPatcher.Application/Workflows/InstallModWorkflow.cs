@@ -76,7 +76,7 @@ public sealed class InstallModWorkflow
         if (recovery.Status != BackupRepositoryStatus.Clean)
         {
             throw new BackupRecoveryException(
-                recovery.Issues.FirstOrDefault()?.Message ??
+                recovery.Issues.FirstOrDefault()?.Parameters.GetValueOrDefault("detail") ??
                 "A pending transaction must be recovered before installing another mod.",
                 recovery);
         }

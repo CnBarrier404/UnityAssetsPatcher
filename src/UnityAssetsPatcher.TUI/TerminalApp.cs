@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Navigation;
 
 namespace UnityAssetsPatcher.TUI;
@@ -24,7 +25,7 @@ public sealed class TerminalApp
         catch (Exception exception)
         {
             _logger.LogError(exception, "Terminal application terminated unexpectedly");
-            Console.Error.WriteLine(exception.Message);
+            Console.Error.WriteLine(OperationErrorFormatter.FormatUnexpected());
             return 1;
         }
     }

@@ -14,6 +14,7 @@ using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Tests.Support;
 using UnityAssetsPatcher.TUI;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
 using Xunit;
@@ -23,17 +24,43 @@ namespace UnityAssetsPatcher.Tests.TUI;
 public sealed class TerminalGUITests : IDisposable
 {
     [Fact]
+    public void OperationErrorFormatter_WhenErrorHasEnglishDetail_UsesLocalizedSemanticText()
+    {
+        var error = new OperationError(OperationErrorCode.InvalidManifest)
+        {
+            Parameters = new Dictionary<string, string> { ["detail"] = "Raw internal detail" },
+        };
+
+        string text = OperationErrorFormatter.Format(error);
+
+        Assert.Equal("The mod manifest is invalid.", text);
+        Assert.DoesNotContain("Raw internal detail", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperationErrorFormatter_WhenGivenEveryKnownCode_HasSpecificText()
+    {
+        foreach (OperationErrorCode code in Enum.GetValues<OperationErrorCode>())
+        {
+            string text = OperationErrorFormatter.Format(new OperationError(code));
+
+            Assert.NotEqual("The operation failed.", text);
+        }
+    }
+
+    [Fact]
     public void BackupRecoveryView_ShowsDamageAndOnlyRecoveryChoices()
     {
         var recovery = new BackupRecoveryReport(
             BackupRepositoryStatus.Locked,
             [],
-            [new BackupRecoveryIssue("repository-unsafe", "Damaged record", "record.json")]);
+            [new BackupRecoveryIssue(BackupRecoveryIssueCode.RepositoryUnsafe, "record.json")]);
 
         using var view = new BackupRecoveryView(recovery, _ => { }, () => { }, () => { });
 
         Assert.Contains(view.SubViews.OfType<StyledLabel>(), label =>
-            label.Text?.ToString().Contains("Damaged record", StringComparison.Ordinal) == true);
+            label.Text?.ToString().Contains(
+                "backup repository contains damaged or untrusted data", StringComparison.OrdinalIgnoreCase) == true);
         Assert.Equal(2, view.SubViews.OfType<ChoiceItem>().Count());
     }
 
@@ -517,28 +544,36 @@ public sealed class TerminalGUITests : IDisposable
 
     private sealed class ThrowingWorkflowService : IWorkflowService
     {
-        public BackupRecoveryReport CheckPendingTransactions() => BackupRecoveryReport.Clean;
+        public OperationResult<BackupRecoveryReport> CheckPendingTransactions() =>
+            new OperationSucceeded<BackupRecoveryReport>(BackupRecoveryReport.Clean);
 
-        public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory) =>
-            new(BackupRepositoryStatus.Clean, null, null, null, null, false, [], []);
+        public OperationResult<BackupRecoveryPreview> PreviewPendingTransaction(string gameDirectory) =>
+            new OperationSucceeded<BackupRecoveryPreview>(
+                new BackupRecoveryPreview(BackupRepositoryStatus.Clean, null, null, null, null, false, [], []));
 
-        public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory) => BackupRecoveryReport.Clean;
+        public OperationResult<BackupRecoveryReport> RecoverPendingTransactions(string gameDirectory) =>
+            new OperationSucceeded<BackupRecoveryReport>(BackupRecoveryReport.Clean);
 
-        public ModManifest CheckManifest(string path) => throw new NotSupportedException();
+        public OperationResult<ModManifest> CheckManifest(string path) => throw new NotSupportedException();
 
-        public InspectListResult InspectList(InspectListRequest request) => throw new NotSupportedException();
-
-        public AssetField InspectFields(InspectFieldsRequest request) => throw new NotSupportedException();
-
-        public InstallPreviewResult PreviewInstall(InstallRequest request) => throw new NotSupportedException();
-
-        public InstallModResult Install(InstallRequest request) => throw new NotSupportedException();
-
-        public IReadOnlyList<InstallRecordSummary> ListInstalledMods() => [];
-
-        public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request) =>
+        public OperationResult<InspectListResult> InspectList(InspectListRequest request) =>
             throw new NotSupportedException();
 
-        public UninstallModResult Uninstall(UninstallModRequest request) => throw new NotSupportedException();
+        public OperationResult<AssetField> InspectFields(InspectFieldsRequest request) =>
+            throw new NotSupportedException();
+
+        public OperationResult<InstallPreviewResult> PreviewInstall(InstallRequest request) =>
+            throw new NotSupportedException();
+
+        public OperationResult<InstallModResult> Install(InstallRequest request) => throw new NotSupportedException();
+
+        public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods() =>
+            new OperationSucceeded<IReadOnlyList<InstallRecordSummary>>([]);
+
+        public OperationResult<UninstallPreviewResult> PreviewUninstall(UninstallPreviewRequest request) =>
+            throw new NotSupportedException();
+
+        public OperationResult<UninstallModResult> Uninstall(UninstallModRequest request) =>
+            throw new NotSupportedException();
     }
 }

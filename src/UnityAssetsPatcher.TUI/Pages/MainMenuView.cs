@@ -27,7 +27,9 @@ public sealed class MainMenuView : View
         {
             string text = recovery.Status == BackupRepositoryStatus.Locked
                 ? string.Format(LocalizedStrings.BackupRecovery_LockedFormat,
-                    recovery.Issues.FirstOrDefault()?.Message ?? string.Empty)
+                    recovery.Issues.FirstOrDefault() is { } issue
+                        ? OperationErrorFormatter.Format(issue)
+                        : string.Empty)
                 : string.Format(LocalizedStrings.BackupRecovery_RecoveredFormat, recovery.Operations.Count);
 
             recoveryLabel = new StyledLabel(text,

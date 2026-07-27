@@ -117,7 +117,19 @@ public sealed record BackupRecoveryPreview(
     IReadOnlyList<BackupRecoveryFileChange> Files,
     IReadOnlyList<BackupRecoveryIssue> Issues);
 
-public sealed record BackupRecoveryIssue(string Code, string Message, string Path);
+public enum BackupRecoveryIssueCode
+{
+    RepositoryUnsafe,
+    RecoveryUnsafe,
+    OperationFailed,
+    UnexpectedFailure,
+}
+
+public sealed record BackupRecoveryIssue(BackupRecoveryIssueCode Code, string Path)
+{
+    public IReadOnlyDictionary<string, string> Parameters { get; init; } =
+        new Dictionary<string, string>();
+}
 
 public sealed record BackupRecoveryReport(
     BackupRepositoryStatus Status,

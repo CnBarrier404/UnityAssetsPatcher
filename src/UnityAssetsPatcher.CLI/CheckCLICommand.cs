@@ -37,13 +37,14 @@ public sealed class CheckCLICommand : ICLICommand
 
         try
         {
-            ModManifest manifest = _workflowService.CheckManifest(configPath);
-            return CLIOutput.WriteSuccess(
+            OperationResult<ModManifest> result = _workflowService.CheckManifest(configPath);
+            return CLIOutput.WriteResult(
                 parseResult,
                 _options,
                 "check",
-                CLIOutput.ManifestSummary(configPath, manifest),
-                _ => { });
+                result,
+                manifest => CLIOutput.ManifestSummary(configPath, manifest),
+                (_, _) => { });
         }
         catch (Exception exception)
         {

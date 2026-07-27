@@ -71,13 +71,20 @@ public sealed class TerminalGUINavigator
             BackupRecoveryPreview preview;
             try
             {
-                preview = await Task.Run(() => _workflowService.PreviewPendingTransaction(gameDirectory))
-                    .ConfigureAwait(false);
+                OperationResult<BackupRecoveryPreview> result =
+                    await Task.Run(() => _workflowService.PreviewPendingTransaction(gameDirectory))
+                        .ConfigureAwait(false);
+                preview = result switch
+                {
+                    OperationSucceeded<BackupRecoveryPreview> succeeded => succeeded.Value,
+                    OperationFailed<BackupRecoveryPreview> => FailedPreview(),
+                    _ => throw new ArgumentOutOfRangeException(nameof(result)),
+                };
             }
-            catch (Exception exception)
+            catch (Exception)
             {
                 preview = new BackupRecoveryPreview(BackupRepositoryStatus.Locked, null, null, null, null, false, [],
-                    [new BackupRecoveryIssue("recovery-preview-failed", exception.Message, string.Empty)]);
+                    [new BackupRecoveryIssue(BackupRecoveryIssueCode.UnexpectedFailure, string.Empty)]);
             }
             finally
             {
@@ -107,7 +114,7 @@ public sealed class TerminalGUINavigator
                 .ConfigureAwait(false);
         }
 
-        async Task RunBackupTaskAsync(Func<BackupRecoveryReport> operation)
+        async Task RunBackupTaskAsync(Func<OperationResult<BackupRecoveryReport>> operation)
         {
             if (Interlocked.Exchange(ref recoveryRunning, 1) == 1)
             {
@@ -116,12 +123,26 @@ public sealed class TerminalGUINavigator
 
             try
             {
-                recovery = await Task.Run(operation).ConfigureAwait(false);
+                OperationResult<BackupRecoveryReport> result = await Task.Run(operation).ConfigureAwait(false);
+                recovery = result switch
+                {
+                    OperationSucceeded<BackupRecoveryReport> succeeded => succeeded.Value,
+                    OperationFailed<BackupRecoveryReport> failed => failed.Error.Recovery ??
+                                                                    new BackupRecoveryReport(
+                                                                        BackupRepositoryStatus.Locked,
+                                                                        [],
+                                                                        [
+                                                                            new BackupRecoveryIssue(
+                                                                                BackupRecoveryIssueCode.OperationFailed,
+                                                                                string.Empty)
+                                                                        ]),
+                    _ => throw new ArgumentOutOfRangeException(nameof(result)),
+                };
             }
-            catch (Exception exception)
+            catch (Exception)
             {
                 recovery = new BackupRecoveryReport(BackupRepositoryStatus.Locked, [],
-                    [new BackupRecoveryIssue("recovery-failed", exception.Message, string.Empty)]);
+                    [new BackupRecoveryIssue(BackupRecoveryIssueCode.UnexpectedFailure, string.Empty)]);
             }
             finally
             {
@@ -129,6 +150,19 @@ public sealed class TerminalGUINavigator
             }
 
             ShowRecoveryResult();
+        }
+
+        BackupRecoveryPreview FailedPreview()
+        {
+            return new BackupRecoveryPreview(
+                BackupRepositoryStatus.Locked,
+                null,
+                null,
+                null,
+                null,
+                false,
+                [],
+                [new BackupRecoveryIssue(BackupRecoveryIssueCode.OperationFailed, string.Empty)]);
         }
 
         void ShowRecoveryResult()

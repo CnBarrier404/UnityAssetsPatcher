@@ -78,12 +78,20 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             installed =>
             {
                 _isWorking = false;
-                ShowInstalledMods(installed);
+                if (installed is OperationSucceeded<IReadOnlyList<InstallRecordSummary>> succeeded)
+                {
+                    ShowInstalledMods(succeeded.Value);
+                }
+                else
+                {
+                    ShowError(OperationErrorFormatter.Format(
+                        ((OperationFailed<IReadOnlyList<InstallRecordSummary>>)installed).Error));
+                }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowError(exception.Message);
+                ShowError(OperationErrorFormatter.FormatUnexpected());
             });
 
         if (!started)
@@ -154,20 +162,30 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             preview =>
             {
                 _isWorking = false;
-                ShowPreview(preview);
+                if (preview is OperationSucceeded<UninstallPreviewResult> succeeded)
+                {
+                    ShowPreview(succeeded.Value);
+                    return;
+                }
+
+                OperationError error = ((OperationFailed<UninstallPreviewResult>)preview).Error;
+                string message = OperationErrorFormatter.Format(error);
+                if (error.Code is
+                        (OperationErrorCode.GameDirectoryRequired or OperationErrorCode.GameDirectoryNotFound) &&
+                    gameDirectory is null)
+                {
+                    ShowGameDirectoryInput(installId, message);
+                }
+                else
+                {
+                    ShowError(message);
+                }
             },
             exception =>
             {
                 _isWorking = false;
 
-                if (exception is DirectoryNotFoundException && gameDirectory is null)
-                {
-                    ShowGameDirectoryInput(installId, exception.Message);
-                }
-                else
-                {
-                    ShowError(exception.Message);
-                }
+                ShowError(OperationErrorFormatter.FormatUnexpected());
             });
 
         if (!started)
@@ -365,12 +383,20 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             result =>
             {
                 _isWorking = false;
-                ShowResult(result);
+                if (result is OperationSucceeded<UninstallModResult> succeeded)
+                {
+                    ShowResult(succeeded.Value);
+                }
+                else
+                {
+                    ShowError(OperationErrorFormatter.Format(
+                        ((OperationFailed<UninstallModResult>)result).Error));
+                }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowError(exception.Message);
+                ShowError(OperationErrorFormatter.FormatUnexpected());
             });
 
         if (!started)

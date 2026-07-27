@@ -272,6 +272,28 @@ public sealed class CLICommandSetTests : IDisposable
     }
 
     [Fact]
+    public void Run_StructuredFailureInJsonMode_WritesStableCodeAndParameters()
+    {
+        var workflow = new StubWorkflowService
+        {
+            Error = new OperationError(OperationErrorCode.FileIntegrityMismatch)
+            {
+                Parameters = new Dictionary<string, string> { ["path"] = "data.assets" },
+            },
+        };
+        (CLIApplication app, StringWriter output, StringWriter error) = CreateApp(workflow);
+
+        int exitCode = app.Run(["uninstall", "list", "--format", "json"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(string.Empty, output.ToString());
+        using JsonDocument json = JsonDocument.Parse(error.ToString());
+        JsonElement jsonError = json.RootElement.GetProperty("error");
+        Assert.Equal("file_integrity_mismatch", jsonError.GetProperty("code").GetString());
+        Assert.Equal("data.assets", jsonError.GetProperty("parameters").GetProperty("path").GetString());
+    }
+
+    [Fact]
     public void RecoveryPreview_PrintsEveryPlannedFileAction()
     {
         var workflow = new StubWorkflowService
@@ -337,13 +359,16 @@ public sealed class CLICommandSetTests : IDisposable
 
     private sealed class StubWorkflowService : IWorkflowService
     {
-        public BackupRecoveryReport CheckPendingTransactions() => BackupRecoveryReport.Clean;
+        public OperationResult<BackupRecoveryReport> CheckPendingTransactions() =>
+            new OperationSucceeded<BackupRecoveryReport>(BackupRecoveryReport.Clean);
+
         public InstallPreviewResult? InstallPreviewResult { get; init; }
         public InstallModResult? InstallResult { get; init; }
         public IReadOnlyList<InstallRecordSummary> InstalledMods { get; init; } = [];
         public UninstallPreviewResult? UninstallPreviewResult { get; init; }
         public UninstallModResult? UninstallResult { get; init; }
         public Exception? Failure { get; init; }
+        public OperationError? Error { get; init; }
         public BackupRecoveryPreview? RecoveryPreview { get; init; }
         public IReadOnlyList<UnityAssetsPatcher.Domain.Assets.AssetInfo> InspectAssets { get; init; } = [];
         public UnityAssetsPatcher.Domain.Assets.AssetField? InspectFieldTree { get; init; }
@@ -353,70 +378,87 @@ public sealed class CLICommandSetTests : IDisposable
         public UninstallPreviewRequest? LastUninstallPreviewRequest { get; private set; }
         public UninstallModRequest? LastUninstallRequest { get; private set; }
 
-        public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory) =>
-            RecoveryPreview ?? new(BackupRepositoryStatus.Clean, null, null, null, null, false, [], []);
+        public OperationResult<BackupRecoveryPreview> PreviewPendingTransaction(string gameDirectory) =>
+            new OperationSucceeded<BackupRecoveryPreview>(RecoveryPreview ??
+                                                          new BackupRecoveryPreview(BackupRepositoryStatus.Clean, null,
+                                                              null, null, null, false, [], []));
 
-        public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory)
+        public OperationResult<BackupRecoveryReport> RecoverPendingTransactions(string gameDirectory)
         {
             ThrowIfConfigured();
-            return BackupRecoveryReport.Clean;
+            return new OperationSucceeded<BackupRecoveryReport>(BackupRecoveryReport.Clean);
         }
 
-        public ModManifest CheckManifest(string path) => throw new NotSupportedException();
+        public OperationResult<ModManifest> CheckManifest(string path) => throw new NotSupportedException();
 
-        public InspectListResult InspectList(InspectListRequest request)
+        public OperationResult<InspectListResult> InspectList(InspectListRequest request)
         {
             LastInspectListRequest = request;
             ThrowIfConfigured();
             IEnumerable<UnityAssetsPatcher.Domain.Assets.AssetInfo> listed = request.Limit is null
                 ? InspectAssets
                 : InspectAssets.Take(request.Limit.Value);
-            return new InspectListResult(
+            var result = new InspectListResult(
                 listed.Select(asset => new InspectAssetSummary(asset.PathId, asset.TypeName, $"Name{asset.PathId}"))
                     .ToArray(),
                 InspectAssets.Count);
+
+            return new OperationSucceeded<InspectListResult>(result);
         }
 
-        public UnityAssetsPatcher.Domain.Assets.AssetField InspectFields(InspectFieldsRequest request)
+        public OperationResult<UnityAssetsPatcher.Domain.Assets.AssetField> InspectFields(InspectFieldsRequest request)
         {
             LastInspectFieldsRequest = request;
             ThrowIfConfigured();
-            return InspectFieldTree ?? throw new InvalidOperationException("Field tree was not configured.");
+            return new OperationSucceeded<UnityAssetsPatcher.Domain.Assets.AssetField>(
+                InspectFieldTree ?? throw new InvalidOperationException("Field tree was not configured."));
         }
 
-        public InstallPreviewResult PreviewInstall(InstallRequest request)
+        public OperationResult<InstallPreviewResult> PreviewInstall(InstallRequest request)
         {
             LastInstallRequest = request;
             ThrowIfConfigured();
-            return InstallPreviewResult ?? throw new InvalidOperationException("Preview result was not configured.");
+            return new OperationSucceeded<InstallPreviewResult>(InstallPreviewResult ??
+                                                                throw new InvalidOperationException(
+                                                                    "Preview result was not configured."));
         }
 
-        public InstallModResult Install(InstallRequest request)
+        public OperationResult<InstallModResult> Install(InstallRequest request)
         {
             LastInstallRequest = request;
             ThrowIfConfigured();
-            return InstallResult ?? throw new InvalidOperationException("Install result was not configured.");
+            return new OperationSucceeded<InstallModResult>(InstallResult ??
+                                                            throw new InvalidOperationException(
+                                                                "Install result was not configured."));
         }
 
-        public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
+        public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods()
         {
             ThrowIfConfigured();
-            return InstalledMods;
+            if (Error is not null)
+            {
+                return new OperationFailed<IReadOnlyList<InstallRecordSummary>>(Error);
+            }
+
+            return new OperationSucceeded<IReadOnlyList<InstallRecordSummary>>(InstalledMods);
         }
 
-        public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request)
+        public OperationResult<UninstallPreviewResult> PreviewUninstall(UninstallPreviewRequest request)
         {
             LastUninstallPreviewRequest = request;
             ThrowIfConfigured();
-            return UninstallPreviewResult ??
-                   throw new InvalidOperationException("Uninstall preview result was not configured.");
+            return new OperationSucceeded<UninstallPreviewResult>(UninstallPreviewResult ??
+                                                                  throw new InvalidOperationException(
+                                                                      "Uninstall preview result was not configured."));
         }
 
-        public UninstallModResult Uninstall(UninstallModRequest request)
+        public OperationResult<UninstallModResult> Uninstall(UninstallModRequest request)
         {
             LastUninstallRequest = request;
             ThrowIfConfigured();
-            return UninstallResult ?? throw new InvalidOperationException("Uninstall result was not configured.");
+            return new OperationSucceeded<UninstallModResult>(UninstallResult ??
+                                                              throw new InvalidOperationException(
+                                                                  "Uninstall result was not configured."));
         }
 
         private void ThrowIfConfigured()

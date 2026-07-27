@@ -30,7 +30,7 @@ public sealed class WorkflowServiceCompatibilityTests
         IWorkflowService workflows = provider.GetRequiredService<IWorkflowService>();
         var request = new InstallRequest(packagePath, scope.Game);
 
-        InstallPreviewResult preview = workflows.PreviewInstall(request);
+        InstallPreviewResult preview = Success(workflows.PreviewInstall(request));
 
         Assert.Equal("Test Mod", preview.ModName);
         Assert.Equal("1.0.0", preview.ModVersion);
@@ -64,7 +64,7 @@ public sealed class WorkflowServiceCompatibilityTests
         Assert.Equal("original", File.ReadAllText(targetPath));
         Assert.False(File.Exists(payloadPath));
 
-        InstallModResult result = workflows.Install(request);
+        InstallModResult result = Success(workflows.Install(request));
 
         Assert.Equal(32, result.InstallId.Length);
         Assert.Equal("Test Mod", result.ModName);
@@ -137,8 +137,8 @@ public sealed class WorkflowServiceCompatibilityTests
         using ServiceProvider provider = CreateProvider(scope.Backup, new StubAssetsFileService([]));
         IWorkflowService workflows = provider.GetRequiredService<IWorkflowService>();
 
-        UninstallPreviewResult preview = workflows.PreviewUninstall(
-            new UninstallPreviewRequest(target.Id, scope.Game));
+        UninstallPreviewResult preview = Success(workflows.PreviewUninstall(
+            new UninstallPreviewRequest(target.Id, scope.Game)));
 
         Assert.Equal(target.Id, preview.InstallId);
         Assert.Equal("Target Mod", preview.ModName);
@@ -171,7 +171,7 @@ public sealed class WorkflowServiceCompatibilityTests
         using ServiceProvider provider = CreateProvider(scope.Backup, new StubAssetsFileService([]));
         IWorkflowService workflows = provider.GetRequiredService<IWorkflowService>();
 
-        BackupRecoveryReport clean = workflows.CheckPendingTransactions();
+        BackupRecoveryReport clean = Success(workflows.CheckPendingTransactions());
 
         Assert.Equal(BackupRepositoryStatus.Clean, clean.Status);
 
@@ -186,23 +186,23 @@ public sealed class WorkflowServiceCompatibilityTests
         Directory.CreateDirectory(rollbackDirectory);
         File.WriteAllText(Path.Combine(rollbackDirectory, "data.assets"), "original");
 
-        BackupRecoveryReport required = workflows.CheckPendingTransactions();
-        BackupRecoveryPreview preview = workflows.PreviewPendingTransaction(scope.Game);
+        BackupRecoveryReport required = Success(workflows.CheckPendingTransactions());
+        BackupRecoveryPreview preview = Success(workflows.PreviewPendingTransaction(scope.Game));
 
         Assert.Equal(BackupRepositoryStatus.RecoveryRequired, required.Status);
         Assert.Equal(BackupRepositoryStatus.RecoveryRequired, preview.Status);
 
-        BackupRecoveryReport recovered = workflows.RecoverPendingTransactions(scope.Game);
+        BackupRecoveryReport recovered = Success(workflows.RecoverPendingTransactions(scope.Game));
 
         Assert.Equal(BackupRepositoryStatus.Recovered, recovered.Status);
 
         Directory.CreateDirectory(transactionDirectory);
         File.WriteAllText(Path.Combine(transactionDirectory, BackupTransactionStore.FileName), "not-json");
 
-        BackupRecoveryReport locked = workflows.CheckPendingTransactions();
+        BackupRecoveryReport locked = Success(workflows.CheckPendingTransactions());
 
         Assert.Equal(BackupRepositoryStatus.Locked, locked.Status);
-        Assert.Equal("repository-unsafe", Assert.Single(locked.Issues).Code);
+        Assert.Equal(BackupRecoveryIssueCode.RepositoryUnsafe, Assert.Single(locked.Issues).Code);
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public sealed class WorkflowServiceCompatibilityTests
         var report = new BackupRecoveryReport(
             BackupRepositoryStatus.Locked,
             [],
-            [new BackupRecoveryIssue("repository-unsafe", "Transaction is unsafe.", "backup/.temp")]);
+            [new BackupRecoveryIssue(BackupRecoveryIssueCode.RepositoryUnsafe, "backup/.temp")]);
         var innerException = new IOException("Underlying file failure.");
 
         var exception = new BackupRecoveryException(
@@ -235,6 +235,11 @@ public sealed class WorkflowServiceCompatibilityTests
 
         return services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+    }
+
+    private static T Success<T>(OperationResult<T> result)
+    {
+        return Assert.IsType<OperationSucceeded<T>>(result).Value;
     }
 
     private static StubAssetsFileService CreateAssetsFileService()

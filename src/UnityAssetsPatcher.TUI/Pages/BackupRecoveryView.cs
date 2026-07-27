@@ -20,7 +20,7 @@ public sealed class BackupRecoveryView : View
 
         string details = recovery.Issues.Count == 0
             ? LocalizedStrings.BackupRecovery_InterruptedOperation
-            : string.Join(Environment.NewLine, recovery.Issues.Select(issue => issue.Message));
+            : string.Join(Environment.NewLine, recovery.Issues.Select(OperationErrorFormatter.Format));
         Add(new StyledLabel(LocalizedStrings.BackupRecovery_DamagedTitle, TextRole.Error)
         {
             X = 0,

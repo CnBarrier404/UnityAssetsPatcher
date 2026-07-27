@@ -96,8 +96,11 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
         using ServiceProvider provider = CreateServices(assetsFileService).BuildServiceProvider();
         IWorkflowService workflows = provider.GetRequiredService<IWorkflowService>();
 
-        Assert.Throws<InvalidOperationException>(() =>
-            workflows.InspectFields(new InspectFieldsRequest("broken.assets", 1)));
+        OperationResult<AssetField> result =
+            workflows.InspectFields(new InspectFieldsRequest("broken.assets", 1));
+
+        OperationFailed<AssetField> failure = Assert.IsType<OperationFailed<AssetField>>(result);
+        Assert.Equal(OperationErrorCode.AssetNotFound, failure.Error.Code);
 
         Assert.Equal(1, assetsFileService.ScopeCreateCount);
         Assert.Equal(1, assetsFileService.ReaderCreateCount);
@@ -105,6 +108,22 @@ public sealed class ApplicationDependencyInjectionTests : IDisposable
         Assert.Equal(1, assetsFileService.ScopeDisposeCount);
         Assert.Equal(1, assetsFileService.ReaderDisposeCount);
         Assert.Equal(0, assetsFileService.WriterDisposeCount);
+    }
+
+    [Fact]
+    public void InspectFields_WhenReaderThrowsUnexpectedException_PropagatesException()
+    {
+        var expected = new NotImplementedException("Unexpected reader failure.");
+        var assetsFileService = new StubAssetsFileService([]) { ReadFailure = expected };
+        using ServiceProvider provider = CreateServices(assetsFileService).BuildServiceProvider();
+        IWorkflowService workflows = provider.GetRequiredService<IWorkflowService>();
+
+        NotImplementedException actual = Assert.Throws<NotImplementedException>(() =>
+            workflows.InspectFields(new InspectFieldsRequest("broken.assets", 1)));
+
+        Assert.Same(expected, actual);
+        Assert.Equal(1, assetsFileService.ScopeDisposeCount);
+        Assert.Equal(1, assetsFileService.ReaderDisposeCount);
     }
 
     [Fact]

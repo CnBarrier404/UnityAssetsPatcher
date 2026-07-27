@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### 改进
+
+- CLI 与 TUI 现在使用结构化操作结果区分可预期失败和意外故障
+- TUI 的操作错误、补丁诊断和恢复问题现在使用本地化文本，不再直接显示底层异常消息或枚举名称
+- CLI JSON 错误在保持 `schemaVersion: 1` 的同时提供稳定错误码和结构化参数
+
+---
+
+### Improved
+
+- The CLI and TUI now use structured operation results to distinguish expected failures from unexpected faults
+- TUI operation errors, patch diagnostics, and recovery issues now use localized text instead of raw exception messages or enum names
+- CLI JSON errors now expose stable error codes and structured parameters while retaining `schemaVersion: 1`
+
 ## v0.5.1
 
 本次版本为旧版 Windows 控制台提供临时兼容支持，并引导用户切换到 Windows Terminal，以改善交互界面的显示效果。

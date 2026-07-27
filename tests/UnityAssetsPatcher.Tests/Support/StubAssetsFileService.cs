@@ -48,6 +48,7 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
     public int WriterDisposeCount { get; private set; }
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
     public IReadOnlyList<AssetCopy> CopyPlan { get; private set; } = [];
+    public Exception? ReadFailure { get; init; }
 
     public IAssetsAccessScope CreateScope()
     {
@@ -73,6 +74,11 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
     public AssetField ReadField(string assetsFilePath, long pathId)
     {
         _readPaths.Add(Path.GetFullPath(assetsFilePath));
+
+        if (ReadFailure is not null)
+        {
+            throw ReadFailure;
+        }
 
         if (_fieldTreesByPath.TryGetValue((assetsFilePath, pathId), out AssetField? fieldTreeByPath) ||
             _fieldTreesByPath.TryGetValue((Path.GetFileName(assetsFilePath), pathId), out fieldTreeByPath))

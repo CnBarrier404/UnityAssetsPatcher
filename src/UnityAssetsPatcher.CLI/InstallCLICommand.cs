@@ -67,14 +67,15 @@ public sealed class InstallCLICommand : ICLICommand
     {
         try
         {
-            InstallPreviewResult result = _workflowService.PreviewInstall(CreateRequest(
+            OperationResult<InstallPreviewResult> result = _workflowService.PreviewInstall(CreateRequest(
                 packagePath, gameDirectory, optionalGroups));
-            return CLIOutput.WriteSuccess(
+            return CLIOutput.WriteResult(
                 parseResult,
                 _options,
                 "install.preview",
-                CLIOutput.InstallPreview(result),
-                output => CLIOutput.WriteInstallPreviewText(output, result));
+                result,
+                CLIOutput.InstallPreview,
+                CLIOutput.WriteInstallPreviewText);
         }
         catch (Exception exception)
         {
@@ -90,14 +91,15 @@ public sealed class InstallCLICommand : ICLICommand
     {
         try
         {
-            InstallModResult result = _workflowService.Install(CreateRequest(
+            OperationResult<InstallModResult> result = _workflowService.Install(CreateRequest(
                 packagePath, gameDirectory, optionalGroups));
-            return CLIOutput.WriteSuccess(
+            return CLIOutput.WriteResult(
                 parseResult,
                 _options,
                 "install.apply",
-                CLIOutput.InstallResult(result),
-                output => CLIOutput.WriteInstallResultText(output, result));
+                result,
+                CLIOutput.InstallResult,
+                CLIOutput.WriteInstallResultText);
         }
         catch (Exception exception)
         {

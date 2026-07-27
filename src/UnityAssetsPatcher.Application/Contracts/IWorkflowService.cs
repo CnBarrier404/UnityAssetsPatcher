@@ -4,15 +4,15 @@ namespace UnityAssetsPatcher.Application.Contracts;
 
 public interface IWorkflowService
 {
-    public BackupRecoveryReport CheckPendingTransactions();
-    public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory);
-    public BackupRecoveryReport RecoverPendingTransactions(string gameDirectory);
-    public ModManifest CheckManifest(string path);
-    public InspectListResult InspectList(InspectListRequest request);
-    public AssetField InspectFields(InspectFieldsRequest request);
-    public InstallPreviewResult PreviewInstall(InstallRequest request);
-    public InstallModResult Install(InstallRequest request);
-    public IReadOnlyList<InstallRecordSummary> ListInstalledMods();
-    public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request);
-    public UninstallModResult Uninstall(UninstallModRequest request);
+    public OperationResult<BackupRecoveryReport> CheckPendingTransactions();
+    public OperationResult<BackupRecoveryPreview> PreviewPendingTransaction(string gameDirectory);
+    public OperationResult<BackupRecoveryReport> RecoverPendingTransactions(string gameDirectory);
+    public OperationResult<ModManifest> CheckManifest(string path);
+    public OperationResult<InspectListResult> InspectList(InspectListRequest request);
+    public OperationResult<AssetField> InspectFields(InspectFieldsRequest request);
+    public OperationResult<InstallPreviewResult> PreviewInstall(InstallRequest request);
+    public OperationResult<InstallModResult> Install(InstallRequest request);
+    public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods();
+    public OperationResult<UninstallPreviewResult> PreviewUninstall(UninstallPreviewRequest request);
+    public OperationResult<UninstallModResult> Uninstall(UninstallModRequest request);
 }

@@ -127,7 +127,7 @@ public sealed class CLIApplicationTests : IDisposable
         int exitCode = app.Run(["check", "-c", manifestPath]);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("InvalidOperationException:", error.ToString());
+        Assert.Contains("Error [invalid_manifest]:", error.ToString());
         Assert.Contains("schemaVersion", error.ToString());
         Assert.DoesNotContain(" at ", error.ToString());
     }
@@ -140,7 +140,7 @@ public sealed class CLIApplicationTests : IDisposable
         int exitCode = app.Run(["check", "-c", Path.Combine(_temporaryDirectory, "missing.json")]);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("FileNotFoundException:", error.ToString());
+        Assert.Contains("Error [file_not_found]:", error.ToString());
         Assert.Contains("Manifest file not found", error.ToString());
     }
 

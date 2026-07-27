@@ -83,13 +83,15 @@ public sealed class InspectCLICommand : ICLICommand
         try
         {
             string fullPath = Path.GetFullPath(assetsFilePath);
-            InspectListResult result = _workflowService.InspectList(new InspectListRequest(fullPath, limit));
-            return CLIOutput.WriteSuccess(
+            OperationResult<InspectListResult> result =
+                _workflowService.InspectList(new InspectListRequest(fullPath, limit));
+            return CLIOutput.WriteResult(
                 parseResult,
                 _options,
                 "inspect.list",
-                CLIOutput.InspectList(fullPath, result),
-                output => CLIOutput.WriteInspectListText(output, result));
+                result,
+                value => CLIOutput.InspectList(fullPath, value),
+                CLIOutput.WriteInspectListText);
         }
         catch (Exception exception)
         {
@@ -102,13 +104,15 @@ public sealed class InspectCLICommand : ICLICommand
         try
         {
             string fullPath = Path.GetFullPath(assetsFilePath);
-            AssetField result = _workflowService.InspectFields(new InspectFieldsRequest(fullPath, pathId));
-            return CLIOutput.WriteSuccess(
+            OperationResult<AssetField> result =
+                _workflowService.InspectFields(new InspectFieldsRequest(fullPath, pathId));
+            return CLIOutput.WriteResult(
                 parseResult,
                 _options,
                 "inspect.fields",
-                CLIOutput.InspectFields(fullPath, pathId, result),
-                output => CLIOutput.WriteInspectFieldsText(output, result));
+                result,
+                value => CLIOutput.InspectFields(fullPath, pathId, value),
+                CLIOutput.WriteInspectFieldsText);
         }
         catch (Exception exception)
         {

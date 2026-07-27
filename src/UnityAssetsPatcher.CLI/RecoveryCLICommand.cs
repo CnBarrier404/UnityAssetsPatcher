@@ -49,9 +49,10 @@ public sealed class RecoveryCLICommand : ICLICommand
     {
         try
         {
-            BackupRecoveryPreview preview = _workflowService.PreviewPendingTransaction(Path.GetFullPath(gameDirectory));
-            return CLIOutput.WriteSuccess(parseResult, _options, "recovery.preview",
-                CLIOutput.RecoveryPreview(preview), output => CLIOutput.WriteRecoveryPreviewText(output, preview));
+            OperationResult<BackupRecoveryPreview> result =
+                _workflowService.PreviewPendingTransaction(Path.GetFullPath(gameDirectory));
+            return CLIOutput.WriteResult(parseResult, _options, "recovery.preview", result,
+                CLIOutput.RecoveryPreview, CLIOutput.WriteRecoveryPreviewText);
         }
         catch (Exception exception)
         {
@@ -63,12 +64,10 @@ public sealed class RecoveryCLICommand : ICLICommand
     {
         try
         {
-            BackupRecoveryReport recovery =
+            OperationResult<BackupRecoveryReport> result =
                 _workflowService.RecoverPendingTransactions(Path.GetFullPath(gameDirectory));
-            if (recovery.Status == BackupRepositoryStatus.Locked)
-                throw new BackupRecoveryException(recovery.Issues[0].Message, recovery);
-            return CLIOutput.WriteSuccess(parseResult, _options, "recovery.apply",
-                CLIOutput.RecoveryReport(recovery), output => CLIOutput.WriteRecoveryReportText(output, recovery));
+            return CLIOutput.WriteResult(parseResult, _options, "recovery.apply", result,
+                CLIOutput.RecoveryReport, CLIOutput.WriteRecoveryReportText);
         }
         catch (Exception exception)
         {

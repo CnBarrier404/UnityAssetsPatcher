@@ -48,7 +48,7 @@ internal sealed class BackupRecovery
         {
             return new BackupRecoveryPreview(
                 BackupRepositoryStatus.Locked, null, null, null, null, false, [],
-                [new BackupRecoveryIssue("repository-unsafe", exception.Message, RecoveryIssuePath())]);
+                [Issue(BackupRecoveryIssueCode.RepositoryUnsafe, exception, RecoveryIssuePath())]);
         }
 
         string? trustedRoot = null;
@@ -76,7 +76,7 @@ internal sealed class BackupRecovery
                 null,
                 false,
                 [],
-                [new BackupRecoveryIssue("recovery-unsafe", exception.Message, trustedRoot ?? gameDirectory)]);
+                [Issue(BackupRecoveryIssueCode.RecoveryUnsafe, exception, trustedRoot ?? gameDirectory)]);
         }
     }
 
@@ -329,11 +329,22 @@ internal sealed class BackupRecovery
 
     private BackupRecoveryReport LockedReport(Exception exception) =>
         new(BackupRepositoryStatus.Locked, [],
-            [new BackupRecoveryIssue("repository-unsafe", exception.Message, RecoveryIssuePath())]);
+            [Issue(BackupRecoveryIssueCode.RepositoryUnsafe, exception, RecoveryIssuePath())]);
 
     private string RecoveryIssuePath() => Directory.Exists(_repository.TransactionDirectory)
         ? _repository.TransactionDirectory
         : _repository.BackupDirectory;
+
+    private static BackupRecoveryIssue Issue(
+        BackupRecoveryIssueCode code,
+        Exception exception,
+        string path)
+    {
+        return new BackupRecoveryIssue(code, path)
+        {
+            Parameters = new Dictionary<string, string> { ["detail"] = exception.Message },
+        };
+    }
 
     private static string KindName(BackupOperationKind kind) =>
         kind == BackupOperationKind.Install ? "install" : "uninstall";

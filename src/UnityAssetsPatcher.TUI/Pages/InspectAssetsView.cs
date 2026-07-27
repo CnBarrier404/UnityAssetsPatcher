@@ -221,12 +221,20 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             result =>
             {
                 _isWorking = false;
-                ShowAssets(result);
+                if (result is OperationSucceeded<InspectListResult> succeeded)
+                {
+                    ShowAssets(succeeded.Value);
+                }
+                else
+                {
+                    ShowError(OperationErrorFormatter.Format(
+                        ((OperationFailed<InspectListResult>)result).Error));
+                }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowError(exception.Message);
+                ShowError(OperationErrorFormatter.FormatUnexpected());
             });
 
         if (!started)
@@ -322,12 +330,19 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             result =>
             {
                 _isWorking = false;
-                ShowFields(result);
+                if (result is OperationSucceeded<AssetField> succeeded)
+                {
+                    ShowFields(succeeded.Value);
+                }
+                else
+                {
+                    ShowError(OperationErrorFormatter.Format(((OperationFailed<AssetField>)result).Error));
+                }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowError(exception.Message);
+                ShowError(OperationErrorFormatter.FormatUnexpected());
             });
 
         if (!started)

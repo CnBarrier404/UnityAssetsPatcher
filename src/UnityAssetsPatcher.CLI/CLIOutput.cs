@@ -36,6 +36,62 @@ internal static class CLIOutput
         return 0;
     }
 
+    public static int WriteResult<T>(
+        ParseResult parseResult,
+        CLIOptions options,
+        string command,
+        OperationResult<T> result,
+        Func<T, JsonObject> createJson,
+        Action<TextWriter, T> writeText)
+    {
+        return result switch
+        {
+            OperationSucceeded<T> succeeded => WriteSuccess(
+                parseResult,
+                options,
+                command,
+                createJson(succeeded.Value),
+                output => writeText(output, succeeded.Value)),
+            OperationFailed<T> failed => WriteFailure(parseResult, options, command, failed.Error),
+            _ => throw new ArgumentOutOfRangeException(nameof(result)),
+        };
+    }
+
+    public static int WriteFailure(
+        ParseResult parseResult,
+        CLIOptions options,
+        string command,
+        OperationError error)
+    {
+        TextWriter output = parseResult.InvocationConfiguration.Error;
+        string code = ErrorCode(error.Code);
+        string message = OperationErrorText.Format(error);
+
+        if (parseResult.GetValue(options.Format) == CLIOutputFormat.Json)
+        {
+            JsonObject envelope = ErrorEnvelope(command, code, message, []);
+            envelope["error"]!["parameters"] = new JsonObject(
+                error.Parameters.Select(parameter =>
+                    KeyValuePair.Create<string, JsonNode?>(parameter.Key, parameter.Value)));
+            if (error.Recovery is not null)
+            {
+                envelope["recovery"] = Recovery(error.Recovery);
+            }
+
+            WriteJson(output, envelope);
+        }
+        else
+        {
+            output.WriteLine($"Error [{code}]: {message}");
+            if (error.Recovery is not null)
+            {
+                WriteRecoveryText(output, error.Recovery);
+            }
+        }
+
+        return 1;
+    }
+
     public static int WriteFailure(
         ParseResult parseResult,
         CLIOptions options,
@@ -521,7 +577,7 @@ internal static class CLIOutput
         foreach (BackupRecoveryFileChange file in preview.Files)
             output.WriteLine($"- {EnumName(file.Action)}: {file.RelativePath}");
         foreach (BackupRecoveryIssue issue in preview.Issues)
-            output.WriteLine($"- {issue.Code}: {issue.Message} ({issue.Path})");
+            output.WriteLine($"- {RecoveryIssueCode(issue.Code)}: {RecoveryIssueText(issue)} ({issue.Path})");
     }
 
     public static void WriteRecoveryReportText(TextWriter output, BackupRecoveryReport recovery) =>
@@ -545,9 +601,11 @@ internal static class CLIOutput
     private static JsonArray RecoveryIssues(IEnumerable<BackupRecoveryIssue> issues) =>
         new(issues.Select(issue => new JsonObject
         {
-            ["code"] = issue.Code,
-            ["message"] = issue.Message,
+            ["code"] = RecoveryIssueCode(issue.Code),
+            ["message"] = RecoveryIssueText(issue),
             ["path"] = issue.Path,
+            ["parameters"] = new JsonObject(issue.Parameters.Select(parameter =>
+                KeyValuePair.Create<string, JsonNode?>(parameter.Key, parameter.Value))),
         }).ToArray<JsonNode?>());
 
     private static void WriteRecoveryText(TextWriter output, BackupRecoveryReport recovery)
@@ -557,7 +615,7 @@ internal static class CLIOutput
         foreach (BackupRecoveryOperation operation in recovery.Operations)
             output.WriteLine($"- {operation.Kind} {operation.InstallId}: {operation.Action}");
         foreach (BackupRecoveryIssue issue in recovery.Issues)
-            output.WriteLine($"- {issue.Code}: {issue.Message} ({issue.Path})");
+            output.WriteLine($"- {RecoveryIssueCode(issue.Code)}: {RecoveryIssueText(issue)} ({issue.Path})");
     }
 
     private static void WriteChanges(TextWriter output, IReadOnlyList<InstallChange> changes, bool preview)
@@ -591,5 +649,95 @@ internal static class CLIOutput
     {
         string name = value.ToString();
         return char.ToLowerInvariant(name[0]) + name[1..];
+    }
+
+    private static string ErrorCode(OperationErrorCode code)
+    {
+        return code switch
+        {
+            OperationErrorCode.FileNotFound => "file_not_found",
+            OperationErrorCode.DirectoryNotFound => "directory_not_found",
+            OperationErrorCode.AccessDenied => "access_denied",
+            OperationErrorCode.FileSystemFailure => "file_system_failure",
+            OperationErrorCode.InvalidManifest => "invalid_manifest",
+            OperationErrorCode.UnsupportedManifestVersion => "unsupported_manifest_version",
+            OperationErrorCode.InvalidModPackage => "invalid_mod_package",
+            OperationErrorCode.GameDirectoryRequired => "game_directory_required",
+            OperationErrorCode.GameDirectoryNotFound => "game_directory_not_found",
+            OperationErrorCode.AssetNotFound => "asset_not_found",
+            OperationErrorCode.PatchPlanningFailed => "patch_planning_failed",
+            OperationErrorCode.InstallRecordNotFound => "install_record_not_found",
+            OperationErrorCode.FileIntegrityMismatch => "file_integrity_mismatch",
+            OperationErrorCode.OperationAlreadyRunning => "operation_already_running",
+            OperationErrorCode.RecoveryRequired => "recovery_required",
+            OperationErrorCode.BackupRepositoryUnsafe => "backup_repository_unsafe",
+            OperationErrorCode.UnsupportedBackupRepositoryVersion => "unsupported_backup_repository_version",
+            _ => throw new ArgumentOutOfRangeException(nameof(code), code, null),
+        };
+    }
+
+    private static string RecoveryIssueCode(BackupRecoveryIssueCode code)
+    {
+        return code switch
+        {
+            BackupRecoveryIssueCode.RepositoryUnsafe => "repository_unsafe",
+            BackupRecoveryIssueCode.RecoveryUnsafe => "recovery_unsafe",
+            BackupRecoveryIssueCode.OperationFailed => "operation_failed",
+            BackupRecoveryIssueCode.UnexpectedFailure => "unexpected_failure",
+            _ => throw new ArgumentOutOfRangeException(nameof(code), code, null),
+        };
+    }
+
+    private static string RecoveryIssueText(BackupRecoveryIssue issue)
+    {
+        if (issue.Parameters.GetValueOrDefault("detail") is { Length: > 0 } detail)
+        {
+            return detail;
+        }
+
+        return issue.Code switch
+        {
+            BackupRecoveryIssueCode.RepositoryUnsafe => "The backup repository is damaged or unsafe.",
+            BackupRecoveryIssueCode.RecoveryUnsafe => "Recovery cannot continue safely.",
+            BackupRecoveryIssueCode.OperationFailed => "The recovery operation failed.",
+            BackupRecoveryIssueCode.UnexpectedFailure => "An unexpected recovery failure occurred.",
+            _ => "Recovery failed.",
+        };
+    }
+}
+
+internal static class OperationErrorText
+{
+    public static string Format(OperationError error)
+    {
+        string context = error.Parameters.GetValueOrDefault("path", string.Empty);
+        string? detail = error.Parameters.GetValueOrDefault("detail");
+
+        if (!string.IsNullOrWhiteSpace(detail))
+        {
+            return detail;
+        }
+
+        return error.Code switch
+        {
+            OperationErrorCode.FileNotFound => $"The file was not found: {context}",
+            OperationErrorCode.DirectoryNotFound => $"The directory was not found: {context}",
+            OperationErrorCode.AccessDenied => $"Access was denied: {context}",
+            OperationErrorCode.FileSystemFailure => $"The file operation failed: {context}",
+            OperationErrorCode.InvalidManifest => detail ?? "The mod manifest is invalid.",
+            OperationErrorCode.UnsupportedManifestVersion => "The manifest schema version is not supported.",
+            OperationErrorCode.InvalidModPackage => detail ?? "The mod package is invalid.",
+            OperationErrorCode.GameDirectoryRequired => "Select the game directory to continue.",
+            OperationErrorCode.GameDirectoryNotFound => $"The game directory was not found: {context}",
+            OperationErrorCode.AssetNotFound => "The requested asset was not found.",
+            OperationErrorCode.PatchPlanningFailed => "The patch cannot be applied to the selected game files.",
+            OperationErrorCode.InstallRecordNotFound => "The selected install record was not found.",
+            OperationErrorCode.FileIntegrityMismatch => "An installed file or backup no longer matches its record.",
+            OperationErrorCode.OperationAlreadyRunning => "Another mutating operation is already running.",
+            OperationErrorCode.RecoveryRequired => "An interrupted operation must be recovered first.",
+            OperationErrorCode.BackupRepositoryUnsafe => "The backup repository is damaged or unsafe.",
+            OperationErrorCode.UnsupportedBackupRepositoryVersion => "The backup repository version is not supported.",
+            _ => "The operation failed.",
+        };
     }
 }

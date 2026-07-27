@@ -65,13 +65,14 @@ public sealed class UninstallCLICommand : ICLICommand
     {
         try
         {
-            IReadOnlyList<InstallRecordSummary> installed = _workflowService.ListInstalledMods();
-            return CLIOutput.WriteSuccess(
+            OperationResult<IReadOnlyList<InstallRecordSummary>> result = _workflowService.ListInstalledMods();
+            return CLIOutput.WriteResult(
                 parseResult,
                 _options,
                 "uninstall.list",
-                CLIOutput.InstalledMods(installed),
-                output => CLIOutput.WriteInstalledModsText(output, installed));
+                result,
+                CLIOutput.InstalledMods,
+                CLIOutput.WriteInstalledModsText);
         }
         catch (Exception exception)
         {
@@ -83,14 +84,15 @@ public sealed class UninstallCLICommand : ICLICommand
     {
         try
         {
-            UninstallPreviewResult result = _workflowService.PreviewUninstall(
+            OperationResult<UninstallPreviewResult> result = _workflowService.PreviewUninstall(
                 new UninstallPreviewRequest(installId, FullPathOrNull(gameDirectory)));
-            return CLIOutput.WriteSuccess(
+            return CLIOutput.WriteResult(
                 parseResult,
                 _options,
                 "uninstall.preview",
-                CLIOutput.UninstallPreview(result),
-                output => CLIOutput.WriteUninstallPreviewText(output, result));
+                result,
+                CLIOutput.UninstallPreview,
+                CLIOutput.WriteUninstallPreviewText);
         }
         catch (Exception exception)
         {
@@ -102,14 +104,15 @@ public sealed class UninstallCLICommand : ICLICommand
     {
         try
         {
-            UninstallModResult result = _workflowService.Uninstall(
+            OperationResult<UninstallModResult> result = _workflowService.Uninstall(
                 new UninstallModRequest(installId, FullPathOrNull(gameDirectory)));
-            return CLIOutput.WriteSuccess(
+            return CLIOutput.WriteResult(
                 parseResult,
                 _options,
                 "uninstall.apply",
-                CLIOutput.UninstallResult(result),
-                output => CLIOutput.WriteUninstallResultText(output, result));
+                result,
+                CLIOutput.UninstallResult,
+                CLIOutput.WriteUninstallResultText);
         }
         catch (Exception exception)
         {

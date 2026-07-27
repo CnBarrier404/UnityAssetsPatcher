@@ -158,28 +158,39 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 _isWorking = false;
                 _form.Enabled = true;
 
-                if (result.OptionalGroups.Count > 0 && _optionalGroupArea is null)
+                if (result is OperationFailed<InstallPreviewResult> failed)
                 {
-                    ShowOptionalGroups(result.OptionalGroups);
+                    string message = OperationErrorFormatter.Format(failed.Error);
+                    if (failed.Error.Code is
+                            (OperationErrorCode.GameDirectoryRequired or OperationErrorCode.GameDirectoryNotFound) &&
+                        string.IsNullOrEmpty(gameDirectory))
+                    {
+                        ShowGameDirectory(message);
+                    }
+                    else
+                    {
+                        ShowInputError(_modPath, message);
+                    }
+
+                    return;
+                }
+
+                InstallPreviewResult preview = ((OperationSucceeded<InstallPreviewResult>)result).Value;
+                if (preview.OptionalGroups.Count > 0 && _optionalGroupArea is null)
+                {
+                    ShowOptionalGroups(preview.OptionalGroups);
                     ClearMessage();
                     return;
                 }
 
-                ShowPreview(result, modPath, gameDirectory, selectedGroups);
+                ShowPreview(preview, modPath, gameDirectory, selectedGroups);
             },
             exception =>
             {
                 _isWorking = false;
                 _form.Enabled = true;
 
-                if (exception is DirectoryNotFoundException && string.IsNullOrEmpty(gameDirectory))
-                {
-                    ShowGameDirectory(exception.Message);
-                }
-                else
-                {
-                    ShowInputError(_modPath, exception.Message);
-                }
+                ShowInputError(_modPath, OperationErrorFormatter.FormatUnexpected());
             });
 
         if (!started)
@@ -279,7 +290,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         {
             string message = string.Format(
                 LocalizedStrings.InstallPreview_PlanningFailedFormat,
-                diagnostic.Code);
+                OperationErrorFormatter.Format(diagnostic));
             var error = new StyledLabel(message, TextRole.Error)
             {
                 X = 0,
@@ -347,12 +358,21 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             result =>
             {
                 _isWorking = false;
-                ShowResult(result);
+                if (result is OperationSucceeded<InstallModResult> succeeded)
+                {
+                    ShowResult(succeeded.Value);
+                }
+                else
+                {
+                    ShowResult(
+                        OperationErrorFormatter.Format(((OperationFailed<InstallModResult>)result).Error),
+                        isError: true);
+                }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowResult(exception.Message, isError: true);
+                ShowResult(OperationErrorFormatter.FormatUnexpected(), isError: true);
             });
 
         if (!started)
