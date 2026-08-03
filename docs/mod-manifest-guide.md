@@ -2,6 +2,7 @@
 
 本文档说明 Unity Assets Patcher 当前支持的 `manifest.json` 格式。
 Manifest 用来描述 Mod 元数据、目标游戏、需要复制的 payload 文件，以及要安装到 Unity `.assets` 文件中的变更。
+当前格式要求 `$schema` 使用项目提供的 v1 Schema 地址；旧 manifest 中的 `schemaVersion` 不再用于运行时格式判断。
 
 ## 快速开始
 
@@ -9,7 +10,7 @@ Manifest 用来描述 Mod 元数据、目标游戏、需要复制的 payload 文
 
 项目提供 [JSON Schema](https://uap.cnbarrier.com/schema-v1.json)。
 
-在 manifest 顶层加入 `$schema` 后，VS Code、JetBrains IDE 等支持 JSON Schema 的编辑器即可提供字段补全，并在编辑时标记结构和类型错误：
+每个 manifest 顶层都必须包含以下 `$schema` 字段。VS Code、JetBrains IDE 等支持 JSON Schema 的编辑器会据此提供字段补全，并在编辑时标记结构和类型错误：
 
 ```json
 {
@@ -17,7 +18,7 @@ Manifest 用来描述 Mod 元数据、目标游戏、需要复制的 payload 文
 }
 ```
 
-Schema 用于辅助编写 manifest，并会标记未知字段以帮助发现拼写错误。路径安全、操作组合、文件是否存在、asset 是否唯一匹配以及可选内容冲突等规则由 Unity Assets Patcher 的生产代码验证，因此发布 Mod 前仍应使用 `check` 命令验证，并执行安装预览。
+Schema 主要用于结构、类型和基础值的校验；为保持兼容性，当前 Schema 允许额外字段，因此不要依赖它发现所有拼写错误。路径安全、操作组合、文件是否存在、需要唯一匹配的 asset 以及可选内容冲突等规则由 Unity Assets Patcher 的运行时验证，因此发布 Mod 前仍应使用 `check` 命令验证，并执行安装预览。
 
 ### Mod 包结构
 
@@ -28,6 +29,8 @@ Mod 包是一个 zip 文件，内部必须包含且只能包含一个 `manifest.
 
 - `manifest.json` 文件大小不能超过 10MB。
 - Mod 包解压后的总大小不能超过 10GB。
+- ZIP 条目路径必须是安全的相对路径，不能包含绝对路径、路径导航段或不安全的 Windows 路径字符。
+- 规范化后重复的 ZIP 条目会被拒绝。
 
 示例：
 
@@ -46,7 +49,6 @@ Mod.zip
 ```json
 {
   "$schema": "https://uap.cnbarrier.com/schema-v1.json",
-  "schemaVersion": 1,
   "name": "Camera Tweak",
   "author": "Example",
   "version": "1.0.0",
@@ -103,14 +105,36 @@ Mod.zip
 }
 ```
 
+### 发布前检查
+
+可以直接检查 JSON manifest，也可以检查 ZIP Mod 包中的 manifest：
+
+```powershell
+.\UnityAssetsPatcher.exe check --config .\manifest.json
+.\UnityAssetsPatcher.exe check --config .\Mod.zip
+```
+
+检查通过后，建议先执行安装预览。CLI 中 `install preview` 不会修改游戏文件，`install apply` 必须显式传入 `--yes` 才会执行安装：
+
+```powershell
+.\UnityAssetsPatcher.exe install preview --package .\Mod.zip --game-directory "C:\Games\Game"
+.\UnityAssetsPatcher.exe install apply --package .\Mod.zip --game-directory "C:\Games\Game" --yes
+```
+
+如果要启用可选内容，重复传入 `--optional-group`；交互式界面则会逐组询问是否应用：
+
+```powershell
+.\UnityAssetsPatcher.exe install preview --package .\Mod.zip --game-directory "C:\Games\Game" `
+  --optional-group "高清贴图" --optional-group "额外音效"
+```
+
 ## Manifest 结构
 
 ### 顶层字段
 
 | 字段          | 必填 | 说明                                                                                                      |
 | ------------- | ---- | --------------------------------------------------------------------------------------------------------- |
-| `$schema`     | 否   | JSON Schema 地址。建议设为 `https://uap.cnbarrier.com/schema-v1.json`，以启用编辑器校验与补全。           |
-| `schemaVersion` | 是 | Manifest 格式版本。当前必须为整数 `1`；缺失或不受支持的版本会被拒绝。                                    |
+| `$schema`     | 是   | 必须为 `https://uap.cnbarrier.com/schema-v1.json`；这是当前 manifest 的运行时 Schema 标识，也是编辑器校验入口。 |
 | `name`        | 是   | Mod 名称。                                                                                                |
 | `author`      | 是   | Mod 作者。                                                                                                |
 | `version`     | 是   | Mod 版本，建议使用语义化版本。                                                                            |
@@ -119,6 +143,8 @@ Mod.zip
 | `copyFiles`   | 否   | 安装后需要复制到目标 assets 文件所在目录的 payload 文件。                                                 |
 | `targets`     | 是   | 要处理的目标 `.assets` 文件分组。                                                                         |
 | `optional`    | 否   | 附加内容分组。用户安装时可逐个选择是否应用，互不依赖、可自由组合。                                        |
+
+旧 manifest 中的 `schemaVersion: 1` 可以暂时保留，但当前运行时不会读取它，也不会用它选择格式；新 manifest 不需要再添加该字段。CLI JSON 响应中的 `schemaVersion` 是输出协议版本，与 manifest 字段无关。
 
 ### copyFiles
 
@@ -138,17 +164,25 @@ Mod.zip
 - 安装时只使用 `source` 的文件名部分（如 `resources/modassets.resource` → `modassets.resource`）。
 - payload 文件会复制到目标 assets 文件所在目录。
 - 如果声明了 `copyFiles`，所有目标 assets 文件必须位于同一个目录。
-- payload 目标文件已存在时，安装会拒绝继续；预览会标记该文件不会复制。
+- payload 目标文件已存在时，安装不会覆盖该文件并会拒绝继续；预览只列出计划复制的目标，不会写入文件。
 
 ### targets
 
-`targets` 是目标 assets 文件列表。每个 target 按目标文件名分组。
+`targets` 是目标 assets 文件列表，至少要包含一个 target。每个 target 按目标文件名分组，并且至少要包含一个 patch。
 
 ```json
 "targets": [
   {
     "file": "sharedassets0.assets",
-    "patches": []
+    "patches": [
+      {
+        "type": "Camera",
+        "match": { "m_Name": "Main Camera" },
+        "set": {
+          "field of view": { "from": 60.0, "to": 75.0 }
+        }
+      }
+    ]
   }
 ]
 ```
@@ -241,6 +275,8 @@ Mod.zip
 ```
 
 如果需要 OR 关系，写多条结构相同的 patch，每条用不同的 `match` 值。匹配值支持字符串、数字、布尔值、对象和数组；数字按数值比较，字符串区分大小写，数组要求长度和元素都匹配。
+
+`match` 至少要包含一个字段。字段级 `set`/`add` 可以应用到所有匹配的 asset；`copyAsset` 要求来源和目标各自唯一，`replaceAsset` 还要求用于对应的 `matchField` 值在目标和源文件中都能唯一对应。发布前应通过安装预览确认匹配范围。
 
 #### componentType
 
@@ -431,7 +467,7 @@ Mod.zip
 - 外层 `type` 和 `match` 必须唯一定位复制目标。
 - `copyAsset.from.type` 和 `copyAsset.from.match` 必须唯一定位同文件中的复制来源。
 - 来源和目标的实际 asset 类型必须一致，且不能是同一个 asset。
-- 复制保留目标 Path ID，并自动保留目标原有的标量字符串 `m_Name`；其余字段完整取自打完补丁后的来源。
+- 复制保留目标 Path ID，并自动保留目标原有的标量字符串 `m_Name`；目标和来源都必须具有标量字符串 `m_Name`，其余字段完整取自打完补丁后的来源。
 - `copyAsset` 不能与同一 patch 内的 `set`、`add`、`replaceAsset` 或 `componentType` 组合。
 - 第一版不支持链式或循环复制；任何复制来源都不能同时是另一条 `copyAsset` 的目标。
 - `copyAsset` 与 `replaceAsset` 不能用于同一个目标 assets 文件。
@@ -518,7 +554,8 @@ Mod.zip
 
 - **manifest.json 大小限制**：manifest.json 文件不能超过 10MB。
 - **zip 解压大小限制**：Mod 包解压后的总大小不能超过 10GB。
-- **路径安全检查**：所有文件路径都会被验证，防止通过相对路径（如 `../`）写入目标目录之外的位置。
+- **ZIP 条目检查**：ZIP 条目必须使用安全的相对路径，规范化后的重复条目会被拒绝。
+- **路径安全检查**：manifest 中的文件路径都会被验证，防止通过相对路径（如 `../`）写入目标目录之外的位置。
 
 如果超过这些限制，工具会拒绝处理并显示错误信息。
 
@@ -532,7 +569,7 @@ Mod.zip
 
 - `targets[].file` 对应的 assets 文件名。
 - `type` 是否是目标 asset 的真实类型名。
-- `match` 使用的字段能否稳定、唯一地定位目标 asset。
+- `match` 使用的字段能否稳定地定位预期的目标 asset；如果使用 `copyAsset` 或 `replaceAsset`，还要确认对应的唯一性要求。
 - `set.from` 是否等于目标游戏版本中的实际旧值。
 - `set`、`add`、`matchField` 和 `$pathId.match` 使用的字段路径是否和字段树一致。
 

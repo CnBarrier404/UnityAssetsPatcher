@@ -1,20 +1,82 @@
 # Changelog
 
-## Unreleased
+## v0.6.0
+
+本次版本以大规模架构重构为核心：完成 Application、Domain、Infrastructure、CLI、TUI 和本地化源生成器的分层，重新整理依赖边界、基础设施实现和测试结构。在此基础上，进一步强化了 manifest、Mod 包和 Assets 文件处理的校验、安全性与诊断能力。
+
+### 新增
+
+- 新增 `schema/schema-v1.json` 及 GitHub Pages 发布流程；Mod 作者可以在 VS Code、JetBrains IDE 等编辑器中获得 manifest 字段补全和结构校验，CI 也会自动验证 Schema
+- 新增文件日志：每次启动写入独立日志文件，最多保留最近 5 个日志文件；设置页的详细日志开关现在可以实时切换日志级别
+- TUI 忙碌状态新增旋转指示器，并在 Mod 包路径提示中说明 Windows Terminal 的拖放行为
+
+### 修复
+
+- Mod ZIP 包现在会拒绝不安全或重复的条目，以及缺少或包含多个 `manifest.json` 的包
+- 修复卸载过程中可信路径解析异常的错误契约，确保重解析点和路径逃逸等情况仍会被正确阻止
+- 修复主菜单更新提示出现后布局未正确重排、重复文本导致页面异常，以及选择项标题过长被截断的问题
+- Assets 文件会话现在隔离各自的 AssetsTools 状态，并在写入前安全关闭读取会话，避免同名文件或残留文件句柄导致错误
 
 ### 改进
 
+- 应用程序完成分层架构重构，Application、Domain、Infrastructure、CLI、TUI 和本地化源生成器各自承担清晰职责，依赖边界和组件注册更加明确
 - CLI 与 TUI 现在使用结构化操作结果区分可预期失败和意外故障
 - TUI 的操作错误、补丁诊断和恢复问题现在使用本地化文本，不再直接显示底层异常消息或枚举名称
-- CLI JSON 错误在保持 `schemaVersion: 1` 的同时提供稳定错误码和结构化参数
+- CLI JSON 错误响应在保持输出 `schemaVersion: 1` 的同时提供稳定错误码和结构化参数
+- manifest 现在会使用内嵌 JSON Schema 和语义规则进行校验；`check` 命令对 JSON 文件和 ZIP 包使用统一的读取与诊断流程
+- 文件系统操作和可信路径校验现在统一处理，降低目录穿越、重解析点逃逸以及不安全覆盖或删除文件的风险
+- 缓存 AssetsTools 的 class package 和 Unity 版本 class database，减少重复解析开销
+- 缓存并记忆 Assets 字段路径查找结果，减少重复遍历和临时分配
+- 按 asset 类型批量查询字段树，并为 session 内的 Path ID 建立索引，降低大型 Assets 文件的重复扫描和内存占用
+- 备份仓库格式保持 v1，旧安装记录和事务数据继续通过兼容性校验
+
+### 破坏性变更
+
+- manifest 现在必须包含 `$schema: "https://uap.cnbarrier.com/schema-v1.json"`；只有 `schemaVersion: 1` 而没有 `$schema` 的旧 manifest 需要补充该字段，`schemaVersion` 不再作为运行时格式判定依据
+- manifest 校验规则更加严格，空值、无效路径、重复字段、空 patch 以及互相冲突的操作组合可能会被拒绝
+- 文件系统抽象已由 `IFileOperations` 和 `IDirectoryOperations` 合并为 `IFileSystemOperations`
+- Assets 文件访问契约已调整：`IAssetsFileReader` 和 `IAssetsFileWriter` 不再实现 `IDisposable`，`IAssetsAccessScope.CloseReadSessions` 已移除
+- 如果你直接引用项目的应用层或基础设施接口，需要按新的分层结构和契约更新集成代码；普通可执行程序用户无需额外迁移
 
 ---
 
+This release is centered on a major architectural refactor: Application, Domain, Infrastructure, CLI, TUI, and localization-generator layers now have clearer responsibilities, dependency boundaries, infrastructure implementations, and test structure. It also strengthens manifest, mod-package, and assets-file validation, safety, and diagnostics.
+
+### Added
+
+- Added `schema/schema-v1.json` and a GitHub Pages publishing workflow; mod authors can get manifest completion and structural validation in editors such as VS Code and JetBrains IDEs, while CI validates the schema automatically
+- Added file logging with a separate log file per launch and a retention limit of five recent files; the verbose logging toggle in Settings now switches the log level at runtime
+- Added a spinner for TUI busy states and a hint about Windows Terminal drag-and-drop behavior to the mod package path prompt
+
+### Fixed
+
+- Mod ZIP packages now reject unsafe or duplicate entries, as well as packages with a missing or multiple `manifest.json` files
+- Preserved the trusted-path error contract during uninstall so reparse points and path escapes continue to be rejected correctly
+- Fixed main-menu layout reflow after the update banner appears, failures caused by duplicate captions, and long choice titles being truncated
+- Assets file sessions now isolate their AssetsTools state and close read sessions safely before writing, avoiding failures caused by same-name files or lingering file handles
+
 ### Improved
 
+- Completed the layered architecture refactor, giving the Application, Domain, Infrastructure, CLI, TUI, and localization-generator layers clearer responsibilities, dependency boundaries, component registration, and test structure
 - The CLI and TUI now use structured operation results to distinguish expected failures from unexpected faults
 - TUI operation errors, patch diagnostics, and recovery issues now use localized text instead of raw exception messages or enum names
-- CLI JSON errors now expose stable error codes and structured parameters while retaining `schemaVersion: 1`
+- CLI JSON error responses now expose stable error codes and structured parameters while retaining the output `schemaVersion: 1`
+- Manifests are now validated with an embedded JSON Schema and semantic rules; the `check` command uses a unified source-reading and diagnostic flow for JSON files and ZIP packages
+- File-system operations and trusted-path validation are now centralized, reducing the risk of directory traversal, reparse-point escapes, and unsafe file replacement or deletion
+- Cached AssetsTools class packages and Unity-version class databases to reduce repeated parsing
+- Cached and memoized Assets field-path lookups to reduce repeated traversal and temporary allocations
+- Batched field-tree queries by asset type and indexed Path IDs within each session, reducing repeated scans and memory use for large assets files
+- The backup repository format remains at v1, with compatibility checks for existing install records and transaction data
+
+### Breaking Changes
+
+- Manifests must now contain `$schema: "https://uap.cnbarrier.com/schema-v1.json"`; older manifests that only contain `schemaVersion: 1` must add this property, and `schemaVersion` is no longer used to select the runtime format
+- Manifest validation is stricter, so empty values, invalid paths, duplicate properties, empty patches, and conflicting operation combinations may now be rejected
+- Replaced the `IFileOperations` and `IDirectoryOperations` abstractions with the unified `IFileSystemOperations`
+- Updated the assets file access contracts: `IAssetsFileReader` and `IAssetsFileWriter` no longer implement `IDisposable`, and `IAssetsAccessScope.CloseReadSessions` has been removed
+- Integrations that reference the application or infrastructure interfaces must be updated for the new project layers and contracts; regular executable users do not need to migrate anything
+
+---
 
 ## v0.5.1
 
