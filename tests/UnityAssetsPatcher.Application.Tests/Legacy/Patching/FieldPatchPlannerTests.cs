@@ -167,6 +167,36 @@ public sealed class FieldPatchPlannerTests
     }
 
     [Fact]
+    public void CreateWritePlan_WhenPatchesShareAssetType_ReadsEachCandidateOnce()
+    {
+        var reader = new CountingAssetsFileReader(
+            [
+                new AssetInfo(1, "Material"),
+                new AssetInfo(2, "Material"),
+                new AssetInfo(3, "Material"),
+            ],
+            new Dictionary<long, AssetField>
+            {
+                [1] = CreateFieldTree("Material", "First", ("m_Value", 0)),
+                [2] = CreateFieldTree("Material", "Second", ("m_Value", 0)),
+                [3] = CreateFieldTree("Material", "Other", ("m_Value", 0)),
+            });
+        FieldPatchPlanner builder = CreateFieldPatchPlanner(new AssetQueryService(reader));
+        ManifestSetOperation operation = new(
+            "m_Value",
+            JsonElementFactory.Number(0),
+            JsonElementFactory.Number(1));
+
+        IReadOnlyList<AssetFieldPatch> plan = builder.CreateWritePlan(
+            AssetsPath,
+            [CreatePatch([operation], "First"), CreatePatch([operation], "Second")]);
+
+        Assert.Equal([1L, 2L], plan.Select(asset => asset.PathId));
+        Assert.Equal(3, reader.TotalFieldReadCount);
+        Assert.All(reader.FieldReadCounts.Values, count => Assert.Equal(1, count));
+    }
+
+    [Fact]
     public void CreateWritePlan_WhenPathIdResolverDoesNotMatch_ThrowsExistingError()
     {
         var reader = new CountingAssetsFileReader(
@@ -240,14 +270,16 @@ public sealed class FieldPatchPlannerTests
     private static FieldPatchPlanner CreateFieldPatchPlanner(AssetQueryService queryService) =>
         new(queryService, [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]);
 
-    private static ManifestPatch CreatePatch(IReadOnlyList<ManifestSetOperation> setOperations)
+    private static ManifestPatch CreatePatch(
+        IReadOnlyList<ManifestSetOperation> setOperations,
+        string assetName = "Target")
     {
         return new ManifestPatch(
             AssetsPath,
             "Material",
             new Dictionary<string, JsonElement>(StringComparer.Ordinal)
             {
-                ["m_Name"] = JsonElementFactory.String("Target"),
+                ["m_Name"] = JsonElementFactory.String(assetName),
             },
             setOperations,
             null);

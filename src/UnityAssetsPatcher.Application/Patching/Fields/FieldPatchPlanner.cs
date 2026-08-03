@@ -80,24 +80,38 @@ public sealed class FieldPatchPlanner
         IReadOnlyList<ManifestPatch> targets)
     {
         AssetQueryContext queryContext = _assetQueryService.CreateContext(assetsFilePath);
+        NormalizedFieldPatchOperation[][] normalizedOperationsByTarget =
+        [
+            .. targets
+                .Select(patch => NormalizeOperations(queryContext, assetsFilePath, patch))
+        ];
 
-        foreach (ManifestPatch patch in targets)
+        List<FieldPatchAssetPlan>[] assetPlansByTarget =
+        [
+            .. targets
+                .Select(_ => new List<FieldPatchAssetPlan>())
+        ];
+
+        foreach ((int patchIndex, AssetQueryMatch match) in AssetQueryService.FindMatches(queryContext, targets))
         {
-            var normalizedOperations =
-                NormalizeOperations(queryContext, assetsFilePath, patch);
+            var operations = new List<FieldPatchOperationPlan>();
 
-            foreach (AssetQueryMatch match in AssetQueryService.FindMatches(queryContext, patch))
+            foreach (NormalizedFieldPatchOperation operation in normalizedOperationsByTarget[patchIndex])
             {
-                var operations = new List<FieldPatchOperationPlan>();
+                IFieldPatchOperationHandler handler = GetOperationHandler(operation);
 
-                foreach (NormalizedFieldPatchOperation operation in normalizedOperations)
-                {
-                    IFieldPatchOperationHandler handler = GetOperationHandler(operation);
-                    operations.AddRange(handler.CreatePlans(
-                        match.Asset.PathId, match.FieldTree, operation));
-                }
+                operations.AddRange(handler.CreatePlans(
+                    match.Asset.PathId, match.FieldTree, operation));
+            }
 
-                yield return new FieldPatchAssetPlan(match.Asset, operations);
+            assetPlansByTarget[patchIndex].Add(new FieldPatchAssetPlan(match.Asset, operations));
+        }
+
+        foreach (IReadOnlyList<FieldPatchAssetPlan> assetPlans in assetPlansByTarget)
+        {
+            foreach (FieldPatchAssetPlan assetPlan in assetPlans)
+            {
+                yield return assetPlan;
             }
         }
     }
