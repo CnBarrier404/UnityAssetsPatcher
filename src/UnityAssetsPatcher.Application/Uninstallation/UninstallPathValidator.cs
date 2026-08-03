@@ -140,6 +140,11 @@ public static class UninstallPathValidator
             throw new InvalidOperationException(
                 $"Invalid uninstall {description}: {relativePath}", exception);
         }
+        catch (IOException exception)
+        {
+            throw new InvalidOperationException(
+                $"Uninstall {description} must be inside its trusted directory: {relativePath}", exception);
+        }
     }
 
     private static bool ContainsNavigationSegment(string path)
