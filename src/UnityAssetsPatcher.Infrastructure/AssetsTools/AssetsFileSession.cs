@@ -8,6 +8,7 @@ internal sealed class AssetsFileSession : IDisposable
 {
     public AssetsFile AssetsFile => _instance.file;
 
+    private readonly HashSet<long> _assetPathIds;
     private readonly ClassPackageCache _classPackageCache;
     private readonly AssetsManager _manager;
     private readonly AssetsFileInstance _instance;
@@ -19,6 +20,7 @@ internal sealed class AssetsFileSession : IDisposable
         AssetsManager manager,
         AssetsFileInstance instance)
     {
+        _assetPathIds = [.. instance.file.Metadata.AssetInfos.Select(info => info.PathId)];
         _classPackageCache = classPackageCache;
         _manager = manager;
         _instance = instance;
@@ -82,7 +84,7 @@ internal sealed class AssetsFileSession : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return AssetsFile.Metadata.AssetInfos.Any(info => info.PathId == pathId.Value);
+        return _assetPathIds.Contains(pathId.Value);
     }
 
     public void SetData(AssetPathId pathId, AssetTypeValueField field)
