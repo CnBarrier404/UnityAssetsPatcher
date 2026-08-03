@@ -1,5 +1,5 @@
-using UnityAssetsPatcher.Abstractions.Assets;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Assets;
 

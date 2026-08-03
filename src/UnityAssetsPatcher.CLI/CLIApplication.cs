@@ -9,7 +9,7 @@ public sealed class CLIApplication
     private readonly RootCommand _rootCommand;
     private readonly InvocationConfiguration _invocationConfiguration;
     private readonly TextWriter _error;
-    private readonly CLIOptions _options;
+    private readonly CLIOptions? _options;
 
     public CLIApplication(
         IEnumerable<ICLICommand> commands,
@@ -17,10 +17,18 @@ public sealed class CLIApplication
         TextWriter error,
         CLIOptions? options = null)
     {
-        _options = options ?? new CLIOptions();
+        ArgumentNullException.ThrowIfNull(commands);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(error);
+
         _rootCommand = new RootCommand("Inspect, install, and uninstall Unity assets file mods.");
         _error = error;
-        _rootCommand.Options.Add(_options.Format);
+        _options = options;
+
+        if (options is not null)
+        {
+            _rootCommand.Options.Add(options.Format);
+        }
 
         foreach (ICLICommand command in commands)
         {
@@ -36,11 +44,22 @@ public sealed class CLIApplication
 
     public int Run(IReadOnlyList<string> arguments)
     {
+        return RunAsync(arguments).GetAwaiter().GetResult();
+    }
+
+    public async Task<int> RunAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+
         ParseResult parseResult = _rootCommand.Parse(arguments);
 
-        if (parseResult.Errors.Count <= 0)
+        if (parseResult.Errors.Count == 0)
         {
-            return parseResult.Invoke(_invocationConfiguration);
+            return await parseResult
+                .InvokeAsync(_invocationConfiguration, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         if (parseResult.Action is ParseErrorAction parseErrorAction)
@@ -48,22 +67,25 @@ public sealed class CLIApplication
             parseErrorAction.ShowHelp = true;
         }
 
-        if (parseResult.GetValue(_options.Format) == CLIOutputFormat.Json)
+        if (_options is not null && parseResult.GetValue(_options.Format) == CLIOutputFormat.Json)
         {
             CLIOutput.WriteUsageFailure(
                 _error,
                 GetCommandName(parseResult),
                 parseResult.Errors.Select(error => error.Message));
-            return 2;
+
+            return CLIExitCodes.UsageError;
         }
 
-        parseResult.Invoke(new InvocationConfiguration
+        var errorConfiguration = new InvocationConfiguration
         {
             Output = _error,
             Error = _error,
-        });
+        };
 
-        return 2;
+        await parseResult.InvokeAsync(errorConfiguration, cancellationToken).ConfigureAwait(false);
+
+        return CLIExitCodes.UsageError;
     }
 
     private static string GetCommandName(ParseResult parseResult)
@@ -78,6 +100,7 @@ public sealed class CLIApplication
         }
 
         names.Reverse();
+
         return names.Count == 0 ? "root" : string.Join('.', names);
     }
 }

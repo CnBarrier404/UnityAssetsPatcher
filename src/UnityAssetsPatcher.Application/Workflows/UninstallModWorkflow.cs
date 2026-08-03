@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Uninstallation;
+using InstallRecordSummary = UnityAssetsPatcher.Application.Contracts.InstallRecordSummary;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 

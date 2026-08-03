@@ -1,122 +1,179 @@
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Domain.Integrity;
 
 namespace UnityAssetsPatcher.Infrastructure.IO;
 
 public sealed class FileSystemOperations : IFileSystemOperations
 {
-    private static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    private const int FileIntegrityBufferSize = 81920;
 
     private static StringComparer PathComparer { get; } =
         OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private readonly ILogger<FileSystemOperations> _logger;
 
-    public FileSystemOperations(ILogger<FileSystemOperations>? logger = null)
+    public FileSystemOperations(ILogger<FileSystemOperations> logger)
     {
-        _logger = logger ?? NullLogger<FileSystemOperations>.Instance;
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _logger = logger;
     }
 
     public string ResolveExistingDirectory(string path)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var resolver = new TrustedPathResolver(this);
 
-        string resolved = ResolveExistingLinks(path);
-
-        return !Directory.Exists(resolved)
-            ? throw new DirectoryNotFoundException($"Directory not found: {resolved}")
-            : NormalizeDirectory(resolved);
+        return resolver.ResolveExistingDirectory(path);
     }
 
     public string ResolveExistingFile(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        string resolved = ResolveExistingLinks(path);
+        string fullPath = TrustedPath.NormalizeAbsolutePath(path);
+        FileAttributes attributes = GetAttributes(fullPath);
 
-        return !File.Exists(resolved)
-            ? throw new FileNotFoundException($"File not found: {resolved}", resolved)
-            : Path.GetFullPath(resolved);
+        if (attributes.HasFlag(FileAttributes.Directory))
+        {
+            throw new FileNotFoundException($"The file does not exist: '{fullPath}'.", fullPath);
+        }
+
+        return fullPath;
     }
 
     public string ResolveWithinDirectory(string rootDirectory, string relativePath)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
+        var resolver = new TrustedPathResolver(this);
 
-        if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath) ||
-            Path.GetPathRoot(relativePath)?.Length > 0 || ContainsNavigationSegment(relativePath))
-        {
-            throw new InvalidOperationException($"Relative path is not trusted: {relativePath}");
-        }
-
-        string root = ResolveExistingDirectory(rootDirectory);
-        string resolved = ResolveExistingLinks(Path.Combine(root, relativePath));
-
-        return !IsPathWithinDirectory(resolved, root)
-            ? throw new InvalidOperationException($"Path escapes the trusted directory: {relativePath}")
-            : Path.GetFullPath(resolved);
+        return resolver.ResolveWithinDirectory(rootDirectory, relativePath);
     }
 
     public bool PathsEqual(string leftPath, string rightPath)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(leftPath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(rightPath);
-
-        return PathComparer.Equals(
-            Path.TrimEndingDirectorySeparator(Path.GetFullPath(leftPath)),
-            Path.TrimEndingDirectorySeparator(Path.GetFullPath(rightPath)));
+        return TrustedPath.PathsEqual(leftPath, rightPath);
     }
 
     public bool IsPathWithinDirectory(string path, string directory)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
-
-        string fullPath = Path.GetFullPath(path);
-        string fullDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
-        string prefix = Path.EndsInDirectorySeparator(fullDirectory)
-            ? fullDirectory
-            : fullDirectory + Path.DirectorySeparatorChar;
-
-        return fullPath.StartsWith(prefix, PathComparison);
+        return !TrustedPath.PathsEqual(path, directory) && TrustedPath.IsWithinRoot(path, directory);
     }
 
-    public void WriteFile(string destinationPath, Action<Stream> writer)
+    public Stream OpenRead(string path)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        string temporaryPath = CreateTemporarySibling(destinationPath);
+        string fullPath = Path.GetFullPath(path);
+
+        IOLog.OpeningFileForRead(_logger, fullPath);
 
         try
         {
-            using (FileStream stream = new(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                writer(stream);
-                stream.Flush(flushToDisk: true);
-            }
+            var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-            CommitFile(temporaryPath, destinationPath);
+            IOLog.FileOpenedForRead(_logger, fullPath);
+
+            return stream;
         }
-        catch
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            TryDeleteTemporaryFile(temporaryPath);
+            IOLog.FileOpenForReadFailed(_logger, fullPath, exception);
 
             throw;
         }
     }
 
-    public void CopyFile(string sourcePath, string destinationPath)
+    public FileIntegrity ComputeFileIntegrity(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        using Stream source = OpenRead(path);
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        byte[] buffer = new byte[FileIntegrityBufferSize];
+        long length = 0;
+        int bytesRead;
+
+        while ((bytesRead = source.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            hash.AppendData(buffer, 0, bytesRead);
+            length = checked(length + bytesRead);
+        }
+
+        byte[] digest = hash.GetHashAndReset();
+
+        return new FileIntegrity(length, Convert.ToHexStringLower(digest));
+    }
+
+    public FileAttributes GetAttributes(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        string fullPath = Path.GetFullPath(path);
+
+        IOLog.GettingAttributes(_logger, fullPath);
+
+        try
+        {
+            FileAttributes attributes = File.GetAttributes(fullPath);
+
+            IOLog.AttributesRead(_logger, fullPath, attributes);
+
+            return attributes;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            IOLog.GetAttributesFailed(_logger, fullPath, exception);
+
+            throw;
+        }
+    }
+
+    public void WriteFileAtomically(string destinationPath, FileDestinationMode mode, Action<Stream> writer)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        ArgumentNullException.ThrowIfNull(writer);
+        ValidateDestinationMode(mode);
+
+        string fullDestinationPath = Path.GetFullPath(destinationPath);
+
+        IOLog.WritingFile(_logger, fullDestinationPath, mode);
+
+        WriteFileCore(fullDestinationPath, mode, writer);
+
+        IOLog.FileWritten(_logger, fullDestinationPath, mode);
+    }
+
+    public void CopyFileAtomically(string sourcePath, string destinationPath, FileDestinationMode mode)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        ValidateDestinationMode(mode);
 
-        WriteFile(destinationPath, destinationStream =>
+        string fullSourcePath = Path.GetFullPath(sourcePath);
+
+        string fullDestinationPath = Path.GetFullPath(destinationPath);
+
+        IOLog.CopyingFile(_logger, fullSourcePath, fullDestinationPath, mode);
+
+        WriteFileCore(fullDestinationPath, mode, destinationStream =>
         {
-            using FileStream sourceStream = new(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using FileStream sourceStream = new(fullSourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
             sourceStream.CopyTo(destinationStream);
         });
+
+        IOLog.FileCopied(_logger, fullSourcePath, fullDestinationPath, mode);
+    }
+
+    public void WriteFile(string destinationPath, Action<Stream> writer)
+    {
+        WriteFileAtomically(destinationPath, FileDestinationMode.CreateOrReplace, writer);
+    }
+
+    public void CopyFile(string sourcePath, string destinationPath)
+    {
+        CopyFileAtomically(sourcePath, destinationPath, FileDestinationMode.CreateOrReplace);
     }
 
     public void MoveFile(string sourcePath, string destinationPath)
@@ -124,7 +181,10 @@ public sealed class FileSystemOperations : IFileSystemOperations
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
 
-        CommitFile(sourcePath, destinationPath);
+        string fullSourcePath = Path.GetFullPath(sourcePath);
+        string fullDestinationPath = Path.GetFullPath(destinationPath);
+
+        CommitFile(fullSourcePath, fullDestinationPath, FileDestinationMode.CreateOrReplace);
     }
 
     public void DeleteFile(string path)
@@ -132,12 +192,15 @@ public sealed class FileSystemOperations : IFileSystemOperations
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         string fullPath = Path.GetFullPath(path);
+
         FileAttributes attributes = File.GetAttributes(fullPath);
 
         if (attributes.HasFlag(FileAttributes.Directory) && !attributes.HasFlag(FileAttributes.ReparsePoint))
         {
             throw new IOException($"The path must be a file or file-system link: '{fullPath}'.");
         }
+
+        IOLog.DeletingFile(_logger, fullPath);
 
         if (attributes.HasFlag(FileAttributes.Directory))
         {
@@ -147,17 +210,26 @@ public sealed class FileSystemOperations : IFileSystemOperations
         {
             File.Delete(fullPath);
         }
+
+        IOLog.FileDeleted(_logger, fullPath);
     }
 
-    public void CreateDirectory(string path)
+    public void EnsureDirectory(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         string fullPath = Path.GetFullPath(path);
 
-        EnsureExistingPathComponentsAreDirectories(fullPath);
+        IOLog.EnsuringDirectory(_logger, fullPath);
+
         Directory.CreateDirectory(fullPath);
-        EnsureRealDirectory(fullPath, "The created path");
+
+        IOLog.DirectoryReady(_logger, fullPath);
+    }
+
+    public void CreateDirectory(string path)
+    {
+        EnsureDirectory(path);
     }
 
     public void MoveDirectory(string sourcePath, string destinationPath)
@@ -165,91 +237,76 @@ public sealed class FileSystemOperations : IFileSystemOperations
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
 
-        string sourceFullPath = Path.GetFullPath(sourcePath);
-        string destinationFullPath = Path.GetFullPath(destinationPath);
+        string fullSourcePath = Path.GetFullPath(sourcePath);
 
-        if (PathComparer.Equals(sourceFullPath, destinationFullPath))
+        string fullDestinationPath = Path.GetFullPath(destinationPath);
+
+        if (PathComparer.Equals(fullSourcePath, fullDestinationPath))
         {
             throw new ArgumentException("The source and destination must be different paths.", nameof(destinationPath));
         }
 
-        EnsureExistingPathComponentsAreDirectories(sourceFullPath);
-        EnsureRealDirectory(sourceFullPath, "The source path");
-        EnsureExistingPathComponentsAreDirectories(destinationFullPath);
+        IOLog.MovingDirectory(_logger, fullSourcePath, fullDestinationPath);
 
-        if (TryGetAttributes(destinationFullPath, out _))
-        {
-            throw new IOException($"The destination directory already exists: '{destinationFullPath}'.");
-        }
+        Directory.Move(fullSourcePath, fullDestinationPath);
 
-        Directory.Move(sourceFullPath, destinationFullPath);
+        IOLog.DirectoryMoved(_logger, fullSourcePath, fullDestinationPath);
     }
 
-    public void DeleteDirectory(string path)
+    public void DeleteDirectoryTree(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         string fullPath = Path.GetFullPath(path);
-        EnsureExistingPathComponentsAreDirectories(fullPath);
-        EnsureRealDirectory(fullPath, "The directory to delete");
-        EnsureTreeContainsNoReparsePoints(fullPath);
-        DeleteContents(fullPath);
-        Directory.Delete(fullPath);
+
+        FileAttributes attributes = File.GetAttributes(fullPath);
+
+        if (!attributes.HasFlag(FileAttributes.Directory))
+        {
+            throw new IOException($"The path must be a directory or directory link: '{fullPath}'.");
+        }
+
+        IOLog.DeletingDirectoryTree(_logger, fullPath);
+
+        DeleteDirectoryTreeCore(fullPath, attributes);
+
+        IOLog.DirectoryTreeDeleted(_logger, fullPath);
     }
 
-    private static string ResolveExistingLinks(string path)
+    public void DeleteDirectory(string path)
     {
-        string fullPath = Path.GetFullPath(path);
-        string root = Path.GetPathRoot(fullPath) ??
-                      throw new InvalidOperationException($"Cannot resolve path: {path}");
-        string resolved = root;
+        DeleteDirectoryTree(path);
+    }
 
-        foreach (string segment in fullPath[root.Length..].Split(
-                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                     StringSplitOptions.RemoveEmptyEntries))
+    private void WriteFileCore(string destinationPath, FileDestinationMode mode, Action<Stream> writer)
+    {
+        string temporaryPath = CreateSiblingPath(destinationPath, "tmp");
+
+        try
         {
-            resolved = Path.Combine(resolved, segment);
-            FileSystemInfo? info = GetExistingEntry(resolved);
-
-            if (info?.LinkTarget is not null)
+            using (FileStream stream = new(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                resolved = info.ResolveLinkTarget(returnFinalTarget: true)?.FullName ??
-                           throw new InvalidOperationException($"Cannot resolve path: {path}");
+                writer(stream);
+
+                stream.Flush(flushToDisk: true);
             }
+
+            CommitFile(temporaryPath, destinationPath, mode);
         }
-
-        return Path.GetFullPath(resolved);
-    }
-
-    private static FileSystemInfo? GetExistingEntry(string path)
-    {
-        if (Directory.Exists(path))
+        catch
         {
-            return new DirectoryInfo(path);
+            TryDeleteTemporaryFile(temporaryPath);
+
+            throw;
         }
-
-        return File.Exists(path) ? new FileInfo(path) : null;
     }
 
-    private static bool ContainsNavigationSegment(string path)
+    private void CommitFile(string stagedPath, string destinationPath, FileDestinationMode mode)
     {
-        return path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries)
-            .Any(segment => segment is "." or "..");
-    }
-
-    private static string NormalizeDirectory(string path)
-    {
-        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-    }
-
-    private static void CommitFile(string stagedPath, string destinationPath)
-    {
-        string stagedFullPath = Path.GetFullPath(stagedPath);
-        string destinationFullPath = Path.GetFullPath(destinationPath);
-        string stagedDirectory = Path.GetDirectoryName(stagedFullPath) ??
+        string stagedDirectory = Path.GetDirectoryName(stagedPath) ??
                                  throw new IOException($"Cannot resolve staged file directory: {stagedPath}");
-        string destinationDirectory = Path.GetDirectoryName(destinationFullPath) ??
+
+        string destinationDirectory = Path.GetDirectoryName(destinationPath) ??
                                       throw new IOException($"Cannot resolve destination directory: {destinationPath}");
 
         if (!PathComparer.Equals(stagedDirectory, destinationDirectory))
@@ -257,201 +314,92 @@ public sealed class FileSystemOperations : IFileSystemOperations
             throw new IOException("The staged file and destination must be in the same directory.");
         }
 
-        if (PathComparer.Equals(stagedFullPath, destinationFullPath))
+        if (PathComparer.Equals(stagedPath, destinationPath))
         {
-            throw new IOException("The source and destination must be different paths.");
+            throw new IOException("The staged file and destination must be different paths.");
         }
 
-        FileAttributes stagedAttributes = File.GetAttributes(stagedFullPath);
+        FileAttributes stagedAttributes = File.GetAttributes(stagedPath);
 
         if (stagedAttributes.HasFlag(FileAttributes.Directory) || stagedAttributes.HasFlag(FileAttributes.ReparsePoint))
         {
             throw new IOException("The staged path must be a regular file and must not be a reparse point.");
         }
 
-        ReplaceDestination(stagedFullPath, destinationFullPath);
-    }
-
-    private static void ReplaceDestination(string stagedPath, string destinationPath)
-    {
         if (!TryGetAttributes(destinationPath, out FileAttributes destinationAttributes))
         {
+            if (mode == FileDestinationMode.ReplaceExisting)
+            {
+                throw new FileNotFoundException(
+                    $"The destination file does not exist: '{destinationPath}'.",
+                    destinationPath);
+            }
+
             File.Move(stagedPath, destinationPath, overwrite: false);
 
             return;
         }
 
-        if (destinationAttributes.HasFlag(FileAttributes.Directory) &&
-            !destinationAttributes.HasFlag(FileAttributes.ReparsePoint))
+        if (mode == FileDestinationMode.CreateNew)
         {
-            throw new IOException($"The destination must be a file or file-system link: '{destinationPath}'.");
+            throw new IOException($"The destination path already exists: '{destinationPath}'.");
         }
 
-        string recoveryPath = MoveToRecoveryPath(destinationPath);
-
-        try
+        if (destinationAttributes.HasFlag(FileAttributes.Directory) ||
+            destinationAttributes.HasFlag(FileAttributes.ReparsePoint))
         {
-            File.Move(stagedPath, destinationPath, overwrite: false);
-        }
-        catch (Exception commitException)
-        {
-            RestoreDestination(recoveryPath, destinationPath, commitException);
-
-            throw;
+            throw new IOException($"The destination must be a regular file: '{destinationPath}'.");
         }
 
-        DeleteRecoveryPath(recoveryPath, destinationAttributes.HasFlag(FileAttributes.Directory));
+        string recoveryPath = CreateSiblingPath(destinationPath, "recovery");
+
+        File.Replace(stagedPath, destinationPath, recoveryPath, ignoreMetadataErrors: false);
+
+        TryDeleteRecoveryFile(recoveryPath);
     }
 
-    private static void RestoreDestination(string recoveryPath, string destinationPath, Exception commitException)
+    private static void ValidateDestinationMode(FileDestinationMode mode)
     {
-        try
+        if (!Enum.IsDefined(mode))
         {
-            File.Move(recoveryPath, destinationPath, overwrite: false);
-        }
-        catch (Exception recoveryException)
-        {
-            throw new IOException(
-                $"File commit failed and the original destination could not be restored. Recovery file: '{recoveryPath}'.",
-                new AggregateException(commitException, recoveryException));
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unsupported file destination mode.");
         }
     }
 
-    private static void DeleteRecoveryPath(string recoveryPath, bool isDirectory)
+    private static void DeleteDirectoryTreeCore(string directoryPath, FileAttributes attributes)
     {
-        try
+        if (attributes.HasFlag(FileAttributes.ReparsePoint))
         {
-            if (isDirectory)
-            {
-                Directory.Delete(recoveryPath);
-            }
-            else
-            {
-                File.Delete(recoveryPath);
-            }
+            Directory.Delete(directoryPath);
+
+            return;
         }
-        catch (Exception cleanupException)
-        {
-            throw new IOException(
-                $"The destination was replaced, but the old destination could not be removed. Recovery file: '{recoveryPath}'.",
-                cleanupException);
-        }
-    }
 
-    private static string CreateTemporarySibling(string destinationPath)
-    {
-        string fullPath = Path.GetFullPath(destinationPath);
-        string directory = Path.GetDirectoryName(fullPath) ??
-                           throw new IOException($"Cannot resolve destination directory: {destinationPath}");
-        string fileName = Path.GetFileName(fullPath);
-
-        return Path.Combine(directory, $"{fileName}.{Guid.NewGuid():N}.tmp");
-    }
-
-    private static string MoveToRecoveryPath(string destinationPath)
-    {
-        string directory = Path.GetDirectoryName(destinationPath)!;
-        string fileName = Path.GetFileName(destinationPath);
-
-        while (true)
-        {
-            string candidate = Path.Combine(directory, $"{fileName}.{Guid.NewGuid():N}.recovery");
-
-            try
-            {
-                File.Move(destinationPath, candidate, overwrite: false);
-
-                return candidate;
-            }
-            catch (IOException) when (TryGetAttributes(candidate, out _)) { }
-        }
-    }
-
-    private static void EnsureTreeContainsNoReparsePoints(string directoryPath)
-    {
         foreach (string entryPath in Directory.EnumerateFileSystemEntries(directoryPath))
         {
-            FileAttributes attributes = File.GetAttributes(entryPath);
+            FileAttributes entryAttributes = File.GetAttributes(entryPath);
 
-            if (attributes.HasFlag(FileAttributes.ReparsePoint))
+            if (entryAttributes.HasFlag(FileAttributes.Directory))
             {
-                throw new IOException(entryPath);
-            }
-
-            if (attributes.HasFlag(FileAttributes.Directory))
-            {
-                EnsureTreeContainsNoReparsePoints(entryPath);
-            }
-        }
-    }
-
-    private static void DeleteContents(string directoryPath)
-    {
-        foreach (string entryPath in Directory.EnumerateFileSystemEntries(directoryPath))
-        {
-            FileAttributes attributes = File.GetAttributes(entryPath);
-
-            if (attributes.HasFlag(FileAttributes.ReparsePoint))
-            {
-                throw new IOException(entryPath);
-            }
-
-            if (attributes.HasFlag(FileAttributes.Directory))
-            {
-                DeleteContents(entryPath);
-                Directory.Delete(entryPath);
+                DeleteDirectoryTreeCore(entryPath, entryAttributes);
             }
             else
             {
                 File.Delete(entryPath);
             }
         }
+
+        Directory.Delete(directoryPath);
     }
 
-    private static void EnsureExistingPathComponentsAreDirectories(string fullPath)
+    private static string CreateSiblingPath(string destinationPath, string suffix)
     {
-        string root = Path.GetPathRoot(fullPath) ??
-                      throw new ArgumentException($"Cannot resolve path root: '{fullPath}'.", nameof(fullPath));
-        string currentPath = root;
+        string directory = Path.GetDirectoryName(destinationPath) ??
+                           throw new IOException($"Cannot resolve destination directory: {destinationPath}");
 
-        foreach (string segment in fullPath[root.Length..].Split(
-                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                     StringSplitOptions.RemoveEmptyEntries))
-        {
-            currentPath = Path.Combine(currentPath, segment);
+        string fileName = Path.GetFileName(destinationPath);
 
-            if (!TryGetAttributes(currentPath, out FileAttributes attributes))
-            {
-                return;
-            }
-
-            if (attributes.HasFlag(FileAttributes.ReparsePoint))
-            {
-                throw new IOException(currentPath);
-            }
-
-            if (!attributes.HasFlag(FileAttributes.Directory))
-            {
-                throw new IOException($"The directory path contains a file: '{currentPath}'.");
-            }
-        }
-    }
-
-    private static void EnsureRealDirectory(string path, string description)
-    {
-        FileAttributes attributes = File.GetAttributes(path);
-
-        if (attributes.HasFlag(FileAttributes.Directory) && !attributes.HasFlag(FileAttributes.ReparsePoint))
-        {
-            return;
-        }
-
-        if (attributes.HasFlag(FileAttributes.ReparsePoint))
-        {
-            throw new IOException(path);
-        }
-
-        throw new IOException($"{description} must be a directory: '{path}'.");
+        return Path.Combine(directory, $"{fileName}.{Guid.NewGuid():N}.{suffix}");
     }
 
     private static bool TryGetAttributes(string path, out FileAttributes attributes)
@@ -484,10 +432,19 @@ public sealed class FileSystemOperations : IFileSystemOperations
         }
         catch (Exception exception)
         {
-            _logger.LogWarning(
-                exception,
-                "Failed to delete the temporary file after a failed write: {TemporaryPath}",
-                path);
+            IOLog.TemporaryFileCleanupFailed(_logger, path, exception);
+        }
+    }
+
+    private void TryDeleteRecoveryFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception exception)
+        {
+            IOLog.RecoveryFileCleanupFailed(_logger, path, exception);
         }
     }
 }

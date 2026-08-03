@@ -1,8 +1,10 @@
 using System.IO.Compression;
 using System.Text.Json;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
+using ManifestOptionalGroup = UnityAssetsPatcher.Application.Contracts.ManifestOptionalGroup;
+using ModManifest = UnityAssetsPatcher.Application.Contracts.ModManifest;
 
 namespace UnityAssetsPatcher.Application.Installation;
 

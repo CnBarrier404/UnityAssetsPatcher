@@ -19,15 +19,15 @@ public sealed class BackupRecoveryView : View
         ArgumentNullException.ThrowIfNull(exit);
 
         string details = recovery.Issues.Count == 0
-            ? LocalizedStrings.BackupRecovery_InterruptedOperation
+            ? LegacyLocalizedStrings.BackupRecovery_InterruptedOperation
             : string.Join(Environment.NewLine, recovery.Issues.Select(OperationErrorFormatter.Format));
-        Add(new StyledLabel(LocalizedStrings.BackupRecovery_DamagedTitle, TextRole.Error)
+        Add(new StyledLabel(LegacyLocalizedStrings.BackupRecovery_DamagedTitle, TextRole.Error)
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
         });
-        Add(new StyledLabel(LocalizedStrings.BackupRecovery_DamagedDescription, TextRole.Preview)
+        Add(new StyledLabel(LegacyLocalizedStrings.BackupRecovery_DamagedDescription, TextRole.Preview)
         {
             X = 0,
             Y = 2,
@@ -41,8 +41,8 @@ public sealed class BackupRecoveryView : View
         {
             var input = new InputField { X = 0, Y = 7, Width = Dim.Fill() };
             var previewChoice = new ChoiceItem(
-                    LocalizedStrings.BackupRecovery_PreviewAction,
-                    LocalizedStrings.BackupRecovery_PreviewDescription)
+                    LegacyLocalizedStrings.BackupRecovery_PreviewAction,
+                    LegacyLocalizedStrings.BackupRecovery_PreviewDescription)
                 { X = 0, Y = 9 };
             previewChoice.Button.Accepted += (_, _) =>
             {
@@ -51,15 +51,15 @@ public sealed class BackupRecoveryView : View
             };
             input.Accepted += (_, _) => previewChoice.Button.SetFocus();
             Initialized += (_, _) => input.SetFocus();
-            Add(new StyledLabel($"{LocalizedStrings.BackupRecovery_GameDirectoryPrompt}: ", TextRole.Label)
+            Add(new StyledLabel($"{LegacyLocalizedStrings.BackupRecovery_GameDirectoryPrompt}: ", TextRole.Label)
                 { X = 0, Y = 6 }, input, previewChoice);
             choices.Add(previewChoice);
         }
         else
         {
             var retryChoice = new ChoiceItem(
-                    LocalizedStrings.BackupRecovery_RetryAction,
-                    LocalizedStrings.BackupRecovery_RetryDescription)
+                    LegacyLocalizedStrings.BackupRecovery_RetryAction,
+                    LegacyLocalizedStrings.BackupRecovery_RetryDescription)
                 { X = 0, Y = 7 };
             retryChoice.Button.Accepted += (_, _) => retry();
             Initialized += (_, _) => retryChoice.Button.SetFocus();
@@ -68,8 +68,8 @@ public sealed class BackupRecoveryView : View
         }
 
         var exitChoice = new ChoiceItem(
-                LocalizedStrings.BackupRecovery_ExitAction,
-                LocalizedStrings.BackupRecovery_ExitDescription)
+                LegacyLocalizedStrings.BackupRecovery_ExitAction,
+                LegacyLocalizedStrings.BackupRecovery_ExitDescription)
             { X = 0, Y = 12 };
         exitChoice.Button.Accepted += (_, _) => exit();
         Add(exitChoice);
@@ -91,7 +91,7 @@ public sealed class BackupRecoveryPreviewView : View
             Height = Dim.Fill(),
         };
         string summary = $"{preview.Kind} {preview.InstallId} — {preview.Action}";
-        body.Add(new StyledLabel(LocalizedStrings.BackupRecovery_PreviewTitle, TextRole.Preview)
+        body.Add(new StyledLabel(LegacyLocalizedStrings.BackupRecovery_PreviewTitle, TextRole.Preview)
             { X = 0, Y = 0, Width = Dim.Fill() });
         body.Add(new StyledLabel(preview.GameDirectory ?? string.Empty, TextRole.Label)
             { X = 0, Y = 2, Width = Dim.Fill() });
@@ -105,8 +105,8 @@ public sealed class BackupRecoveryPreviewView : View
         if (preview.CanRecover)
         {
             var applyChoice = new ChoiceItem(
-                    LocalizedStrings.BackupRecovery_ApplyAction,
-                    LocalizedStrings.BackupRecovery_ApplyDescription)
+                    LegacyLocalizedStrings.BackupRecovery_ApplyAction,
+                    LegacyLocalizedStrings.BackupRecovery_ApplyDescription)
                 { X = 0, Y = actionRow };
             applyChoice.Button.Accepted += (_, _) => apply();
             Initialized += (_, _) => applyChoice.Button.SetFocus();
@@ -115,12 +115,12 @@ public sealed class BackupRecoveryPreviewView : View
         }
 
         var backChoice = new ChoiceItem(
-                LocalizedStrings.BackupRecovery_BackAction,
-                LocalizedStrings.BackupRecovery_BackDescription)
+                LegacyLocalizedStrings.BackupRecovery_BackAction,
+                LegacyLocalizedStrings.BackupRecovery_BackDescription)
             { X = 0, Y = actionRow + 2 };
         var exitChoice = new ChoiceItem(
-                LocalizedStrings.BackupRecovery_ExitAction,
-                LocalizedStrings.BackupRecovery_ExitDescription)
+                LegacyLocalizedStrings.BackupRecovery_ExitAction,
+                LegacyLocalizedStrings.BackupRecovery_ExitDescription)
             { X = 0, Y = actionRow + 4 };
         backChoice.Button.Accepted += (_, _) => back();
         exitChoice.Button.Accepted += (_, _) => exit();

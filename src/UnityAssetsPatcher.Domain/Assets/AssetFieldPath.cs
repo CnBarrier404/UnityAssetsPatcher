@@ -1,7 +1,23 @@
 namespace UnityAssetsPatcher.Domain.Assets;
 
-public static class AssetFieldPath
+public sealed class AssetFieldPath : IEquatable<AssetFieldPath>
 {
+    public string Value { get; }
+    public IReadOnlyList<AssetFieldPathSegment> Segments => _segments;
+
+    private readonly AssetFieldPathSegment[] _segments;
+
+    public AssetFieldPath(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Field path cannot be empty.", nameof(value));
+        }
+
+        _segments = value.Split('.').Select(ParseSegment).ToArray();
+        Value = string.Join('.', _segments.Select(segment => segment.ToString()));
+    }
+
     public static TField? Find<TField>(
         TField root,
         string path,
@@ -11,17 +27,73 @@ public static class AssetFieldPath
         Func<TField, string, IEnumerable<TField>> getChildrenByName)
         where TField : class
     {
-        var resolver = new AssetFieldPathResolver<TField>(
-            root,
-            getName,
-            getChildren,
-            getValue,
-            getChildrenByName,
-            cacheLookups: false);
+        ArgumentNullException.ThrowIfNull(getChildrenByName);
 
-        return resolver.Find(path);
+        var resolver = new AssetFieldPathResolver<TField>(root, getName, getChildren, getValue);
+
+        return resolver.Find(new AssetFieldPath(path));
+    }
+
+    public override string ToString()
+    {
+        return Value;
+    }
+
+    public bool Equals(AssetFieldPath? other)
+    {
+        return other is not null && string.Equals(Value, other.Value, StringComparison.Ordinal);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is AssetFieldPath other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return StringComparer.Ordinal.GetHashCode(Value);
+    }
+
+    private static AssetFieldPathSegment ParseSegment(string segment)
+    {
+        int selectorStart = segment.IndexOf('[', StringComparison.Ordinal);
+
+        if (selectorStart < 0)
+        {
+            return string.IsNullOrWhiteSpace(segment)
+                ? throw new ArgumentException("Field path contains an empty segment.", nameof(segment))
+                : new AssetFieldPathSegment(segment, null);
+        }
+
+        if (!segment.EndsWith(']') || selectorStart == 0)
+        {
+            throw new ArgumentException($"Field path segment has invalid selector syntax: {segment}", nameof(segment));
+        }
+
+        string name = segment[..selectorStart];
+        string selector = segment[(selectorStart + 1)..^1];
+        int equalsIndex = selector.IndexOf('=', StringComparison.Ordinal);
+
+        if (equalsIndex <= 0 || equalsIndex == selector.Length - 1)
+        {
+            throw new ArgumentException($"Field path segment has invalid selector syntax: {segment}", nameof(segment));
+        }
+
+        return new AssetFieldPathSegment(
+            name,
+            new AssetFieldSelector(selector[..equalsIndex], selector[(equalsIndex + 1)..]));
     }
 }
+
+public sealed record AssetFieldPathSegment(string Name, AssetFieldSelector? Selector)
+{
+    public override string ToString()
+    {
+        return Selector is null ? Name : $"{Name}[{Selector.FieldName}={Selector.Value}]";
+    }
+}
+
+public sealed record AssetFieldSelector(string FieldName, string Value);
 
 public sealed class AssetFieldPathResolver<TField> where TField : class
 {
@@ -29,69 +101,50 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
     private readonly Func<TField, string> _getName;
     private readonly Func<TField, IEnumerable<TField>> _getChildren;
     private readonly Func<TField, string?> _getValue;
-    private readonly Func<TField, string, IEnumerable<TField>> _getChildrenByName;
-    private readonly bool _cacheLookups;
-
-    private readonly Dictionary<TField, ChildIndex> _childIndexes =
-        new(ReferenceEqualityComparer.Instance);
-
+    private readonly Dictionary<TField, ChildIndex> _childIndexes = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<string, TField?> _firstDescendantsByName = new(StringComparer.Ordinal);
 
-    private sealed record Segment(string Name, Selector? Selector);
-
-    private sealed record Selector(string FieldName, string Value);
-
-    private sealed record ChildIndex(
-        IReadOnlyList<TField> Children,
-        IReadOnlyDictionary<string, List<TField>> ChildrenByName);
+    private sealed record ChildIndex(IReadOnlyDictionary<string, List<TField>> ChildrenByName);
 
     public AssetFieldPathResolver(
         TField root,
         Func<TField, string> getName,
         Func<TField, IEnumerable<TField>> getChildren,
-        Func<TField, string?> getValue,
-        Func<TField, string, IEnumerable<TField>> getChildrenByName,
-        bool cacheLookups = true)
+        Func<TField, string?> getValue)
     {
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(getName);
         ArgumentNullException.ThrowIfNull(getChildren);
         ArgumentNullException.ThrowIfNull(getValue);
-        ArgumentNullException.ThrowIfNull(getChildrenByName);
 
         _root = root;
         _getName = getName;
         _getChildren = getChildren;
         _getValue = getValue;
-        _getChildrenByName = getChildrenByName;
-        _cacheLookups = cacheLookups;
     }
 
-    public TField? Find(string path)
+    public TField? Find(AssetFieldPath path)
     {
-        IReadOnlyList<Segment> segments = Parse(path);
+        ArgumentNullException.ThrowIfNull(path);
 
-        if (segments is [{ Selector: null }])
+        if (path.Segments is [{ Selector: null }])
         {
-            if (!_cacheLookups)
-            {
-                return FindDescendantByName(_root, segments[0].Name);
-            }
+            string name = path.Segments[0].Name;
 
-            if (_firstDescendantsByName.TryGetValue(segments[0].Name, out TField? memoized))
+            if (_firstDescendantsByName.TryGetValue(name, out TField? memoized))
             {
                 return memoized;
             }
 
-            TField? descendant = FindDescendantByName(_root, segments[0].Name);
-            _firstDescendantsByName.Add(segments[0].Name, descendant);
+            TField? descendant = FindDescendantByName(_root, name);
+            _firstDescendantsByName.Add(name, descendant);
 
             return descendant;
         }
 
         TField? current = _root;
 
-        foreach (Segment segment in segments)
+        foreach (AssetFieldPathSegment segment in path.Segments)
         {
             current = FindChild(current, segment);
 
@@ -108,46 +161,6 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
     {
         _childIndexes.Clear();
         _firstDescendantsByName.Clear();
-    }
-
-    private static IReadOnlyList<Segment> Parse(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            throw new InvalidOperationException("Field path cannot be empty.");
-        }
-
-        return path.Split('.')
-            .Select(ParseSegment)
-            .ToArray();
-    }
-
-    private static Segment ParseSegment(string segment)
-    {
-        int selectorStart = segment.IndexOf('[', StringComparison.Ordinal);
-
-        if (selectorStart < 0)
-        {
-            return string.IsNullOrWhiteSpace(segment)
-                ? throw new InvalidOperationException("Field path contains an empty segment.")
-                : new Segment(segment, null);
-        }
-
-        if (!segment.EndsWith(']') || selectorStart == 0)
-        {
-            throw new InvalidOperationException($"Field path segment has invalid selector syntax: {segment}");
-        }
-
-        string name = segment[..selectorStart];
-        string selector = segment[(selectorStart + 1)..^1];
-        int equalsIndex = selector.IndexOf('=', StringComparison.Ordinal);
-
-        if (equalsIndex <= 0 || equalsIndex == selector.Length - 1)
-        {
-            throw new InvalidOperationException($"Field path segment has invalid selector syntax: {segment}");
-        }
-
-        return new Segment(name, new Selector(selector[..equalsIndex], selector[(equalsIndex + 1)..]));
     }
 
     private TField? FindDescendantByName(TField field, string name)
@@ -170,20 +183,16 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
         return null;
     }
 
-    private TField? FindChild(TField field, Segment segment)
+    private TField? FindChild(TField field, AssetFieldPathSegment segment)
     {
-        IEnumerable<TField> candidates = FindChildren(field, segment.Name);
+        var candidates = FindChildren(field, segment.Name);
 
-        if (segment.Selector is null)
-        {
-            return candidates.FirstOrDefault();
-        }
-
-        return candidates.FirstOrDefault(child =>
-            MatchesSelector(child, segment.Selector));
+        return segment.Selector is null
+            ? candidates.FirstOrDefault()
+            : candidates.FirstOrDefault(child => MatchesSelector(child, segment.Selector));
     }
 
-    private bool MatchesSelector(TField field, Selector selector)
+    private bool MatchesSelector(TField field, AssetFieldSelector selector)
     {
         TField? selectorField = FindChildren(field, selector.FieldName).FirstOrDefault();
 
@@ -191,18 +200,11 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
                string.Equals(_getValue(selectorField), selector.Value, StringComparison.Ordinal);
     }
 
-    private IEnumerable<TField> FindChildren(TField field, string name)
+    private List<TField> FindChildren(TField field, string name)
     {
-        if (!_cacheLookups)
-        {
-            return _getChildrenByName(field, name);
-        }
-
         ChildIndex childIndex = GetChildIndex(field);
 
-        return childIndex.ChildrenByName.TryGetValue(name, out List<TField>? children)
-            ? children
-            : [];
+        return childIndex.ChildrenByName.TryGetValue(name, out var children) ? children : [];
     }
 
     private ChildIndex GetChildIndex(TField field)
@@ -213,14 +215,12 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
         }
 
         var childrenByName = new Dictionary<string, List<TField>>(StringComparer.Ordinal);
-        var children = new List<TField>();
 
         foreach (TField child in _getChildren(field))
         {
-            children.Add(child);
             string name = _getName(child);
 
-            if (!childrenByName.TryGetValue(name, out List<TField>? namedChildren))
+            if (!childrenByName.TryGetValue(name, out var namedChildren))
             {
                 namedChildren = [];
                 childrenByName.Add(name, namedChildren);
@@ -229,7 +229,7 @@ public sealed class AssetFieldPathResolver<TField> where TField : class
             namedChildren.Add(child);
         }
 
-        childIndex = new ChildIndex(children, childrenByName);
+        childIndex = new ChildIndex(childrenByName);
         _childIndexes.Add(field, childIndex);
 
         return childIndex;

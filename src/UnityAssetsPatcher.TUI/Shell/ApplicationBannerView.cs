@@ -1,3 +1,4 @@
+using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.TUI.Framework;
@@ -29,10 +30,16 @@ public sealed class ApplicationBannerView : View
         AddLabel($"╰{horizontal}╯", 0, 4, TerminalTheme.Muted);
     }
 
-    private void AddLabel(string text, int x, int y, Terminal.Gui.Drawing.Scheme scheme)
+    private void AddLabel(string text, int x, int y, Scheme scheme)
     {
-        var label = new StyledLabel(text) { X = x, Y = y };
+        var label = new StyledLabel(text)
+        {
+            X = x,
+            Y = y,
+        };
+
         label.SetScheme(scheme);
+
         Add(label);
     }
 }

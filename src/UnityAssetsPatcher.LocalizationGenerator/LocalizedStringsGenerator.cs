@@ -1,155 +1,472 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 
 namespace UnityAssetsPatcher.LocalizationGenerator;
 
 /// <summary>
-/// Source generator that reads the primary locale JSON file (en-US) at compile time
-/// and generates a strongly-typed <c>LocalizedStrings</c> static class.
+/// Generates a culture-aware, strongly typed localization catalog from locale JSON supplied as additional files.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The generator also validates all other locale JSON files supplied as <c>AdditionalFiles</c>.
-/// Keys present in a locale file but missing from en-US produce a warning (extra key),
-/// and keys in en-US missing from a locale file produce a warning (untranslated).
-/// </para>
-/// <para>
-/// AdditionalFiles are configured in the consuming project's <c>.csproj</c>:
-/// <code>
-/// &lt;AdditionalFiles Include="Localization\JSON\en-US.json" SourceItemGroupType="PrimaryLocale" /&gt;
-/// &lt;AdditionalFiles Include="Localization\JSON\*.json" /&gt;
-/// </code>
-/// </para>
-/// </remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class LocalizedStringsGenerator : IIncrementalGenerator
 {
-    private const string PrimaryLocaleHintName = "en-US.json";
+    private const string PrimaryCultureName = "en-US";
+    private const string DefaultOutputNamespace = "UnityAssetsPatcher.Localization";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var localeFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.Replace('\\', '/').Contains("/JSON/") &&
-                                  file.Path.EndsWith(".json"));
+        var localeSources = context.AdditionalTextsProvider
+            .Where(static file => file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            .Select(static (file, cancellationToken) => new LocaleSource(file.Path, file.GetText(cancellationToken)));
 
-        IncrementalValueProvider<ImmutableArray<(string HintName, string Content)>> fileContents =
-            localeFiles.Select(static (file, ct) =>
-            {
-                string? content = file.GetText(ct)?.ToString();
-                string hintName = Path.GetFileName(file.Path);
-                return (hintName, content ?? string.Empty);
-            }).Collect();
-
-        context.RegisterSourceOutput(fileContents, static (spc, files) =>
+        var outputNamespaces = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) =>
         {
-            string? primaryContent = null;
+            bool hasRootNamespace = provider.GlobalOptions.TryGetValue(
+                "build_property.RootNamespace",
+                out string? rootNamespace);
 
-            foreach ((string hintName, string content) in files)
-            {
-                if (hintName != PrimaryLocaleHintName)
-                {
-                    continue;
-                }
-
-                primaryContent = content;
-                break;
-            }
-
-            if (primaryContent is null)
-            {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    Descriptors.PrimaryLocaleNotFound,
-                    Location.None,
-                    PrimaryLocaleHintName));
-                return;
-            }
-
-            List<string> primaryKeys = LocalizationKeyExtractor.Extract(primaryContent);
-
-            if (primaryKeys.Count == 0)
-            {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    Descriptors.PrimaryLocaleEmpty,
-                    Location.None,
-                    PrimaryLocaleHintName));
-                return;
-            }
-
-            var primaryKeySet = new HashSet<string>(primaryKeys);
-
-            foreach (var (hintName, content) in files)
-            {
-                if (hintName == PrimaryLocaleHintName)
-                {
-                    continue;
-                }
-
-                ValidateLocaleFile(spc, hintName, content, primaryKeySet);
-            }
-
-            string source = GenerateSource(primaryKeys);
-            spc.AddSource("LocalizedStrings.g.cs", SourceText.From(source, Encoding.UTF8));
+            return hasRootNamespace && !string.IsNullOrWhiteSpace(rootNamespace)
+                ? $"{rootNamespace}.Localization"
+                : DefaultOutputNamespace;
         });
+
+        var inputs = localeSources
+            .Collect()
+            .Combine(outputNamespaces);
+
+        context.RegisterSourceOutput(inputs,
+            static (productionContext, input) => { Execute(productionContext, input.Left, input.Right); });
     }
 
-    private static void ValidateLocaleFile(
+    private static void Execute(
         SourceProductionContext context,
-        string hintName,
-        string content,
-        HashSet<string> primaryKeys)
+        ImmutableArray<LocaleSource> sources,
+        string outputNamespace)
     {
-        List<string> localeKeys = LocalizationKeyExtractor.Extract(content);
+        var locales = new List<LocaleDefinition>();
+        bool hasErrors = false;
+        bool primarySourceExists = sources.Any(source => string.Equals(
+            System.IO.Path.GetFileName(source.Path),
+            $"{PrimaryCultureName}.json",
+            StringComparison.OrdinalIgnoreCase));
 
-        var localeKeySet = new HashSet<string>(localeKeys);
-
-        foreach (string key in localeKeys.Where(key => !primaryKeys.Contains(key)))
+        foreach (LocaleDefinition? locale in sources.Select(source => LocaleFileParser.Parse(source, context)))
         {
-            context.ReportDiagnostic(Diagnostic.Create(
-                Descriptors.LocaleHasExtraKey,
-                Location.None,
-                hintName,
-                key));
+            if (locale is null)
+            {
+                hasErrors = true;
+
+                continue;
+            }
+
+            locales.Add(locale);
         }
 
-        foreach (string key in primaryKeys.Where(key => !localeKeySet.Contains(key)))
+        if (!ValidateUniqueCultures(context, locales))
         {
+            hasErrors = true;
+        }
+
+        LocaleDefinition? primaryLocale = locales.FirstOrDefault(locale =>
+            string.Equals(locale.CultureName, PrimaryCultureName, StringComparison.OrdinalIgnoreCase));
+
+        if (primaryLocale is null)
+        {
+            if (!primarySourceExists)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Descriptors.PrimaryLocaleNotFound, Location.None));
+            }
+
+            return;
+        }
+
+        if (primaryLocale.Entries.IsEmpty)
+        {
+            Location location = LocaleFileParser.CreateLocation(primaryLocale.Source, null);
+
+            context.ReportDiagnostic(Diagnostic.Create(Descriptors.PrimaryLocaleEmpty, location));
+
+            return;
+        }
+
+        if (!ValidateLocaleContracts(context, primaryLocale, locales))
+        {
+            hasErrors = true;
+        }
+
+        if (hasErrors)
+        {
+            return;
+        }
+
+        string generatedSource = GenerateSource(outputNamespace, primaryLocale, locales);
+
+        context.AddSource("LocalizedStrings.g.cs", SourceText.From(generatedSource, Encoding.UTF8));
+    }
+
+    private static bool ValidateUniqueCultures(SourceProductionContext context, List<LocaleDefinition> locales)
+    {
+        var cultures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        bool isValid = true;
+
+        foreach (LocaleDefinition locale in locales)
+        {
+            if (cultures.Add(locale.CultureName))
+            {
+                continue;
+            }
+
+            Location location = LocaleFileParser.CreateLocation(locale.Source, null);
+
             context.ReportDiagnostic(Diagnostic.Create(
-                Descriptors.LocaleMissingKey,
-                Location.None,
-                hintName,
-                key));
+                Descriptors.DuplicateLocale,
+                location,
+                locale.CultureName));
+
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    private static bool ValidateLocaleContracts(
+        SourceProductionContext context,
+        LocaleDefinition primaryLocale,
+        List<LocaleDefinition> locales)
+    {
+        var primaryEntries = primaryLocale.Entries.ToDictionary(
+            entry => entry.Key,
+            StringComparer.Ordinal);
+
+        bool isValid = true;
+
+        foreach (LocaleDefinition locale in locales)
+        {
+            if (ReferenceEquals(locale, primaryLocale))
+            {
+                continue;
+            }
+
+            var localeEntries = locale.Entries.ToDictionary(
+                entry => entry.Key,
+                StringComparer.Ordinal);
+
+            isValid &= ReportKeyDifferences(context, locale, primaryEntries, localeEntries);
+
+            isValid &= ReportPlaceholderDifferences(context, locale, primaryEntries, localeEntries);
+        }
+
+        return isValid;
+    }
+
+    private static bool ReportKeyDifferences(
+        SourceProductionContext context,
+        LocaleDefinition locale,
+        Dictionary<string, LocalizedEntry> primaryEntries,
+        Dictionary<string, LocalizedEntry> localeEntries)
+    {
+        bool isValid = true;
+
+        foreach (string key in localeEntries.Keys.Where(key => !primaryEntries.ContainsKey(key)))
+        {
+            ReportLocaleDiagnostic(context, Descriptors.LocaleHasExtraKey, locale, key);
+            isValid = false;
+        }
+
+        foreach (string key in primaryEntries.Keys.Where(key => !localeEntries.ContainsKey(key)))
+        {
+            ReportLocaleDiagnostic(context, Descriptors.LocaleMissingKey, locale, key);
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    private static bool ReportPlaceholderDifferences(
+        SourceProductionContext context,
+        LocaleDefinition locale,
+        Dictionary<string, LocalizedEntry> primaryEntries,
+        Dictionary<string, LocalizedEntry> localeEntries)
+    {
+        bool isValid = true;
+
+        foreach (var pair in primaryEntries)
+        {
+            if (!localeEntries.TryGetValue(pair.Key, out LocalizedEntry? localeEntry))
+            {
+                continue;
+            }
+
+            var primaryPlaceholders = new HashSet<string>(pair.Value.Placeholders, StringComparer.Ordinal);
+            var localePlaceholders = new HashSet<string>(localeEntry.Placeholders, StringComparer.Ordinal);
+
+            if (primaryPlaceholders.SetEquals(localePlaceholders))
+            {
+                continue;
+            }
+
+            ReportLocaleDiagnostic(context, Descriptors.PlaceholderMismatch, locale, pair.Key);
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    private static void ReportLocaleDiagnostic(
+        SourceProductionContext context,
+        DiagnosticDescriptor descriptor,
+        LocaleDefinition locale,
+        string key)
+    {
+        string fileName = System.IO.Path.GetFileName(locale.Source.Path);
+        Location location = LocaleFileParser.CreateLocation(locale.Source, key);
+
+        context.ReportDiagnostic(Diagnostic.Create(descriptor, location, fileName, key));
+    }
+
+    private static string GenerateSource(
+        string outputNamespace,
+        LocaleDefinition primaryLocale,
+        List<LocaleDefinition> locales)
+    {
+        var builder = new StringBuilder();
+
+        AppendHeader(builder, outputNamespace);
+
+        AppendAccessors(builder, primaryLocale);
+
+        AppendLookup(builder, primaryLocale, locales);
+
+        builder.AppendLine("}");
+
+        AppendCompatibilityAccessors(builder, primaryLocale);
+
+        return builder.ToString();
+    }
+
+    private static void AppendHeader(StringBuilder builder, string outputNamespace)
+    {
+        builder.AppendLine("// <auto-generated />");
+
+        builder.AppendLine("#nullable enable");
+
+        builder.AppendLine();
+
+        builder.AppendLine("using System;");
+
+        builder.AppendLine("using System.Globalization;");
+
+        builder.AppendLine();
+
+        builder.AppendLine($"namespace {outputNamespace};");
+
+        builder.AppendLine();
+
+        builder.AppendLine("internal sealed class LocalizedStrings");
+
+        builder.AppendLine("{");
+
+        builder.AppendLine("    internal CultureInfo Culture { get; }");
+
+        builder.AppendLine();
+
+        builder.AppendLine("    internal LocalizedStrings(CultureInfo culture)");
+
+        builder.AppendLine("    {");
+
+        builder.AppendLine("        ArgumentNullException.ThrowIfNull(culture);");
+
+        builder.AppendLine();
+
+        builder.AppendLine("        Culture = culture;");
+
+        builder.AppendLine("    }");
+
+        builder.AppendLine();
+    }
+
+    private static void AppendAccessors(StringBuilder builder, LocaleDefinition primaryLocale)
+    {
+        foreach (LocalizedEntry entry in primaryLocale.Entries)
+        {
+            string keyLiteral = SymbolDisplay.FormatLiteral(entry.Key, quote: true);
+
+            if (entry.Placeholders.IsEmpty)
+            {
+                builder.AppendLine($"    internal string {entry.Key} => GetString({keyLiteral});");
+
+                builder.AppendLine();
+
+                continue;
+            }
+
+            string parameters = string.Join(
+                ", ",
+                entry.Placeholders.Select(placeholder => $"object? {placeholder}"));
+
+            string arguments = string.Join(", ", entry.Placeholders);
+
+            builder.AppendLine($"    internal string {entry.Key}({parameters})");
+
+            builder.AppendLine("    {");
+
+            builder.AppendLine(
+                $"        return string.Format(this.Culture, GetString({keyLiteral}), " +
+                $"new object?[] {{ {arguments} }});");
+
+            builder.AppendLine("    }");
+
+            builder.AppendLine();
         }
     }
 
-    private static string GenerateSource(List<string> keys)
+    private static void AppendLookup(
+        StringBuilder builder,
+        LocaleDefinition primaryLocale,
+        List<LocaleDefinition> locales)
     {
-        var sb = new StringBuilder();
+        builder.AppendLine("    internal string GetFormat(string key)");
 
-        sb.AppendLine("// <auto-generated />");
-        sb.AppendLine();
-        sb.AppendLine("namespace UnityAssetsPatcher.TUI.Localization;");
-        sb.AppendLine();
-        sb.AppendLine("/// <summary>");
-        sb.AppendLine("/// Provides strongly-typed access to localized string resources.");
-        sb.AppendLine("/// </summary>");
-        sb.AppendLine("/// <remarks>");
-        sb.AppendLine("/// Generated from en-US.json by LocalizedStringsGenerator. Do not edit manually.");
-        sb.AppendLine("/// </remarks>");
-        sb.AppendLine("internal static class LocalizedStrings");
-        sb.AppendLine("{");
+        builder.AppendLine("    {");
 
-        foreach (string key in keys)
+        builder.AppendLine("        return GetString(key);");
+
+        builder.AppendLine("    }");
+
+        builder.AppendLine();
+
+        builder.AppendLine("    private string GetString(string key)");
+
+        builder.AppendLine("    {");
+
+        builder.AppendLine("        CultureInfo currentCulture = Culture;");
+
+        builder.AppendLine();
+
+        builder.AppendLine("        while (!Equals(currentCulture, CultureInfo.InvariantCulture))");
+
+        builder.AppendLine("        {");
+
+        builder.AppendLine("            string? value = GetStringOrDefault(currentCulture.Name, key);");
+
+        builder.AppendLine();
+
+        builder.AppendLine("            if (value is not null)");
+
+        builder.AppendLine("            {");
+
+        builder.AppendLine("                return value;");
+
+        builder.AppendLine("            }");
+
+        builder.AppendLine();
+
+        builder.AppendLine("            currentCulture = currentCulture.Parent;");
+
+        builder.AppendLine("        }");
+
+        builder.AppendLine();
+
+        builder.AppendLine($"        return GetStringOrDefault(\"{PrimaryCultureName}\", key) ?? key;");
+
+        builder.AppendLine("    }");
+
+        builder.AppendLine();
+
+        builder.AppendLine("    private static string? GetStringOrDefault(string cultureName, string key)");
+
+        builder.AppendLine("    {");
+
+        builder.AppendLine("        return cultureName switch");
+
+        builder.AppendLine("        {");
+
+        foreach (LocaleDefinition locale in locales.OrderBy(
+                     locale => locale.CultureName,
+                     StringComparer.Ordinal))
         {
-            sb.AppendLine($"    internal static string {key} => JsonLocalizationProvider.GetString(\"{key}\");");
+            AppendLocaleLookup(builder, primaryLocale, locale);
         }
 
-        sb.AppendLine("}");
+        builder.AppendLine("            _ => null");
 
-        return sb.ToString();
+        builder.AppendLine("        };");
+
+        builder.AppendLine("    }");
+    }
+
+    private static void AppendCompatibilityAccessors(
+        StringBuilder builder,
+        LocaleDefinition primaryLocale)
+    {
+        builder.AppendLine();
+
+        builder.AppendLine("internal static class LegacyLocalizedStrings");
+
+        builder.AppendLine("{");
+
+        builder.AppendLine(
+            "    private static LocalizedStrings Current => new LocalizedStrings(CultureInfo.CurrentUICulture);");
+
+        builder.AppendLine();
+
+        foreach (LocalizedEntry entry in primaryLocale.Entries)
+        {
+            string keyLiteral = SymbolDisplay.FormatLiteral(entry.Key, quote: true);
+
+            builder.AppendLine($"    internal static string {entry.Key} => Current.GetFormat({keyLiteral});");
+
+            builder.AppendLine();
+        }
+
+        builder.AppendLine("}");
+    }
+
+    private static void AppendLocaleLookup(
+        StringBuilder builder,
+        LocaleDefinition primaryLocale,
+        LocaleDefinition locale)
+    {
+        string cultureLiteral = SymbolDisplay.FormatLiteral(locale.CultureName, quote: true);
+        var entries = locale.Entries.ToDictionary(
+            entry => entry.Key,
+            StringComparer.Ordinal);
+
+        builder.AppendLine($"            {cultureLiteral} => key switch");
+
+        builder.AppendLine("            {");
+
+        foreach (LocalizedEntry primaryEntry in primaryLocale.Entries)
+        {
+            LocalizedEntry entry = entries[primaryEntry.Key];
+            string keyLiteral = SymbolDisplay.FormatLiteral(entry.Key, quote: true);
+            string value = CreateGeneratedValue(primaryEntry, entry);
+            string valueLiteral = SymbolDisplay.FormatLiteral(value, quote: true);
+
+            builder.AppendLine($"                {keyLiteral} => {valueLiteral},");
+        }
+
+        builder.AppendLine("                _ => null");
+
+        builder.AppendLine("            },");
+    }
+
+    private static string CreateGeneratedValue(LocalizedEntry primaryEntry, LocalizedEntry localizedEntry)
+    {
+        if (primaryEntry.Placeholders.IsEmpty)
+        {
+            return LocalizationFormatParser.CreateDisplayText(localizedEntry.Value);
+        }
+
+        var placeholderIndexes = primaryEntry.Placeholders
+            .Select((placeholder, index) => new KeyValuePair<string, int>(placeholder, index))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+
+        return LocalizationFormatParser.CreateCompositeFormat(localizedEntry.Value, placeholderIndexes);
     }
 }

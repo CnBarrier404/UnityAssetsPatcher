@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 
@@ -39,7 +39,7 @@ public sealed class UninstallExecutor
         UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
             _fileSystemOperations,
             _backupRepository.BackupDirectory, plan.InstallDirectory, plan.GameDirectory, plan.Record);
-        UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
+        UninstallIntegrityInspector.EnsureSafeToUninstall(_fileSystemOperations, paths);
         ValidateUninstallAccess(paths, plan.InstallDirectory);
 
         _logger.LogInformation(
@@ -63,7 +63,7 @@ public sealed class UninstallExecutor
                 UninstallResolvedPatchedFile file = paths.PatchedFiles[index];
                 string rollbackPath = Path.Combine(rollbackDirectory, $"assets-{index}.bin");
                 File.Copy(file.AssetsFilePath, rollbackPath, false);
-                if (!file.InstalledFile.Matches(rollbackPath))
+                if (!_fileSystemOperations.MatchesFile(rollbackPath, file.InstalledFile))
                     throw new IOException($"Uninstall rollback snapshot verification failed: {file.AssetsFilePath}");
                 files.Add(new BackupTransactionFile(BackupFileKind.Assets,
                     Path.GetRelativePath(paths.GameDirectory, file.AssetsFilePath), file.InstalledFile,
@@ -76,7 +76,7 @@ public sealed class UninstallExecutor
                 if (!File.Exists(file.DestinationPath)) continue;
                 string rollbackPath = Path.Combine(rollbackDirectory, $"payload-{index}.bin");
                 File.Copy(file.DestinationPath, rollbackPath, false);
-                if (!file.InstalledFile.Matches(rollbackPath))
+                if (!_fileSystemOperations.MatchesFile(rollbackPath, file.InstalledFile))
                     throw new IOException($"Payload rollback snapshot verification failed: {file.DestinationPath}");
                 files.Add(new BackupTransactionFile(BackupFileKind.Payload,
                     Path.GetRelativePath(paths.GameDirectory, file.DestinationPath), file.InstalledFile, null,
@@ -91,10 +91,10 @@ public sealed class UninstallExecutor
             var restoredFiles = new List<UninstallRestoredFileResult>();
             foreach (UninstallResolvedPatchedFile file in paths.PatchedFiles)
             {
-                if (!file.InstalledFile.Matches(file.AssetsFilePath))
+                if (!_fileSystemOperations.MatchesFile(file.AssetsFilePath, file.InstalledFile))
                     throw new IOException($"Assets file changed during uninstall: {file.AssetsFilePath}");
                 _restoreFile(file.BackupPath, file.AssetsFilePath);
-                if (!file.BackupFile.Matches(file.AssetsFilePath))
+                if (!_fileSystemOperations.MatchesFile(file.AssetsFilePath, file.BackupFile))
                     throw new IOException($"Restored assets verification failed: {file.AssetsFilePath}");
                 _logger.LogDebug("Restored {AssetsFilePath} from backup", file.AssetsFilePath);
                 restoredFiles.Add(new UninstallRestoredFileResult(file.Target, file.AssetsFilePath));
@@ -109,7 +109,7 @@ public sealed class UninstallExecutor
                     continue;
                 }
 
-                if (!file.InstalledFile.Matches(file.DestinationPath))
+                if (!_fileSystemOperations.MatchesFile(file.DestinationPath, file.InstalledFile))
                     throw new IOException($"Payload changed during uninstall: {file.DestinationPath}");
                 _fileSystemOperations.DeleteFile(file.DestinationPath);
                 _logger.LogDebug("Deleted payload {DestinationPath}", file.DestinationPath);

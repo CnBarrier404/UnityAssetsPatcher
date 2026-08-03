@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Abstractions.Assets;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Domain.Integrity;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching;
@@ -85,10 +86,10 @@ public sealed class InstallExecutor
                 string rollbackPath = Path.Combine(rollbackDirectory, $"assets-{index}.bin");
                 string preparedPath = Path.Combine(preparedDirectory, $"assets-{index}.bin");
                 string finalBackupPath = Path.Combine(backupsDirectory, $"assets-{index}.bin");
-                var before = FileIntegrity.Create(file.AssetsFilePath);
+                FileIntegrity before = _fileSystemOperations.ComputeFileIntegrity(file.AssetsFilePath);
                 File.Copy(file.AssetsFilePath, rollbackPath, false);
 
-                if (!before.Matches(rollbackPath))
+                if (!_fileSystemOperations.MatchesFile(rollbackPath, before))
                 {
                     throw new IOException($"Backup verification failed: {file.AssetsFilePath}");
                 }
@@ -110,7 +111,7 @@ public sealed class InstallExecutor
                     result.AssetCount,
                     result.OperationCount);
 
-                var after = FileIntegrity.Create(preparedPath);
+                FileIntegrity after = _fileSystemOperations.ComputeFileIntegrity(preparedPath);
 
                 File.Copy(rollbackPath, finalBackupPath, false);
                 transactionFiles.Add(new BackupTransactionFile(
@@ -135,7 +136,7 @@ public sealed class InstallExecutor
                 _logger.LogDebug("Preparing payload {Source} for {DestinationPath}", file.Source, file.DestinationPath);
                 package.CopyPayloadFile(file.Source, preparedPath);
 
-                var after = FileIntegrity.Create(preparedPath);
+                FileIntegrity after = _fileSystemOperations.ComputeFileIntegrity(preparedPath);
 
                 transactionFiles.Add(new BackupTransactionFile(BackupFileKind.Payload,
                     Path.GetRelativePath(gameDirectory, file.DestinationPath), null, after, null,
@@ -161,17 +162,16 @@ public sealed class InstallExecutor
                     file.AssetCount,
                     file.OperationCount,
                     transactionFiles.Where(item => item.Kind == BackupFileKind.Assets).ElementAt(index).After!,
-                    FileIntegrity.Create(Path.Combine(backupsDirectory, Path.GetFileName(file.BackupPath))))).ToArray(),
+                    _fileSystemOperations.ComputeFileIntegrity(
+                        Path.Combine(backupsDirectory, Path.GetFileName(file.BackupPath))))).ToArray(),
                 copied.Select((file, index) => new InstallRecordCopiedFile(file.Name,
                         Path.GetRelativePath(gameDirectory, file.Path),
                         transactionFiles.Where(item => item.Kind == BackupFileKind.Payload).ElementAt(index)
                             .After!))
-                    .ToArray())
-            {
-                OptionalGroups = analysis.AppliedOptionalGroups.Count == 0
+                    .ToArray(),
+                analysis.AppliedOptionalGroups.Count == 0
                     ? null
-                    : analysis.AppliedOptionalGroups,
-            };
+                    : analysis.AppliedOptionalGroups);
 
             _backupRepository.WriteRecord(record, preparedInstallDirectory);
 
@@ -245,7 +245,9 @@ public sealed class InstallExecutor
         {
             string target = _fileSystemOperations.ResolveWithinDirectory(gameDirectory, file.RelativePath);
 
-            if (!file.Before?.Matches(target) ?? File.Exists(target))
+            if (file.Before is null
+                    ? File.Exists(target)
+                    : !_fileSystemOperations.MatchesFile(target, file.Before))
             {
                 throw new IOException($"Install target changed before mutation: {target}");
             }
@@ -259,7 +261,7 @@ public sealed class InstallExecutor
 
             _fileSystemOperations.CopyFile(source, target);
 
-            if (file.After is null || !file.After.Matches(target))
+            if (file.After is null || !_fileSystemOperations.MatchesFile(target, file.After))
             {
                 throw new IOException($"Installed file verification failed: {target}");
             }

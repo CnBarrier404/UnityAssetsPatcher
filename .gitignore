@@ -58,3 +58,7 @@ nunit-*.xml
 
 # JetBrains Rider files
 .idea/
+
+# Agent tool files
+.codex/
+.claude/

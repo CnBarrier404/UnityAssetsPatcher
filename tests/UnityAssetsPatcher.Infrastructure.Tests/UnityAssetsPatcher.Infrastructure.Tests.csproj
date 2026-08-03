@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector" Version="6.0.4"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1"/>
+        <PackageReference Include="xunit.v3" Version="3.2.2"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher\UnityAssetsPatcher.csproj"/>
+        <ProjectReference Include="..\..\src\UnityAssetsPatcher.Infrastructure\UnityAssetsPatcher.Infrastructure.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Fixtures\resources.tpk" CopyToOutputDirectory="PreserveNewest"/>
+        <None Update="Fixtures\sharedassets0.assets" CopyToOutputDirectory="PreserveNewest"/>
+        <None Include="..\UnityAssetsPatcher.Application.Tests\Compatibility\Fixtures\*.json"
+              Link="Compatibility\Fixtures\%(Filename)%(Extension)"
+              CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="AssetsTools\"/>
+    </ItemGroup>
+
+</Project>

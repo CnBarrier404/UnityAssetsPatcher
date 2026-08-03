@@ -1,34 +1,39 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.AssetsTools;
 using UnityAssetsPatcher.CLI;
 using UnityAssetsPatcher.Infrastructure;
-using UnityAssetsPatcher.Logging;
 using UnityAssetsPatcher.TUI;
+using UnityAssetsPatcher.Logging;
 
 namespace UnityAssetsPatcher;
 
 public sealed class Program
 {
-    private const string TpkResourceName = "resources.tpk";
-
-    public static int Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         string appDataDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UnityAssetsPatcher");
-        string backupDirectory = Path.Combine(appDataDirectory, "backup");
-        string logDirectory = Path.Combine(appDataDirectory, "logs");
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "UnityAssetsPatcher");
 
+        string logDirectory = Path.Combine(appDataDirectory, "logs");
+        string backupDirectory = Path.Combine(appDataDirectory, "backup");
         AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
+        Func<Stream> openClassPackage = () => typeof(Program).Assembly.GetManifestResourceStream("resources.tpk") ??
+                                                   throw new InvalidOperationException(
+                                                       "The bundled AssetsTools class package is missing.");
 
         using ServiceProvider serviceProvider = new ServiceCollection()
+            .AddSingleton(appInfo)
             .AddUnityAssetsPatcherLogging(logDirectory)
-            .AddUnityAssetsPatcherInfrastructure()
-            .AddUnityAssetsPatcherAssetsTools(OpenTpkResource)
-            .AddUnityAssetsPatcherApplication(backupDirectory)
-            .AddUnityAssetsPatcherCLI()
-            .AddUnityAssetsPatcherTUI(appInfo)
+            .AddUnityAssetsPatcherUpdateChecking()
+            .AddUnityAssetsPatcherInfrastructure(openClassPackage)
+            .AddUnityAssetsPatcherBackupRepository(backupDirectory)
+            .AddUnityAssetsPatcherApplication()
+            .AddUnityAssetsPatcherOperations()
+            .AddUnityAssetsPatcherCli()
+            .AddUnityAssetsPatcherOperationalCommands()
+            .AddUnityAssetsPatcherTUI()
             .BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateOnBuild = true,
@@ -36,15 +41,18 @@ public sealed class Program
             });
 
         var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+
         logger.LogInformation("Application started");
 
-        return args.Length > 0
-            ? serviceProvider.GetRequiredService<CLIApplication>().Run(args)
-            : serviceProvider.GetRequiredService<TerminalApp>().Run();
+        if (args.Length > 0)
+        {
+            var cliApplication = serviceProvider.GetRequiredService<CLIApplication>();
 
-        // TPKSource: https://github.com/AssetRipper/Tpk
-        Stream OpenTpkResource() => typeof(Program).Assembly.GetManifestResourceStream(TpkResourceName)
-                                    ?? throw new InvalidOperationException(
-                                        $"Embedded TPK resource not found: {TpkResourceName}");
+            return await cliApplication.RunAsync(args).ConfigureAwait(false);
+        }
+
+        var terminalApp = serviceProvider.GetRequiredService<TerminalApp>();
+
+        return terminalApp.Run();
     }
 }

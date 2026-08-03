@@ -1,4 +1,4 @@
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Installation;

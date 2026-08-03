@@ -1,4 +1,5 @@
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Domain.Integrity;
 using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Backups;
@@ -270,7 +271,7 @@ internal sealed class BackupRecovery
     {
         string rollback = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
-        if (!file.Before!.Matches(rollback))
+        if (!_fileSystemOperations.MatchesFile(rollback, file.Before!))
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
     }
 
@@ -278,10 +279,10 @@ internal sealed class BackupRecovery
     {
         string rollback = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
-        if (!file.Before!.Matches(rollback))
+        if (!_fileSystemOperations.MatchesFile(rollback, file.Before!))
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
         _fileSystemOperations.CopyFile(rollback, target);
-        if (!file.Before.Matches(target))
+        if (!_fileSystemOperations.MatchesFile(target, file.Before!))
             throw new InvalidOperationException($"Transaction rollback verification failed: {target}");
     }
 
@@ -298,7 +299,7 @@ internal sealed class BackupRecovery
             throw new InvalidOperationException($"{description} is not trusted: {path}");
     }
 
-    private static FileState Inspect(string path, FileIntegrity? before, FileIntegrity? after)
+    private FileState Inspect(string path, FileIntegrity? before, FileIntegrity? after)
     {
         if (!File.Exists(path))
         {
@@ -306,8 +307,8 @@ internal sealed class BackupRecovery
             return after is null ? FileState.After : FileState.Unknown;
         }
 
-        if (before is not null && before.Matches(path)) return FileState.Before;
-        if (after is not null && after.Matches(path)) return FileState.After;
+        if (before is not null && _fileSystemOperations.MatchesFile(path, before)) return FileState.Before;
+        if (after is not null && _fileSystemOperations.MatchesFile(path, after)) return FileState.After;
         return FileState.Unknown;
     }
 

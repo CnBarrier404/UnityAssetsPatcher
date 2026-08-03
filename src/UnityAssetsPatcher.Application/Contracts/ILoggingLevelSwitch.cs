@@ -1,8 +1,12 @@
-using Microsoft.Extensions.Logging;
-
 namespace UnityAssetsPatcher.Application.Contracts;
+
+public enum LoggingLevel
+{
+    Information,
+    Debug,
+}
 
 public interface ILoggingLevelSwitch
 {
-    public LogLevel MinimumLevel { get; set; }
+    public LoggingLevel MinimumLevel { get; set; }
 }

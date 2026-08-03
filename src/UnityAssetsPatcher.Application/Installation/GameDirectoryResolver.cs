@@ -1,24 +1,21 @@
-using System.Text.RegularExpressions;
+using UnityAssetsPatcher.Application.IO;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
 public sealed class GameDirectoryResolver
 {
-    private static readonly Regex VdfKeyValuePattern = new(
-        "\"(?<key>[^\"]+)\"\\s+\"(?<value>(?:\\\\.|[^\"])*)\"",
-        RegexOptions.CultureInvariant);
+    private readonly IGameInstallationLocator _installationLocator;
+    private readonly TrustedPathResolver _pathResolver;
 
-    private readonly IReadOnlyList<string> _steamRoots;
-
-    public GameDirectoryResolver() : this(GetDefaultSteamRoots()) { }
-
-    public GameDirectoryResolver(IEnumerable<string> steamRoots)
+    public GameDirectoryResolver(
+        IGameInstallationLocator installationLocator,
+        IFileSystemOperations fileSystemOperations)
     {
-        _steamRoots = steamRoots
-            .Where(root => !string.IsNullOrWhiteSpace(root))
-            .Select(Path.GetFullPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        ArgumentNullException.ThrowIfNull(installationLocator);
+        ArgumentNullException.ThrowIfNull(fileSystemOperations);
+
+        _installationLocator = installationLocator;
+        _pathResolver = new TrustedPathResolver(fileSystemOperations);
     }
 
     public string? Resolve(string game)
@@ -28,11 +25,10 @@ public sealed class GameDirectoryResolver
             return null;
         }
 
-        string[] matches = _steamRoots
-            .Where(Directory.Exists)
-            .SelectMany(FindSteamLibraryDirectories)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .SelectMany(libraryDirectory => FindSteamGameDirectories(libraryDirectory, game))
+        string[] matches = _installationLocator
+            .FindGameDirectories(game)
+            .Where(directory => !string.IsNullOrWhiteSpace(directory))
+            .Select(_pathResolver.ResolveExistingDirectory)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -45,9 +41,16 @@ public sealed class GameDirectoryResolver
         {
             string fullGameDirectory = Path.GetFullPath(gameDirectory);
 
-            return Directory.Exists(fullGameDirectory)
-                ? fullGameDirectory
-                : throw new DirectoryNotFoundException($"Game directory not found: {fullGameDirectory}");
+            try
+            {
+                return _pathResolver.ResolveExistingDirectory(fullGameDirectory);
+            }
+            catch (DirectoryNotFoundException exception)
+            {
+                throw new DirectoryNotFoundException(
+                    $"Game directory not found: {fullGameDirectory}",
+                    exception);
+            }
         }
 
         if (string.IsNullOrWhiteSpace(manifestGame))
@@ -60,120 +63,5 @@ public sealed class GameDirectoryResolver
 
         return resolvedDirectory ?? throw new DirectoryNotFoundException(
             $"Game directory could not be resolved for manifest game: {manifestGame}");
-    }
-
-    public static string[] CreateDefaultSteamRoots(IEnumerable<string> driveRoots)
-    {
-        var roots = new List<string>();
-        AddIfNotNull(roots, Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Steam"));
-
-        foreach (string driveRoot in driveRoots)
-        {
-            AddIfNotNull(roots, Path.Combine(driveRoot, "Steam"));
-            AddIfNotNull(roots, Path.Combine(driveRoot, "SteamLibrary"));
-        }
-
-        return roots
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
-    private static string[] GetDefaultSteamRoots()
-    {
-        return CreateDefaultSteamRoots(DriveInfo.GetDrives()
-            .Where(drive => drive.IsReady)
-            .Select(drive => drive.RootDirectory.FullName));
-    }
-
-    private static IEnumerable<string> FindSteamLibraryDirectories(string steamRoot)
-    {
-        yield return Path.GetFullPath(steamRoot);
-
-        string libraryFoldersPath = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
-
-        if (!File.Exists(libraryFoldersPath))
-        {
-            yield break;
-        }
-
-        foreach (string libraryPath in ReadVdfValues(libraryFoldersPath, "path"))
-        {
-            if (!string.IsNullOrWhiteSpace(libraryPath))
-            {
-                yield return Path.GetFullPath(libraryPath.Replace(@"\\", @"\", StringComparison.Ordinal));
-            }
-        }
-    }
-
-    private static IEnumerable<string> FindSteamGameDirectories(string libraryDirectory, string game)
-    {
-        string steamAppsDirectory = Path.Combine(libraryDirectory, "steamapps");
-
-        if (!Directory.Exists(steamAppsDirectory))
-        {
-            yield break;
-        }
-
-        IEnumerable<string> manifestPaths;
-
-        try
-        {
-            manifestPaths = Directory.EnumerateFiles(steamAppsDirectory, "appmanifest_*.acf");
-        }
-        catch (IOException)
-        {
-            yield break;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            yield break;
-        }
-
-        foreach (string manifestPath in manifestPaths)
-        {
-            string? name = ReadVdfValues(manifestPath, "name").FirstOrDefault();
-
-            if (!string.Equals(name, game, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            string? installDirectory = ReadVdfValues(manifestPath, "installdir").FirstOrDefault();
-
-            if (string.IsNullOrWhiteSpace(installDirectory))
-            {
-                continue;
-            }
-
-            string gameDirectory = Path.GetFullPath(Path.Combine(
-                steamAppsDirectory,
-                "common",
-                installDirectory));
-
-            if (Directory.Exists(gameDirectory))
-            {
-                yield return gameDirectory;
-            }
-        }
-    }
-
-    private static IEnumerable<string> ReadVdfValues(string path, string key)
-    {
-        return from line in File.ReadLines(path)
-            select VdfKeyValuePattern.Match(line)
-            into match
-            where match.Success &&
-                  string.Equals(match.Groups["key"].Value, key, StringComparison.OrdinalIgnoreCase)
-            select match.Groups["value"].Value;
-    }
-
-    private static void AddIfNotNull(List<string> roots, string? root)
-    {
-        if (!string.IsNullOrWhiteSpace(root))
-        {
-            roots.Add(root);
-        }
     }
 }

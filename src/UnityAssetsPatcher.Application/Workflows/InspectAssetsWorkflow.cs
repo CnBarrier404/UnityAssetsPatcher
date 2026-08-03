@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Assets;
 

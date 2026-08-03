@@ -1,13 +1,15 @@
 using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Json;
+using LegacyModManifest = UnityAssetsPatcher.Application.Contracts.ModManifest;
+using NewOperations = UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 
 public sealed class ModManifestReader
 {
-    public ModManifest Load(string configPath)
+    public LegacyModManifest Load(string configPath)
     {
         if (!File.Exists(configPath))
         {
@@ -29,8 +31,18 @@ public sealed class ModManifestReader
         return Load(manifestElement);
     }
 
-    public ModManifest Load(JsonElement manifestElement)
+    public LegacyModManifest Load(JsonElement manifestElement)
     {
-        return ModManifestParser.Parse(manifestElement);
+        byte[] utf8Json = Encoding.UTF8.GetBytes(manifestElement.GetRawText());
+        NewOperations.OperationResult<ModManifest> result = ModManifestParser.Parse(utf8Json);
+
+        if (result is NewOperations.OperationFailed<ModManifest> failure)
+        {
+            throw new InvalidOperationException($"Manifest validation failed: {failure.Error.Code.Value}");
+        }
+
+        ModManifest manifest = ((NewOperations.OperationSucceeded<ModManifest>)result).Value;
+
+        return LegacyModManifestMapper.Map(manifest);
     }
 }

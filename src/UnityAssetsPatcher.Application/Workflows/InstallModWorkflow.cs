@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Abstractions.Assets;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;

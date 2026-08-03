@@ -1,57 +1,37 @@
 using Terminal.Gui.ViewBase;
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
-using UnityAssetsPatcher.TUI.Localization;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
 public sealed record TerminalMenuItem(string Title, string Description, Func<Action, View> CreateView);
 
+public sealed record TerminalUpdateNotice(string AvailableText, string DownloadText);
+
 public sealed class MainMenuView : View
 {
     public event EventHandler<TerminalMenuItem>? ItemSelected;
 
-    private readonly List<ChoiceItem> _choices = [];
+    private readonly List<ChoiceItemList> _choices = [];
     private readonly View _updateArea;
     private bool _hasUpdate;
 
-    public MainMenuView(IReadOnlyList<TerminalMenuItem> items, AvailableUpdate? availableUpdate,
-        BackupRecoveryReport? recovery = null)
+    public MainMenuView(
+        string title,
+        IReadOnlyList<TerminalMenuItem> items,
+        TerminalUpdateNotice? updateNotice = null)
     {
+        ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(items);
-        recovery ??= BackupRecoveryReport.Clean;
-
-        StyledLabel? recoveryLabel = null;
-
-        if (recovery.Status != BackupRepositoryStatus.Clean)
-        {
-            string text = recovery.Status == BackupRepositoryStatus.Locked
-                ? string.Format(LocalizedStrings.BackupRecovery_LockedFormat,
-                    recovery.Issues.FirstOrDefault() is { } issue
-                        ? OperationErrorFormatter.Format(issue)
-                        : string.Empty)
-                : string.Format(LocalizedStrings.BackupRecovery_RecoveredFormat, recovery.Operations.Count);
-
-            recoveryLabel = new StyledLabel(text,
-                recovery.Status == BackupRepositoryStatus.Locked ? TextRole.Error : TextRole.Preview)
-            {
-                X = 0,
-                Y = 0,
-                Width = Dim.Fill(),
-            };
-
-            Add(recoveryLabel);
-        }
 
         _updateArea = new View
         {
             X = 0,
-            Y = recoveryLabel is null ? 0 : Pos.Bottom(recoveryLabel) + 1,
+            Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Auto(),
         };
 
-        var heading = new StyledLabel(LocalizedStrings.MainMenu_Title, TextRole.Title)
+        var heading = new StyledLabel(title, TextRole.Title)
         {
             X = 0,
             Y = Pos.Bottom(_updateArea),
@@ -59,9 +39,9 @@ public sealed class MainMenuView : View
 
         Add(_updateArea, heading);
 
-        if (availableUpdate is not null)
+        if (updateNotice is not null)
         {
-            AddUpdate(availableUpdate);
+            AddUpdate(updateNotice);
             _hasUpdate = true;
         }
 
@@ -70,7 +50,7 @@ public sealed class MainMenuView : View
 
         foreach (TerminalMenuItem item in items)
         {
-            var choice = new ChoiceItem(item.Title, item.Description)
+            var choice = new ChoiceItemList(item.Title, item.Description)
             {
                 X = 0,
                 Y = Pos.Bottom(previous) + 1,
@@ -78,47 +58,54 @@ public sealed class MainMenuView : View
 
             choice.Button.Accepted += (_, _) => ItemSelected?.Invoke(this, item);
             _choices.Add(choice);
+
             Add(choice);
+
             firstButton ??= choice.Button;
             previous = choice;
         }
 
-        ChoiceItem.AlignDescriptions(_choices);
+        ChoiceItemList.AlignDescriptions(_choices);
+
         Initialized += (_, _) => firstButton?.SetFocus();
     }
 
-    public void ShowAvailableUpdate(AvailableUpdate update)
+    public void ShowAvailableUpdate(TerminalUpdateNotice updateNotice)
     {
-        ArgumentNullException.ThrowIfNull(update);
+        ArgumentNullException.ThrowIfNull(updateNotice);
 
         if (_hasUpdate)
         {
             return;
         }
 
-        AddUpdate(update);
+        AddUpdate(updateNotice);
         _hasUpdate = true;
     }
 
-    private void AddUpdate(AvailableUpdate update)
+    private void AddUpdate(TerminalUpdateNotice updateNotice)
     {
-        var available = new StyledLabel(
-            string.Format(LocalizedStrings.Update_AvailableFormat, update.Version), TextRole.Preview)
+        var available = new StyledLabel(updateNotice.AvailableText, TextRole.Preview)
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
         };
 
-        var download = new StyledLabel(string.Format(LocalizedStrings.Update_DownloadFormat, update.ReleaseUrl),
-            TextRole.Muted)
+        var download = new StyledLabel(updateNotice.DownloadText, TextRole.Muted)
         {
             X = 0,
             Y = 1,
             Width = Dim.Fill(),
         };
 
-        var spacer = new View { X = 0, Y = 2, Width = 1, Height = 1 };
+        var spacer = new View
+        {
+            X = 0,
+            Y = 2,
+            Width = 1,
+            Height = 1,
+        };
 
         _updateArea.Add(available, download, spacer);
     }

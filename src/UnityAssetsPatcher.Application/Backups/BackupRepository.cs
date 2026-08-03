@@ -1,7 +1,6 @@
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Backups;
@@ -12,48 +11,38 @@ public sealed class BackupRepository : IBackupService
     public const string RepositoryFileName = "repository.json";
     public const string InstalledDirectoryName = "installed";
     public const string TransactionDirectoryName = ".temp";
-
-    private const string RecordFileName = "record.json";
+    public const string LockFileName = ".lock";
 
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly IBackupRepository _repository;
     private readonly ILogger<BackupRepository> _logger;
 
-    public string BackupDirectory { get; }
-    public string InstalledDirectory => Path.Combine(BackupDirectory, InstalledDirectoryName);
-    public string TransactionDirectory => Path.Combine(BackupDirectory, TransactionDirectoryName);
-
-    private string MetadataPath => Path.Combine(BackupDirectory, RepositoryFileName);
+    public string BackupDirectory => _repository.RepositoryDirectory;
+    public string InstalledDirectory => _repository.InstalledDirectory;
+    public string TransactionDirectory => _repository.TransactionDirectory;
 
     public BackupRepository(
-        string backupDirectory,
+        IBackupRepository repository,
         IFileSystemOperations fileSystemOperations,
         ILogger<BackupRepository>? logger = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(backupDirectory);
+        ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        BackupDirectory = Path.GetFullPath(backupDirectory);
+        _repository = repository;
         _fileSystemOperations = fileSystemOperations;
         _logger = logger ?? NullLogger<BackupRepository>.Instance;
     }
 
     public BackupOperationLock AcquireLock()
     {
-        EnsureInitialized();
-        return BackupOperationLock.Acquire(MetadataPath);
+        _repository.LoadOrCreateMetadata();
+
+        return BackupOperationLock.Acquire(Path.Combine(BackupDirectory, LockFileName));
     }
 
     public BackupRepositoryMetadata LoadMetadata()
     {
-        EnsureInitialized();
-        using FileStream stream = File.Open(MetadataPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        BackupRepositoryMetadata metadata = JsonSerializer.Deserialize(
-                                                stream, BackupJsonContext.Default.BackupRepositoryMetadata)
-                                            ?? throw new InvalidOperationException(
-                                                $"Backup repository metadata could not be read: {MetadataPath}");
-        if (metadata.FormatVersion != CurrentRepositoryFormatVersion ||
-            string.IsNullOrWhiteSpace(metadata.RepositoryId))
-            throw new NotSupportedException($"Unsupported backup repository format: {metadata.FormatVersion}.");
-        return metadata;
+        return _repository.LoadOrCreateMetadata();
     }
 
     public string CreateTransactionDirectory()
@@ -66,43 +55,26 @@ public sealed class BackupRepository : IBackupService
 
     public string GetInstallDirectory(string installId)
     {
-        ValidateId(installId);
-        return Path.Combine(InstalledDirectory, installId);
+        return _repository.GetInstallDirectory(installId);
     }
 
     public void CommitInstall(string preparedInstallDirectory, string installId)
     {
-        string destination = GetInstallDirectory(installId);
-        if (Directory.Exists(destination)) throw new IOException($"Install record already exists: {installId}");
-        _fileSystemOperations.CreateDirectory(InstalledDirectory);
-        _fileSystemOperations.MoveDirectory(preparedInstallDirectory, destination);
+        _repository.CommitInstall(preparedInstallDirectory, installId);
     }
 
     public void WriteRecord(InstallRecord record, string installDirectory)
     {
         ArgumentNullException.ThrowIfNull(record);
-        string repositoryId = LoadMetadata().RepositoryId;
-        if (string.IsNullOrEmpty(record.RepositoryId)) record = record with { RepositoryId = repositoryId };
-        InstallRecordValidator.Validate(record, repositoryId);
-
-        string expectedDirectory = GetInstallDirectory(record.Id);
-        string fullInstallDirectory = Path.GetFullPath(installDirectory);
-        bool isPreparedInstall = _fileSystemOperations.IsPathWithinDirectory(
-            fullInstallDirectory,
-            TransactionDirectory);
-        if (!isPreparedInstall && !_fileSystemOperations.PathsEqual(fullInstallDirectory, expectedDirectory))
-            throw new InvalidOperationException("Install records must be saved under the installed directory.");
-
-        BackupJsonStore.Save(
-            _fileSystemOperations,
-            Path.Combine(installDirectory, RecordFileName),
-            record,
-            BackupJsonContext.Default.InstallRecord);
+        _repository.WritePreparedRecord(record, installDirectory);
     }
 
     public InstallRecord ReadRecord(string installDirectory)
     {
-        return ReadRecordCore(installDirectory, LoadMetadata().RepositoryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(installDirectory);
+        string installId = Path.GetFileName(Path.TrimEndingDirectorySeparator(installDirectory));
+
+        return _repository.ReadRecord(installId).Record;
     }
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled() => ListRecords()
@@ -113,18 +85,7 @@ public sealed class BackupRepository : IBackupService
 
     public IReadOnlyList<InstallRecordEntry> ListRecords()
     {
-        string repositoryId = LoadMetadata().RepositoryId;
-        if (!Directory.Exists(InstalledDirectory)) return [];
-
-        InstallRecordEntry[] records = Directory.EnumerateDirectories(InstalledDirectory)
-            .Select(directory => new InstallRecordEntry(directory, ReadRecordCore(directory, repositoryId)))
-            .ToArray();
-        if (records.Any(entry => !_fileSystemOperations.PathsEqual(
-                entry.InstallDirectory,
-                GetInstallDirectory(entry.Record.Id))))
-            throw new InvalidOperationException("Installed directory name does not match its install record ID.");
-        InstallRecordValidator.ValidateAll(records.Select(entry => entry.Record), repositoryId);
-        return records;
+        return _repository.ListRecords();
     }
 
     public BackupRecoveryPreview PreviewPendingTransaction(string gameDirectory)
@@ -184,36 +145,4 @@ public sealed class BackupRepository : IBackupService
         return RecoverPendingTransactions(gameDirectory);
     }
 
-    private void EnsureInitialized()
-    {
-        _fileSystemOperations.CreateDirectory(BackupDirectory);
-        if (File.Exists(MetadataPath)) return;
-
-        var metadata = new BackupRepositoryMetadata(CurrentRepositoryFormatVersion, Guid.NewGuid().ToString("N"));
-        BackupJsonStore.Save(
-            _fileSystemOperations,
-            MetadataPath,
-            metadata,
-            BackupJsonContext.Default.BackupRepositoryMetadata);
-        _fileSystemOperations.CreateDirectory(InstalledDirectory);
-        _logger.LogInformation("Initialized backup repository at {BackupDirectory}", BackupDirectory);
-    }
-
-    private static InstallRecord ReadRecordCore(string installDirectory, string repositoryId)
-    {
-        string path = Path.Combine(installDirectory, RecordFileName);
-        using FileStream stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        InstallRecord record = JsonSerializer.Deserialize(stream, BackupJsonContext.Default.InstallRecord)
-                               ?? throw new InvalidOperationException($"Install record could not be read: {path}");
-        InstallRecordValidator.Validate(record, repositoryId);
-        return record;
-    }
-
-    private static void ValidateId(string id)
-    {
-        if (string.IsNullOrWhiteSpace(id) || id.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
-            id is "." or ".." || id.Contains(Path.DirectorySeparatorChar) ||
-            id.Contains(Path.AltDirectorySeparatorChar))
-            throw new InvalidOperationException($"Invalid install ID: {id}");
-    }
 }

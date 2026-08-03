@@ -517,7 +517,7 @@ internal static class CLIOutput
 
                 json["assets"] = new JsonArray(change.Preview.Assets.Select(asset => new JsonObject
                 {
-                    ["pathId"] = asset.Asset.PathId,
+                    ["pathId"] = asset.Asset.PathId.Value,
                     ["typeName"] = asset.Asset.TypeName,
                     ["operations"] = new JsonArray(asset.Operations.Select(operation => new JsonObject
                     {

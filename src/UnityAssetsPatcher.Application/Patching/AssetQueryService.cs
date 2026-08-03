@@ -1,4 +1,3 @@
-using UnityAssetsPatcher.Abstractions.Assets;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Assets;

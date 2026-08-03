@@ -1,5 +1,5 @@
 using System.IO.Compression;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
 
 namespace UnityAssetsPatcher.Application.Installation;
 

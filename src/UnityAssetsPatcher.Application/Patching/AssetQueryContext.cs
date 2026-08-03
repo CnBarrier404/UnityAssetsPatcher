@@ -1,4 +1,4 @@
-using UnityAssetsPatcher.Abstractions.Assets;
+using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
@@ -22,7 +22,7 @@ public sealed class AssetQueryContext
         _assetsFilePath = assetsFilePath;
         Assets = assetsReader.ReadAssets(assetsFilePath).ToArray();
         _assetsByPathId =
-            new Lazy<IReadOnlyDictionary<long, AssetInfo>>(() => Assets.ToDictionary(asset => asset.PathId));
+            new Lazy<IReadOnlyDictionary<long, AssetInfo>>(() => Assets.ToDictionary(asset => asset.PathId.Value));
     }
 
     public IReadOnlyList<AssetInfo> GetAssetsByType(string assetTypeName)

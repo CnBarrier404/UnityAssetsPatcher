@@ -1,66 +1,134 @@
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 
+public sealed record ModManifestSelection
+{
+    public ModManifest Manifest { get; }
+    public IReadOnlyList<string> AppliedOptionalGroups { get; }
+
+    public ModManifestSelection(ModManifest manifest, IEnumerable<string> appliedOptionalGroups)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(appliedOptionalGroups);
+
+        string[] groups = [.. appliedOptionalGroups];
+
+        if (groups.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException("Applied optional group names cannot be null or empty.",
+                nameof(appliedOptionalGroups));
+        }
+
+        Manifest = manifest;
+        AppliedOptionalGroups = Array.AsReadOnly(groups);
+    }
+}
+
 public static class ModManifestOptionalSelector
 {
-    public static ModManifest SelectOptional(this ModManifest manifest, IReadOnlyList<string> selectedNames)
+    public static OperationResult<ModManifestSelection> Select(
+        ModManifest manifest,
+        IReadOnlyList<string> selectedNames)
     {
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(selectedNames);
 
         if (selectedNames.Count == 0)
         {
-            return manifest with { Optional = [] };
+            return Success(manifest, manifest.Files, manifest.Patches, []);
         }
 
-        var available = manifest.Optional.ToDictionary(group => group.Name, StringComparer.OrdinalIgnoreCase);
-        var selectedGroups = new List<ManifestOptionalGroup>();
+        var available = new Dictionary<string, ModOptionalGroup>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (ModOptionalGroup group in manifest.OptionalGroups)
+        {
+            if (!available.TryAdd(group.Name, group))
+            {
+                return new OperationFailed<ModManifestSelection>(new OperationError(
+                    ManifestErrorCodes.DuplicateOptionalGroup,
+                    new Dictionary<string, object?>
+                    {
+                        ["name"] = group.Name,
+                    }));
+            }
+        }
+
+        var selectedGroups = new List<ModOptionalGroup>();
 
         foreach (string name in selectedNames)
         {
-            if (!available.TryGetValue(name, out ManifestOptionalGroup? group))
+            if (string.IsNullOrWhiteSpace(name) ||
+                !available.TryGetValue(name, out ModOptionalGroup? group))
             {
-                throw new InvalidOperationException($"Unknown optional group: '{name}'.");
+                return new OperationFailed<ModManifestSelection>(new OperationError(
+                    ManifestErrorCodes.UnknownOptionalGroup,
+                    new Dictionary<string, object?>
+                    {
+                        ["name"] = name,
+                    }));
             }
 
             selectedGroups.Add(group);
         }
 
-        var files = manifest.Files
-            .Concat(selectedGroups.SelectMany(group => group.Files))
-            .ToArray();
-        var patches = manifest.Patches
-            .Concat(selectedGroups.SelectMany(group => group.Patches))
-            .ToArray();
+        ModFile[] files = [.. manifest.Files, .. selectedGroups.SelectMany(group => group.Files)];
+        string? duplicatePayload = FindDuplicatePayloadFileName(files);
 
-        EnsureNoDuplicatePayloadFileNames(files);
+        if (duplicatePayload is not null)
+        {
+            return new OperationFailed<ModManifestSelection>(new OperationError(
+                ManifestErrorCodes.PayloadConflict,
+                new Dictionary<string, object?>
+                {
+                    ["file_name"] = duplicatePayload,
+                }));
+        }
 
-        return manifest with { Files = files, Patches = patches, Optional = [] };
+        ModPatch[] patches = [.. manifest.Patches, .. selectedGroups.SelectMany(group => group.Patches)];
+        var selected = new HashSet<string>(selectedNames, StringComparer.OrdinalIgnoreCase);
+        string[] appliedNames =
+        [
+            .. manifest.OptionalGroups
+                .Where(group => selected.Contains(group.Name))
+                .Select(group => group.Name)
+        ];
+
+        return Success(manifest, files, patches, appliedNames);
     }
 
-    private static void EnsureNoDuplicatePayloadFileNames(IReadOnlyList<ManifestFile> files)
+    private static OperationSucceeded<ModManifestSelection> Success(
+        ModManifest source,
+        IEnumerable<ModFile> files,
+        IEnumerable<ModPatch> patches,
+        IEnumerable<string> appliedNames)
+    {
+        ModFile[] effectiveFiles = [.. files];
+        ModPatch[] effectivePatches = [.. patches];
+        var effectiveManifest = new ModManifest(
+            source.Schema,
+            source.Name,
+            source.Author,
+            source.Version,
+            source.Description,
+            source.Game,
+            effectiveFiles,
+            effectivePatches,
+            []);
+        var selection = new ModManifestSelection(effectiveManifest, appliedNames);
+
+        return new OperationSucceeded<ModManifestSelection>(selection);
+    }
+
+    private static string? FindDuplicatePayloadFileName(IEnumerable<ModFile> files)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (ManifestFile file in files)
-        {
-            string fileName = GetFileName(file.Source);
-
-            if (!seen.Add(fileName))
-            {
-                throw new InvalidOperationException(
-                    $"Optional content produces a duplicate payload file name: '{fileName}'. " +
-                    "All copyFiles entries are copied into the same directory, so file names must be unique.");
-            }
-        }
-    }
-
-    private static string GetFileName(string source)
-    {
-        string normalized = source.Replace('\\', '/');
-        int separatorIndex = normalized.LastIndexOf('/');
-
-        return separatorIndex < 0 ? normalized : normalized[(separatorIndex + 1)..];
+        return (from file in files
+                select file.Source.Replace('\\', '/')
+                into normalized
+                let separatorIndex = normalized.LastIndexOf('/')
+                select separatorIndex < 0 ? normalized : normalized[(separatorIndex + 1)..])
+            .FirstOrDefault(fileName => !seen.Add(fileName));
     }
 }

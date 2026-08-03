@@ -14,7 +14,7 @@ public sealed class ConfirmationBar : View
         Action confirmAction,
         string cancelText,
         Action cancelAction,
-        ActionKind confirmKind = ActionKind.Primary)
+        ActionKind confirmKind = ActionKind.Default)
     {
         ArgumentNullException.ThrowIfNull(confirmText);
         ArgumentNullException.ThrowIfNull(confirmAction);

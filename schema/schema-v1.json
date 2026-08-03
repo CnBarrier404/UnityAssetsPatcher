@@ -2,11 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://uap.cnbarrier.com/schema-v1.json",
   "title": "Unity Assets Patcher Mod Manifest v1",
-  "description": "Structural authoring schema for Unity Assets Patcher mod manifests using schemaVersion 1. Runtime validation is performed by Unity Assets Patcher.",
+  "description": "Structural authoring schema for Unity Assets Patcher mod manifests. Runtime validation is performed by Unity Assets Patcher.",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
-    "schemaVersion",
+    "$schema",
     "name",
     "author",
     "version",
@@ -16,24 +16,27 @@
     "$schema": {
       "title": "Schema",
       "description": "Enables validation and completion in JSON Schema-aware editors.",
+      "type": "string",
       "const": "https://uap.cnbarrier.com/schema-v1.json"
-    },
-    "schemaVersion": {
-      "title": "Schema version",
-      "const": 1
     },
     "name": {
       "title": "Mod name",
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
     },
     "author": {
       "title": "Author",
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
     },
     "version": {
       "title": "Mod version",
       "description": "Semantic versioning is recommended but not required.",
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
     },
     "description": {
       "title": "Description",
@@ -42,7 +45,9 @@
     "game": {
       "title": "Game name",
       "description": "The game name used for automatic Steam installation discovery.",
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
     },
     "copyFiles": {
       "title": "Payload files",
@@ -56,6 +61,7 @@
       "title": "Required targets",
       "description": "Asset-file patch groups that are always applied.",
       "type": "array",
+      "minItems": 1,
       "items": {
         "$ref": "#/$defs/target"
       }
@@ -72,24 +78,31 @@
   "$defs": {
     "fieldValueMap": {
       "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "minLength": 1,
+        "pattern": "\\S"
+      },
       "additionalProperties": true
     },
     "copyFile": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "source"
       ],
       "properties": {
         "source": {
           "title": "Archive source path",
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         }
       }
     },
     "setOperation": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "from",
         "to"
@@ -105,19 +118,27 @@
     },
     "setMap": {
       "type": "object",
+      "propertyNames": {
+        "minLength": 1,
+        "pattern": "\\S"
+      },
       "additionalProperties": {
         "$ref": "#/$defs/setOperation"
       }
     },
     "addMap": {
       "type": "object",
+      "propertyNames": {
+        "minLength": 1,
+        "pattern": "\\S"
+      },
       "additionalProperties": {
         "type": "array"
       }
     },
     "replaceAsset": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "fromFile",
         "matchField"
@@ -125,31 +146,37 @@
       "properties": {
         "fromFile": {
           "description": "The path of the source assets file in the mod archive.",
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "matchField": {
           "description": "The field used to associate target and replacement assets.",
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         }
       }
     },
     "copyAsset": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "from"
       ],
       "properties": {
         "from": {
           "type": "object",
-          "additionalProperties": false,
+          "additionalProperties": true,
           "required": [
             "type",
             "match"
           ],
           "properties": {
             "type": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
             },
             "match": {
               "$ref": "#/$defs/fieldValueMap"
@@ -160,7 +187,7 @@
     },
     "patch": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "type",
         "match"
@@ -168,7 +195,9 @@
       "properties": {
         "type": {
           "title": "Asset type",
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "match": {
           "title": "Target match",
@@ -177,7 +206,9 @@
         "componentType": {
           "title": "Component type",
           "description": "Selects a component attached to a matched GameObject.",
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "set": {
           "title": "Set operations",
@@ -195,11 +226,39 @@
           "title": "Asset copy",
           "$ref": "#/$defs/copyAsset"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "componentType": true
+            },
+            "required": [
+              "componentType"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "type": "string",
+                "pattern": "^[Gg][Aa][Mm][Ee][Oo][Bb][Jj][Ee][Cc][Tt]$"
+              }
+            },
+            "not": {
+              "properties": {
+                "replaceAsset": true
+              },
+              "required": [
+                "replaceAsset"
+              ]
+            }
+          }
+        }
+      ]
     },
     "target": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "file",
         "patches"
@@ -207,10 +266,13 @@
       "properties": {
         "file": {
           "title": "Assets file",
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "patches": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "$ref": "#/$defs/patch"
           }
@@ -219,14 +281,16 @@
     },
     "optionalGroup": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "name"
       ],
       "properties": {
         "name": {
           "title": "Group name",
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "description": {
           "title": "Group description",
@@ -244,7 +308,31 @@
             "$ref": "#/$defs/target"
           }
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "copyFiles"
+          ],
+          "properties": {
+            "copyFiles": {
+              "type": "array",
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "targets"
+          ],
+          "properties": {
+            "targets": {
+              "type": "array",
+              "minItems": 1
+            }
+          }
+        }
+      ]
     }
   }
 }

@@ -1,5 +1,6 @@
 using System.CommandLine;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Operations;
+using UnityAssetsPatcher.Application.Workflows;
 
 namespace UnityAssetsPatcher.CLI;
 
@@ -7,48 +8,64 @@ public sealed class CheckCLICommand : ICLICommand
 {
     public Command Command { get; }
 
-    private readonly IWorkflowService _workflowService;
+    private readonly CheckManifestWorkflow _workflow;
     private readonly Func<string> _getCurrentDirectory;
-    private readonly CLIOptions _options;
+    private readonly TextWriter _error;
     private readonly Option<string?> _configOption;
 
     public CheckCLICommand(
-        IWorkflowService workflowService,
+        CheckManifestWorkflow workflow,
         Func<string> getCurrentDirectory,
-        CLIOptions? options = null)
+        TextWriter error)
     {
-        _workflowService = workflowService;
+        ArgumentNullException.ThrowIfNull(workflow);
+        ArgumentNullException.ThrowIfNull(getCurrentDirectory);
+        ArgumentNullException.ThrowIfNull(error);
+
+        _workflow = workflow;
         _getCurrentDirectory = getCurrentDirectory;
-        _options = options ?? new CLIOptions();
+        _error = error;
         _configOption = new Option<string?>("--config", "-c")
         {
             Description = "Manifest JSON or mod ZIP path (default: ./manifest.json).",
         };
 
         Command = new Command("check", "Validate a mod manifest.");
+
         Command.Options.Add(_configOption);
-        Command.SetAction(Execute);
+
+        Command.SetAction(ExecuteAsync);
     }
 
-    private int Execute(ParseResult parseResult)
+    private async Task<int> ExecuteAsync(ParseResult parseResult, CancellationToken cancellationToken)
     {
-        string configPath = parseResult.GetValue(_configOption) ??
+        string sourcePath = parseResult.GetValue(_configOption) ??
                             Path.Combine(_getCurrentDirectory(), "manifest.json");
 
         try
         {
-            OperationResult<ModManifest> result = _workflowService.CheckManifest(configPath);
-            return CLIOutput.WriteResult(
-                parseResult,
-                _options,
-                "check",
-                result,
-                manifest => CLIOutput.ManifestSummary(configPath, manifest),
-                (_, _) => { });
+            var result = await _workflow
+                .RunAsync(new CheckManifestRequest(sourcePath), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (result is not OperationFailed<CheckManifestResult> failure)
+            {
+                return CLIExitCodes.Success;
+            }
+
+            CLITextOutput.WriteFailure(_error, failure.Error);
+
+            return CLIExitCodes.OperationFailed;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception exception)
         {
-            return CLIOutput.WriteFailure(parseResult, _options, "check", exception);
+            CLITextOutput.WriteUnexpectedFailure(_error, exception);
+
+            return CLIExitCodes.OperationFailed;
         }
     }
 }

@@ -20,6 +20,7 @@ public sealed class StyledLabel : Label
     public StyledLabel(string text = "", TextRole role = TextRole.Base)
     {
         Text = text;
+
         SetRole(role);
     }
 

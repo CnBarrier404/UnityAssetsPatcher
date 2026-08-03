@@ -1,12 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using UnityAssetsPatcher.Abstractions.Assets;
-using UnityAssetsPatcher.Abstractions.IO;
-using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Uninstallation;
@@ -16,33 +15,36 @@ namespace UnityAssetsPatcher.Application;
 
 public static class ApplicationServiceCollectionExtensions
 {
-    public static IServiceCollection AddUnityAssetsPatcherApplication(
-        this IServiceCollection services,
-        string backupDirectory)
+    public static IServiceCollection AddUnityAssetsPatcherApplication(this IServiceCollection services)
     {
-        services.AddSingleton<ModManifestReader>();
-        services.AddSingleton(_ => new GameDirectoryResolver());
-        services.AddSingleton<TargetAssetResolver>();
-        services.AddSingleton(serviceProvider => new BackupRepository(
-            backupDirectory,
-            serviceProvider.GetRequiredService<IFileSystemOperations>(),
-            serviceProvider.GetService<ILogger<BackupRepository>>()));
-        services.AddSingleton<IBackupService>(serviceProvider =>
-            serviceProvider.GetRequiredService<BackupRepository>());
-        services.AddSingleton<IWorkflowService, WorkflowService>();
+        ArgumentNullException.ThrowIfNull(services);
 
-        AddAssetsAccess(services);
-        AddPatching(services);
-        AddWorkflows(services);
+        services.AddSingleton<ModPackageArchiveService>();
+        services.AddSingleton<ManifestSourceReader>();
+        services.AddSingleton<CheckManifestWorkflow>();
+        services.AddSingleton<TrustedPathResolver>();
 
         return services;
     }
 
-    private static void AddAssetsAccess(IServiceCollection services)
+    public static IServiceCollection AddUnityAssetsPatcherOperations(this IServiceCollection services)
     {
-        services.AddScoped<IAssetsAccessScope, ScopedAssetsAccess>();
-        services.AddScoped<IAssetsFileReader, ScopedAssetsFileReader>();
-        services.AddScoped<IAssetsFileWriter, ScopedAssetsFileWriter>();
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddSingleton<ModManifestReader>();
+        services.AddSingleton<GameDirectoryResolver>();
+        services.AddSingleton<TargetAssetResolver>();
+        services.AddSingleton(provider => new BackupRepository(
+            provider.GetRequiredService<IBackupRepository>(),
+            provider.GetRequiredService<IFileSystemOperations>(),
+            provider.GetService<ILogger<BackupRepository>>()));
+        services.AddSingleton<IBackupService>(provider => provider.GetRequiredService<BackupRepository>());
+        services.AddSingleton<IWorkflowService, WorkflowService>();
+
+        AddPatching(services);
+        AddWorkflows(services);
+
+        return services;
     }
 
     private static void AddPatching(IServiceCollection services)

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application.Contracts;
@@ -30,21 +29,21 @@ public sealed class SettingsView : View
             returnToMainMenu();
         };
 
-        var heading = new StyledLabel(LocalizedStrings.MainMenu_Settings_Title, TextRole.Title)
+        var heading = new StyledLabel(LegacyLocalizedStrings.MainMenu_Settings_Title, TextRole.Title)
         {
             X = 0,
             Y = 0,
         };
         var description = new StyledLabel(
-            LocalizedStrings.MainMenu_Settings_Description, TextRole.Muted)
+            LegacyLocalizedStrings.MainMenu_Settings_Description, TextRole.Muted)
         {
             X = 0,
             Y = 1,
             Width = Dim.Fill(),
         };
         _verboseOutput = new ToggleItem(
-            LocalizedStrings.SettingsPage_VerboseLoggingName,
-            LocalizedStrings.SettingsPage_VerboseLoggingDescription)
+            LegacyLocalizedStrings.SettingsPage_VerboseLoggingName,
+            LegacyLocalizedStrings.SettingsPage_VerboseLoggingDescription)
         {
             X = 0,
             Y = 3,
@@ -57,8 +56,8 @@ public sealed class SettingsView : View
             if (loggingLevelSwitch is not null)
             {
                 loggingLevelSwitch.MinimumLevel = _verboseOutput.IsSelected
-                    ? LogLevel.Debug
-                    : LogLevel.Information;
+                    ? LoggingLevel.Debug
+                    : LoggingLevel.Information;
             }
         };
         Add(heading, description, _verboseOutput);

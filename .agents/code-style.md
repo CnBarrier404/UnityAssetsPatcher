@@ -2,6 +2,10 @@
 
 This file applies to the entire repository and supplements the coding guidelines in the root `AGENTS.md`.
 
+## File Encoding And Line Endings
+
+- Use UTF-8 without a byte order mark (BOM) and LF line endings for all text files.
+
 ## Tabs, Indents, Alignment
 
 - None
@@ -13,8 +17,6 @@ This file applies to the entire repository and supplements the coding guidelines
 ## Syntax Style
 
 - Keep the `public` accessibility modifier explicit on interface members.
-- Do not use the `internal` accessibility modifier. Make types and members `public` when tests need direct access to them.
-- Prefer `sealed` for concrete classes and records that are not designed for inheritance.
 - Use conventional constructors with explicit backing fields for injected dependencies; do not convert these types to primary constructors.
 - Keep short data-only contracts as positional records. Add `init` properties when optional collection values should remain available through object-initializer syntax.
 - Use block bodies for methods, including methods whose implementation is a single statement. Reserve expression bodies for concise non-method members such as simple computed properties.
@@ -30,10 +32,15 @@ This file applies to the entire repository and supplements the coding guidelines
 
 - Leave a blank line immediately before every `return` statement, including early returns and the final return in a method.
 - Separate branching statements such as `if` and `switch` from surrounding statements with a blank line both before and after the complete branching construct. Keep connected clauses such as `else if` and `else` together with their preceding clause.
+- Keep consecutive argument, dependency, and state checks together as one validation group, then leave a blank line before the method's main logic.
+- Leave a blank line between consecutive statements that invoke methods, including calls used in assignments. Consecutive calls in a validation group are the exception.
 
 ## Line Breaks And Wrapping
 
-- None
+- Apply the 120-character line limit only to source code, not to documentation, configuration, or data files.
+- Limit source-code lines to 120 character, not document or other files.
+- Keep a declaration or invocation parameter list on one line when the complete line is 120 characters or fewer.
+- Wrap parameters or arguments only when the complete line would exceed 120 characters. Break at parameter or argument boundaries rather than wrapping short lists preemptively.
 
 ## Spaces
 

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Domain.Integrity;
 
 namespace UnityAssetsPatcher.Application.Backups;
 
@@ -30,8 +31,6 @@ public sealed record BackupTransaction(
     string InstallId,
     string GameInstanceFingerprint,
     IReadOnlyList<BackupTransactionFile> Files);
-
-public sealed record BackupRepositoryMetadata(int FormatVersion, string RepositoryId);
 
 public static class BackupTransactionStore
 {
@@ -86,8 +85,13 @@ public sealed class BackupOperationLock : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryFile);
         try
         {
-            return new BackupOperationLock(new FileStream(repositoryFile, FileMode.Open, FileAccess.ReadWrite,
-                FileShare.Read));
+            return new BackupOperationLock(new FileStream(repositoryFile, new FileStreamOptions
+            {
+                Mode = FileMode.CreateNew,
+                Access = FileAccess.ReadWrite,
+                Share = FileShare.None,
+                Options = FileOptions.DeleteOnClose,
+            }));
         }
         catch (IOException exception)
         {

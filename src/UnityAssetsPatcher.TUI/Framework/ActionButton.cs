@@ -24,10 +24,9 @@ public sealed class ActionButton : Button
         NoDecorations = true;
         NoPadding = true;
         ShadowStyle = ShadowStyles.None;
-
         Margin.ShadowStyle = null;
-
         TextAlignment = Alignment.Start;
+
         KeyBindings.Remove(Key.Space);
 
         SetScheme(kind switch

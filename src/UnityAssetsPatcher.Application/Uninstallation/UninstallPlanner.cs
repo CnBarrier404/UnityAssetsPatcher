@@ -1,4 +1,5 @@
-using UnityAssetsPatcher.Abstractions.IO;
+using UnityAssetsPatcher.Application.IO;
+using InstallRecordSummary = UnityAssetsPatcher.Application.Contracts.InstallRecordSummary;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
@@ -31,7 +32,14 @@ public sealed class UninstallPlanner
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
     {
-        return _backupRepository.ListInstalled();
+        return _backupRepository.ListInstalled()
+            .Select(record => new InstallRecordSummary(
+                record.Id,
+                record.ModName,
+                record.ModVersion,
+                record.GameName,
+                record.InstalledAt))
+            .ToArray();
     }
 
     public UninstallPreviewResult BuildPreview(UninstallPreviewRequest request)
@@ -53,14 +61,14 @@ public sealed class UninstallPlanner
         var restoredFiles = paths.PatchedFiles
             .Select(file => new UninstallPreviewRestoredFileResult(
                 file.Target,
-                UninstallIntegrityInspector.Inspect(file.AssetsFilePath, file.InstalledFile),
-                UninstallIntegrityInspector.Inspect(file.BackupPath, file.BackupFile)))
+                UninstallIntegrityInspector.Inspect(_fileSystemOperations, file.AssetsFilePath, file.InstalledFile),
+                UninstallIntegrityInspector.Inspect(_fileSystemOperations, file.BackupPath, file.BackupFile)))
             .ToArray();
 
         var deletedFiles = paths.CopiedFiles
             .Select(file => new UninstallPreviewDeletedFileResult(
                 file.DestinationPath,
-                UninstallIntegrityInspector.Inspect(file.DestinationPath, file.InstalledFile)))
+                UninstallIntegrityInspector.Inspect(_fileSystemOperations, file.DestinationPath, file.InstalledFile)))
             .ToArray();
 
         bool canUninstall = blockers.Count == 0 &&
@@ -114,7 +122,7 @@ public sealed class UninstallPlanner
             gameDirectory,
             record);
 
-        UninstallIntegrityInspector.EnsureSafeToUninstall(paths);
+        UninstallIntegrityInspector.EnsureSafeToUninstall(_fileSystemOperations, paths);
 
         return new UninstallPlan(
             installDirectory,

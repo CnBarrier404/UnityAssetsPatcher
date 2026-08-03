@@ -1,4 +1,3 @@
-using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -9,21 +8,26 @@ namespace UnityAssetsPatcher.TUI.Shell;
 
 public sealed class TerminalShellView : Window
 {
-    private const string TerminalTitle = "UnityAssetsPatcher";
-
-    private readonly IApplication _application;
     private readonly View _contentHost;
+    private readonly Action? _render;
     private View? _content;
 
+    private const string TerminalTitle = "UnityAssetsPatcher";
+
     public TerminalShellView(
-        IApplication application,
         AppInfo appInfo,
         string footerText,
-        string? warningText = null)
+        string? warningText = null,
+        Action? render = null)
     {
-        _application = application;
+        ArgumentNullException.ThrowIfNull(appInfo);
+        ArgumentNullException.ThrowIfNull(footerText);
+
+        _render = render;
+
         Title = TerminalTitle;
         BorderStyle = LineStyle.None;
+
         SetScheme(TerminalTheme.Base);
 
         var banner = new ApplicationBannerView(appInfo);
@@ -38,6 +42,7 @@ public sealed class TerminalShellView : Window
         };
 
         var footer = new TerminalFooterView(footerText);
+
         Add(banner, _contentHost, footer);
 
         if (warningText is not null)
@@ -58,14 +63,15 @@ public sealed class TerminalShellView : Window
         if (_content is not null)
         {
             _contentHost.Remove(_content);
+
             _content.Dispose();
         }
 
         _content = content;
 
-        if (content is ITerminalRenderRequester renderRequester)
+        if (content is ITerminalRenderRequester renderRequester && _render is not null)
         {
-            renderRequester.RenderRequested += (_, _) => _application.LayoutAndDraw();
+            renderRequester.RenderRequested += (_, _) => _render();
         }
 
         content.X = 0;
@@ -73,6 +79,7 @@ public sealed class TerminalShellView : Window
         content.Width = Dim.Fill();
         content.Height = Dim.Fill();
         content.CanFocus = true;
+
         _contentHost.Add(content);
     }
 }

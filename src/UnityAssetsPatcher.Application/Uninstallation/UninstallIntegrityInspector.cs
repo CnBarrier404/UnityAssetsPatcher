@@ -1,11 +1,16 @@
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Domain.Integrity;
 
 namespace UnityAssetsPatcher.Application.Uninstallation;
 
 internal static class UninstallIntegrityInspector
 {
-    public static FileIntegrityStatus Inspect(string path, FileIntegrity expected)
+    public static FileIntegrityStatus Inspect(
+        IFileSystemOperations fileSystemOperations,
+        string path,
+        FileIntegrity expected)
     {
         if (!File.Exists(path))
         {
@@ -14,7 +19,7 @@ internal static class UninstallIntegrityInspector
 
         try
         {
-            return expected.Matches(path)
+            return fileSystemOperations.MatchesFile(path, expected)
                 ? FileIntegrityStatus.Matches
                 : FileIntegrityStatus.Modified;
         }
@@ -24,17 +29,19 @@ internal static class UninstallIntegrityInspector
         }
     }
 
-    public static void EnsureSafeToUninstall(UninstallResolvedPaths paths)
+    public static void EnsureSafeToUninstall(
+        IFileSystemOperations fileSystemOperations,
+        UninstallResolvedPaths paths)
     {
         foreach (UninstallResolvedPatchedFile file in paths.PatchedFiles)
         {
-            EnsureMatches(file.AssetsFilePath, file.InstalledFile, "assets file");
-            EnsureMatches(file.BackupPath, file.BackupFile, "backup file");
+            EnsureMatches(fileSystemOperations, file.AssetsFilePath, file.InstalledFile, "assets file");
+            EnsureMatches(fileSystemOperations, file.BackupPath, file.BackupFile, "backup file");
         }
 
         foreach (UninstallResolvedCopiedFile file in paths.CopiedFiles)
         {
-            FileIntegrityStatus status = Inspect(file.DestinationPath, file.InstalledFile);
+            FileIntegrityStatus status = Inspect(fileSystemOperations, file.DestinationPath, file.InstalledFile);
             if (status is FileIntegrityStatus.Matches or FileIntegrityStatus.Missing)
             {
                 continue;
@@ -44,9 +51,13 @@ internal static class UninstallIntegrityInspector
         }
     }
 
-    private static void EnsureMatches(string path, FileIntegrity expected, string kind)
+    private static void EnsureMatches(
+        IFileSystemOperations fileSystemOperations,
+        string path,
+        FileIntegrity expected,
+        string kind)
     {
-        FileIntegrityStatus status = Inspect(path, expected);
+        FileIntegrityStatus status = Inspect(fileSystemOperations, path, expected);
         if (status != FileIntegrityStatus.Matches)
         {
             throw CreateConflict(path, kind, status);

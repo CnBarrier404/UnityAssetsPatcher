@@ -8,6 +8,8 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
+using InstallRecordSummary = UnityAssetsPatcher.Application.Contracts.InstallRecordSummary;
+using ModManifest = UnityAssetsPatcher.Application.Contracts.ModManifest;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 

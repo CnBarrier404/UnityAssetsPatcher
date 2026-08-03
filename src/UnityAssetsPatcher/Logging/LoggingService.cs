@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
-using Serilog.Extensions.Logging;
+using Serilog.Events;
 using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Logging;
@@ -17,13 +17,13 @@ public static class LoggingService
     public static IServiceCollection AddUnityAssetsPatcherLogging(
         this IServiceCollection services,
         string logDirectory,
-        LogLevel minimumLevel = LogLevel.Information)
+        LoggingLevel minimumLevel = LoggingLevel.Information)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(logDirectory);
 
         PruneOldLogFiles(logDirectory);
 
-        var levelSwitch = new LoggingLevelSwitch(LevelConvert.ToSerilogLevel(minimumLevel));
+        var levelSwitch = new LoggingLevelSwitch(ToSerilogLevel(minimumLevel));
 
         Serilog.ILogger logger = new LoggerConfiguration()
             .MinimumLevel.ControlledBy(levelSwitch)
@@ -44,6 +44,16 @@ public static class LoggingService
         return services;
     }
 
+    private static LogEventLevel ToSerilogLevel(LoggingLevel level)
+    {
+        return level switch
+        {
+            LoggingLevel.Information => LogEventLevel.Information,
+            LoggingLevel.Debug => LogEventLevel.Debug,
+            _ => throw new ArgumentOutOfRangeException(nameof(level), level, "Unsupported logging level."),
+        };
+    }
+
     private static void PruneOldLogFiles(string logDirectory)
     {
         if (!Directory.Exists(logDirectory))
@@ -51,7 +61,7 @@ public static class LoggingService
             return;
         }
 
-        IEnumerable<string> expired = Directory.GetFiles(logDirectory, "log-*.log")
+        var expired = Directory.GetFiles(logDirectory, "log-*.log")
             .OrderByDescending(File.GetLastWriteTimeUtc)
             .Skip(RetainedFileCountLimit - 1);
 

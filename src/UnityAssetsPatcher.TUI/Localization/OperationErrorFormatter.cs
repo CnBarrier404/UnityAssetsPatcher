@@ -11,28 +11,28 @@ public static class OperationErrorFormatter
 
         return error.Code switch
         {
-            OperationErrorCode.FileNotFound => FormatContext(LocalizedStrings.Error_FileNotFoundFormat, context),
+            OperationErrorCode.FileNotFound => FormatContext(LegacyLocalizedStrings.Error_FileNotFoundFormat, context),
             OperationErrorCode.DirectoryNotFound =>
-                FormatContext(LocalizedStrings.Error_DirectoryNotFoundFormat, context),
-            OperationErrorCode.AccessDenied => FormatContext(LocalizedStrings.Error_AccessDeniedFormat, context),
+                FormatContext(LegacyLocalizedStrings.Error_DirectoryNotFoundFormat, context),
+            OperationErrorCode.AccessDenied => FormatContext(LegacyLocalizedStrings.Error_AccessDeniedFormat, context),
             OperationErrorCode.FileSystemFailure =>
-                FormatContext(LocalizedStrings.Error_FileSystemFailureFormat, context),
-            OperationErrorCode.InvalidManifest => LocalizedStrings.Error_InvalidManifest,
-            OperationErrorCode.UnsupportedManifestVersion => LocalizedStrings.Error_UnsupportedManifestVersion,
-            OperationErrorCode.InvalidModPackage => LocalizedStrings.Error_InvalidModPackage,
-            OperationErrorCode.GameDirectoryRequired => LocalizedStrings.Error_GameDirectoryRequired,
+                FormatContext(LegacyLocalizedStrings.Error_FileSystemFailureFormat, context),
+            OperationErrorCode.InvalidManifest => LegacyLocalizedStrings.Error_InvalidManifest,
+            OperationErrorCode.UnsupportedManifestVersion => LegacyLocalizedStrings.Error_UnsupportedManifestVersion,
+            OperationErrorCode.InvalidModPackage => LegacyLocalizedStrings.Error_InvalidModPackage,
+            OperationErrorCode.GameDirectoryRequired => LegacyLocalizedStrings.Error_GameDirectoryRequired,
             OperationErrorCode.GameDirectoryNotFound =>
-                FormatContext(LocalizedStrings.Error_GameDirectoryNotFoundFormat, context),
-            OperationErrorCode.AssetNotFound => LocalizedStrings.Error_AssetNotFound,
-            OperationErrorCode.PatchPlanningFailed => LocalizedStrings.Error_PatchPlanningFailed,
-            OperationErrorCode.InstallRecordNotFound => LocalizedStrings.Error_InstallRecordNotFound,
-            OperationErrorCode.FileIntegrityMismatch => LocalizedStrings.Error_FileIntegrityMismatch,
-            OperationErrorCode.OperationAlreadyRunning => LocalizedStrings.Error_OperationAlreadyRunning,
-            OperationErrorCode.RecoveryRequired => LocalizedStrings.Error_RecoveryRequired,
-            OperationErrorCode.BackupRepositoryUnsafe => LocalizedStrings.Error_BackupRepositoryUnsafe,
+                FormatContext(LegacyLocalizedStrings.Error_GameDirectoryNotFoundFormat, context),
+            OperationErrorCode.AssetNotFound => LegacyLocalizedStrings.Error_AssetNotFound,
+            OperationErrorCode.PatchPlanningFailed => LegacyLocalizedStrings.Error_PatchPlanningFailed,
+            OperationErrorCode.InstallRecordNotFound => LegacyLocalizedStrings.Error_InstallRecordNotFound,
+            OperationErrorCode.FileIntegrityMismatch => LegacyLocalizedStrings.Error_FileIntegrityMismatch,
+            OperationErrorCode.OperationAlreadyRunning => LegacyLocalizedStrings.Error_OperationAlreadyRunning,
+            OperationErrorCode.RecoveryRequired => LegacyLocalizedStrings.Error_RecoveryRequired,
+            OperationErrorCode.BackupRepositoryUnsafe => LegacyLocalizedStrings.Error_BackupRepositoryUnsafe,
             OperationErrorCode.UnsupportedBackupRepositoryVersion =>
-                LocalizedStrings.Error_UnsupportedBackupRepositoryVersion,
-            _ => LocalizedStrings.Error_OperationFailed,
+                LegacyLocalizedStrings.Error_UnsupportedBackupRepositoryVersion,
+            _ => LegacyLocalizedStrings.Error_OperationFailed,
         };
     }
 
@@ -43,28 +43,28 @@ public static class OperationErrorFormatter
             "UnityAssetsPatcher",
             "logs");
 
-        return string.Format(LocalizedStrings.Error_UnexpectedFormat, logDirectory);
+        return string.Format(LegacyLocalizedStrings.Error_UnexpectedFormat, logDirectory);
     }
 
     public static string Format(PatchDiagnostic diagnostic)
     {
         return diagnostic.Code switch
         {
-            PatchDiagnosticCode.InvalidPatchConfiguration => LocalizedStrings.PatchError_InvalidConfiguration,
-            PatchDiagnosticCode.NoMatchingAssets => LocalizedStrings.PatchError_NoMatchingAssets,
+            PatchDiagnosticCode.InvalidPatchConfiguration => LegacyLocalizedStrings.PatchError_InvalidConfiguration,
+            PatchDiagnosticCode.NoMatchingAssets => LegacyLocalizedStrings.PatchError_NoMatchingAssets,
             PatchDiagnosticCode.FieldNotFound =>
-                string.Format(LocalizedStrings.PatchError_FieldNotFoundFormat, diagnostic.FieldPath),
+                string.Format(LegacyLocalizedStrings.PatchError_FieldNotFoundFormat, diagnostic.FieldPath),
             PatchDiagnosticCode.ValueMismatch => string.Format(
-                LocalizedStrings.PatchError_ValueMismatchFormat,
+                LegacyLocalizedStrings.PatchError_ValueMismatchFormat,
                 diagnostic.FieldPath,
                 diagnostic.Expected,
                 diagnostic.Actual),
-            PatchDiagnosticCode.UnsupportedValue => LocalizedStrings.PatchError_UnsupportedValue,
-            PatchDiagnosticCode.PathIdReferenceNotFound => LocalizedStrings.PatchError_PathIdReferenceNotFound,
-            PatchDiagnosticCode.PathIdReferenceAmbiguous => LocalizedStrings.PatchError_PathIdReferenceAmbiguous,
-            PatchDiagnosticCode.ReplacementSourceNotFound => LocalizedStrings.PatchError_ReplacementSourceNotFound,
-            PatchDiagnosticCode.ReplacementMatchInvalid => LocalizedStrings.PatchError_ReplacementMatchInvalid,
-            _ => LocalizedStrings.Error_OperationFailed,
+            PatchDiagnosticCode.UnsupportedValue => LegacyLocalizedStrings.PatchError_UnsupportedValue,
+            PatchDiagnosticCode.PathIdReferenceNotFound => LegacyLocalizedStrings.PatchError_PathIdReferenceNotFound,
+            PatchDiagnosticCode.PathIdReferenceAmbiguous => LegacyLocalizedStrings.PatchError_PathIdReferenceAmbiguous,
+            PatchDiagnosticCode.ReplacementSourceNotFound => LegacyLocalizedStrings.PatchError_ReplacementSourceNotFound,
+            PatchDiagnosticCode.ReplacementMatchInvalid => LegacyLocalizedStrings.PatchError_ReplacementMatchInvalid,
+            _ => LegacyLocalizedStrings.Error_OperationFailed,
         };
     }
 
@@ -72,11 +72,11 @@ public static class OperationErrorFormatter
     {
         return issue.Code switch
         {
-            BackupRecoveryIssueCode.RepositoryUnsafe => LocalizedStrings.BackupRecovery_RepositoryUnsafe,
-            BackupRecoveryIssueCode.RecoveryUnsafe => LocalizedStrings.BackupRecovery_RecoveryUnsafe,
-            BackupRecoveryIssueCode.OperationFailed => LocalizedStrings.BackupRecovery_OperationFailed,
+            BackupRecoveryIssueCode.RepositoryUnsafe => LegacyLocalizedStrings.BackupRecovery_RepositoryUnsafe,
+            BackupRecoveryIssueCode.RecoveryUnsafe => LegacyLocalizedStrings.BackupRecovery_RecoveryUnsafe,
+            BackupRecoveryIssueCode.OperationFailed => LegacyLocalizedStrings.BackupRecovery_OperationFailed,
             BackupRecoveryIssueCode.UnexpectedFailure => FormatUnexpected(),
-            _ => LocalizedStrings.Error_OperationFailed,
+            _ => LegacyLocalizedStrings.Error_OperationFailed,
         };
     }
 
