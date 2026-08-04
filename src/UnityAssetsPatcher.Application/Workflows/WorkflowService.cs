@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
@@ -128,6 +129,10 @@ public sealed class WorkflowService : IWorkflowService
             };
 
             return new OperationFailed<TResult>(error);
+        }
+        catch (InstallPreparationStaleException)
+        {
+            return ExpectedFailure<TResult>(operationName, OperationErrorCode.InstallPreviewStale, null);
         }
         catch (FileNotFoundException exception)
         {

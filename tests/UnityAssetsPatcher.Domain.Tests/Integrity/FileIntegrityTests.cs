@@ -53,8 +53,8 @@ public sealed class FileIntegrityTests
     [Fact]
     public void Constructor_WhenLengthIsNegative_ThrowsArgumentOutOfRangeException()
     {
-        ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(
-            () => new FileIntegrity(-1, new string('0', FileIntegrity.Sha256HexLength)));
+        ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new FileIntegrity(-1, new string('0', FileIntegrity.Sha256HexLength)));
 
         Assert.Equal("length", exception.ParamName);
     }
@@ -64,8 +64,7 @@ public sealed class FileIntegrityTests
     [InlineData("not-a-sha256")]
     public void Constructor_WhenSha256IsInvalid_ThrowsArgumentException(string sha256)
     {
-        ArgumentException exception = Assert.Throws<ArgumentException>(
-            () => new FileIntegrity(0, sha256));
+        ArgumentException exception = Assert.Throws<ArgumentException>(() => new FileIntegrity(0, sha256));
 
         Assert.Equal("sha256", exception.ParamName);
     }
@@ -75,10 +74,8 @@ public sealed class FileIntegrityTests
     {
         string sha256 = new string('A', FileIntegrity.Sha256HexLength);
 
-        ArgumentException exception = Assert.Throws<ArgumentException>(
-            () => new FileIntegrity(0, sha256));
+        ArgumentException exception = Assert.Throws<ArgumentException>(() => new FileIntegrity(0, sha256));
 
         Assert.Equal("sha256", exception.ParamName);
     }
-
 }

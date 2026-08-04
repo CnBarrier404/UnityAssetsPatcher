@@ -273,12 +273,11 @@ public sealed class ModPackageArchiveServiceTests
             _entries = entries;
             Entries = Array.AsReadOnly(
             [
-                .. entries.Select(
-                    (entry, index) => new PackageEntryInfo(
-                        new PackageEntryId(index),
-                        entry.Path,
-                        entry.Length,
-                        entry.IsDirectory)),
+                .. entries.Select((entry, index) => new PackageEntryInfo(
+                    new PackageEntryId(index),
+                    entry.Path,
+                    entry.Length,
+                    entry.IsDirectory)),
             ]);
         }
 
@@ -370,9 +369,7 @@ public sealed class ModPackageArchiveServiceTests
             throw new NotSupportedException();
         }
 
-        public void EnsureDirectory(string path)
-        {
-        }
+        public void EnsureDirectory(string path) { }
 
         public void MoveDirectory(string sourcePath, string destinationPath)
         {

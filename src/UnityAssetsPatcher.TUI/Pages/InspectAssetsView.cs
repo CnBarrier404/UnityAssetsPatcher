@@ -112,7 +112,8 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowListPathInput()
     {
-        SetPage(LegacyLocalizedStrings.InspectPage_ListAssetsTitle, LegacyLocalizedStrings.InspectPage_ListAssetsDescription);
+        SetPage(LegacyLocalizedStrings.InspectPage_ListAssetsTitle,
+            LegacyLocalizedStrings.InspectPage_ListAssetsDescription);
         ShowPathInput(ShowLimitChoices);
     }
 
@@ -166,7 +167,8 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowLimitChoices(string assetsFilePath)
     {
-        SetPage(LegacyLocalizedStrings.InspectPage_RowsToPrintTitle, LegacyLocalizedStrings.InspectPage_ListAssetsDescription);
+        SetPage(LegacyLocalizedStrings.InspectPage_RowsToPrintTitle,
+            LegacyLocalizedStrings.InspectPage_ListAssetsDescription);
         _body.RemoveAll();
         Button first = CreateActionButton(LegacyLocalizedStrings.InspectPage_First100Choice, 0, 0);
         first.Accepted += (_, _) => InspectList(assetsFilePath, DefaultLimit);
@@ -271,7 +273,8 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowFieldsInput()
     {
-        SetPage(LegacyLocalizedStrings.InspectPage_ShowFieldsTitle, LegacyLocalizedStrings.InspectPage_ShowFieldsDescription);
+        SetPage(LegacyLocalizedStrings.InspectPage_ShowFieldsTitle,
+            LegacyLocalizedStrings.InspectPage_ShowFieldsDescription);
         _body.RemoveAll();
         string pathPrompt = $"{LegacyLocalizedStrings.InspectPage_AssetsFilePathPrompt}: ";
         var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };

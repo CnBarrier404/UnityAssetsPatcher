@@ -83,6 +83,8 @@ public sealed class InspectAssetsWorkflowTests
                     "Base",
                     asset.TypeName,
                     null,
-                    [TestAssetField.Create("m_Name", "string", new AssetFieldValue.String($"Name{asset.PathId}"), [])])));
+                    [
+                        TestAssetField.Create("m_Name", "string", new AssetFieldValue.String($"Name{asset.PathId}"), [])
+                    ])));
     }
 }

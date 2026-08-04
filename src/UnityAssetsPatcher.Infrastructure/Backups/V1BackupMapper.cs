@@ -19,10 +19,12 @@ internal static class V1BackupMapper
         ArgumentNullException.ThrowIfNull(document);
 
         IReadOnlyList<V1InstallRecordPatchedFileDocument?> patchedFiles = document.PatchedFiles ??
-            throw Invalid("patched files collection is missing");
+                                                                          throw Invalid(
+                                                                              "patched files collection is missing");
 
         IReadOnlyList<V1InstallRecordCopiedFileDocument?> copiedFiles = document.CopiedFiles ??
-            throw Invalid("copied files collection is missing");
+                                                                        throw Invalid(
+                                                                            "copied files collection is missing");
 
         return new InstallRecord(
             Require(document.RepositoryId, "repository ID"),

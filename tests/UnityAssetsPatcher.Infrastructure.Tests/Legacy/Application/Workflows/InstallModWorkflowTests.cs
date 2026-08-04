@@ -16,6 +16,50 @@ namespace UnityAssetsPatcher.Tests.Application.Workflows;
 
 public sealed class InstallModWorkflowTests
 {
+    [Fact]
+    public void Install_WhenPreparedPreviewIsUnchanged_ReusesPreviewAnalysis()
+    {
+        using FieldPatchInstallScenario scenario = new();
+
+        InstallPreviewResult preview = scenario.Workflow.Preview(
+            new InstallRequest(scenario.ZipPath, scenario.GameDirectory));
+        PreparedInstall preparedInstall = preview.PreparedInstall ??
+                                          throw new InvalidOperationException(
+                                              "Preview did not return a prepared install.");
+        int previewReadCount = scenario.AssetsFileService.ReadFieldCount;
+
+        _ = scenario.Workflow.Install(new InstallRequest(scenario.ZipPath, scenario.GameDirectory)
+        {
+            PreparedInstall = preparedInstall,
+        });
+
+        Assert.True(previewReadCount > 0);
+        Assert.Equal(previewReadCount, scenario.AssetsFileService.ReadFieldCount);
+        Assert.True(scenario.AssetsFileService.WasCalled);
+    }
+
+    [Fact]
+    public void Install_WhenPreparedPreviewTargetChanges_RejectsPreparedPlan()
+    {
+        using FieldPatchInstallScenario scenario = new();
+
+        InstallPreviewResult preview = scenario.Workflow.Preview(
+            new InstallRequest(scenario.ZipPath, scenario.GameDirectory));
+        PreparedInstall preparedInstall = preview.PreparedInstall ??
+                                          throw new InvalidOperationException(
+                                              "Preview did not return a prepared install.");
+        File.AppendAllText(scenario.TargetPath, "changed");
+
+        InstallPreparationStaleException exception = Assert.Throws<InstallPreparationStaleException>(() =>
+            scenario.Workflow.Install(new InstallRequest(scenario.ZipPath, scenario.GameDirectory)
+            {
+                PreparedInstall = preparedInstall,
+            }));
+
+        Assert.Contains(scenario.TargetPath, exception.Message);
+        Assert.False(scenario.AssetsFileService.WasCalled);
+    }
+
     /// <summary>
     /// Verifies that install locates assets files from zip manifest targets under the game directory and writes in place.
     /// </summary>
@@ -290,8 +334,14 @@ public sealed class InstallModWorkflowTests
 
         try
         {
-            InstallModResult result = workflow.Install(
-                new InstallRequest(zipPath, gameDirectory));
+            InstallPreviewResult preview = workflow.Preview(new InstallRequest(zipPath, gameDirectory));
+            PreparedInstall preparedInstall = preview.PreparedInstall ??
+                                              throw new InvalidOperationException(
+                                                  "Preview did not return a prepared install.");
+            InstallModResult result = workflow.Install(new InstallRequest(zipPath, gameDirectory)
+            {
+                PreparedInstall = preparedInstall,
+            });
 
             InstallChange file = SinglePatchChange(result);
             Assert.Equal(1, file.AssetCount);
@@ -303,6 +353,7 @@ public sealed class InstallModWorkflowTests
             Assert.StartsWith(Path.GetTempPath(), replacement.SourceAssetsFilePath,
                 StringComparison.OrdinalIgnoreCase);
             Assert.Contains("UnityAssetsPatcher.", replacement.SourceAssetsFilePath);
+            Assert.True(assetsFileService.ReplacementSourcesExistedAtWrite);
             Assert.Equal("patched", File.ReadAllText(targetPath));
         }
         finally
@@ -1382,6 +1433,81 @@ public sealed class InstallModWorkflowTests
             .ToArray();
     }
 
+    private sealed class FieldPatchInstallScenario : IDisposable
+    {
+        public string ZipPath { get; }
+        public string GameDirectory { get; }
+        public string TargetPath { get; }
+        public StubAssetsFileService AssetsFileService { get; }
+        public InstallModWorkflow Workflow { get; }
+
+        private string BackupDirectory { get; }
+
+        public FieldPatchInstallScenario()
+        {
+            ZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+            GameDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            string targetDirectory = Path.Combine(GameDirectory, "Game_Data");
+            TargetPath = Path.Combine(targetDirectory, "sharedassets0.assets");
+            BackupDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            Directory.CreateDirectory(targetDirectory);
+            File.WriteAllText(TargetPath, "original");
+            TestManifest.WriteZip(
+                ZipPath,
+                """
+                {
+                  "patches": [
+                    {
+                      "target": "sharedassets0.assets",
+                      "type": "Camera",
+                      "include": [
+                        {
+                          "field of view": 90.0
+                        }
+                      ],
+                      "set": [
+                        {
+                          "field": "m_CullingMask.m_Bits",
+                          "from": 3211820983,
+                          "to": 931037111
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
+            AssetsFileService = new StubAssetsFileService(
+                [new AssetInfo(4, "Camera")],
+                new Dictionary<long, AssetField>
+                {
+                    [4] = TestAssetField.Create("Camera", "Camera", null,
+                    [
+                        TestAssetField.Create("field of view", "float", new AssetFieldValue.Float(90f), []),
+                        TestAssetField.Create("m_CullingMask", "BitField", null,
+                        [
+                            TestAssetField.Create("m_Bits", "UInt32", new AssetFieldValue.UInt64(3211820983), []),
+                        ]),
+                    ]),
+                });
+            Workflow = CreateWorkflow(AssetsFileService, BackupDirectory);
+        }
+
+        public void Dispose()
+        {
+            File.Delete(ZipPath);
+
+            if (Directory.Exists(GameDirectory))
+            {
+                Directory.Delete(GameDirectory, true);
+            }
+
+            if (Directory.Exists(BackupDirectory))
+            {
+                Directory.Delete(BackupDirectory, true);
+            }
+        }
+    }
+
     private static InstallModWorkflow CreateWorkflow(StubAssetsFileService assetsFileService)
     {
         return CreateWorkflow(
@@ -1418,7 +1544,8 @@ public sealed class InstallModWorkflowTests
             gameDirectoryResolver,
             [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]);
         var backupStore = TestDependencies.CreateBackupRepository(backupDirectory ??
-                                               Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
+                                                                  Path.Combine(Path.GetTempPath(),
+                                                                      Guid.NewGuid().ToString("N")),
             TestDependencies.FileSystemOperations);
         var executor = new InstallExecutor(
             backupStore,

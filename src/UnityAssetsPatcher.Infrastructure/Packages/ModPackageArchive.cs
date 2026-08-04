@@ -26,12 +26,11 @@ internal sealed class ModPackageArchive : IModPackageArchive
         _archiveEntries = Array.AsReadOnly([.. archive.Entries]);
         Entries = Array.AsReadOnly(
         [
-            .. _archiveEntries.Select(
-                (entry, index) => new PackageEntryInfo(
-                    new PackageEntryId(index),
-                    entry.FullName,
-                    entry.Length,
-                    string.IsNullOrEmpty(entry.Name))),
+            .. _archiveEntries.Select((entry, index) => new PackageEntryInfo(
+                new PackageEntryId(index),
+                entry.FullName,
+                entry.Length,
+                string.IsNullOrEmpty(entry.Name))),
         ]);
     }
 

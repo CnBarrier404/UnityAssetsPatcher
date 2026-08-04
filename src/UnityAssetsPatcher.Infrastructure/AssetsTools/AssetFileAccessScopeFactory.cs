@@ -28,6 +28,8 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
     public IAssetsFileWriter Writer => this;
 
     private readonly Dictionary<string, IAssetFileSession> _readSessions = new(TrustedPathComparer.Instance);
+    private readonly Dictionary<string, Dictionary<AssetPathId, AssetField>> _readFieldCaches =
+        new(TrustedPathComparer.Instance);
     private readonly IAssetFileSessionFactory _sessionFactory;
     private bool _disposed;
 
@@ -45,7 +47,26 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
 
     public AssetField ReadField(string assetsFilePath, long pathId)
     {
-        return GetReadSession(assetsFilePath).ReadField(new AssetPathId(pathId));
+        string fullPath = GetFullPath(assetsFilePath);
+        IAssetFileSession session = GetReadSession(fullPath);
+        AssetPathId assetPathId = new(pathId);
+
+        if (!_readFieldCaches.TryGetValue(fullPath, out Dictionary<AssetPathId, AssetField>? fieldCache))
+        {
+            fieldCache = [];
+            _readFieldCaches.Add(fullPath, fieldCache);
+        }
+
+        if (fieldCache.TryGetValue(assetPathId, out AssetField? fieldTree))
+        {
+
+            return fieldTree;
+        }
+
+        fieldTree = session.ReadField(assetPathId);
+        fieldCache.Add(assetPathId, fieldTree);
+
+        return fieldTree;
     }
 
     public void WriteFieldPatches(string inputPath, string outputPath, IReadOnlyList<AssetFieldPatch> plan)
@@ -102,10 +123,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
 
     private IAssetFileSession GetReadSession(string assetsFilePath)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentException.ThrowIfNullOrWhiteSpace(assetsFilePath);
-
-        string fullPath = Path.GetFullPath(assetsFilePath);
+        string fullPath = GetFullPath(assetsFilePath);
 
         if (_readSessions.TryGetValue(fullPath, out IAssetFileSession? session))
         {
@@ -227,6 +245,15 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
         }
 
         _readSessions.Clear();
+        _readFieldCaches.Clear();
+    }
+
+    private string GetFullPath(string assetsFilePath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(assetsFilePath);
+
+        return Path.GetFullPath(assetsFilePath);
     }
 
     private sealed class TrustedPathComparer : IEqualityComparer<string>

@@ -43,15 +43,21 @@ public static class LegacyModManifestMapper
             patch.Match,
             patch.SetOperations.Count == 0
                 ? null
-                : [.. patch.SetOperations.Select(operation => new ManifestSetOperation(
-                    operation.FieldPath,
-                    operation.From,
-                    operation.To))],
+                :
+                [
+                    .. patch.SetOperations.Select(operation => new ManifestSetOperation(
+                        operation.FieldPath,
+                        operation.From,
+                        operation.To))
+                ],
             patch.AddOperations.Count == 0
                 ? null
-                : [.. patch.AddOperations.Select(operation => new ManifestAddOperation(
-                    operation.FieldPath,
-                    operation.Value))],
+                :
+                [
+                    .. patch.AddOperations.Select(operation => new ManifestAddOperation(
+                        operation.FieldPath,
+                        operation.Value))
+                ],
             patch.ReplaceAsset is null
                 ? null
                 : new ManifestReplaceFrom(

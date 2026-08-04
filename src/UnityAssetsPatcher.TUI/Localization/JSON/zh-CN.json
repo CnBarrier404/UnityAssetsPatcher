@@ -29,6 +29,7 @@
   "Error_GameDirectoryNotFoundFormat": "游戏目录不存在：{arg0}",
   "Error_GameDirectoryRequired": "请选择游戏目录后继续。",
   "Error_InstallRecordNotFound": "未找到所选安装记录。",
+  "Error_InstallPreviewStale": "预览已失效，请重新预览后再安装。",
   "Error_InvalidManifest": "Mod manifest 无效。",
   "Error_InvalidModPackage": "Mod 安装包无效。",
   "Error_OperationAlreadyRunning": "另一个安装、卸载或恢复操作正在运行。",

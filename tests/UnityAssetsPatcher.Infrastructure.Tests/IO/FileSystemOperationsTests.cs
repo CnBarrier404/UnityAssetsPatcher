@@ -56,8 +56,8 @@ public sealed class FileSystemOperationsTests
         string sourcePath = directory.GetPath("missing.txt");
         FileSystemOperations operations = CreateOperations();
 
-        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(
-            () => operations.ComputeFileIntegrity(sourcePath));
+        FileNotFoundException exception =
+            Assert.Throws<FileNotFoundException>(() => operations.ComputeFileIntegrity(sourcePath));
 
         Assert.Equal(sourcePath, exception.FileName);
     }

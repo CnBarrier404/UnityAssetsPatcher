@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using UnityAssetsPatcher.Application.Installation;
 
 namespace UnityAssetsPatcher.Application.Contracts;
@@ -6,6 +7,7 @@ public sealed record InstallRequest(string ZipFilePath, string? GameDirectory)
 {
     public IReadOnlyList<string> SelectedOptionalGroups { get; init; } = [];
     public bool IncludePatchPreviewDetails { get; init; } = true;
+    public PreparedInstall? PreparedInstall { get; init; }
 }
 
 public sealed record InstallModResult(
@@ -25,7 +27,11 @@ public sealed record InstallPreviewResult(
     string ModAuthor,
     IReadOnlyList<InstallChange> Changes,
     IReadOnlyList<(string Name, string? Description)> OptionalGroups,
-    TimingSnapshot Timing);
+    TimingSnapshot Timing)
+{
+    [JsonIgnore]
+    public PreparedInstall? PreparedInstall { get; init; }
+}
 
 public enum InstallChangeKind
 {

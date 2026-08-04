@@ -27,6 +27,7 @@ public static class OperationErrorFormatter
             OperationErrorCode.PatchPlanningFailed => LegacyLocalizedStrings.Error_PatchPlanningFailed,
             OperationErrorCode.InstallRecordNotFound => LegacyLocalizedStrings.Error_InstallRecordNotFound,
             OperationErrorCode.FileIntegrityMismatch => LegacyLocalizedStrings.Error_FileIntegrityMismatch,
+            OperationErrorCode.InstallPreviewStale => LegacyLocalizedStrings.Error_InstallPreviewStale,
             OperationErrorCode.OperationAlreadyRunning => LegacyLocalizedStrings.Error_OperationAlreadyRunning,
             OperationErrorCode.RecoveryRequired => LegacyLocalizedStrings.Error_RecoveryRequired,
             OperationErrorCode.BackupRepositoryUnsafe => LegacyLocalizedStrings.Error_BackupRepositoryUnsafe,
@@ -62,7 +63,8 @@ public static class OperationErrorFormatter
             PatchDiagnosticCode.UnsupportedValue => LegacyLocalizedStrings.PatchError_UnsupportedValue,
             PatchDiagnosticCode.PathIdReferenceNotFound => LegacyLocalizedStrings.PatchError_PathIdReferenceNotFound,
             PatchDiagnosticCode.PathIdReferenceAmbiguous => LegacyLocalizedStrings.PatchError_PathIdReferenceAmbiguous,
-            PatchDiagnosticCode.ReplacementSourceNotFound => LegacyLocalizedStrings.PatchError_ReplacementSourceNotFound,
+            PatchDiagnosticCode.ReplacementSourceNotFound =>
+                LegacyLocalizedStrings.PatchError_ReplacementSourceNotFound,
             PatchDiagnosticCode.ReplacementMatchInvalid => LegacyLocalizedStrings.PatchError_ReplacementMatchInvalid,
             _ => LegacyLocalizedStrings.Error_OperationFailed,
         };

@@ -23,8 +23,8 @@ public sealed class TrustedPathResolverTests
         string path = TrustedPath.NormalizeAbsolutePath(Path.Combine(Path.GetTempPath(), "missing"));
         TrustedPathResolver resolver = CreateResolver();
 
-        DirectoryNotFoundException exception = Assert.Throws<DirectoryNotFoundException>(
-            () => resolver.ResolveExistingDirectory(path));
+        DirectoryNotFoundException exception =
+            Assert.Throws<DirectoryNotFoundException>(() => resolver.ResolveExistingDirectory(path));
 
         Assert.Equal($"The directory does not exist: '{path}'.", exception.Message);
     }
@@ -55,8 +55,7 @@ public sealed class TrustedPathResolverTests
         string root = TrustedPath.NormalizeAbsolutePath(Path.Combine(Path.GetTempPath(), "Game"));
         TrustedPathResolver resolver = CreateResolver((root, FileAttributes.Directory));
 
-        _ = Assert.Throws<IOException>(
-            () => resolver.ResolveWithinDirectory(root, Path.Combine("..", "outside.bin")));
+        _ = Assert.Throws<IOException>(() => resolver.ResolveWithinDirectory(root, Path.Combine("..", "outside.bin")));
     }
 
     [Fact]
@@ -78,8 +77,8 @@ public sealed class TrustedPathResolverTests
             (root, FileAttributes.Directory),
             (linkDirectory, FileAttributes.Directory | FileAttributes.ReparsePoint));
 
-        _ = Assert.Throws<IOException>(
-            () => resolver.ResolveWithinDirectory(root, Path.Combine("Game_Data", "mod.bin")));
+        _ = Assert.Throws<IOException>(() =>
+            resolver.ResolveWithinDirectory(root, Path.Combine("Game_Data", "mod.bin")));
     }
 
     [Fact]

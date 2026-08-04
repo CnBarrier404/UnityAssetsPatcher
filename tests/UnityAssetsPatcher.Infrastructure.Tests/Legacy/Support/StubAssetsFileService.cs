@@ -46,7 +46,9 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
     public int ReaderDisposeCount { get; private set; }
     public int WriterCreateCount { get; private set; }
     public int WriterDisposeCount { get; private set; }
+    public int ReadFieldCount { get; private set; }
     public IReadOnlyList<AssetReplacement> ReplacementPlan { get; private set; } = [];
+    public bool? ReplacementSourcesExistedAtWrite { get; private set; }
     public IReadOnlyList<AssetCopy> CopyPlan { get; private set; } = [];
     public Exception? ReadFailure { get; init; }
 
@@ -73,6 +75,7 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
 
     public AssetField ReadField(string assetsFilePath, long pathId)
     {
+        ReadFieldCount++;
         _readPaths.Add(Path.GetFullPath(assetsFilePath));
 
         if (ReadFailure is not null)
@@ -107,6 +110,7 @@ public sealed class StubAssetsFileService : IAssetsAccessScopeFactory, IAssetsFi
         OutputPath = outputPath;
         CloseReadSessionsCountAtWrite = CloseReadSessionsCount;
         ReplacementPlan = plan;
+        ReplacementSourcesExistedAtWrite = plan.All(replacement => File.Exists(replacement.SourceAssetsFilePath));
         File.WriteAllText(outputPath, "patched");
     }
 

@@ -31,14 +31,14 @@ public sealed class SteamGameInstallationLocatorTests : IDisposable
         File.WriteAllText(
             libraryFoldersPath,
             $$"""
-            "libraryfolders"
-            {
-                "0"
-                {
-                    "path" "{{EscapeVdfPath(libraryRoot)}}"
-                }
-            }
-            """);
+              "libraryfolders"
+              {
+                  "0"
+                  {
+                      "path" "{{EscapeVdfPath(libraryRoot)}}"
+                  }
+              }
+              """);
         string gameDirectory = CreateInstalledGame(libraryRoot, "739630", "Phasmophobia", "Phasmophobia");
         var locator = new SteamGameInstallationLocator(new SteamInstallationOptions([steamRoot]));
 
@@ -75,13 +75,13 @@ public sealed class SteamGameInstallationLocatorTests : IDisposable
         File.WriteAllText(
             Path.Combine(steamAppsDirectory, $"appmanifest_{appId}.acf"),
             $$"""
-            "AppState"
-            {
-                "appid" "{{appId}}"
-                "name" "{{name}}"
-                "installdir" "{{installDirectory}}"
-            }
-            """);
+              "AppState"
+              {
+                  "appid" "{{appId}}"
+                  "name" "{{name}}"
+                  "installdir" "{{installDirectory}}"
+              }
+              """);
 
         return gameDirectory;
     }

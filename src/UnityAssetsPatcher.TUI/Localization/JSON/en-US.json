@@ -29,6 +29,7 @@
   "Error_GameDirectoryNotFoundFormat": "The game directory was not found: {arg0}",
   "Error_GameDirectoryRequired": "Select the game directory to continue.",
   "Error_InstallRecordNotFound": "The selected install record was not found.",
+  "Error_InstallPreviewStale": "The install preview is stale. Preview the installation again.",
   "Error_InvalidManifest": "The mod manifest is invalid.",
   "Error_InvalidModPackage": "The mod package is invalid.",
   "Error_OperationAlreadyRunning": "Another install, uninstall, or recovery operation is already running.",

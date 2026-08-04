@@ -61,8 +61,8 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
         var factory = CreateFactory();
         using IAssetFileSession session = factory.Open(GetAssetsFilePath());
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
-            () => session.ReadField(new AssetPathId(long.MaxValue)));
+        InvalidOperationException exception =
+            Assert.Throws<InvalidOperationException>(() => session.ReadField(new AssetPathId(long.MaxValue)));
 
         Assert.Equal($"Asset not found or cannot be read: {long.MaxValue}", exception.Message);
     }

@@ -31,6 +31,7 @@ public enum OperationErrorCode
     PatchPlanningFailed,
     InstallRecordNotFound,
     FileIntegrityMismatch,
+    InstallPreviewStale,
     OperationAlreadyRunning,
     RecoveryRequired,
     BackupRepositoryUnsafe,

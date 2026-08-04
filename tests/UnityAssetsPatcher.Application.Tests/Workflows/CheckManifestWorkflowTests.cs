@@ -13,24 +13,24 @@ namespace UnityAssetsPatcher.Application.Tests.Workflows;
 public sealed class CheckManifestWorkflowTests
 {
     private const string ValidManifest = """
-        {
-          "$schema": "https://uap.cnbarrier.com/schema-v1.json",
-          "name": "Test Mod",
-          "author": "Test Author",
-          "version": "1.0.0",
-          "targets": [
-            {
-              "file": "sharedassets0.assets",
-              "patches": [
-                {
-                  "type": "Camera",
-                  "match": { "m_Name": "Main" }
-                }
-              ]
-            }
-          ]
-        }
-        """;
+                                         {
+                                           "$schema": "https://uap.cnbarrier.com/schema-v1.json",
+                                           "name": "Test Mod",
+                                           "author": "Test Author",
+                                           "version": "1.0.0",
+                                           "targets": [
+                                             {
+                                               "file": "sharedassets0.assets",
+                                               "patches": [
+                                                 {
+                                                   "type": "Camera",
+                                                   "match": { "m_Name": "Main" }
+                                                 }
+                                               ]
+                                             }
+                                           ]
+                                         }
+                                         """;
 
     [Fact]
     public async Task RunAsync_WhenManifestIsValid_ReturnsManifestAndLifecycleLogs()
@@ -87,8 +87,8 @@ public sealed class CheckManifestWorkflowTests
     {
         var fileSystem = new StubFileSystemOperations(_ => StreamFrom(string.Empty));
         var logger = new RecordingLogger<CheckManifestWorkflow>();
-        var archiveFactory = new StubModPackageArchiveFactory(
-            _ => throw new InvalidDataException("Invalid test archive."));
+        var archiveFactory =
+            new StubModPackageArchiveFactory(_ => throw new InvalidDataException("Invalid test archive."));
         CheckManifestWorkflow workflow = CreateWorkflow(fileSystem, logger, archiveFactory);
 
         OperationResult<CheckManifestResult> result = await workflow.RunAsync(
@@ -122,8 +122,8 @@ public sealed class CheckManifestWorkflowTests
         ILogger<CheckManifestWorkflow> logger,
         IModPackageArchiveFactory? archiveFactory = null)
     {
-        archiveFactory ??= new StubModPackageArchiveFactory(
-            _ => throw new InvalidOperationException("The archive factory should not be called."));
+        archiveFactory ??= new StubModPackageArchiveFactory(_ =>
+            throw new InvalidOperationException("The archive factory should not be called."));
         var archiveService = new ModPackageArchiveService(archiveFactory, fileSystemOperations);
         var sourceReader = new ManifestSourceReader(archiveService, fileSystemOperations);
 

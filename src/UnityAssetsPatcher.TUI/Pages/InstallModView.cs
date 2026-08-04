@@ -27,6 +27,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private InputField? _gameDirectory;
     private View? _optionalGroupArea;
     private readonly List<ToggleItem> _optionalGroups = [];
+    private PreparedInstall? _preparedInstall;
     private bool _isWorking;
 
     public InstallModView(
@@ -102,6 +103,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             return;
         }
 
+        _preparedInstall = null;
         ClearMessage();
         string modPath = TerminalPathNormalizer.Normalize(_modPath.Text);
         if (string.IsNullOrWhiteSpace(modPath))
@@ -176,6 +178,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 }
 
                 InstallPreviewResult preview = ((OperationSucceeded<InstallPreviewResult>)result).Value;
+                _preparedInstall = preview.PreparedInstall;
                 if (preview.OptionalGroups.Count > 0 && _optionalGroupArea is null)
                 {
                     ShowOptionalGroups(preview.OptionalGroups);
@@ -352,6 +355,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         var request = new InstallRequest(modPath, gameDirectory)
         {
             SelectedOptionalGroups = selectedGroups,
+            PreparedInstall = _preparedInstall,
         };
         bool started = _taskRunner.TryRun(
             () => _workflowService.Install(request),

@@ -14,24 +14,24 @@ public sealed class CliApplicationTests : IDisposable
     private readonly string _temporaryDirectory;
 
     private const string ValidManifest = """
-        {
-          "$schema": "https://uap.cnbarrier.com/schema-v1.json",
-          "name": "Test Mod",
-          "author": "Test Author",
-          "version": "1.0.0",
-          "targets": [
-            {
-              "file": "sharedassets0.assets",
-              "patches": [
-                {
-                  "type": "Camera",
-                  "match": { "m_Name": "Main" }
-                }
-              ]
-            }
-          ]
-        }
-        """;
+                                         {
+                                           "$schema": "https://uap.cnbarrier.com/schema-v1.json",
+                                           "name": "Test Mod",
+                                           "author": "Test Author",
+                                           "version": "1.0.0",
+                                           "targets": [
+                                             {
+                                               "file": "sharedassets0.assets",
+                                               "patches": [
+                                                 {
+                                                   "type": "Camera",
+                                                   "match": { "m_Name": "Main" }
+                                                 }
+                                               ]
+                                             }
+                                           ]
+                                         }
+                                         """;
 
     public CliApplicationTests()
     {

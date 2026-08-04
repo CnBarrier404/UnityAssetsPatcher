@@ -9,6 +9,35 @@ namespace UnityAssetsPatcher.Infrastructure.Tests.AssetsTools;
 public sealed class AssetFileAccessScopeTests
 {
     [Fact]
+    public void ReadField_WhenSameAssetIsReadRepeatedly_UsesScopeCache()
+    {
+        var session = new RecordingAssetFileSession(CreateAssetField());
+        var factory = new RecordingAssetFileSessionFactory(session);
+        using IAssetsAccessScope scope = new AssetFileAccessScopeFactory(factory).CreateScope();
+
+        AssetField first = scope.Reader.ReadField("input.assets", 4);
+        AssetField second = scope.Reader.ReadField("input.assets", 4);
+
+        Assert.Same(first, second);
+        Assert.Equal(1, factory.OpenCount);
+        Assert.Equal(1, session.ReadFieldCount);
+    }
+
+    [Fact]
+    public void WriteFieldPatches_WhenWriteStarts_ClearsReadFieldCache()
+    {
+        var session = new RecordingAssetFileSession(CreateAssetField());
+        var factory = new RecordingAssetFileSessionFactory(session);
+        using IAssetsAccessScope scope = new AssetFileAccessScopeFactory(factory).CreateScope();
+
+        _ = scope.Reader.ReadField("input.assets", 4);
+        scope.Writer.WriteFieldPatches("input.assets", "output.assets", CreateFieldPatch());
+        _ = scope.Reader.ReadField("input.assets", 4);
+
+        Assert.Equal(3, session.ReadFieldCount);
+    }
+
+    [Fact]
     public void WriteFieldPatches_WhenAssetHasMultipleOperations_ReadsItsFieldTreeOnce()
     {
         var session = new RecordingAssetFileSession(CreateAssetField());
@@ -46,6 +75,16 @@ public sealed class AssetFileAccessScopeTests
                 new AssetScalarField("first", "int", new AssetScalarValue.Int32(1)),
                 new AssetScalarField("second", "int", new AssetScalarValue.Int32(1)),
             ]);
+    }
+
+    private static IReadOnlyList<AssetFieldPatch> CreateFieldPatch()
+    {
+        return
+        [
+            new AssetFieldPatch(
+                4,
+                [new FieldPatchOperation("first", JsonValue("2"))]),
+        ];
     }
 
     private static JsonElement JsonValue(string value)
@@ -103,8 +142,6 @@ public sealed class AssetFileAccessScopeTests
             Plan = plan;
         }
 
-        public void Dispose()
-        {
-        }
+        public void Dispose() { }
     }
 }

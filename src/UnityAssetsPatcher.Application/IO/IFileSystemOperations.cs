@@ -28,5 +28,4 @@ public interface IFileSystemOperations
     public void MoveDirectory(string sourcePath, string destinationPath);
 
     public void DeleteDirectoryTree(string path);
-
 }

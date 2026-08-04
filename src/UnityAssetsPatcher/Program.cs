@@ -20,8 +20,8 @@ public sealed class Program
         string backupDirectory = Path.Combine(appDataDirectory, "backup");
         AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
         Func<Stream> openClassPackage = () => typeof(Program).Assembly.GetManifestResourceStream("resources.tpk") ??
-                                                   throw new InvalidOperationException(
-                                                       "The bundled AssetsTools class package is missing.");
+                                              throw new InvalidOperationException(
+                                                  "The bundled AssetsTools class package is missing.");
 
         using ServiceProvider serviceProvider = new ServiceCollection()
             .AddSingleton(appInfo)

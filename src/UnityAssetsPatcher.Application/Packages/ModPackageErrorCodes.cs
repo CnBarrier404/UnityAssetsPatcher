@@ -11,6 +11,7 @@ public static class ModPackageErrorCodes
     public static OperationErrorCode MultipleManifests { get; } = new("mod_package.multiple_manifests");
     public static OperationErrorCode ManifestTooLarge { get; } = new("mod_package.manifest_too_large");
     public static OperationErrorCode EntryNotFound { get; } = new("mod_package.entry_not_found");
+
     public static OperationErrorCode ExtractionLimitExceeded { get; } =
         new("mod_package.extraction_limit_exceeded");
 }

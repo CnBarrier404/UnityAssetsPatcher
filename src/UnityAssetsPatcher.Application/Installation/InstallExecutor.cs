@@ -46,10 +46,17 @@ public sealed class InstallExecutor
         ModPackage package,
         InstallAnalysis analysis,
         IAssetsFileWriter assetsWriter,
-        StepTimer timings)
+        StepTimer timings,
+        IReadOnlyList<PreparedInstallAssetFile>? expectedAssetFiles = null)
     {
         var patchOutputWriter = new PatchOutputWriter(assetsWriter, _fileSystemOperations);
         var patchFiles = CreateRequiredPatchFiles(analysis);
+        IReadOnlyDictionary<string, FileIntegrity>? expectedAssetIntegrities = expectedAssetFiles is null
+            ? null
+            : expectedAssetFiles.ToDictionary(
+                file => file.Path,
+                file => file.Integrity,
+                TrustedPath.PathComparer);
         BackupRepositoryMetadata repository = _backupRepository.LoadMetadata();
         string installId = Guid.NewGuid().ToString("N");
         string gameDirectory = _fileSystemOperations.ResolveExistingDirectory(analysis.GameDirectory);
@@ -87,6 +94,15 @@ public sealed class InstallExecutor
                 string preparedPath = Path.Combine(preparedDirectory, $"assets-{index}.bin");
                 string finalBackupPath = Path.Combine(backupsDirectory, $"assets-{index}.bin");
                 FileIntegrity before = _fileSystemOperations.ComputeFileIntegrity(file.AssetsFilePath);
+
+                if (expectedAssetIntegrities is not null &&
+                    (!expectedAssetIntegrities.TryGetValue(file.AssetsFilePath, out FileIntegrity? expectedIntegrity) ||
+                     !expectedIntegrity.Matches(before)))
+                {
+                    throw new InstallPreparationStaleException(
+                        $"The target assets file changed after the install preview: {file.AssetsFilePath}");
+                }
+
                 File.Copy(file.AssetsFilePath, rollbackPath, false);
 
                 if (!_fileSystemOperations.MatchesFile(rollbackPath, before))

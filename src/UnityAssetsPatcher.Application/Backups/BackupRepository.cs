@@ -144,5 +144,4 @@ public sealed class BackupRepository : IBackupService
     {
         return RecoverPendingTransactions(gameDirectory);
     }
-
 }
