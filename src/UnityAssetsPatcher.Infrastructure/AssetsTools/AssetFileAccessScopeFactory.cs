@@ -137,20 +137,40 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
         IAssetFileSession session,
         IReadOnlyList<AssetFieldPatch> fieldPatches)
     {
+        var fieldTrees = new Dictionary<AssetPathId, AssetField>();
+
         return
         [
             .. fieldPatches.Select(patch => new PatchAssetFields(
                 patch.PathId,
-                patch.Operations.Select(operation => MapFieldAssignment(session, patch.PathId, operation)))),
+                patch.Operations.Select(operation => MapFieldAssignment(
+                    GetFieldTree(session, fieldTrees, patch.PathId),
+                    patch.PathId,
+                    operation)))),
         ];
     }
 
-    private static SetAssetField MapFieldAssignment(
+    private static AssetField GetFieldTree(
         IAssetFileSession session,
+        IDictionary<AssetPathId, AssetField> fieldTrees,
+        AssetPathId pathId)
+    {
+        if (fieldTrees.TryGetValue(pathId, out AssetField? fieldTree))
+        {
+            return fieldTree;
+        }
+
+        fieldTree = session.ReadField(pathId);
+        fieldTrees.Add(pathId, fieldTree);
+
+        return fieldTree;
+    }
+
+    private static SetAssetField MapFieldAssignment(
+        AssetField root,
         AssetPathId pathId,
         FieldPatchOperation operation)
     {
-        AssetField root = session.ReadField(pathId);
         var path = new AssetFieldPath(operation.Path);
         var resolver = new AssetFieldPathResolver<AssetField>(
             root,
