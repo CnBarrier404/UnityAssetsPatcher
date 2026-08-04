@@ -1,7 +1,5 @@
 using System.Text;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -42,7 +40,7 @@ public sealed class ModPackageTests
             using ModPackage package = ModPackage.Open(
                 zipPath,
                 ["bonus CAMERA"],
-                new ModManifestReader(),
+                TestDependencies.CreateModPackageArchiveService(),
                 TestDependencies.FileSystemOperations,
                 new StepTimer());
 
@@ -91,7 +89,7 @@ public sealed class ModPackageTests
                 ModPackage.Open(
                     zipPath,
                     [],
-                    new ModManifestReader(),
+                    TestDependencies.CreateModPackageArchiveService(),
                     TestDependencies.FileSystemOperations,
                     new StepTimer()));
 
@@ -136,7 +134,7 @@ public sealed class ModPackageTests
             using ModPackage package = ModPackage.Open(
                 zipPath,
                 [],
-                new ModManifestReader(),
+                TestDependencies.CreateModPackageArchiveService(),
                 TestDependencies.FileSystemOperations,
                 new StepTimer());
 

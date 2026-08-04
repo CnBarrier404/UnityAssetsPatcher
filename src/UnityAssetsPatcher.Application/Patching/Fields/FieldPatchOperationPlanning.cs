@@ -1,6 +1,6 @@
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Json;
 
@@ -11,7 +11,7 @@ public sealed class FieldPatchOperationPlanner
     public static IReadOnlyList<FieldPatchOperationPlan> CreateSetOperationPlans(
         long pathId,
         AssetField fieldTree,
-        ManifestSetOperation operation)
+        ModSetOperation operation)
     {
         AssetField? field = AssetFieldNavigator.Find(fieldTree, operation.FieldPath);
 
@@ -23,7 +23,7 @@ public sealed class FieldPatchOperationPlanner
     public static IReadOnlyList<FieldPatchOperationPlan> CreateAddOperationPlans(
         long pathId,
         AssetField fieldTree,
-        ManifestAddOperation operation)
+        ModAddOperation operation)
     {
         AssetField? field = AssetFieldNavigator.Find(fieldTree, operation.FieldPath);
         AssetField? arrayField = PatchFieldValueConverter.ResolveArrayField(field);
@@ -69,7 +69,7 @@ public sealed class FieldPatchOperationPlanner
     private static FieldPatchOperationPlan CreateScalarSetOperationPlan(
         long pathId,
         AssetField? field,
-        ManifestSetOperation operation)
+        ModSetOperation operation)
     {
         FieldValueSnapshot value = FieldValueSnapshot.ForSetOperation(field, operation);
         bool matches = field is not null && AssetFieldMatcher.MatchesValue(field, operation.From);
@@ -93,7 +93,7 @@ public sealed class FieldPatchOperationPlanner
     private static IReadOnlyList<FieldPatchOperationPlan> CreateObjectSetOperationPlans(
         long pathId,
         AssetField? field,
-        ManifestSetOperation operation,
+        ModSetOperation operation,
         JsonElement toObject)
     {
         if (field is null)
@@ -137,7 +137,7 @@ public sealed class FieldPatchOperationPlanner
     private static FieldPatchOperationPlan CreateObjectChildSetOperationPlan(
         long pathId,
         AssetField parentField,
-        ManifestSetOperation operation,
+        ModSetOperation operation,
         JsonProperty property,
         bool parentMatches,
         PatchDiagnostic? parentFailure)
@@ -226,7 +226,7 @@ public sealed class FieldPatchOperationPlanner
         bool IsArrayPatch,
         AssetField? ArrayField)
     {
-        public static FieldValueSnapshot ForSetOperation(AssetField? field, ManifestSetOperation operation)
+        public static FieldValueSnapshot ForSetOperation(AssetField? field, ModSetOperation operation)
         {
             if (!PatchFieldValueConverter.IsJsonArrayPatchValue(operation.To))
             {

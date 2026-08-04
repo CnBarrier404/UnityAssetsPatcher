@@ -1,6 +1,7 @@
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Domain.Assets;
@@ -182,7 +183,7 @@ public sealed class FieldPatchPlannerTests
                 [3] = CreateFieldTree("Material", "Other", ("m_Value", 0)),
             });
         FieldPatchPlanner builder = CreateFieldPatchPlanner(new AssetQueryService(reader));
-        ManifestSetOperation operation = new(
+        ModSetOperation operation = new(
             "m_Value",
             JsonElementFactory.Number(0),
             JsonElementFactory.Number(1));
@@ -270,11 +271,11 @@ public sealed class FieldPatchPlannerTests
     private static FieldPatchPlanner CreateFieldPatchPlanner(AssetQueryService queryService) =>
         new(queryService, [new SetFieldPatchOperationHandler(), new AddFieldPatchOperationHandler()]);
 
-    private static ManifestPatch CreatePatch(
-        IReadOnlyList<ManifestSetOperation> setOperations,
+    private static ModPatch CreatePatch(
+        IReadOnlyList<ModSetOperation> setOperations,
         string assetName = "Target")
     {
-        return new ManifestPatch(
+        return new ModPatch(
             AssetsPath,
             "Material",
             new Dictionary<string, JsonElement>(StringComparer.Ordinal)
@@ -282,15 +283,18 @@ public sealed class FieldPatchPlannerTests
                 ["m_Name"] = JsonElementFactory.String(assetName),
             },
             setOperations,
+            [],
+            null,
+            null,
             null);
     }
 
-    private static ManifestSetOperation CreateSetOperation(
+    private static ModSetOperation CreateSetOperation(
         string fieldPath,
         string assetTypeName,
         string assetName)
     {
-        return new ManifestSetOperation(
+        return new ModSetOperation(
             fieldPath,
             JsonElementFactory.Number(0),
             CreatePathIdResolver(assetTypeName, assetName));

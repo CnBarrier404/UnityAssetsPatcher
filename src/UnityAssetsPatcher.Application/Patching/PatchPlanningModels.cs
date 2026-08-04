@@ -1,3 +1,4 @@
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Assets;
 
@@ -5,7 +6,7 @@ namespace UnityAssetsPatcher.Application.Patching;
 
 public sealed record PatchPlanningRequest(
     string AssetsFilePath,
-    IReadOnlyList<ManifestPatch> Targets,
+    IReadOnlyList<ModPatch> Targets,
     IReadOnlyDictionary<string, string> SourceAssetsPaths)
 {
     public bool IncludePreviewDetails { get; init; } = true;

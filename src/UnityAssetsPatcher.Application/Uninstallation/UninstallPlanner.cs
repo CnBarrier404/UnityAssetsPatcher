@@ -1,5 +1,4 @@
 using UnityAssetsPatcher.Application.IO;
-using InstallRecordSummary = UnityAssetsPatcher.Application.Contracts.InstallRecordSummary;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
@@ -32,14 +31,7 @@ public sealed class UninstallPlanner
 
     public IReadOnlyList<InstallRecordSummary> ListInstalled()
     {
-        return _backupRepository.ListInstalled()
-            .Select(record => new InstallRecordSummary(
-                record.Id,
-                record.ModName,
-                record.ModVersion,
-                record.GameName,
-                record.InstalledAt))
-            .ToArray();
+        return _backupRepository.ListInstalled();
     }
 
     public UninstallPreviewResult BuildPreview(UninstallPreviewRequest request)

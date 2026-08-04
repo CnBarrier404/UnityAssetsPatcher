@@ -1,10 +1,8 @@
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Domain.Assets;
-using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -65,7 +63,7 @@ public sealed class InstallPlanBuilderTests
             using ModPackage package = ModPackage.Open(
                 zipPath,
                 [],
-                new ModManifestReader(),
+                TestDependencies.CreateModPackageArchiveService(),
                 TestDependencies.FileSystemOperations,
                 new StepTimer());
 
@@ -154,7 +152,7 @@ public sealed class InstallPlanBuilderTests
             using ModPackage package = ModPackage.Open(
                 zipPath,
                 [],
-                new ModManifestReader(),
+                TestDependencies.CreateModPackageArchiveService(),
                 TestDependencies.FileSystemOperations,
                 new StepTimer());
 
@@ -189,7 +187,7 @@ public sealed class InstallPlanBuilderTests
     [Fact]
     public void PlanPayloadFiles_WhenTargetsResolveToDifferentDirectories_ThrowsClearError()
     {
-        var manifest = CreateManifest([new ManifestFile("resources/modassets.resource")]);
+        var manifest = CreateManifest([new ModFile("resources/modassets.resource")]);
         var targets = new TargetAssetSet(
         [
             new TargetAsset("sharedassets0.assets", FullPath("Game_Data", "sharedassets0.assets"), []),
@@ -202,11 +200,10 @@ public sealed class InstallPlanBuilderTests
         Assert.Contains("Payload files require all patch targets to resolve to the same directory", exception.Message);
     }
 
-    private static UnityAssetsPatcher.Application.Contracts.ModManifest CreateManifest(
-        IReadOnlyList<ManifestFile> files)
+    private static ModManifest CreateManifest(IReadOnlyList<ModFile> files)
     {
-        return new UnityAssetsPatcher.Application.Contracts.ModManifest(
-            1,
+        return new ModManifest(
+            "https://uap.cnbarrier.com/schema-v1.json",
             "Test Mod",
             "Tester",
             "1.0.0",

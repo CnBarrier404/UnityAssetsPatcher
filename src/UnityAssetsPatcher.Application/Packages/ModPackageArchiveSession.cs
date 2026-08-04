@@ -28,6 +28,34 @@ public sealed class ModPackageArchiveSession : IDisposable
         _fileSystemOperations = fileSystemOperations;
     }
 
+    public OperationResult<byte[]> ReadManifest()
+    {
+        if (_manifestEntry.Length > MaxManifestSize)
+        {
+            return ManifestTooLarge(_manifestEntry.Length);
+        }
+
+        using Stream input = _archive.OpenEntry(_manifestEntry.Id);
+        using MemoryStream output = new((int)_manifestEntry.Length);
+        byte[] buffer = new byte[CopyBufferSize];
+        long totalBytes = 0;
+        int bytesRead;
+
+        while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            totalBytes += bytesRead;
+
+            if (totalBytes > MaxManifestSize)
+            {
+                return ManifestTooLarge(totalBytes);
+            }
+
+            output.Write(buffer, 0, bytesRead);
+        }
+
+        return new OperationSucceeded<byte[]>(output.ToArray());
+    }
+
     public async Task<OperationResult<byte[]>> ReadManifestAsync(CancellationToken cancellationToken = default)
     {
         if (_manifestEntry.Length > MaxManifestSize)

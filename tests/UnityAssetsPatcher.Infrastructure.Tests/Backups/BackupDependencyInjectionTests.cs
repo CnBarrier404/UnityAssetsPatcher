@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application.Backups;
-using UnityAssetsPatcher.Infrastructure;
 using Xunit;
 
 namespace UnityAssetsPatcher.Infrastructure.Tests.Backups;

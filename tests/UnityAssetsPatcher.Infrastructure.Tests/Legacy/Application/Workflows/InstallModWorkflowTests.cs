@@ -2,13 +2,10 @@ using System.IO.Compression;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Integrity;
-using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 
@@ -1538,7 +1535,7 @@ public sealed class InstallModWorkflowTests
         GameDirectoryResolver gameDirectoryResolver,
         string? backupDirectory = null)
     {
-        var manifestReader = new ModManifestReader();
+        var archiveService = TestDependencies.CreateModPackageArchiveService();
         var planBuilder = new InstallPlanBuilder(
             new TargetAssetResolver(TestDependencies.FileSystemOperations),
             gameDirectoryResolver,
@@ -1552,7 +1549,7 @@ public sealed class InstallModWorkflowTests
             TestDependencies.FileSystemOperations);
 
         return new InstallModWorkflow(
-            manifestReader,
+            archiveService,
             planBuilder,
             executor,
             backupStore,

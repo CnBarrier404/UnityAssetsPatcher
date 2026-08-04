@@ -1,3 +1,4 @@
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Json;
@@ -14,22 +15,22 @@ public sealed class FieldPatchPlanner
         IEnumerable<IFieldPatchOperationHandler> operationHandlers)
     {
         _assetQueryService = assetQueryService;
-        _operationHandlers = operationHandlers.ToArray();
+        _operationHandlers = [.. operationHandlers];
     }
 
-    public PatchPreviewResult CreatePreview(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
+    public PatchPreviewResult CreatePreview(string assetsFilePath, IReadOnlyList<ModPatch> targets)
     {
         return Plan(assetsFilePath, targets).Preview;
     }
 
-    public IReadOnlyList<AssetFieldPatch> CreateWritePlan(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
+    public IReadOnlyList<AssetFieldPatch> CreateWritePlan(string assetsFilePath, IReadOnlyList<ModPatch> targets)
     {
         return Plan(assetsFilePath, targets).Assets;
     }
 
     public FieldPatchPlanningOutput Plan(
         string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets,
+        IReadOnlyList<ModPatch> targets,
         bool includePreviewDetails = true)
     {
         if (!PatchOperationRules.HasPatchOperations(targets))
@@ -61,14 +62,15 @@ public sealed class FieldPatchPlanner
             ? assetPlans
                 .Select(assetPlan => new PatchPreviewAssetResult(
                     assetPlan.Asset,
-                    assetPlan.Operations
-                        .Select(operation => new PatchPreviewOperationResult(
-                            operation.Path,
-                            operation.OldValue,
-                            JsonUtils.FormatElementValue(operation.From),
-                            JsonUtils.FormatElementValue(operation.To),
-                            operation.WillChange))
-                        .ToArray()))
+                    [
+                        .. assetPlan.Operations
+                            .Select(operation => new PatchPreviewOperationResult(
+                                operation.Path,
+                                operation.OldValue,
+                                JsonUtils.FormatElementValue(operation.From),
+                                JsonUtils.FormatElementValue(operation.To),
+                                operation.WillChange))
+                    ]))
                 .ToArray()
             : []);
 
@@ -77,7 +79,7 @@ public sealed class FieldPatchPlanner
 
     private IEnumerable<FieldPatchAssetPlan> CreateAssetPlans(
         string assetsFilePath,
-        IReadOnlyList<ManifestPatch> targets)
+        IReadOnlyList<ModPatch> targets)
     {
         AssetQueryContext queryContext = _assetQueryService.CreateContext(assetsFilePath);
         NormalizedFieldPatchOperation[][] normalizedOperationsByTarget =
@@ -138,17 +140,17 @@ public sealed class FieldPatchPlanner
     private static NormalizedFieldPatchOperation[] NormalizeOperations(
         AssetQueryContext queryContext,
         string assetsFilePath,
-        ManifestPatch patch)
+        ModPatch patch)
     {
-        IEnumerable<NormalizedFieldPatchOperation> setOperations = (patch.SetOperations ?? [])
+        IEnumerable<NormalizedFieldPatchOperation> setOperations = patch.SetOperations
             .Select(operation => new NormalizedSetFieldPatchOperation(
-                new Lazy<ManifestSetOperation>(() => PatchValueResolver.ResolveSetOperation(
+                new Lazy<ModSetOperation>(() => PatchValueResolver.ResolveSetOperation(
                     queryContext, assetsFilePath, operation))));
 
-        IEnumerable<NormalizedFieldPatchOperation> addOperations = (patch.AddOperations ?? [])
+        IEnumerable<NormalizedFieldPatchOperation> addOperations = patch.AddOperations
             .Select(operation => new NormalizedAddFieldPatchOperation(operation));
 
-        return setOperations.Concat(addOperations).ToArray();
+        return [.. setOperations, .. addOperations];
     }
 
     private sealed record FieldPatchAssetPlan(AssetInfo Asset, IReadOnlyList<FieldPatchOperationPlan> Operations);
@@ -158,10 +160,10 @@ public sealed record FieldPatchPlanningOutput(IReadOnlyList<AssetFieldPatch> Ass
 
 public abstract record NormalizedFieldPatchOperation;
 
-public sealed record NormalizedSetFieldPatchOperation(Lazy<ManifestSetOperation> Operation)
+public sealed record NormalizedSetFieldPatchOperation(Lazy<ModSetOperation> Operation)
     : NormalizedFieldPatchOperation;
 
-public sealed record NormalizedAddFieldPatchOperation(ManifestAddOperation Operation)
+public sealed record NormalizedAddFieldPatchOperation(ModAddOperation Operation)
     : NormalizedFieldPatchOperation;
 
 public interface IFieldPatchOperationHandler

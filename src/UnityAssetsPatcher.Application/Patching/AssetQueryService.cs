@@ -1,5 +1,5 @@
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;
@@ -22,9 +22,7 @@ public sealed class AssetQueryService
         return new AssetQueryContext(_assetsReader, assetsFilePath);
     }
 
-    public static IEnumerable<AssetQueryMatch> FindMatches(
-        AssetQueryContext context,
-        ManifestPatch patch)
+    public static IEnumerable<AssetQueryMatch> FindMatches(AssetQueryContext context, ModPatch patch)
     {
         var assetsByPathId = patch.ComponentTypeName is null
             ? null
@@ -68,7 +66,7 @@ public sealed class AssetQueryService
 
     internal static IEnumerable<AssetQueryPatchMatch> FindMatches(
         AssetQueryContext context,
-        IReadOnlyList<ManifestPatch> patches)
+        IReadOnlyList<ModPatch> patches)
     {
         var indexedPatches = patches
             .Select((patch, index) => new IndexedPatch(index, patch))
@@ -93,7 +91,7 @@ public sealed class AssetQueryService
 
                 foreach (IndexedPatch indexedPatch in groupedPatches)
                 {
-                    ManifestPatch patch = indexedPatch.Patch;
+                    ModPatch patch = indexedPatch.Patch;
 
                     if (!AssetFieldMatcher.MatchesFields(ownerFieldTree, patch.Match))
                     {
@@ -208,5 +206,5 @@ public sealed class AssetQueryService
         return pathIdField?.Value is AssetFieldValue.Int64 value ? value.Value : null;
     }
 
-    private sealed record IndexedPatch(int Index, ManifestPatch Patch);
+    private sealed record IndexedPatch(int Index, ModPatch Patch);
 }

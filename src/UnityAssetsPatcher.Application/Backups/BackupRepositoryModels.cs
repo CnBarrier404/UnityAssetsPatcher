@@ -7,13 +7,6 @@ public sealed record BackupRepositoryMetadata(int FormatVersion, string Reposito
 
 public sealed record InstallRecordEntry(string InstallDirectory, InstallRecord Record);
 
-public sealed record InstallRecordSummary(
-    string Id,
-    string ModName,
-    string ModVersion,
-    string? GameName,
-    DateTimeOffset InstalledAt);
-
 public sealed record BlockingInstallRecord(InstallRecord Record, IReadOnlyList<string> OverlappingAssetsFiles);
 
 public sealed record InstallRecord

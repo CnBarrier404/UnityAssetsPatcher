@@ -5,12 +5,10 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Integrity;
 using UnityAssetsPatcher.Infrastructure;
-using UnityAssetsPatcher.Tests;
 using UnityAssetsPatcher.Tests.Support;
 using Xunit;
 

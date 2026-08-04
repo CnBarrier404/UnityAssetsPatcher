@@ -31,7 +31,6 @@ public static class ApplicationServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddSingleton<ModManifestReader>();
         services.AddSingleton<GameDirectoryResolver>();
         services.AddSingleton<TargetAssetResolver>();
         services.AddSingleton(provider => new BackupRepository(

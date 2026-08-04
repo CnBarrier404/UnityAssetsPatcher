@@ -5,9 +5,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Infrastructure.IO;
 using UnityAssetsPatcher.Infrastructure.Installation;
+using UnityAssetsPatcher.Infrastructure.Packages;
 
 namespace UnityAssetsPatcher.Tests;
 
@@ -21,6 +23,17 @@ public static class TestDependencies
 
     public static IFileSystemOperations FileSystemOperations { get; } =
         new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
+
+    public static ModPackageArchiveService CreateModPackageArchiveService(
+        IFileSystemOperations? fileSystemOperations = null)
+    {
+        fileSystemOperations ??= FileSystemOperations;
+        var archiveFactory = new ModPackageArchiveFactory(
+            fileSystemOperations,
+            NullLogger<ModPackageArchiveFactory>.Instance);
+
+        return new ModPackageArchiveService(archiveFactory, fileSystemOperations);
+    }
 
     public static BackupRepository CreateBackupRepository(
         string backupDirectory,

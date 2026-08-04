@@ -1,3 +1,4 @@
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Domain.Assets;
 
@@ -12,21 +13,24 @@ public sealed class CopyAssetPlanner
         _assetQueryService = assetQueryService;
     }
 
-    public CopyAssetPlanningOutput Plan(string assetsFilePath, IReadOnlyList<ManifestPatch> targets)
+    public CopyAssetPlanningOutput Plan(string assetsFilePath, IReadOnlyList<ModPatch> targets)
     {
         AssetQueryContext context = _assetQueryService.CreateContext(assetsFilePath);
         var copies = new List<AssetCopy>();
         var previews = new List<PatchPreviewAssetResult>();
         var targetPathIds = new HashSet<long>();
 
-        foreach (ManifestPatch patch in targets.Where(target => target.CopyAssetFrom is not null))
+        foreach (ModPatch patch in targets.Where(target => target.CopyAsset is not null))
         {
-            ManifestCopyAssetFrom copyFrom = patch.CopyAssetFrom!;
+            ModCopyAsset copyFrom = patch.CopyAsset!;
             AssetQueryMatch target = FindUniqueMatch(context, patch, "target");
-            var sourcePatch = new ManifestPatch(
+            var sourcePatch = new ModPatch(
                 patch.AssetsFileName,
                 copyFrom.AssetTypeName,
                 copyFrom.Match,
+                [],
+                [],
+                null,
                 null,
                 null);
             AssetQueryMatch source = FindUniqueMatch(context, sourcePatch, "source");
@@ -77,10 +81,10 @@ public sealed class CopyAssetPlanner
 
     private static AssetQueryMatch FindUniqueMatch(
         AssetQueryContext context,
-        ManifestPatch patch,
+        ModPatch patch,
         string role)
     {
-        AssetQueryMatch[] matches = AssetQueryService.FindMatches(context, patch).Take(2).ToArray();
+        AssetQueryMatch[] matches = [.. AssetQueryService.FindMatches(context, patch).Take(2)];
 
         return matches.Length switch
         {
@@ -95,6 +99,4 @@ public sealed class CopyAssetPlanner
     }
 }
 
-public sealed record CopyAssetPlanningOutput(
-    IReadOnlyList<AssetCopy> Copies,
-    PatchPreviewResult Preview);
+public sealed record CopyAssetPlanningOutput(IReadOnlyList<AssetCopy> Copies, PatchPreviewResult Preview);

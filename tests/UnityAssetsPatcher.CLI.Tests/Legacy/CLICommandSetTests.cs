@@ -389,8 +389,6 @@ public sealed class CLICommandSetTests : IDisposable
             return new OperationSucceeded<BackupRecoveryReport>(BackupRecoveryReport.Clean);
         }
 
-        public OperationResult<ModManifest> CheckManifest(string path) => throw new NotSupportedException();
-
         public OperationResult<InspectListResult> InspectList(InspectListRequest request)
         {
             LastInspectListRequest = request;

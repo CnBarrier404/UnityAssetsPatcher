@@ -1,6 +1,5 @@
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Domain.Integrity;
-using UnityAssetsPatcher.Tests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Tests.Application.Backups;

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Domain.Integrity;
 

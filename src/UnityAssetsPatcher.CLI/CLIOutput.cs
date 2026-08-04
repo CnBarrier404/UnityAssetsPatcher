@@ -4,7 +4,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.CLI;
@@ -135,25 +134,6 @@ internal static class CLIOutput
                     new JsonArray(details.Skip(1).Select(value => JsonValue.Create(value)).ToArray<JsonNode?>()),
             },
         });
-    }
-
-    public static JsonObject ManifestSummary(string path, ModManifest manifest)
-    {
-        return new JsonObject
-        {
-            ["configPath"] = Path.GetFullPath(path),
-            ["schemaVersion"] = manifest.SchemaVersion,
-            ["name"] = manifest.Name,
-            ["author"] = manifest.Author,
-            ["version"] = manifest.Version,
-            ["description"] = manifest.Description,
-            ["game"] = manifest.Game,
-            ["optionalGroups"] = new JsonArray(manifest.Optional.Select(group => new JsonObject
-            {
-                ["name"] = group.Name,
-                ["description"] = group.Description,
-            }).ToArray<JsonNode?>()),
-        };
     }
 
     public static JsonObject InspectList(string path, InspectListResult result)

@@ -1,38 +1,38 @@
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.Application.Patching;
 
 public static class PatchOperationRules
 {
-    public static bool HasPatchOperations(IReadOnlyList<ManifestPatch> targets)
+    public static bool HasPatchOperations(IReadOnlyList<ModPatch> targets)
     {
         return targets.Count > 0 && targets.All(HasPatchOperations);
     }
 
-    public static bool HasPatchOperations(ManifestPatch target)
+    public static bool HasPatchOperations(ModPatch target)
     {
         return HasFieldPatchOperations(target) ||
-               target.ReplaceFrom is not null ||
-               target.CopyAssetFrom is not null;
+               target.ReplaceAsset is not null ||
+               target.CopyAsset is not null;
     }
 
-    public static bool HasFieldPatchOperations(ManifestPatch target)
+    public static bool HasFieldPatchOperations(ModPatch target)
     {
         return target.SetOperations is { Count: > 0 } ||
                target.AddOperations is { Count: > 0 };
     }
 
-    public static bool HasReplacementOperations(IReadOnlyList<ManifestPatch> targets)
+    public static bool HasReplacementOperations(IReadOnlyList<ModPatch> targets)
     {
-        return targets.Any(target => target.ReplaceFrom is not null);
+        return targets.Any(target => target.ReplaceAsset is not null);
     }
 
-    public static bool HasCopyOperations(IReadOnlyList<ManifestPatch> targets)
+    public static bool HasCopyOperations(IReadOnlyList<ModPatch> targets)
     {
-        return targets.Any(target => target.CopyAssetFrom is not null);
+        return targets.Any(target => target.CopyAsset is not null);
     }
 
-    public static void EnsureReplacementOperationsAreNotMixed(IReadOnlyList<ManifestPatch> targets)
+    public static void EnsureReplacementOperationsAreNotMixed(IReadOnlyList<ModPatch> targets)
     {
         if (targets.Any(HasFieldPatchOperations) || HasCopyOperations(targets))
         {
@@ -42,17 +42,15 @@ public static class PatchOperationRules
         }
     }
 
-    public static void EnsureCopyOperationsAreValid(IReadOnlyList<ManifestPatch> targets)
+    public static void EnsureCopyOperationsAreValid(IReadOnlyList<ModPatch> targets)
     {
-        foreach (ManifestPatch target in targets.Where(target => target.CopyAssetFrom is not null))
+        if (targets.Where(target => target.CopyAsset is not null).Any(target => HasFieldPatchOperations(target) ||
+                target.ReplaceAsset is not null ||
+                target.ComponentTypeName is not null))
         {
-            if (HasFieldPatchOperations(target) || target.ReplaceFrom is not null ||
-                target.ComponentTypeName is not null)
-            {
-                throw new PatchPlanningException(
-                    PatchDiagnosticCode.InvalidPatchConfiguration,
-                    "Manifest 'copyAsset' cannot be combined with 'set', 'add', 'replaceAsset', or 'componentType' in the same patch.");
-            }
+            throw new PatchPlanningException(
+                PatchDiagnosticCode.InvalidPatchConfiguration,
+                "Manifest 'copyAsset' cannot be combined with 'set', 'add', 'replaceAsset', or 'componentType' in the same patch.");
         }
     }
 

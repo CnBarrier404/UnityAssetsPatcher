@@ -1,6 +1,6 @@
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Domain.Assets;
@@ -17,7 +17,7 @@ public sealed class PatchPlannerDiagnosticTests
     {
         var assets = new StubAssetsFileService([]);
         PatchPlanner planner = CreatePlanner(assets);
-        ManifestPatch patch = CreatePatch("Material", [], null);
+        ModPatch patch = CreatePatch("Material", [], null);
 
         PatchPlanningResult result = Plan(planner, [patch]);
 
@@ -29,10 +29,10 @@ public sealed class PatchPlannerDiagnosticTests
     {
         var assets = new StubAssetsFileService([]);
         PatchPlanner planner = CreatePlanner(assets);
-        ManifestPatch patch = CreatePatch(
+        ModPatch patch = CreatePatch(
             "Material",
-            [new ManifestSetOperation("m_Value", JsonElementFactory.Number(1), JsonElementFactory.Number(2))],
-            new ManifestReplaceFrom(SourcePath, "m_Name"));
+            [new ModSetOperation("m_Value", JsonElementFactory.Number(1), JsonElementFactory.Number(2))],
+            new ModReplaceAsset(SourcePath, "m_Name"));
 
         PatchPlanningResult result = Plan(planner, [patch]);
 
@@ -47,7 +47,7 @@ public sealed class PatchPlannerDiagnosticTests
     {
         var assets = new StubAssetsFileService([]);
         PatchPlanner planner = CreatePlanner(assets);
-        ManifestPatch patch = CreateScalarPatch(1, 2);
+        ModPatch patch = CreateScalarPatch(1, 2);
 
         PatchPlanningResult result = Plan(planner, [patch]);
 
@@ -70,7 +70,7 @@ public sealed class PatchPlannerDiagnosticTests
                 ]),
             });
         PatchPlanner planner = CreatePlanner(assets);
-        var operation = new ManifestSetOperation(
+        var operation = new ModSetOperation(
             "m_Settings",
             JsonUtils.ParseElement("{}"),
             JsonUtils.ParseElement("{\"m_Missing\":2}"));
@@ -84,7 +84,7 @@ public sealed class PatchPlannerDiagnosticTests
     public void Plan_WhenCurrentValueDoesNotMatch_ReturnsValueMismatch()
     {
         PatchPlanner planner = CreatePlanner(CreateScalarAssets(1));
-        ManifestPatch patch = CreateScalarPatch(2, 3);
+        ModPatch patch = CreateScalarPatch(2, 3);
 
         PatchPlanningResult result = Plan(planner, [patch]);
 
@@ -95,7 +95,7 @@ public sealed class PatchPlannerDiagnosticTests
     public void Plan_WhenReplacementValueIsUnsupported_ReturnsUnsupportedValue()
     {
         PatchPlanner planner = CreatePlanner(CreateScalarAssets(1));
-        var operation = new ManifestSetOperation(
+        var operation = new ModSetOperation(
             "m_Value",
             JsonElementFactory.Number(1),
             JsonUtils.ParseElement("null"));
@@ -109,7 +109,7 @@ public sealed class PatchPlannerDiagnosticTests
     public void Plan_WhenPathIdReferenceDoesNotMatch_ReturnsPathIdReferenceNotFound()
     {
         PatchPlanner planner = CreatePlanner(CreatePathIdAssets(["Other"]));
-        ManifestPatch patch = CreatePathIdPatch("Missing");
+        ModPatch patch = CreatePathIdPatch("Missing");
 
         PatchPlanningResult result = Plan(planner, [patch]);
 
@@ -120,7 +120,7 @@ public sealed class PatchPlannerDiagnosticTests
     public void Plan_WhenPathIdReferenceMatchesMultiple_ReturnsPathIdReferenceAmbiguous()
     {
         PatchPlanner planner = CreatePlanner(CreatePathIdAssets(["Duplicate", "Duplicate"]));
-        ManifestPatch patch = CreatePathIdPatch("Duplicate");
+        ModPatch patch = CreatePathIdPatch("Duplicate");
 
         PatchPlanningResult result = Plan(planner, [patch]);
 
@@ -137,7 +137,7 @@ public sealed class PatchPlannerDiagnosticTests
                 [1] = CreateNamedField("AudioClip", "Target"),
             });
         PatchPlanner planner = CreatePlanner(assets);
-        ManifestPatch patch = CreateReplacementPatch();
+        ModPatch patch = CreateReplacementPatch();
 
         PatchPlanningResult result = Plan(planner, [patch]);
 
@@ -158,7 +158,7 @@ public sealed class PatchPlannerDiagnosticTests
                 [(AssetsPath, 1)] = CreateNamedField("AudioClip", "Target"),
             });
         PatchPlanner planner = CreatePlanner(assets);
-        ManifestPatch patch = CreateReplacementPatch();
+        ModPatch patch = CreateReplacementPatch();
 
         PatchPlanningResult result = planner.Plan(new PatchPlanningRequest(
             AssetsPath,
@@ -174,7 +174,7 @@ public sealed class PatchPlannerDiagnosticTests
     [Fact]
     public void Plan_WhenPreviewDetailsDiffer_ProducesSameWritePlan()
     {
-        ManifestPatch patch = CreateScalarPatch(1, 2);
+        ModPatch patch = CreateScalarPatch(1, 2);
         PatchPlanningResult detailed = Plan(CreatePlanner(CreateScalarAssets(1)), [patch]);
         PatchPlanningResult summary = Plan(
             CreatePlanner(CreateScalarAssets(1)),
@@ -193,7 +193,7 @@ public sealed class PatchPlannerDiagnosticTests
     [Fact]
     public void Plan_WhenPreviewDetailsDiffer_ProducesSameDiagnostic()
     {
-        ManifestPatch patch = CreateScalarPatch(2, 3);
+        ModPatch patch = CreateScalarPatch(2, 3);
         PatchPlanningResult detailed = Plan(CreatePlanner(CreateScalarAssets(1)), [patch]);
         PatchPlanningResult summary = Plan(
             CreatePlanner(CreateScalarAssets(1)),
@@ -208,7 +208,7 @@ public sealed class PatchPlannerDiagnosticTests
     public void Plan_WhenAssetsReaderThrowsIOException_PropagatesException()
     {
         PatchPlanner planner = CreatePlanner(new ThrowingAssetsFileReader());
-        ManifestPatch patch = CreateScalarPatch(1, 2);
+        ModPatch patch = CreateScalarPatch(1, 2);
 
         var exception = Assert.Throws<IOException>(() => Plan(planner, [patch]));
 
@@ -233,7 +233,7 @@ public sealed class PatchPlannerDiagnosticTests
 
     private static PatchPlanningResult Plan(
         PatchPlanner planner,
-        IReadOnlyList<ManifestPatch> patches,
+        IReadOnlyList<ModPatch> patches,
         bool includePreviewDetails = true)
     {
         return planner.Plan(new PatchPlanningRequest(AssetsPath, patches, new Dictionary<string, string>())
@@ -242,17 +242,17 @@ public sealed class PatchPlannerDiagnosticTests
         });
     }
 
-    private static ManifestPatch CreateScalarPatch(long from, long to)
+    private static ModPatch CreateScalarPatch(long from, long to)
     {
         return CreatePatch(
             "Material",
-            [new ManifestSetOperation("m_Value", JsonElementFactory.Number(from), JsonElementFactory.Number(to))],
+            [new ModSetOperation("m_Value", JsonElementFactory.Number(from), JsonElementFactory.Number(to))],
             null);
     }
 
-    private static ManifestPatch CreatePathIdPatch(string referencedName)
+    private static ModPatch CreatePathIdPatch(string referencedName)
     {
-        var operation = new ManifestSetOperation(
+        var operation = new ModSetOperation(
             "m_Reference",
             JsonElementFactory.Number(0),
             JsonUtils.ParseElement(
@@ -268,26 +268,28 @@ public sealed class PatchPlannerDiagnosticTests
         return CreatePatch("Material", [operation], null);
     }
 
-    private static ManifestPatch CreateReplacementPatch()
+    private static ModPatch CreateReplacementPatch()
     {
         return CreatePatch(
             "AudioClip",
             null,
-            new ManifestReplaceFrom(SourcePath, "m_Name"));
+            new ModReplaceAsset(SourcePath, "m_Name"));
     }
 
-    private static ManifestPatch CreatePatch(
+    private static ModPatch CreatePatch(
         string assetType,
-        IReadOnlyList<ManifestSetOperation>? setOperations,
-        ManifestReplaceFrom? replaceFrom)
+        IReadOnlyList<ModSetOperation>? setOperations,
+        ModReplaceAsset? replaceAsset)
     {
-        return new ManifestPatch(
+        return new ModPatch(
             AssetsPath,
             assetType,
             new Dictionary<string, JsonElement>(),
-            setOperations,
+            setOperations ?? [],
+            [],
+            replaceAsset,
             null,
-            replaceFrom);
+            null);
     }
 
     private static StubAssetsFileService CreateScalarAssets(long value)

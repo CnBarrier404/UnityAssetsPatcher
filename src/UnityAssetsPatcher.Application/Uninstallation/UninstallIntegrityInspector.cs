@@ -1,4 +1,3 @@
-using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Domain.Integrity;

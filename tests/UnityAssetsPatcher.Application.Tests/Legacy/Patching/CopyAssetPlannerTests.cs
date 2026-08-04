@@ -1,5 +1,6 @@
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Tests.Support;
@@ -51,15 +52,17 @@ public sealed class CopyAssetPlannerTests
             });
     }
 
-    private static ManifestPatch CreateCopyPatch(string targetName, string sourceName)
+    private static ModPatch CreateCopyPatch(string targetName, string sourceName)
     {
-        return new ManifestPatch(
+        return new ModPatch(
             "sharedassets6.assets",
             "Material",
             new Dictionary<string, JsonElement> { ["m_Name"] = JsonString(targetName) },
+            [],
+            [],
             null,
             null,
-            CopyAssetFrom: new ManifestCopyAssetFrom(
+            new ModCopyAsset(
                 "Material",
                 new Dictionary<string, JsonElement> { ["m_Name"] = JsonString(sourceName) }));
     }

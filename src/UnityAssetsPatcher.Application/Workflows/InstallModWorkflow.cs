@@ -5,7 +5,7 @@ using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Integrity;
@@ -14,7 +14,7 @@ namespace UnityAssetsPatcher.Application.Workflows;
 
 public sealed class InstallModWorkflow
 {
-    private readonly ModManifestReader _manifestReader;
+    private readonly ModPackageArchiveService _archiveService;
     private readonly InstallPlanBuilder _planBuilder;
     private readonly InstallExecutor _executor;
     private readonly BackupRepository _backupRepository;
@@ -23,7 +23,7 @@ public sealed class InstallModWorkflow
     private readonly ILogger<InstallModWorkflow> _logger;
 
     public InstallModWorkflow(
-        ModManifestReader manifestReader,
+        ModPackageArchiveService archiveService,
         InstallPlanBuilder planBuilder,
         InstallExecutor executor,
         BackupRepository backupRepository,
@@ -31,8 +31,9 @@ public sealed class InstallModWorkflow
         IFileSystemOperations fileSystemOperations,
         ILogger<InstallModWorkflow>? logger = null)
     {
+        ArgumentNullException.ThrowIfNull(archiveService);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        _manifestReader = manifestReader;
+        _archiveService = archiveService;
         _planBuilder = planBuilder;
         _executor = executor;
         _backupRepository = backupRepository;
@@ -48,7 +49,7 @@ public sealed class InstallModWorkflow
         using ModPackage package = ModPackage.Open(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
-            _manifestReader,
+            _archiveService,
             _fileSystemOperations,
             timings);
         using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
@@ -90,7 +91,7 @@ public sealed class InstallModWorkflow
         using ModPackage package = ModPackage.Open(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
-            _manifestReader,
+            _archiveService,
             _fileSystemOperations,
             timings);
         using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();

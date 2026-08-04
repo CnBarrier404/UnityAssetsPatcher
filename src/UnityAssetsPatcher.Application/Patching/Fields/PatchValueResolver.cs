@@ -1,19 +1,19 @@
 using System.Text.Json;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Domain.Json;
 
 namespace UnityAssetsPatcher.Application.Patching.Fields;
 
 public sealed class PatchValueResolver
 {
-    public static ManifestSetOperation ResolveSetOperation(
+    public static ModSetOperation ResolveSetOperation(
         AssetQueryContext queryContext,
         string assetsFilePath,
-        ManifestSetOperation operation)
+        ModSetOperation operation)
     {
         JsonElement resolvedTo = ResolvePatchValue(queryContext, assetsFilePath, operation.To);
 
-        return new ManifestSetOperation(operation.FieldPath, operation.From.Clone(), resolvedTo);
+        return new ModSetOperation(operation.FieldPath, operation.From.Clone(), resolvedTo);
     }
 
     private static JsonElement ResolvePatchValue(
@@ -38,10 +38,13 @@ public sealed class PatchValueResolver
         string type = ReadRequiredPathIdResolverString(resolver, "type");
         var match = ReadPathIdResolverMatch(resolver);
 
-        var target = new ManifestPatch(
+        var target = new ModPatch(
             Path.GetFileName(assetsFilePath),
             type,
             match,
+            [],
+            [],
+            null,
             null,
             null);
         var matches = AssetQueryService.FindMatches(queryContext, target)
@@ -71,6 +74,7 @@ public sealed class PatchValueResolver
         }
 
         resolver = default;
+
         return false;
     }
 

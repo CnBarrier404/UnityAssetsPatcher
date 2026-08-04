@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Json;
@@ -257,18 +258,20 @@ public sealed class ReplacementPlannerTests
         return new TestScenario(reader, new ReplacementPlanner(new AssetQueryService(reader)));
     }
 
-    private static ManifestPatch CreatePatch(string name, string matchFieldPath = "m_Name")
+    private static ModPatch CreatePatch(string name, string matchFieldPath = "m_Name")
     {
-        return new ManifestPatch(
+        return new ModPatch(
             TargetPath,
             "AudioClip",
             new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal)
             {
                 ["m_Name"] = JsonElementFactory.String(name),
             },
+            [],
+            [],
+            new ModReplaceAsset(SourcePath, matchFieldPath),
             null,
-            null,
-            new ManifestReplaceFrom(SourcePath, matchFieldPath));
+            null);
     }
 
     private static AssetField CreateFieldTree(string name)

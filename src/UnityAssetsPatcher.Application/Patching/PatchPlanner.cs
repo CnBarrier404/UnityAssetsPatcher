@@ -1,3 +1,4 @@
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Patching.Fields;
 
@@ -117,7 +118,7 @@ public sealed class PatchPlanner
             diagnostic);
     }
 
-    private static void EnsurePatchTargetsCanBePlanned(IReadOnlyList<ManifestPatch> targets)
+    private static void EnsurePatchTargetsCanBePlanned(IReadOnlyList<ModPatch> targets)
     {
         if (!PatchOperationRules.HasPatchOperations(targets))
         {

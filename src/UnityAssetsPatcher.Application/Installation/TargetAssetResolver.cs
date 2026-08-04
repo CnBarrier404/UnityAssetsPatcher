@@ -1,5 +1,5 @@
 using UnityAssetsPatcher.Application.IO;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
@@ -50,18 +50,20 @@ public sealed class TargetAssetResolver
         {
             string fileName = Path.GetFileName(filePath);
 
-            if (targetNameSet.Contains(fileName))
+            if (!targetNameSet.Contains(fileName))
             {
-                string resolvedFilePath = _fileSystemOperations.ResolveExistingFile(filePath);
-
-                if (!_fileSystemOperations.IsPathWithinDirectory(resolvedFilePath, fullGameDirectory))
-                {
-                    throw new InvalidOperationException(
-                        $"Target '{fileName}' resolved outside game directory: {filePath}");
-                }
-
-                matchesByTarget[fileName].Add(resolvedFilePath);
+                continue;
             }
+
+            string resolvedFilePath = _fileSystemOperations.ResolveExistingFile(filePath);
+
+            if (!_fileSystemOperations.IsPathWithinDirectory(resolvedFilePath, fullGameDirectory))
+            {
+                throw new InvalidOperationException(
+                    $"Target '{fileName}' resolved outside game directory: {filePath}");
+            }
+
+            matchesByTarget[fileName].Add(resolvedFilePath);
         }
 
         var resolvedTargets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -89,11 +91,13 @@ public sealed class TargetAssetResolver
     }
 }
 
-public sealed record TargetAsset(string Name, string AssetsFilePath, IReadOnlyList<ManifestPatch> Patches);
+public sealed record TargetAsset(string Name, string AssetsFilePath, IReadOnlyList<ModPatch> Patches);
 
 public sealed record TargetAssetSet(IReadOnlyList<TargetAsset> Targets)
 {
-    public IReadOnlyList<string> AssetsFilePaths { get; } = Targets
-        .Select(target => target.AssetsFilePath)
-        .ToArray();
+    public IReadOnlyList<string> AssetsFilePaths { get; } =
+    [
+        .. Targets
+            .Select(target => target.AssetsFilePath)
+    ];
 }

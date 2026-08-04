@@ -6,11 +6,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
-using InstallRecordSummary = UnityAssetsPatcher.Application.Contracts.InstallRecordSummary;
-using ModManifest = UnityAssetsPatcher.Application.Contracts.ModManifest;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -41,11 +38,6 @@ public sealed class WorkflowService : IWorkflowService
     public OperationResult<BackupRecoveryReport> CheckPendingTransactions()
     {
         return Invoke<BackupRepository, BackupRecoveryReport>(repository => repository.CheckPendingTransactions());
-    }
-
-    public OperationResult<ModManifest> CheckManifest(string path)
-    {
-        return Invoke<ModManifestReader, ModManifest>(reader => reader.Load(path));
     }
 
     public OperationResult<InspectListResult> InspectList(InspectListRequest request)
@@ -170,7 +162,6 @@ public sealed class WorkflowService : IWorkflowService
         {
             OperationErrorCode code = operationName switch
             {
-                nameof(CheckManifest) => OperationErrorCode.UnsupportedManifestVersion,
                 nameof(PreviewInstall) or nameof(Install) => OperationErrorCode.InvalidModPackage,
                 _ => OperationErrorCode.UnsupportedBackupRepositoryVersion,
             };
@@ -219,9 +210,7 @@ public sealed class WorkflowService : IWorkflowService
 
     private static OperationErrorCode ContentError(string operationName)
     {
-        return operationName == nameof(CheckManifest)
-            ? OperationErrorCode.InvalidManifest
-            : OperationErrorCode.InvalidModPackage;
+        return OperationErrorCode.InvalidModPackage;
     }
 
     private static OperationErrorCode DirectoryError(string? gameDirectory)
@@ -233,8 +222,7 @@ public sealed class WorkflowService : IWorkflowService
 
     private static bool IsUserContentOperation(string operationName)
     {
-        return operationName is nameof(CheckManifest) or
-            nameof(PreviewInstall) or
+        return operationName is nameof(PreviewInstall) or
             nameof(Install) or
             nameof(CheckPendingTransactions) or
             nameof(PreviewPendingTransaction) or
@@ -249,7 +237,6 @@ public sealed class WorkflowService : IWorkflowService
     {
         code = operationName switch
         {
-            nameof(CheckManifest) => OperationErrorCode.InvalidManifest,
             nameof(PreviewInstall) or nameof(Install) => OperationErrorCode.InvalidModPackage,
             nameof(InspectFields) => OperationErrorCode.AssetNotFound,
             nameof(ListInstalledMods) or
@@ -263,8 +250,7 @@ public sealed class WorkflowService : IWorkflowService
             _ => default,
         };
 
-        return operationName is nameof(CheckManifest) or
-            nameof(PreviewInstall) or
+        return operationName is nameof(PreviewInstall) or
             nameof(Install) or
             nameof(InspectFields) or
             nameof(ListInstalledMods) or

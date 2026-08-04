@@ -1,8 +1,7 @@
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
-using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Installation;
 
@@ -34,7 +33,7 @@ public sealed record InstallAnalysis(
     string GameDirectory,
     IReadOnlyList<InstallTargetAnalysis> Targets,
     IReadOnlyList<InstallPayloadFilePlan> PayloadFiles,
-    IReadOnlyList<ManifestOptionalGroup> OptionalGroups,
+    IReadOnlyList<ModOptionalGroup> OptionalGroups,
     IReadOnlyList<string> AppliedOptionalGroups);
 
 public sealed record InstallPayloadFilePlan(string Source, string DestinationPath);
@@ -161,12 +160,14 @@ public sealed class InstallPlanBuilder
 
     private static string ResolvePayloadDirectory(IEnumerable<string> targetAssetsFilePaths)
     {
-        string[] targetDirectories = targetAssetsFilePaths
-            .Select(path => Path.GetDirectoryName(Path.GetFullPath(path)) ??
-                            throw new InvalidOperationException(
-                                $"Cannot resolve directory for assets file: {path}"))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        string[] targetDirectories =
+        [
+            .. targetAssetsFilePaths
+                .Select(path => Path.GetDirectoryName(Path.GetFullPath(path)) ??
+                                throw new InvalidOperationException(
+                                    $"Cannot resolve directory for assets file: {path}"))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        ];
 
         return targetDirectories.Length switch
         {
