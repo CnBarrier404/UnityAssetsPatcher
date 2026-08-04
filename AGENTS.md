@@ -32,3 +32,20 @@ It provides a Terminal.Gui-based interactive UI and a non-interactive CLI.
 ## Code Style
 
 Follow [`.agents/code-style.md`](.agents/code-style.md) for repository-specific C# and test style. `.editorconfig` is authoritative for text encoding and line endings.
+
+## Workflows
+
+### 1. Implementing a Feature
+
+1. Read the user's requirements and inspect the relevant existing code, configuration, content, and documentation.
+2. Before editing implementation files, present a concrete plan that describes the intended behavior, affected areas, and validation steps.
+3. Do not modify source code or other implementation files, and do not run commands that rewrite or generate files, until the user explicitly approves the plan and authorizes implementation. Read-only inspection is allowed.
+4. After approval, implement only the approved scope. If a materially different approach or broader scope becomes necessary, explain the change and request approval again before proceeding.
+5. Validate the implementation with the commands required by this document and report the result.
+
+### 2. Fixing a Bug
+
+1. Start from the user's problem description. Inspect the relevant code and, when practical, reproduce the issue using read-only or non-mutating diagnostics.
+2. Identify the root cause and support the diagnosis with concrete evidence from the code or reproduction. Do not present an unverified guess as the cause.
+3. Explain the root cause, affected behavior, proposed fix, and validation plan to the user. Wait for explicit approval before modifying source code or other implementation files.
+4. After approval, implement the fix within the agreed scope, add or update regression coverage when appropriate, and run the required validation commands.
