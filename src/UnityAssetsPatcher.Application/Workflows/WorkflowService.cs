@@ -5,7 +5,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Backups;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Operations;
+using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
 
@@ -99,10 +102,9 @@ public sealed class WorkflowService : IWorkflowService
         }
         catch (BackupRecoveryException exception)
         {
-            var error = new OperationError(OperationErrorCode.RecoveryRequired)
-            {
-                Recovery = exception.Recovery,
-            };
+            var error = new OperationError(
+                WorkflowErrorCodes.RecoveryRequired,
+                recovery: exception.Recovery);
             _logger.LogWarning(
                 "Workflow operation {OperationName} requires backup recovery",
                 operationName);
@@ -111,59 +113,58 @@ public sealed class WorkflowService : IWorkflowService
         }
         catch (PatchPlanningException exception)
         {
-            var error = new OperationError(OperationErrorCode.PatchPlanningFailed)
-            {
-                Parameters = new Dictionary<string, string>
+            var error = new OperationError(
+                WorkflowErrorCodes.PatchPlanningFailed,
+                new Dictionary<string, object?>
                 {
                     ["diagnosticCode"] = exception.Diagnostic.Code.ToString(),
                     ["path"] = exception.Diagnostic.AssetsFilePath,
-                },
-            };
+                });
 
             return new OperationFailed<TResult>(error);
         }
         catch (InstallPreparationStaleException)
         {
-            return ExpectedFailure<TResult>(operationName, OperationErrorCode.InstallPreviewStale, null);
+            return ExpectedFailure<TResult>(operationName, WorkflowErrorCodes.InstallPreviewStale, null);
         }
         catch (FileNotFoundException exception)
         {
             return ExpectedFailure<TResult>(
-                operationName, OperationErrorCode.FileNotFound, exception.Message, exception.FileName);
+                operationName, FileErrorCodes.NotFound, exception.Message, exception.FileName);
         }
         catch (DirectoryNotFoundException exception)
         {
-            OperationErrorCode code = directoryError ?? OperationErrorCode.DirectoryNotFound;
+            OperationErrorCode code = directoryError ?? FileErrorCodes.DirectoryNotFound;
 
             return ExpectedFailure<TResult>(operationName, code, exception.Message);
         }
         catch (UnauthorizedAccessException exception)
         {
-            return ExpectedFailure<TResult>(operationName, OperationErrorCode.AccessDenied, exception.Message);
+            return ExpectedFailure<TResult>(operationName, FileErrorCodes.AccessDenied, exception.Message);
         }
         catch (IOException exception)
         {
-            return ExpectedFailure<TResult>(operationName, OperationErrorCode.FileSystemFailure, exception.Message);
+            return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
         }
         catch (JsonException exception)
         {
-            return ExpectedFailure<TResult>(operationName, ContentError(operationName), exception.Message);
+            return ExpectedFailure<TResult>(operationName, ContentError(), exception.Message);
         }
         catch (InvalidDataException exception)
         {
-            return ExpectedFailure<TResult>(operationName, ContentError(operationName), exception.Message);
+            return ExpectedFailure<TResult>(operationName, ContentError(), exception.Message);
         }
         catch (KeyNotFoundException exception) when (operationName is nameof(PreviewUninstall) or nameof(Uninstall))
         {
-            return ExpectedFailure<TResult>(operationName, OperationErrorCode.InstallRecordNotFound,
+            return ExpectedFailure<TResult>(operationName, WorkflowErrorCodes.InstallRecordNotFound,
                 exception.Message);
         }
         catch (NotSupportedException exception) when (IsUserContentOperation(operationName))
         {
             OperationErrorCode code = operationName switch
             {
-                nameof(PreviewInstall) or nameof(Install) => OperationErrorCode.InvalidModPackage,
-                _ => OperationErrorCode.UnsupportedBackupRepositoryVersion,
+                nameof(PreviewInstall) or nameof(Install) => ModPackageErrorCodes.InvalidPackage,
+                _ => WorkflowErrorCodes.UnsupportedBackupRepositoryVersion,
             };
 
             return ExpectedFailure<TResult>(operationName, code, exception.Message);
@@ -187,7 +188,7 @@ public sealed class WorkflowService : IWorkflowService
         string? detail,
         string? path = null)
     {
-        var parameters = new Dictionary<string, string>();
+        var parameters = new Dictionary<string, object?>();
         if (!string.IsNullOrWhiteSpace(detail))
         {
             parameters["detail"] = detail;
@@ -198,7 +199,7 @@ public sealed class WorkflowService : IWorkflowService
             parameters["path"] = path;
         }
 
-        var error = new OperationError(code) { Parameters = parameters };
+        var error = new OperationError(code, parameters);
         _logger.LogWarning(
             "Workflow operation {OperationName} failed with {ErrorCode}: {@Parameters}",
             operationName,
@@ -208,16 +209,16 @@ public sealed class WorkflowService : IWorkflowService
         return new OperationFailed<TResult>(error);
     }
 
-    private static OperationErrorCode ContentError(string operationName)
+    private static OperationErrorCode ContentError()
     {
-        return OperationErrorCode.InvalidModPackage;
+        return ModPackageErrorCodes.InvalidPackage;
     }
 
     private static OperationErrorCode DirectoryError(string? gameDirectory)
     {
         return string.IsNullOrWhiteSpace(gameDirectory)
-            ? OperationErrorCode.GameDirectoryRequired
-            : OperationErrorCode.GameDirectoryNotFound;
+            ? WorkflowErrorCodes.GameDirectoryRequired
+            : WorkflowErrorCodes.GameDirectoryNotFound;
     }
 
     private static bool IsUserContentOperation(string operationName)
@@ -237,17 +238,17 @@ public sealed class WorkflowService : IWorkflowService
     {
         code = operationName switch
         {
-            nameof(PreviewInstall) or nameof(Install) => OperationErrorCode.InvalidModPackage,
-            nameof(InspectFields) => OperationErrorCode.AssetNotFound,
+            nameof(PreviewInstall) or nameof(Install) => ModPackageErrorCodes.InvalidPackage,
+            nameof(InspectFields) => WorkflowErrorCodes.AssetNotFound,
             nameof(ListInstalledMods) or
                 nameof(CheckPendingTransactions) or
                 nameof(PreviewPendingTransaction) or
                 nameof(RecoverPendingTransactions) => exception.InnerException is IOException
-                    ? OperationErrorCode.OperationAlreadyRunning
-                    : OperationErrorCode.BackupRepositoryUnsafe,
-            nameof(PreviewUninstall) => OperationErrorCode.BackupRepositoryUnsafe,
-            nameof(Uninstall) => OperationErrorCode.FileIntegrityMismatch,
-            _ => default,
+                    ? WorkflowErrorCodes.OperationAlreadyRunning
+                    : WorkflowErrorCodes.BackupRepositoryUnsafe,
+            nameof(PreviewUninstall) => WorkflowErrorCodes.BackupRepositoryUnsafe,
+            nameof(Uninstall) => WorkflowErrorCodes.FileIntegrityMismatch,
+            _ => throw new ArgumentOutOfRangeException(nameof(operationName), operationName, null),
         };
 
         return operationName is nameof(PreviewInstall) or

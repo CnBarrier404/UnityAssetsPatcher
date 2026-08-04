@@ -4,6 +4,7 @@ namespace UnityAssetsPatcher.Application.Manifests;
 
 public static class ManifestErrorCodes
 {
+    public static OperationErrorCode InvalidManifest { get; } = new("manifest.invalid");
     public static OperationErrorCode InvalidJson { get; } = new("manifest.invalid_json");
     public static OperationErrorCode MissingProperty { get; } = new("manifest.missing_property");
     public static OperationErrorCode InvalidPropertyType { get; } = new("manifest.invalid_property_type");

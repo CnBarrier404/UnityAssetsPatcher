@@ -1,5 +1,9 @@
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Workflows;
 
 namespace UnityAssetsPatcher.TUI.Localization;
 
@@ -7,31 +11,68 @@ public static class OperationErrorFormatter
 {
     public static string Format(OperationError error)
     {
-        string context = error.Parameters.GetValueOrDefault("path", string.Empty);
+        string context = ParameterText(error, "path") ?? string.Empty;
+
+        if (error.Code == FileErrorCodes.NotFound)
+        {
+            return FormatContext(LegacyLocalizedStrings.Error_FileNotFoundFormat, context);
+        }
+
+        if (error.Code == FileErrorCodes.DirectoryNotFound)
+        {
+            return FormatContext(LegacyLocalizedStrings.Error_DirectoryNotFoundFormat, context);
+        }
+
+        if (error.Code == FileErrorCodes.AccessDenied)
+        {
+            return FormatContext(LegacyLocalizedStrings.Error_AccessDeniedFormat, context);
+        }
+
+        if (error.Code == FileErrorCodes.ReadFailed || error.Code == FileErrorCodes.SystemFailure)
+        {
+            return FormatContext(LegacyLocalizedStrings.Error_FileSystemFailureFormat, context);
+        }
+
+        if (error.Code == ManifestErrorCodes.InvalidManifest ||
+            error.Code == ManifestErrorCodes.InvalidJson ||
+            error.Code == ManifestErrorCodes.InvalidPropertyType ||
+            error.Code == ManifestErrorCodes.InvalidValue ||
+            error.Code == ManifestErrorCodes.MissingProperty)
+        {
+            return LegacyLocalizedStrings.Error_InvalidManifest;
+        }
+
+        if (error.Code == ManifestErrorCodes.UnsupportedSchema)
+        {
+            return LegacyLocalizedStrings.Error_UnsupportedManifestVersion;
+        }
+
+        if (error.Code.Value.StartsWith("mod_package.", StringComparison.Ordinal))
+        {
+            return LegacyLocalizedStrings.Error_InvalidModPackage;
+        }
 
         return error.Code switch
         {
-            OperationErrorCode.FileNotFound => FormatContext(LegacyLocalizedStrings.Error_FileNotFoundFormat, context),
-            OperationErrorCode.DirectoryNotFound =>
-                FormatContext(LegacyLocalizedStrings.Error_DirectoryNotFoundFormat, context),
-            OperationErrorCode.AccessDenied => FormatContext(LegacyLocalizedStrings.Error_AccessDeniedFormat, context),
-            OperationErrorCode.FileSystemFailure =>
-                FormatContext(LegacyLocalizedStrings.Error_FileSystemFailureFormat, context),
-            OperationErrorCode.InvalidManifest => LegacyLocalizedStrings.Error_InvalidManifest,
-            OperationErrorCode.UnsupportedManifestVersion => LegacyLocalizedStrings.Error_UnsupportedManifestVersion,
-            OperationErrorCode.InvalidModPackage => LegacyLocalizedStrings.Error_InvalidModPackage,
-            OperationErrorCode.GameDirectoryRequired => LegacyLocalizedStrings.Error_GameDirectoryRequired,
-            OperationErrorCode.GameDirectoryNotFound =>
+            _ when error.Code == WorkflowErrorCodes.GameDirectoryRequired =>
+                LegacyLocalizedStrings.Error_GameDirectoryRequired,
+            _ when error.Code == WorkflowErrorCodes.GameDirectoryNotFound =>
                 FormatContext(LegacyLocalizedStrings.Error_GameDirectoryNotFoundFormat, context),
-            OperationErrorCode.AssetNotFound => LegacyLocalizedStrings.Error_AssetNotFound,
-            OperationErrorCode.PatchPlanningFailed => LegacyLocalizedStrings.Error_PatchPlanningFailed,
-            OperationErrorCode.InstallRecordNotFound => LegacyLocalizedStrings.Error_InstallRecordNotFound,
-            OperationErrorCode.FileIntegrityMismatch => LegacyLocalizedStrings.Error_FileIntegrityMismatch,
-            OperationErrorCode.InstallPreviewStale => LegacyLocalizedStrings.Error_InstallPreviewStale,
-            OperationErrorCode.OperationAlreadyRunning => LegacyLocalizedStrings.Error_OperationAlreadyRunning,
-            OperationErrorCode.RecoveryRequired => LegacyLocalizedStrings.Error_RecoveryRequired,
-            OperationErrorCode.BackupRepositoryUnsafe => LegacyLocalizedStrings.Error_BackupRepositoryUnsafe,
-            OperationErrorCode.UnsupportedBackupRepositoryVersion =>
+            _ when error.Code == WorkflowErrorCodes.AssetNotFound => LegacyLocalizedStrings.Error_AssetNotFound,
+            _ when error.Code == WorkflowErrorCodes.PatchPlanningFailed =>
+                LegacyLocalizedStrings.Error_PatchPlanningFailed,
+            _ when error.Code == WorkflowErrorCodes.InstallRecordNotFound =>
+                LegacyLocalizedStrings.Error_InstallRecordNotFound,
+            _ when error.Code == WorkflowErrorCodes.FileIntegrityMismatch =>
+                LegacyLocalizedStrings.Error_FileIntegrityMismatch,
+            _ when error.Code == WorkflowErrorCodes.InstallPreviewStale =>
+                LegacyLocalizedStrings.Error_InstallPreviewStale,
+            _ when error.Code == WorkflowErrorCodes.OperationAlreadyRunning =>
+                LegacyLocalizedStrings.Error_OperationAlreadyRunning,
+            _ when error.Code == WorkflowErrorCodes.RecoveryRequired => LegacyLocalizedStrings.Error_RecoveryRequired,
+            _ when error.Code == WorkflowErrorCodes.BackupRepositoryUnsafe =>
+                LegacyLocalizedStrings.Error_BackupRepositoryUnsafe,
+            _ when error.Code == WorkflowErrorCodes.UnsupportedBackupRepositoryVersion =>
                 LegacyLocalizedStrings.Error_UnsupportedBackupRepositoryVersion,
             _ => LegacyLocalizedStrings.Error_OperationFailed,
         };
@@ -89,5 +130,10 @@ public static class OperationErrorFormatter
         return string.IsNullOrWhiteSpace(context)
             ? text.TrimEnd().TrimEnd(':', '：')
             : text;
+    }
+
+    private static string? ParameterText(OperationError error, string key)
+    {
+        return error.Parameters.TryGetValue(key, out object? value) ? value?.ToString() : null;
     }
 }

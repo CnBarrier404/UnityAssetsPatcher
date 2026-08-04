@@ -1,5 +1,6 @@
 using System.CommandLine;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.CLI;
 

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Operations;
 
@@ -10,16 +11,20 @@ public sealed record OperationError
 
     public IReadOnlyList<OperationAdvice> Advice { get; }
 
+    public BackupRecoveryReport? Recovery { get; }
+
     public OperationError(
         OperationErrorCode code,
         IReadOnlyDictionary<string, object?>? parameters = null,
-        IReadOnlyList<OperationAdvice>? advice = null)
+        IReadOnlyList<OperationAdvice>? advice = null,
+        BackupRecoveryReport? recovery = null)
     {
         ArgumentNullException.ThrowIfNull(code);
 
         Code = code;
         Parameters = CopyParameters(parameters);
         Advice = CopyAdvice(advice);
+        Recovery = recovery;
     }
 
     private static ReadOnlyDictionary<string, object?> CopyParameters(IReadOnlyDictionary<string, object?>? parameters)

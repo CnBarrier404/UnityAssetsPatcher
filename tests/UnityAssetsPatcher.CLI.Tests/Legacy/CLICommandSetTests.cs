@@ -1,6 +1,8 @@
 using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Operations;
+using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.CLI;
 using Xunit;
 
@@ -276,10 +278,9 @@ public sealed class CLICommandSetTests : IDisposable
     {
         var workflow = new StubWorkflowService
         {
-            Error = new OperationError(OperationErrorCode.FileIntegrityMismatch)
-            {
-                Parameters = new Dictionary<string, string> { ["path"] = "data.assets" },
-            },
+            Error = new OperationError(
+                WorkflowErrorCodes.FileIntegrityMismatch,
+                new Dictionary<string, object?> { ["path"] = "data.assets" }),
         };
         (CLIApplication app, StringWriter output, StringWriter error) = CreateApp(workflow);
 
@@ -289,7 +290,7 @@ public sealed class CLICommandSetTests : IDisposable
         Assert.Equal(string.Empty, output.ToString());
         using JsonDocument json = JsonDocument.Parse(error.ToString());
         JsonElement jsonError = json.RootElement.GetProperty("error");
-        Assert.Equal("file_integrity_mismatch", jsonError.GetProperty("code").GetString());
+        Assert.Equal("install.file_integrity_mismatch", jsonError.GetProperty("code").GetString());
         Assert.Equal("data.assets", jsonError.GetProperty("parameters").GetProperty("path").GetString());
     }
 

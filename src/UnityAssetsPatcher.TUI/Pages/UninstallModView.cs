@@ -4,6 +4,8 @@ using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Operations;
+using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Shell;
@@ -170,8 +172,8 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
                 OperationError error = ((OperationFailed<UninstallPreviewResult>)preview).Error;
                 string message = OperationErrorFormatter.Format(error);
-                if (error.Code is
-                        (OperationErrorCode.GameDirectoryRequired or OperationErrorCode.GameDirectoryNotFound) &&
+                if ((error.Code == WorkflowErrorCodes.GameDirectoryRequired ||
+                     error.Code == WorkflowErrorCodes.GameDirectoryNotFound) &&
                     gameDirectory is null)
                 {
                     ShowGameDirectoryInput(installId, message);

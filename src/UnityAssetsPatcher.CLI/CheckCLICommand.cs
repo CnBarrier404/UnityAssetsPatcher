@@ -53,7 +53,7 @@ public sealed class CheckCLICommand : ICLICommand
                 return CLIExitCodes.Success;
             }
 
-            CLITextOutput.WriteFailure(_error, failure.Error);
+            CLIOutput.WriteFailure(_error, failure.Error);
 
             return CLIExitCodes.OperationFailed;
         }
@@ -63,7 +63,7 @@ public sealed class CheckCLICommand : ICLICommand
         }
         catch (Exception exception)
         {
-            CLITextOutput.WriteUnexpectedFailure(_error, exception);
+            CLIOutput.WriteUnexpectedFailure(_error, exception);
 
             return CLIExitCodes.OperationFailed;
         }

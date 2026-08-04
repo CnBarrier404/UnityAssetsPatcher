@@ -4,6 +4,7 @@ namespace UnityAssetsPatcher.Application.Packages;
 
 public static class ModPackageErrorCodes
 {
+    public static OperationErrorCode InvalidPackage { get; } = new("mod_package.invalid");
     public static OperationErrorCode InvalidArchive { get; } = new("mod_package.invalid_archive");
     public static OperationErrorCode UnsafeEntryPath { get; } = new("mod_package.unsafe_entry_path");
     public static OperationErrorCode DuplicateEntry { get; } = new("mod_package.duplicate_entry");
