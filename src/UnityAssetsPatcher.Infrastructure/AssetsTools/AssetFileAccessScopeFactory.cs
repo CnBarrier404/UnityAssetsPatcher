@@ -28,8 +28,10 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
     public IAssetsFileWriter Writer => this;
 
     private readonly Dictionary<string, IAssetFileSession> _readSessions = new(TrustedPathComparer.Instance);
+
     private readonly Dictionary<string, Dictionary<AssetPathId, AssetField>> _readFieldCaches =
         new(TrustedPathComparer.Instance);
+
     private readonly IAssetFileSessionFactory _sessionFactory;
     private bool _disposed;
 
@@ -59,7 +61,6 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
 
         if (fieldCache.TryGetValue(assetPathId, out AssetField? fieldTree))
         {
-
             return fieldTree;
         }
 
