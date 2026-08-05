@@ -280,7 +280,12 @@ public sealed class CLICommandSetTests : IDisposable
         {
             Error = new OperationError(
                 WorkflowErrorCodes.FileIntegrityMismatch,
-                new Dictionary<string, object?> { ["path"] = "data.assets" }),
+                new Dictionary<string, object?>
+                {
+                    ["limit_bytes"] = 1024L,
+                    ["path"] = "data.assets",
+                    ["property"] = null,
+                }),
         };
         (CLIApplication app, StringWriter output, StringWriter error) = CreateApp(workflow);
 
@@ -290,8 +295,11 @@ public sealed class CLICommandSetTests : IDisposable
         Assert.Equal(string.Empty, output.ToString());
         using JsonDocument json = JsonDocument.Parse(error.ToString());
         JsonElement jsonError = json.RootElement.GetProperty("error");
+        JsonElement parameters = jsonError.GetProperty("parameters");
         Assert.Equal("install.file_integrity_mismatch", jsonError.GetProperty("code").GetString());
-        Assert.Equal("data.assets", jsonError.GetProperty("parameters").GetProperty("path").GetString());
+        Assert.Equal(1024L, parameters.GetProperty("limit_bytes").GetInt64());
+        Assert.Equal("data.assets", parameters.GetProperty("path").GetString());
+        Assert.Equal(JsonValueKind.Null, parameters.GetProperty("property").ValueKind);
     }
 
     [Fact]

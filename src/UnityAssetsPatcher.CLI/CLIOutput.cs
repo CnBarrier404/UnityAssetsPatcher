@@ -393,7 +393,27 @@ internal static class CLIOutput
 
     private static JsonNode? ToJsonNode(object? value)
     {
-        return JsonSerializer.SerializeToNode(value);
+        JsonNode? node = value switch
+        {
+            null => null,
+            string text => JsonValue.Create(text),
+            bool boolean => JsonValue.Create(boolean),
+            byte number => JsonValue.Create(number),
+            sbyte number => JsonValue.Create(number),
+            short number => JsonValue.Create(number),
+            ushort number => JsonValue.Create(number),
+            int number => JsonValue.Create(number),
+            uint number => JsonValue.Create(number),
+            long number => JsonValue.Create(number),
+            ulong number => JsonValue.Create(number),
+            float number => JsonValue.Create(number),
+            double number => JsonValue.Create(number),
+            decimal number => JsonValue.Create(number),
+            char character => JsonValue.Create(character.ToString()),
+            _ => JsonValue.Create(value.ToString()),
+        };
+
+        return node;
     }
 
     private static JsonObject ErrorEnvelope(
