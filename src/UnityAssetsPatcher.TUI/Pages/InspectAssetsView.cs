@@ -18,6 +18,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     public event EventHandler? RenderRequested;
 
     private readonly IWorkflowService _workflowService;
+    private readonly LocalizedStrings _strings;
     private readonly TerminalTaskRunner _taskRunner;
     private readonly StyledLabel _heading;
     private readonly StyledLabel _description;
@@ -26,11 +27,15 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private const int DefaultLimit = 100;
 
-    public InspectAssetsView(
+    internal InspectAssetsView(
+        LocalizedStrings strings,
         IWorkflowService workflowService,
         TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
+        ArgumentNullException.ThrowIfNull(strings);
+
+        _strings = strings;
         _workflowService = workflowService;
         _taskRunner = taskRunner;
 
@@ -77,20 +82,20 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowActionMenu()
     {
-        SetPage(LegacyLocalizedStrings.MainMenu_InspectAssets_Title, LegacyLocalizedStrings.InspectPage_Description);
+        SetPage(_strings.MainMenu_InspectAssets_Title, _strings.InspectPage_Description);
 
         _body.RemoveAll();
 
         ChoiceItem list = AddChoice(
-            LegacyLocalizedStrings.InspectPage_ListAssetsTitle,
-            LegacyLocalizedStrings.InspectPage_ListAssetsDescription,
+            _strings.InspectPage_ListAssetsTitle,
+            _strings.InspectPage_ListAssetsDescription,
             0);
 
         list.Button.Accepted += (_, _) => ShowListPathInput();
 
         ChoiceItem fields = AddChoice(
-            LegacyLocalizedStrings.InspectPage_ShowFieldsTitle,
-            LegacyLocalizedStrings.InspectPage_ShowFieldsDescription,
+            _strings.InspectPage_ShowFieldsTitle,
+            _strings.InspectPage_ShowFieldsDescription,
             2);
 
         fields.Button.Accepted += (_, _) => ShowFieldsInput();
@@ -113,15 +118,15 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowListPathInput()
     {
-        SetPage(LegacyLocalizedStrings.InspectPage_ListAssetsTitle,
-            LegacyLocalizedStrings.InspectPage_ListAssetsDescription);
+        SetPage(_strings.InspectPage_ListAssetsTitle,
+            _strings.InspectPage_ListAssetsDescription);
         ShowPathInput(ShowLimitChoices);
     }
 
     private void ShowPathInput(Action<string> accepted)
     {
         _body.RemoveAll();
-        string prompt = $"{LegacyLocalizedStrings.InspectPage_AssetsFilePathPrompt}: ";
+        string prompt = $"{_strings.InspectPage_AssetsFilePathPrompt}: ";
 
         var label = new StyledLabel(prompt, TextRole.Label)
         {
@@ -149,7 +154,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             if (!File.Exists(path))
             {
                 input.Text = string.Empty;
-                error.Text = string.Format(LegacyLocalizedStrings.Prompt_FileNotFoundFormat, path);
+                error.Text = _strings.Prompt_FileNotFoundFormat(path);
                 error.Visible = true;
                 input.SetFocus();
 
@@ -160,7 +165,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             accepted(Path.GetFullPath(path));
         };
 
-        Button back = CreateActionButton(LegacyLocalizedStrings.InspectPage_BackAction, 0, 4);
+        Button back = CreateActionButton(_strings.InspectPage_BackAction, 0, 4);
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(label, input, error, back);
         input.SetFocus();
@@ -168,16 +173,16 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowLimitChoices(string assetsFilePath)
     {
-        SetPage(LegacyLocalizedStrings.InspectPage_RowsToPrintTitle,
-            LegacyLocalizedStrings.InspectPage_ListAssetsDescription);
+        SetPage(_strings.InspectPage_RowsToPrintTitle,
+            _strings.InspectPage_ListAssetsDescription);
         _body.RemoveAll();
-        Button first = CreateActionButton(LegacyLocalizedStrings.InspectPage_First100Choice, 0, 0);
+        Button first = CreateActionButton(_strings.InspectPage_First100Choice, 0, 0);
         first.Accepted += (_, _) => InspectList(assetsFilePath, DefaultLimit);
-        Button all = CreateActionButton(LegacyLocalizedStrings.InspectPage_AllRowsChoice, 0, 2);
+        Button all = CreateActionButton(_strings.InspectPage_AllRowsChoice, 0, 2);
         all.Accepted += (_, _) => InspectList(assetsFilePath, null);
-        Button custom = CreateActionButton(LegacyLocalizedStrings.InspectPage_CustomLimitChoice, 0, 4);
+        Button custom = CreateActionButton(_strings.InspectPage_CustomLimitChoice, 0, 4);
         custom.Accepted += (_, _) => ShowCustomLimitInput(assetsFilePath);
-        Button back = CreateActionButton(LegacyLocalizedStrings.InspectPage_BackAction, 0, 6);
+        Button back = CreateActionButton(_strings.InspectPage_BackAction, 0, 6);
         back.Accepted += (_, _) => ShowListPathInput();
         _body.Add(first, all, custom, back);
         first.SetFocus();
@@ -186,7 +191,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     private void ShowCustomLimitInput(string assetsFilePath)
     {
         _body.RemoveAll();
-        string prompt = $"{LegacyLocalizedStrings.InspectPage_MaximumRowsPrompt}: ";
+        string prompt = $"{_strings.InspectPage_MaximumRowsPrompt}: ";
         var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = 0 };
         var input = new InputField { X = prompt.GetColumns(), Y = 0, Width = 12 };
         var error = new StyledLabel(role: TextRole.Error)
@@ -197,8 +202,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
                 limit <= 0)
             {
                 input.Text = string.Empty;
-                error.Text = string.Format(LegacyLocalizedStrings.Prompt_InvalidPositiveIntegerFormat,
-                    LegacyLocalizedStrings.InspectPage_MaximumRowsPrompt);
+                error.Text = _strings.Prompt_InvalidPositiveIntegerFormat(_strings.InspectPage_MaximumRowsPrompt);
                 error.Visible = true;
                 input.SetFocus();
                 return;
@@ -206,7 +210,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
             InspectList(assetsFilePath, limit);
         };
-        Button back = CreateActionButton(LegacyLocalizedStrings.InspectPage_BackAction, 0, 4);
+        Button back = CreateActionButton(_strings.InspectPage_BackAction, 0, 4);
         back.Accepted += (_, _) => ShowLimitChoices(assetsFilePath);
         _body.Add(label, input, error, back);
         input.SetFocus();
@@ -231,13 +235,14 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
                 else
                 {
                     ShowError(OperationErrorFormatter.Format(
+                        _strings,
                         ((OperationFailed<InspectListResult>)result).Error));
                 }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowError(OperationErrorFormatter.FormatUnexpected());
+                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
             });
 
         if (!started)
@@ -258,15 +263,14 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(3),
-            Table = new AssetsTableSource(result.Assets),
+            Table = new AssetsTableSource(_strings, result.Assets),
         };
         string infoText = result.Assets.Count < result.TotalCount
-            ? string.Format(CultureInfo.CurrentUICulture, LegacyLocalizedStrings.InspectPage_ShowingAssetsFormat,
-                result.Assets.Count, result.TotalCount)
+            ? _strings.InspectPage_ShowingAssetsFormat(result.Assets.Count, result.TotalCount)
             : string.Empty;
         var info = new StyledLabel(infoText, TextRole.Muted)
             { X = 0, Y = Pos.AnchorEnd(2), Width = Dim.Fill() };
-        Button back = CreateActionButton(LegacyLocalizedStrings.InspectPage_ReturnAction, 0, Pos.AnchorEnd(1));
+        Button back = CreateActionButton(_strings.InspectPage_ReturnAction, 0, Pos.AnchorEnd(1));
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(table, info, back);
         table.SetFocus();
@@ -274,14 +278,14 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowFieldsInput()
     {
-        SetPage(LegacyLocalizedStrings.InspectPage_ShowFieldsTitle,
-            LegacyLocalizedStrings.InspectPage_ShowFieldsDescription);
+        SetPage(_strings.InspectPage_ShowFieldsTitle,
+            _strings.InspectPage_ShowFieldsDescription);
         _body.RemoveAll();
-        string pathPrompt = $"{LegacyLocalizedStrings.InspectPage_AssetsFilePathPrompt}: ";
+        string pathPrompt = $"{_strings.InspectPage_AssetsFilePathPrompt}: ";
         var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
         var pathInput = new InputField
             { X = pathPrompt.GetColumns(), Y = 0, Width = Dim.Fill() };
-        string idPrompt = $"{LegacyLocalizedStrings.InspectPage_PathIdPrompt}: ";
+        string idPrompt = $"{_strings.InspectPage_PathIdPrompt}: ";
         var idLabel = new StyledLabel(idPrompt, TextRole.Label) { X = 0, Y = 2 };
         var idInput = new InputField { X = idPrompt.GetColumns(), Y = 2, Width = 20 };
         var error = new StyledLabel(role: TextRole.Error)
@@ -293,7 +297,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             if (!File.Exists(path))
             {
                 pathInput.Text = string.Empty;
-                error.Text = string.Format(LegacyLocalizedStrings.Prompt_FileNotFoundFormat, path);
+                error.Text = _strings.Prompt_FileNotFoundFormat(path);
                 error.Visible = true;
                 pathInput.SetFocus();
                 return;
@@ -302,8 +306,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             if (!long.TryParse(idInput.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long pathId))
             {
                 idInput.Text = string.Empty;
-                error.Text = string.Format(LegacyLocalizedStrings.Prompt_InvalidIntegerFormat,
-                    LegacyLocalizedStrings.InspectPage_PathIdPrompt);
+                error.Text = _strings.Prompt_InvalidIntegerFormat(_strings.InspectPage_PathIdPrompt);
                 error.Visible = true;
                 idInput.SetFocus();
                 return;
@@ -314,9 +317,9 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
         pathInput.Accepted += (_, _) => idInput.SetFocus();
         idInput.Accepted += (_, _) => Submit();
-        Button inspect = CreatePrimaryActionButton(LegacyLocalizedStrings.InspectPage_ShowFieldsTitle, 0, 6);
+        Button inspect = CreatePrimaryActionButton(_strings.InspectPage_ShowFieldsTitle, 0, 6);
         inspect.Accepted += (_, _) => Submit();
-        Button back = CreateActionButton(LegacyLocalizedStrings.InspectPage_BackAction, 0, 8);
+        Button back = CreateActionButton(_strings.InspectPage_BackAction, 0, 8);
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(pathLabel, pathInput, idLabel, idInput, error, inspect, back);
         pathInput.SetFocus();
@@ -340,13 +343,15 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
                 }
                 else
                 {
-                    ShowError(OperationErrorFormatter.Format(((OperationFailed<AssetField>)result).Error));
+                    ShowError(OperationErrorFormatter.Format(
+                        _strings,
+                        ((OperationFailed<AssetField>)result).Error));
                 }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowError(OperationErrorFormatter.FormatUnexpected());
+                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
             });
 
         if (!started)
@@ -365,7 +370,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         {
             X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(2),
         };
-        Button back = CreateActionButton(LegacyLocalizedStrings.InspectPage_ReturnAction, 0, Pos.AnchorEnd(1));
+        Button back = CreateActionButton(_strings.InspectPage_ReturnAction, 0, Pos.AnchorEnd(1));
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(output, back);
         output.SetFocus();
@@ -374,7 +379,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     private void ShowWorking()
     {
         _body.RemoveAll();
-        var status = new WorkingIndicator(LegacyLocalizedStrings.InspectPage_Analyzing)
+        var status = new WorkingIndicator(_strings.InspectPage_Analyzing)
             { X = 0, Y = 0 };
         _body.Add(status);
         RenderRequested?.Invoke(this, EventArgs.Empty);
@@ -385,7 +390,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         _body.RemoveAll();
         var error = new StyledLabel(message, TextRole.Error)
             { X = 0, Y = 0, Width = Dim.Fill() };
-        Button back = CreateActionButton(LegacyLocalizedStrings.InspectPage_ReturnAction, 0, 2);
+        Button back = CreateActionButton(_strings.InspectPage_ReturnAction, 0, 2);
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(error, back);
         back.SetFocus();
@@ -427,13 +432,19 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private sealed class AssetsTableSource : ITableSource
     {
+        private readonly LocalizedStrings _strings;
         private readonly IReadOnlyList<InspectAssetSummary> _assets;
-        public AssetsTableSource(IReadOnlyList<InspectAssetSummary> assets) => _assets = assets;
+
+        public AssetsTableSource(LocalizedStrings strings, IReadOnlyList<InspectAssetSummary> assets)
+        {
+            _strings = strings;
+            _assets = assets;
+        }
 
         public string[] ColumnNames =>
         [
-            LegacyLocalizedStrings.InspectPage_PathIdColumn, LegacyLocalizedStrings.InspectPage_TypeNameColumn,
-            LegacyLocalizedStrings.InspectPage_NameColumn
+            _strings.InspectPage_PathIdColumn, _strings.InspectPage_TypeNameColumn,
+            _strings.InspectPage_NameColumn
         ];
 
         public int Columns => 3;

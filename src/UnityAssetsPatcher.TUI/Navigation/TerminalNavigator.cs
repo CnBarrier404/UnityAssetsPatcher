@@ -124,6 +124,7 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_InstallMod_Title,
                 _strings.MainMenu_InstallMod_Description,
                 returnToMainMenu => new InstallModView(
+                    _strings,
                     _workflowService,
                     _settings,
                     _taskRunner,
@@ -132,6 +133,7 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_UninstallMod_Title,
                 _strings.MainMenu_UninstallMod_Description,
                 returnToMainMenu => new UninstallModView(
+                    _strings,
                     _workflowService,
                     _taskRunner,
                     returnToMainMenu)),
@@ -139,6 +141,7 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_InspectAssets_Title,
                 _strings.MainMenu_InspectAssets_Description,
                 returnToMainMenu => new InspectAssetsView(
+                    _strings,
                     _workflowService,
                     _taskRunner,
                     returnToMainMenu)),
@@ -146,6 +149,7 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_Settings_Title,
                 _strings.MainMenu_Settings_Description,
                 returnToMainMenu => new SettingsView(
+                    _strings,
                     _settings,
                     returnToMainMenu,
                     _loggingLevelSwitch)),
@@ -181,6 +185,7 @@ public sealed class TerminalNavigator
                 }
 
                 _shell.ShowContent(new BackupRecoveryPreviewView(
+                    _strings,
                     preview,
                     () => Recover(preview.GameDirectory!),
                     ShowRecoveryResult,
@@ -233,6 +238,7 @@ public sealed class TerminalNavigator
         if (_recovery.Status is BackupRepositoryStatus.RecoveryRequired or BackupRepositoryStatus.Locked)
         {
             _shell.ShowContent(new BackupRecoveryView(
+                _strings,
                 _recovery,
                 PreviewRecovery,
                 CheckRecovery,

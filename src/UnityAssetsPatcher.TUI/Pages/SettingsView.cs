@@ -11,11 +11,14 @@ public sealed class SettingsView : View
     private readonly TerminalSettings _settings;
     private readonly ToggleItem _verboseOutput;
 
-    public SettingsView(
+    internal SettingsView(
+        LocalizedStrings strings,
         TerminalSettings settings,
         Action returnToMainMenu,
         ILoggingLevelSwitch? loggingLevelSwitch = null)
     {
+        ArgumentNullException.ThrowIfNull(strings);
+
         _settings = settings;
 
         KeyDown += (_, key) =>
@@ -29,21 +32,21 @@ public sealed class SettingsView : View
             returnToMainMenu();
         };
 
-        var heading = new StyledLabel(LegacyLocalizedStrings.MainMenu_Settings_Title, TextRole.Title)
+        var heading = new StyledLabel(strings.MainMenu_Settings_Title, TextRole.Title)
         {
             X = 0,
             Y = 0,
         };
         var description = new StyledLabel(
-            LegacyLocalizedStrings.MainMenu_Settings_Description, TextRole.Muted)
+            strings.MainMenu_Settings_Description, TextRole.Muted)
         {
             X = 0,
             Y = 1,
             Width = Dim.Fill(),
         };
         _verboseOutput = new ToggleItem(
-            LegacyLocalizedStrings.SettingsPage_VerboseLoggingName,
-            LegacyLocalizedStrings.SettingsPage_VerboseLoggingDescription)
+            strings.SettingsPage_VerboseLoggingName,
+            strings.SettingsPage_VerboseLoggingDescription)
         {
             X = 0,
             Y = 3,

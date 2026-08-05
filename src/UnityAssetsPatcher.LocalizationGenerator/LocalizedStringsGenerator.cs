@@ -244,8 +244,6 @@ public sealed class LocalizedStringsGenerator : IIncrementalGenerator
 
         builder.AppendLine("}");
 
-        AppendCompatibilityAccessors(builder, primaryLocale);
-
         return builder.ToString();
     }
 
@@ -398,33 +396,6 @@ public sealed class LocalizedStringsGenerator : IIncrementalGenerator
         builder.AppendLine("        };");
 
         builder.AppendLine("    }");
-    }
-
-    private static void AppendCompatibilityAccessors(
-        StringBuilder builder,
-        LocaleDefinition primaryLocale)
-    {
-        builder.AppendLine();
-
-        builder.AppendLine("internal static class LegacyLocalizedStrings");
-
-        builder.AppendLine("{");
-
-        builder.AppendLine(
-            "    private static LocalizedStrings Current => new LocalizedStrings(CultureInfo.CurrentUICulture);");
-
-        builder.AppendLine();
-
-        foreach (LocalizedEntry entry in primaryLocale.Entries)
-        {
-            string keyLiteral = SymbolDisplay.FormatLiteral(entry.Key, quote: true);
-
-            builder.AppendLine($"    internal static string {entry.Key} => Current.GetFormat({keyLiteral});");
-
-            builder.AppendLine();
-        }
-
-        builder.AppendLine("}");
     }
 
     private static void AppendLocaleLookup(

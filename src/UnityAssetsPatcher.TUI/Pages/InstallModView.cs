@@ -20,6 +20,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     public event EventHandler? RenderRequested;
 
     private readonly IWorkflowService _workflowService;
+    private readonly LocalizedStrings _strings;
     private readonly TerminalSettings _settings;
     private readonly TerminalTaskRunner _taskRunner;
     private readonly Action _returnToMainMenu;
@@ -32,12 +33,16 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private PreparedInstall? _preparedInstall;
     private bool _isWorking;
 
-    public InstallModView(
+    internal InstallModView(
+        LocalizedStrings strings,
         IWorkflowService workflowService,
         TerminalSettings settings,
         TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
+        ArgumentNullException.ThrowIfNull(strings);
+
+        _strings = strings;
         _workflowService = workflowService;
         _settings = settings;
         _taskRunner = taskRunner;
@@ -60,9 +65,9 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         };
 
         var heading = new StyledLabel(
-            LegacyLocalizedStrings.MainMenu_InstallMod_Title, TextRole.Title) { X = 0, Y = 0 };
+            _strings.MainMenu_InstallMod_Title, TextRole.Title) { X = 0, Y = 0 };
         var description = new StyledLabel(
-            LegacyLocalizedStrings.MainMenu_InstallMod_Description, TextRole.Muted)
+            _strings.MainMenu_InstallMod_Description, TextRole.Muted)
         {
             X = 0,
             Y = 1,
@@ -78,7 +83,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             CanFocus = true,
         };
         _form.SetContentHeightForRows(3);
-        string pathPrompt = $"{LegacyLocalizedStrings.InstallPage_ModZipPathPrompt}";
+        string pathPrompt = $"{_strings.InstallPage_ModZipPathPrompt}";
         var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
         _modPath = new InputField
         {
@@ -112,15 +117,14 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         {
             ShowInputError(
                 _modPath,
-                string.Format(LegacyLocalizedStrings.Prompt_LabelRequiredFormat,
-                    LegacyLocalizedStrings.InstallPage_ModZipPathPrompt));
+                _strings.Prompt_LabelRequiredFormat(_strings.InstallPage_ModZipPathPrompt));
 
             return;
         }
 
         if (!File.Exists(modPath))
         {
-            ShowInputError(_modPath, string.Format(LegacyLocalizedStrings.Prompt_FileNotFoundFormat, modPath));
+            ShowInputError(_modPath, _strings.Prompt_FileNotFoundFormat(modPath));
 
             return;
         }
@@ -135,7 +139,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         {
             ShowInputError(
                 _gameDirectory!,
-                string.Format(LegacyLocalizedStrings.Prompt_DirectoryNotFoundFormat, gameDirectory));
+                _strings.Prompt_DirectoryNotFoundFormat(gameDirectory));
 
             return;
         }
@@ -164,7 +168,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
                 if (result is OperationFailed<InstallPreviewResult> failed)
                 {
-                    string message = OperationErrorFormatter.Format(failed.Error);
+                    string message = OperationErrorFormatter.Format(_strings, failed.Error);
                     if ((failed.Error.Code == WorkflowErrorCodes.GameDirectoryRequired ||
                          failed.Error.Code == WorkflowErrorCodes.GameDirectoryNotFound) &&
                         string.IsNullOrEmpty(gameDirectory))
@@ -195,7 +199,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 _isWorking = false;
                 _form.Enabled = true;
 
-                ShowInputError(_modPath, OperationErrorFormatter.FormatUnexpected());
+                ShowInputError(_modPath, OperationErrorFormatter.FormatUnexpected(_strings));
             });
 
         if (!started)
@@ -205,7 +209,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
         _isWorking = true;
         _form.Enabled = false;
-        ShowBusy(LegacyLocalizedStrings.InstallPage_AnalyzingMod);
+        ShowBusy(_strings.InstallPage_AnalyzingMod);
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -213,7 +217,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     {
         if (_gameDirectory is null)
         {
-            string prompt = $"{LegacyLocalizedStrings.InstallPage_GameDirectoryPrompt}: ";
+            string prompt = $"{_strings.InstallPage_GameDirectoryPrompt}: ";
             Pos gameDirectoryRow = Pos.Bottom(_modPath) + 2;
             var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = gameDirectoryRow };
             _gameDirectory = new InputField
@@ -245,7 +249,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             CanFocus = true,
         };
         var heading = new StyledLabel(
-            LegacyLocalizedStrings.InstallPage_OptionalGroupsHeader, TextRole.Preview) { X = 0, Y = 0 };
+            _strings.InstallPage_OptionalGroupsHeader, TextRole.Preview) { X = 0, Y = 0 };
         _optionalGroupArea.Add(heading);
 
         for (int index = 0; index < groups.Count; index++)
@@ -259,9 +263,9 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
         int actionsRow = 3 + (groups.Count * 2);
         var actions = new ConfirmationBar(
-            LegacyLocalizedStrings.InstallPage_SubmitAction,
+            _strings.InstallPage_SubmitAction,
             Preview,
-            LegacyLocalizedStrings.InstallPage_BackAction,
+            _strings.InstallPage_BackAction,
             _returnToMainMenu)
         {
             X = 0,
@@ -284,7 +288,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         _form.RemoveAll();
         var summaryRows = GetPreviewSummaryRows(result);
         var status = new StyledLabel(
-            LegacyLocalizedStrings.InstallPreview_DryRunStatus, TextRole.Preview) { X = 0, Y = 0 };
+            _strings.InstallPreview_DryRunStatus, TextRole.Preview) { X = 0, Y = 0 };
         var summary = new SummaryTableView(summaryRows) { X = 0, Y = 2 };
         _form.Add(status, summary);
 
@@ -293,9 +297,8 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             .FirstOrDefault(candidate => candidate is not null);
         if (diagnostic is not null)
         {
-            string message = string.Format(
-                LegacyLocalizedStrings.InstallPreview_PlanningFailedFormat,
-                OperationErrorFormatter.Format(diagnostic));
+            string message = _strings.InstallPreview_PlanningFailedFormat(
+                OperationErrorFormatter.Format(_strings, diagnostic));
             var error = new StyledLabel(message, TextRole.Error)
             {
                 X = 0,
@@ -303,7 +306,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 Width = Dim.Fill(),
             };
             Button back = CreateActionButton(
-                LegacyLocalizedStrings.InstallPage_BackAction, 0, summaryRows.Length + 5);
+                _strings.InstallPage_BackAction, 0, summaryRows.Length + 5);
             back.Accepted += (_, _) => _returnToMainMenu();
             _form.Add(error, back);
             _form.SetContentHeightForRows(summaryRows.Length + 7);
@@ -334,9 +337,9 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         }
 
         var actions = new ConfirmationBar(
-            LegacyLocalizedStrings.InstallPage_InstallAction,
+            _strings.InstallPage_InstallAction,
             () => Install(modPath, gameDirectory, selectedGroups),
-            LegacyLocalizedStrings.InstallPage_BackAction,
+            _strings.InstallPage_BackAction,
             _returnToMainMenu)
         {
             X = 0,
@@ -371,14 +374,16 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 else
                 {
                     ShowResult(
-                        OperationErrorFormatter.Format(((OperationFailed<InstallModResult>)result).Error),
+                        OperationErrorFormatter.Format(
+                            _strings,
+                            ((OperationFailed<InstallModResult>)result).Error),
                         isError: true);
                 }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowResult(OperationErrorFormatter.FormatUnexpected(), isError: true);
+                ShowResult(OperationErrorFormatter.FormatUnexpected(_strings), isError: true);
             });
 
         if (!started)
@@ -387,7 +392,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         }
 
         _isWorking = true;
-        ShowWorking(LegacyLocalizedStrings.InstallPage_InstallingMod);
+        ShowWorking(_strings.InstallPage_InstallingMod);
     }
 
     private void ShowWorking(string text)
@@ -412,11 +417,11 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         string text = FormatResultDetails(result, verbose);
         int detailsHeight = string.IsNullOrEmpty(text) ? 0 : GetReportHeight(text);
         var status = new StyledLabel(
-            LegacyLocalizedStrings.InstallResult_InstalledStatus, TextRole.Success) { X = 0, Y = 0 };
+            _strings.InstallResult_InstalledStatus, TextRole.Success) { X = 0, Y = 0 };
         var summary = new SummaryTableView(summaryRows) { X = 0, Y = 2 };
         int detailsRow = summaryRows.Length + 3;
         int actionRow = detailsRow + detailsHeight + 1;
-        Button back = CreateActionButton(LegacyLocalizedStrings.InstallPage_ReturnAction, 0, actionRow);
+        Button back = CreateActionButton(_strings.InstallPage_ReturnAction, 0, actionRow);
         back.Accepted += (_, _) => _returnToMainMenu();
         _form.Add(status, summary);
         if (!string.IsNullOrEmpty(text))
@@ -447,7 +452,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             Width = Dim.Fill(),
             Height = outputHeight,
         };
-        Button back = CreateActionButton(LegacyLocalizedStrings.InstallPage_ReturnAction, 0, outputHeight + 1);
+        Button back = CreateActionButton(_strings.InstallPage_ReturnAction, 0, outputHeight + 1);
         back.Accepted += (_, _) => _returnToMainMenu();
         _form.Add(output, back);
         _form.SetContentHeightForRows(outputHeight + 3);
@@ -493,20 +498,20 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         return new ActionButton(text) { X = x, Y = y };
     }
 
-    private static (string Label, string Value)[] GetPreviewSummaryRows(InstallPreviewResult result)
+    private (string Label, string Value)[] GetPreviewSummaryRows(InstallPreviewResult result)
     {
         return
         [
-            (LegacyLocalizedStrings.Summary_Mod, result.ModName),
-            (LegacyLocalizedStrings.Summary_Version, result.ModVersion),
-            (LegacyLocalizedStrings.Summary_Author, result.ModAuthor),
+            (_strings.Summary_Mod, result.ModName),
+            (_strings.Summary_Version, result.ModVersion),
+            (_strings.Summary_Author, result.ModAuthor),
         ];
     }
 
     private int AddPreviewTargets(IReadOnlyList<InstallChange> patches, int row)
     {
         var heading = new StyledLabel(
-            LegacyLocalizedStrings.InstallPreview_Targets, TextRole.SectionHeader) { X = 0, Y = row };
+            _strings.InstallPreview_Targets, TextRole.SectionHeader) { X = 0, Y = row };
         _form.Add(heading);
         row += 2;
 
@@ -527,7 +532,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         return row;
     }
 
-    private static string FormatPreviewVerboseDetails(InstallPreviewResult result, bool verbose)
+    private string FormatPreviewVerboseDetails(InstallPreviewResult result, bool verbose)
     {
         if (!verbose)
         {
@@ -539,47 +544,47 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         return text.ToString().TrimEnd();
     }
 
-    private static (string Label, string Value)[] GetResultSummaryRows(InstallModResult result)
+    private (string Label, string Value)[] GetResultSummaryRows(InstallModResult result)
     {
         var patches = GetChanges(result.Changes, InstallChangeKind.Patch);
         var payloads = GetChanges(result.Changes, InstallChangeKind.Payload);
         return
         [
-            (LegacyLocalizedStrings.Summary_Mod, result.ModName),
-            (LegacyLocalizedStrings.Summary_Version, result.ModVersion),
-            (LegacyLocalizedStrings.InstallResult_PatchedFiles, patches.Length.ToString(CultureInfo.InvariantCulture)),
-            (LegacyLocalizedStrings.InstallResult_CopiedFiles, payloads.Length.ToString(CultureInfo.InvariantCulture)),
-            (LegacyLocalizedStrings.Summary_Assets,
+            (_strings.Summary_Mod, result.ModName),
+            (_strings.Summary_Version, result.ModVersion),
+            (_strings.InstallResult_PatchedFiles, patches.Length.ToString(CultureInfo.InvariantCulture)),
+            (_strings.InstallResult_CopiedFiles, payloads.Length.ToString(CultureInfo.InvariantCulture)),
+            (_strings.Summary_Assets,
                 patches.Sum(change => change.AssetCount).ToString(CultureInfo.InvariantCulture)),
-            (LegacyLocalizedStrings.Summary_Operations,
+            (_strings.Summary_Operations,
                 patches.Sum(change => change.OperationCount).ToString(CultureInfo.InvariantCulture)),
-            (LegacyLocalizedStrings.Summary_Elapsed, FormatElapsed(result.Timing.Elapsed)),
+            (_strings.Summary_Elapsed, FormatElapsed(result.Timing.Elapsed)),
         ];
     }
 
-    private static string FormatResultDetails(InstallModResult result, bool verbose)
+    private string FormatResultDetails(InstallModResult result, bool verbose)
     {
         var patches = GetChanges(result.Changes, InstallChangeKind.Patch);
         var payloads = GetChanges(result.Changes, InstallChangeKind.Payload);
         var text = new StringBuilder();
         if (patches.Length > 0)
         {
-            text.AppendLine(LegacyLocalizedStrings.InstallResult_PatchedFiles);
+            text.AppendLine(_strings.InstallResult_PatchedFiles);
             foreach (InstallChange change in patches)
             {
                 text.Append("- ").Append(change.Name).Append(": ")
                     .Append(change.AssetCount.ToString(CultureInfo.InvariantCulture)).Append(' ')
-                    .Append(LegacyLocalizedStrings.Summary_AssetUnit).Append(", ")
+                    .Append(_strings.Summary_AssetUnit).Append(", ")
                     .Append(change.OperationCount.ToString(CultureInfo.InvariantCulture)).Append(' ')
-                    .AppendLine(LegacyLocalizedStrings.Summary_OperationUnit);
-                text.Append("  ").Append(LegacyLocalizedStrings.InstallResult_Backup).Append(' ')
+                    .AppendLine(_strings.Summary_OperationUnit);
+                text.Append("  ").Append(_strings.InstallResult_Backup).Append(' ')
                     .AppendLine(change.BackupPath ?? string.Empty);
             }
         }
 
         if (payloads.Length > 0)
         {
-            text.AppendLine().AppendLine(LegacyLocalizedStrings.InstallResult_CopiedFiles);
+            text.AppendLine().AppendLine(_strings.InstallResult_CopiedFiles);
             foreach (InstallChange change in payloads)
             {
                 text.Append("- ").AppendLine(Path.GetFileName(change.Path));
@@ -588,7 +593,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
         if (result.OptionalGroups.Count > 0)
         {
-            text.AppendLine().AppendLine(LegacyLocalizedStrings.InstallResult_OptionalContent);
+            text.AppendLine().AppendLine(_strings.InstallResult_OptionalContent);
             foreach (string group in result.OptionalGroups)
             {
                 text.Append("- ").AppendLine(group);
@@ -603,9 +608,9 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         return text.ToString().TrimEnd();
     }
 
-    private static void AppendTiming(StringBuilder text, TimingSnapshot snapshot)
+    private void AppendTiming(StringBuilder text, TimingSnapshot snapshot)
     {
-        text.AppendLine().AppendLine(LegacyLocalizedStrings.Install_TimingHeader);
+        text.AppendLine().AppendLine(_strings.Install_TimingHeader);
         foreach (TimingStep step in snapshot.Steps)
         {
             text.Append(step.Name).Append("  ").AppendLine(FormatElapsed(step.Elapsed));

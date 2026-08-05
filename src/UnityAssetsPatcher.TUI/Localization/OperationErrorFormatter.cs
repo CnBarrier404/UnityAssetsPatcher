@@ -7,30 +7,30 @@ using UnityAssetsPatcher.Application.Workflows;
 
 namespace UnityAssetsPatcher.TUI.Localization;
 
-public static class OperationErrorFormatter
+internal static class OperationErrorFormatter
 {
-    public static string Format(OperationError error)
+    public static string Format(LocalizedStrings strings, OperationError error)
     {
         string context = ParameterText(error, "path") ?? string.Empty;
 
         if (error.Code == FileErrorCodes.NotFound)
         {
-            return FormatContext(LegacyLocalizedStrings.Error_FileNotFoundFormat, context);
+            return FormatContext(strings.Error_FileNotFoundFormat, context);
         }
 
         if (error.Code == FileErrorCodes.DirectoryNotFound)
         {
-            return FormatContext(LegacyLocalizedStrings.Error_DirectoryNotFoundFormat, context);
+            return FormatContext(strings.Error_DirectoryNotFoundFormat, context);
         }
 
         if (error.Code == FileErrorCodes.AccessDenied)
         {
-            return FormatContext(LegacyLocalizedStrings.Error_AccessDeniedFormat, context);
+            return FormatContext(strings.Error_AccessDeniedFormat, context);
         }
 
         if (error.Code == FileErrorCodes.ReadFailed || error.Code == FileErrorCodes.SystemFailure)
         {
-            return FormatContext(LegacyLocalizedStrings.Error_FileSystemFailureFormat, context);
+            return FormatContext(strings.Error_FileSystemFailureFormat, context);
         }
 
         if (error.Code == ManifestErrorCodes.InvalidManifest ||
@@ -39,93 +39,92 @@ public static class OperationErrorFormatter
             error.Code == ManifestErrorCodes.InvalidValue ||
             error.Code == ManifestErrorCodes.MissingProperty)
         {
-            return LegacyLocalizedStrings.Error_InvalidManifest;
+            return strings.Error_InvalidManifest;
         }
 
         if (error.Code == ManifestErrorCodes.UnsupportedSchema)
         {
-            return LegacyLocalizedStrings.Error_UnsupportedManifestVersion;
+            return strings.Error_UnsupportedManifestVersion;
         }
 
         if (error.Code.Value.StartsWith("mod_package.", StringComparison.Ordinal))
         {
-            return LegacyLocalizedStrings.Error_InvalidModPackage;
+            return strings.Error_InvalidModPackage;
         }
 
         return error.Code switch
         {
             _ when error.Code == WorkflowErrorCodes.GameDirectoryRequired =>
-                LegacyLocalizedStrings.Error_GameDirectoryRequired,
+                strings.Error_GameDirectoryRequired,
             _ when error.Code == WorkflowErrorCodes.GameDirectoryNotFound =>
-                FormatContext(LegacyLocalizedStrings.Error_GameDirectoryNotFoundFormat, context),
-            _ when error.Code == WorkflowErrorCodes.AssetNotFound => LegacyLocalizedStrings.Error_AssetNotFound,
+                FormatContext(strings.Error_GameDirectoryNotFoundFormat, context),
+            _ when error.Code == WorkflowErrorCodes.AssetNotFound => strings.Error_AssetNotFound,
             _ when error.Code == WorkflowErrorCodes.PatchPlanningFailed =>
-                LegacyLocalizedStrings.Error_PatchPlanningFailed,
+                strings.Error_PatchPlanningFailed,
             _ when error.Code == WorkflowErrorCodes.InstallRecordNotFound =>
-                LegacyLocalizedStrings.Error_InstallRecordNotFound,
+                strings.Error_InstallRecordNotFound,
             _ when error.Code == WorkflowErrorCodes.FileIntegrityMismatch =>
-                LegacyLocalizedStrings.Error_FileIntegrityMismatch,
+                strings.Error_FileIntegrityMismatch,
             _ when error.Code == WorkflowErrorCodes.InstallPreviewStale =>
-                LegacyLocalizedStrings.Error_InstallPreviewStale,
+                strings.Error_InstallPreviewStale,
             _ when error.Code == WorkflowErrorCodes.OperationAlreadyRunning =>
-                LegacyLocalizedStrings.Error_OperationAlreadyRunning,
-            _ when error.Code == WorkflowErrorCodes.RecoveryRequired => LegacyLocalizedStrings.Error_RecoveryRequired,
+                strings.Error_OperationAlreadyRunning,
+            _ when error.Code == WorkflowErrorCodes.RecoveryRequired => strings.Error_RecoveryRequired,
             _ when error.Code == WorkflowErrorCodes.BackupRepositoryUnsafe =>
-                LegacyLocalizedStrings.Error_BackupRepositoryUnsafe,
+                strings.Error_BackupRepositoryUnsafe,
             _ when error.Code == WorkflowErrorCodes.UnsupportedBackupRepositoryVersion =>
-                LegacyLocalizedStrings.Error_UnsupportedBackupRepositoryVersion,
-            _ => LegacyLocalizedStrings.Error_OperationFailed,
+                strings.Error_UnsupportedBackupRepositoryVersion,
+            _ => strings.Error_OperationFailed,
         };
     }
 
-    public static string FormatUnexpected()
+    public static string FormatUnexpected(LocalizedStrings strings)
     {
         string logDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "UnityAssetsPatcher",
             "logs");
 
-        return string.Format(LegacyLocalizedStrings.Error_UnexpectedFormat, logDirectory);
+        return strings.Error_UnexpectedFormat(logDirectory);
     }
 
-    public static string Format(PatchDiagnostic diagnostic)
+    public static string Format(LocalizedStrings strings, PatchDiagnostic diagnostic)
     {
         return diagnostic.Code switch
         {
-            PatchDiagnosticCode.InvalidPatchConfiguration => LegacyLocalizedStrings.PatchError_InvalidConfiguration,
-            PatchDiagnosticCode.NoMatchingAssets => LegacyLocalizedStrings.PatchError_NoMatchingAssets,
+            PatchDiagnosticCode.InvalidPatchConfiguration => strings.PatchError_InvalidConfiguration,
+            PatchDiagnosticCode.NoMatchingAssets => strings.PatchError_NoMatchingAssets,
             PatchDiagnosticCode.FieldNotFound =>
-                string.Format(LegacyLocalizedStrings.PatchError_FieldNotFoundFormat, diagnostic.FieldPath),
-            PatchDiagnosticCode.ValueMismatch => string.Format(
-                LegacyLocalizedStrings.PatchError_ValueMismatchFormat,
+                strings.PatchError_FieldNotFoundFormat(diagnostic.FieldPath),
+            PatchDiagnosticCode.ValueMismatch => strings.PatchError_ValueMismatchFormat(
                 diagnostic.FieldPath,
                 diagnostic.Expected,
                 diagnostic.Actual),
-            PatchDiagnosticCode.UnsupportedValue => LegacyLocalizedStrings.PatchError_UnsupportedValue,
-            PatchDiagnosticCode.PathIdReferenceNotFound => LegacyLocalizedStrings.PatchError_PathIdReferenceNotFound,
-            PatchDiagnosticCode.PathIdReferenceAmbiguous => LegacyLocalizedStrings.PatchError_PathIdReferenceAmbiguous,
+            PatchDiagnosticCode.UnsupportedValue => strings.PatchError_UnsupportedValue,
+            PatchDiagnosticCode.PathIdReferenceNotFound => strings.PatchError_PathIdReferenceNotFound,
+            PatchDiagnosticCode.PathIdReferenceAmbiguous => strings.PatchError_PathIdReferenceAmbiguous,
             PatchDiagnosticCode.ReplacementSourceNotFound =>
-                LegacyLocalizedStrings.PatchError_ReplacementSourceNotFound,
-            PatchDiagnosticCode.ReplacementMatchInvalid => LegacyLocalizedStrings.PatchError_ReplacementMatchInvalid,
-            _ => LegacyLocalizedStrings.Error_OperationFailed,
+                strings.PatchError_ReplacementSourceNotFound,
+            PatchDiagnosticCode.ReplacementMatchInvalid => strings.PatchError_ReplacementMatchInvalid,
+            _ => strings.Error_OperationFailed,
         };
     }
 
-    public static string Format(BackupRecoveryIssue issue)
+    public static string Format(LocalizedStrings strings, BackupRecoveryIssue issue)
     {
         return issue.Code switch
         {
-            BackupRecoveryIssueCode.RepositoryUnsafe => LegacyLocalizedStrings.BackupRecovery_RepositoryUnsafe,
-            BackupRecoveryIssueCode.RecoveryUnsafe => LegacyLocalizedStrings.BackupRecovery_RecoveryUnsafe,
-            BackupRecoveryIssueCode.OperationFailed => LegacyLocalizedStrings.BackupRecovery_OperationFailed,
-            BackupRecoveryIssueCode.UnexpectedFailure => FormatUnexpected(),
-            _ => LegacyLocalizedStrings.Error_OperationFailed,
+            BackupRecoveryIssueCode.RepositoryUnsafe => strings.BackupRecovery_RepositoryUnsafe,
+            BackupRecoveryIssueCode.RecoveryUnsafe => strings.BackupRecovery_RecoveryUnsafe,
+            BackupRecoveryIssueCode.OperationFailed => strings.BackupRecovery_OperationFailed,
+            BackupRecoveryIssueCode.UnexpectedFailure => FormatUnexpected(strings),
+            _ => strings.Error_OperationFailed,
         };
     }
 
-    private static string FormatContext(string format, string context)
+    private static string FormatContext(Func<object?, string> format, string context)
     {
-        string text = string.Format(format, context);
+        string text = format(context);
 
         return string.IsNullOrWhiteSpace(context)
             ? text.TrimEnd().TrimEnd(':', '：')

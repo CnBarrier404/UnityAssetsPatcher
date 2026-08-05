@@ -17,16 +17,21 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     public event EventHandler? RenderRequested;
 
     private readonly IWorkflowService _workflowService;
+    private readonly LocalizedStrings _strings;
     private readonly TerminalTaskRunner _taskRunner;
     private readonly Action _returnToMainMenu;
     private readonly ScrollableContentView _body;
     private bool _isWorking;
 
-    public UninstallModView(
+    internal UninstallModView(
+        LocalizedStrings strings,
         IWorkflowService workflowService,
         TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
+        ArgumentNullException.ThrowIfNull(strings);
+
+        _strings = strings;
         _workflowService = workflowService;
         _taskRunner = taskRunner;
         _returnToMainMenu = returnToMainMenu;
@@ -48,12 +53,12 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             _returnToMainMenu();
         };
 
-        var heading = new StyledLabel(LegacyLocalizedStrings.MainMenu_UninstallMod_Title, TextRole.Title)
+        var heading = new StyledLabel(_strings.MainMenu_UninstallMod_Title, TextRole.Title)
         {
             X = 0, Y = 0
         };
 
-        var description = new StyledLabel(LegacyLocalizedStrings.MainMenu_UninstallMod_Description, TextRole.Muted)
+        var description = new StyledLabel(_strings.MainMenu_UninstallMod_Description, TextRole.Muted)
         {
             X = 0,
             Y = 1,
@@ -87,13 +92,14 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
                 else
                 {
                     ShowError(OperationErrorFormatter.Format(
+                        _strings,
                         ((OperationFailed<IReadOnlyList<InstallRecordSummary>>)installed).Error));
                 }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowError(OperationErrorFormatter.FormatUnexpected());
+                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
             });
 
         if (!started)
@@ -114,13 +120,13 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         if (installed.Count == 0)
         {
             var message = new StyledLabel(
-                LegacyLocalizedStrings.UninstallPage_NoInstalledModsFound, TextRole.Preview)
+                _strings.UninstallPage_NoInstalledModsFound, TextRole.Preview)
             {
                 X = 0,
                 Y = 0,
                 Width = Dim.Fill(),
             };
-            Button back = CreateActionButton(LegacyLocalizedStrings.UninstallPage_ReturnAction, 0, 2);
+            Button back = CreateActionButton(_strings.UninstallPage_ReturnAction, 0, 2);
             back.Accepted += (_, _) => _returnToMainMenu();
             _body.Add(message, back);
             _body.SetContentHeightForRows(4);
@@ -171,7 +177,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
                 }
 
                 OperationError error = ((OperationFailed<UninstallPreviewResult>)preview).Error;
-                string message = OperationErrorFormatter.Format(error);
+                string message = OperationErrorFormatter.Format(_strings, error);
                 if ((error.Code == WorkflowErrorCodes.GameDirectoryRequired ||
                      error.Code == WorkflowErrorCodes.GameDirectoryNotFound) &&
                     gameDirectory is null)
@@ -187,7 +193,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             {
                 _isWorking = false;
 
-                ShowError(OperationErrorFormatter.FormatUnexpected());
+                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
             });
 
         if (!started)
@@ -196,7 +202,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         _isWorking = true;
-        ShowWorking(LegacyLocalizedStrings.UninstallPage_AnalyzingMod);
+        ShowWorking(_strings.UninstallPage_AnalyzingMod);
     }
 
     private void ShowWorking(string text)
@@ -213,7 +219,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         _body.RemoveAll();
         var info = new StyledLabel(message, TextRole.Muted)
             { X = 0, Y = 0, Width = Dim.Fill() };
-        string prompt = $"{LegacyLocalizedStrings.InstallPage_GameDirectoryPrompt}: ";
+        string prompt = $"{_strings.InstallPage_GameDirectoryPrompt}: ";
         var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = 2 };
         var input = new InputField { X = prompt.GetColumns(), Y = 2, Width = Dim.Fill() };
         var error = new StyledLabel(role: TextRole.Error)
@@ -224,7 +230,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             if (!Directory.Exists(path))
             {
                 input.Text = string.Empty;
-                error.Text = string.Format(LegacyLocalizedStrings.Prompt_DirectoryNotFoundFormat, path);
+                error.Text = _strings.Prompt_DirectoryNotFoundFormat(path);
                 error.Visible = true;
                 input.SetFocus();
                 return;
@@ -233,7 +239,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             input.Text = path;
             Preview(installId, path);
         };
-        Button back = CreateActionButton(LegacyLocalizedStrings.UninstallPage_BackAction, 0, 6);
+        Button back = CreateActionButton(_strings.UninstallPage_BackAction, 0, 6);
         back.Accepted += (_, _) => ShowInstalledMods();
         _body.Add(info, label, input, error, back);
         _body.SetContentHeightForRows(8);
@@ -244,17 +250,17 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     {
         _body.RemoveAll();
         var status = new StyledLabel(
-            LegacyLocalizedStrings.UninstallPreview_Status, TextRole.Preview) { X = 0, Y = 0 };
+            _strings.UninstallPreview_Status, TextRole.Preview) { X = 0, Y = 0 };
         var rows = new (string Label, string Value)[]
         {
-            (LegacyLocalizedStrings.Summary_Mod, preview.ModName),
-            (LegacyLocalizedStrings.Summary_Version, preview.ModVersion),
-            (LegacyLocalizedStrings.UninstallSummary_GameDirectory, preview.GameDirectory),
-            (LegacyLocalizedStrings.UninstallSummary_Installed,
+            (_strings.Summary_Mod, preview.ModName),
+            (_strings.Summary_Version, preview.ModVersion),
+            (_strings.UninstallSummary_GameDirectory, preview.GameDirectory),
+            (_strings.UninstallSummary_Installed,
                 FormatInstalledAt(preview.InstalledAt)),
-            (LegacyLocalizedStrings.UninstallSummary_RestoredFiles,
+            (_strings.UninstallSummary_RestoredFiles,
                 preview.RestoredFiles.Count.ToString(CultureInfo.InvariantCulture)),
-            (LegacyLocalizedStrings.UninstallSummary_PayloadFiles,
+            (_strings.UninstallSummary_PayloadFiles,
                 preview.DeletedFiles.Count.ToString(CultureInfo.InvariantCulture)),
         };
         var summary = new SummaryTableView(rows) { X = 0, Y = 2 };
@@ -269,15 +275,15 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         {
             var error = new StyledLabel(
                 preview.BlockingMods.Count > 0
-                    ? LegacyLocalizedStrings.UninstallPage_CannotUninstallBlockingMods
-                    : LegacyLocalizedStrings.UninstallPage_CannotUninstallIntegrityConflict,
+                    ? _strings.UninstallPage_CannotUninstallBlockingMods
+                    : _strings.UninstallPage_CannotUninstallIntegrityConflict,
                 TextRole.Error)
             {
                 X = 0,
                 Y = row + 1,
                 Width = Dim.Fill(),
             };
-            Button back = CreateActionButton(LegacyLocalizedStrings.UninstallPage_BackAction, 0, row + 3);
+            Button back = CreateActionButton(_strings.UninstallPage_BackAction, 0, row + 3);
             back.Accepted += (_, _) => ShowInstalledMods();
             _body.Add(error, back);
             _body.SetContentHeightForRows(row + 5);
@@ -286,9 +292,9 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         var actions = new ConfirmationBar(
-            LegacyLocalizedStrings.UninstallPage_UninstallAction,
+            _strings.UninstallPage_UninstallAction,
             () => Uninstall(preview),
-            LegacyLocalizedStrings.UninstallPage_BackAction,
+            _strings.UninstallPage_BackAction,
             ShowInstalledMods,
             ActionKind.Dangerous)
         {
@@ -303,13 +309,13 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     private int AddRestoredPreviewFiles(IReadOnlyList<UninstallPreviewRestoredFileResult> files, int row)
     {
         if (files.Count == 0) return row;
-        row = AddSectionHeader(LegacyLocalizedStrings.UninstallPreview_FilesToRestore, row);
+        row = AddSectionHeader(_strings.UninstallPreview_FilesToRestore, row);
         foreach (UninstallPreviewRestoredFileResult file in files)
         {
             _body.Add(new StyledLabel($"- {file.Target}") { X = 0, Y = row, Width = Dim.Fill() });
             var details = new StyledLabel(
-                $"  {LegacyLocalizedStrings.UninstallPreview_CurrentFile} {FormatIntegrityStatus(file.TargetStatus)} | " +
-                $"{LegacyLocalizedStrings.UninstallPreview_BackupFile} {FormatIntegrityStatus(file.BackupStatus)}",
+                $"  {_strings.UninstallPreview_CurrentFile} {FormatIntegrityStatus(file.TargetStatus)} | " +
+                $"{_strings.UninstallPreview_BackupFile} {FormatIntegrityStatus(file.BackupStatus)}",
                 TextRole.Muted)
             {
                 X = 0,
@@ -326,11 +332,11 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     private int AddDeletedPreviewFiles(IReadOnlyList<UninstallPreviewDeletedFileResult> files, int row)
     {
         if (files.Count == 0) return row;
-        row = AddSectionHeader(LegacyLocalizedStrings.UninstallPreview_PayloadFilesToDelete, row);
+        row = AddSectionHeader(_strings.UninstallPreview_PayloadFilesToDelete, row);
         foreach (UninstallPreviewDeletedFileResult file in files)
         {
             string state = file.Status == FileIntegrityStatus.Matches
-                ? LegacyLocalizedStrings.UninstallPreview_WillDelete
+                ? _strings.UninstallPreview_WillDelete
                 : FormatIntegrityStatus(file.Status);
             _body.Add(new StyledLabel($"- {Path.GetFileName(file.DestinationPath)}  {state}")
             {
@@ -346,7 +352,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     private int AddBlockingMods(IReadOnlyList<UninstallBlockingModResult> mods, int row)
     {
         if (mods.Count == 0) return row;
-        row = AddSectionHeader(LegacyLocalizedStrings.UninstallPreview_BlockingMods, row);
+        row = AddSectionHeader(_strings.UninstallPreview_BlockingMods, row);
         foreach (UninstallBlockingModResult mod in mods)
         {
             _body.Add(new StyledLabel(
@@ -392,13 +398,14 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
                 else
                 {
                     ShowError(OperationErrorFormatter.Format(
+                        _strings,
                         ((OperationFailed<UninstallModResult>)result).Error));
                 }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowError(OperationErrorFormatter.FormatUnexpected());
+                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
             });
 
         if (!started)
@@ -407,21 +414,21 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         _isWorking = true;
-        ShowWorking(LegacyLocalizedStrings.UninstallPage_UninstallingMod);
+        ShowWorking(_strings.UninstallPage_UninstallingMod);
     }
 
     private void ShowResult(UninstallModResult result)
     {
         _body.RemoveAll();
         var status = new StyledLabel(
-            LegacyLocalizedStrings.UninstallResult_Status, TextRole.Success) { X = 0, Y = 0 };
+            _strings.UninstallResult_Status, TextRole.Success) { X = 0, Y = 0 };
         var rows = new (string Label, string Value)[]
         {
-            (LegacyLocalizedStrings.Summary_Mod, result.ModName),
-            (LegacyLocalizedStrings.Summary_Version, result.ModVersion),
-            (LegacyLocalizedStrings.UninstallSummary_RestoredFiles,
+            (_strings.Summary_Mod, result.ModName),
+            (_strings.Summary_Version, result.ModVersion),
+            (_strings.UninstallSummary_RestoredFiles,
                 result.RestoredFiles.Count.ToString(CultureInfo.InvariantCulture)),
-            (LegacyLocalizedStrings.UninstallSummary_DeletedFiles,
+            (_strings.UninstallSummary_DeletedFiles,
                 result.DeletedFiles.Count(file => file.Deleted).ToString(CultureInfo.InvariantCulture)),
         };
         var summary = new SummaryTableView(rows) { X = 0, Y = 2 };
@@ -429,7 +436,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         int row = rows.Length + 3;
         if (result.RestoredFiles.Count > 0)
         {
-            row = AddSectionHeader(LegacyLocalizedStrings.UninstallResult_RestoredFiles, row);
+            row = AddSectionHeader(_strings.UninstallResult_RestoredFiles, row);
             foreach (UninstallRestoredFileResult file in result.RestoredFiles)
             {
                 _body.Add(new StyledLabel($"- {file.Target}  {file.AssetsFilePath}")
@@ -441,12 +448,12 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
         if (result.DeletedFiles.Count > 0)
         {
-            row = AddSectionHeader(LegacyLocalizedStrings.UninstallResult_DeletedPayloadFiles, row);
+            row = AddSectionHeader(_strings.UninstallResult_DeletedPayloadFiles, row);
             foreach (UninstallDeletedFileResult file in result.DeletedFiles)
             {
                 string state = file.Deleted
-                    ? LegacyLocalizedStrings.UninstallResult_Deleted
-                    : LegacyLocalizedStrings.UninstallPreview_AlreadyMissing;
+                    ? _strings.UninstallResult_Deleted
+                    : _strings.UninstallPreview_AlreadyMissing;
                 _body.Add(new StyledLabel($"- {Path.GetFileName(file.DestinationPath)}  {state}")
                 {
                     X = 0, Y = row++, Width = Dim.Fill()
@@ -456,7 +463,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             row++;
         }
 
-        Button back = CreateActionButton(LegacyLocalizedStrings.UninstallPage_ReturnAction, 0, row);
+        Button back = CreateActionButton(_strings.UninstallPage_ReturnAction, 0, row);
         back.Accepted += (_, _) => _returnToMainMenu();
         _body.Add(back);
         _body.SetContentHeightForRows(row + 2);
@@ -468,19 +475,19 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         _body.RemoveAll();
         var error = new StyledLabel(message, TextRole.Error)
             { X = 0, Y = 0, Width = Dim.Fill() };
-        Button back = CreateActionButton(LegacyLocalizedStrings.UninstallPage_BackAction, 0, 2);
+        Button back = CreateActionButton(_strings.UninstallPage_BackAction, 0, 2);
         back.Accepted += (_, _) => ShowInstalledMods();
         _body.Add(error, back);
         _body.SetContentHeightForRows(4);
         back.SetFocus();
     }
 
-    private static string FormatIntegrityStatus(FileIntegrityStatus status) => status switch
+    private string FormatIntegrityStatus(FileIntegrityStatus status) => status switch
     {
-        FileIntegrityStatus.Matches => LegacyLocalizedStrings.UninstallPreview_Ready,
-        FileIntegrityStatus.Missing => LegacyLocalizedStrings.UninstallPreview_AlreadyMissing,
-        FileIntegrityStatus.Modified => LegacyLocalizedStrings.UninstallPreview_Modified,
-        FileIntegrityStatus.Unreadable => LegacyLocalizedStrings.UninstallPreview_Unreadable,
+        FileIntegrityStatus.Matches => _strings.UninstallPreview_Ready,
+        FileIntegrityStatus.Missing => _strings.UninstallPreview_AlreadyMissing,
+        FileIntegrityStatus.Modified => _strings.UninstallPreview_Modified,
+        FileIntegrityStatus.Unreadable => _strings.UninstallPreview_Unreadable,
         _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
     };
 

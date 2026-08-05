@@ -213,6 +213,7 @@ public sealed class LocalizedStringsGeneratorTests
 
         Assembly assembly = Assembly.Load(assemblyStream.ToArray());
         Type localizedStringsType = assembly.GetRequiredType("UnityAssetsPatcher.Localization.LocalizedStrings");
+        Assert.Null(assembly.GetType("UnityAssetsPatcher.Localization.LegacyLocalizedStrings"));
         object chineseStrings = CreateLocalizedStrings(localizedStringsType, "zh-CN");
         object fallbackStrings = CreateLocalizedStrings(localizedStringsType, "fr-FR");
         PropertyInfo greeting = localizedStringsType.GetRequiredProperty("Greeting");
