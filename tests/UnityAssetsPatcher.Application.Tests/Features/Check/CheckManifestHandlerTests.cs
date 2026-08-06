@@ -4,13 +4,13 @@ using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Domain.Integrity;
 using Xunit;
 
-namespace UnityAssetsPatcher.Application.Tests.Workflows;
+namespace UnityAssetsPatcher.Application.Tests.Features.Check;
 
-public sealed class CheckManifestWorkflowTests
+public sealed class CheckManifestHandlerTests
 {
     private const string ValidManifest = """
                                          {
@@ -33,13 +33,13 @@ public sealed class CheckManifestWorkflowTests
                                          """;
 
     [Fact]
-    public async Task RunAsync_WhenManifestIsValid_ReturnsManifestAndLifecycleLogs()
+    public async Task HandleAsync_WhenManifestIsValid_ReturnsManifestAndLifecycleLogs()
     {
         var fileSystem = new StubFileSystemOperations(_ => StreamFrom(ValidManifest));
-        var logger = new RecordingLogger<CheckManifestWorkflow>();
-        CheckManifestWorkflow workflow = CreateWorkflow(fileSystem, logger);
+        var logger = new RecordingLogger<CheckManifestHandler>();
+        CheckManifestHandler handler = CreateHandler(fileSystem, logger);
 
-        OperationResult<CheckManifestResult> result = await workflow.RunAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
             TestContext.Current.CancellationToken);
 
@@ -50,13 +50,13 @@ public sealed class CheckManifestWorkflowTests
     }
 
     [Fact]
-    public async Task RunAsync_WhenManifestIsInvalid_ReturnsStructuredFailureAndFailureLog()
+    public async Task HandleAsync_WhenManifestIsInvalid_ReturnsStructuredFailureAndFailureLog()
     {
         var fileSystem = new StubFileSystemOperations(_ => StreamFrom("{}"));
-        var logger = new RecordingLogger<CheckManifestWorkflow>();
-        CheckManifestWorkflow workflow = CreateWorkflow(fileSystem, logger);
+        var logger = new RecordingLogger<CheckManifestHandler>();
+        CheckManifestHandler handler = CreateHandler(fileSystem, logger);
 
-        OperationResult<CheckManifestResult> result = await workflow.RunAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
             TestContext.Current.CancellationToken);
 
@@ -66,13 +66,13 @@ public sealed class CheckManifestWorkflowTests
     }
 
     [Fact]
-    public async Task RunAsync_WhenSourceDoesNotExist_ReturnsFileNotFound()
+    public async Task HandleAsync_WhenSourceDoesNotExist_ReturnsFileNotFound()
     {
         var fileSystem = new StubFileSystemOperations(path => throw new FileNotFoundException(null, path));
-        var logger = new RecordingLogger<CheckManifestWorkflow>();
-        CheckManifestWorkflow workflow = CreateWorkflow(fileSystem, logger);
+        var logger = new RecordingLogger<CheckManifestHandler>();
+        CheckManifestHandler handler = CreateHandler(fileSystem, logger);
 
-        OperationResult<CheckManifestResult> result = await workflow.RunAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest("missing.json"),
             TestContext.Current.CancellationToken);
 
@@ -83,15 +83,15 @@ public sealed class CheckManifestWorkflowTests
     }
 
     [Fact]
-    public async Task RunAsync_WhenPackageIsInvalid_ReturnsInvalidArchive()
+    public async Task HandleAsync_WhenPackageIsInvalid_ReturnsInvalidArchive()
     {
         var fileSystem = new StubFileSystemOperations(_ => StreamFrom(string.Empty));
-        var logger = new RecordingLogger<CheckManifestWorkflow>();
+        var logger = new RecordingLogger<CheckManifestHandler>();
         var archiveFactory =
             new StubModPackageArchiveFactory(_ => throw new InvalidDataException("Invalid test archive."));
-        CheckManifestWorkflow workflow = CreateWorkflow(fileSystem, logger, archiveFactory);
+        CheckManifestHandler handler = CreateHandler(fileSystem, logger, archiveFactory);
 
-        OperationResult<CheckManifestResult> result = await workflow.RunAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest("mod.zip"),
             TestContext.Current.CancellationToken);
 
@@ -102,14 +102,14 @@ public sealed class CheckManifestWorkflowTests
     }
 
     [Fact]
-    public async Task RunAsync_WhenDependencyFaults_RethrowsAndLogsFault()
+    public async Task HandleAsync_WhenDependencyFaults_RethrowsAndLogsFault()
     {
         var fileSystem = new StubFileSystemOperations(_ => throw new InvalidOperationException("Test fault."));
-        var logger = new RecordingLogger<CheckManifestWorkflow>();
-        CheckManifestWorkflow workflow = CreateWorkflow(fileSystem, logger);
+        var logger = new RecordingLogger<CheckManifestHandler>();
+        CheckManifestHandler handler = CreateHandler(fileSystem, logger);
 
-        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            workflow.RunAsync(
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.HandleAsync(
                 new CheckManifestRequest("manifest.json"),
                 TestContext.Current.CancellationToken));
 
@@ -117,9 +117,9 @@ public sealed class CheckManifestWorkflowTests
         Assert.Equal([1000, 1003], logger.EventIds);
     }
 
-    private static CheckManifestWorkflow CreateWorkflow(
+    private static CheckManifestHandler CreateHandler(
         IFileSystemOperations fileSystemOperations,
-        ILogger<CheckManifestWorkflow> logger,
+        ILogger<CheckManifestHandler> logger,
         IModPackageArchiveFactory? archiveFactory = null)
     {
         archiveFactory ??= new StubModPackageArchiveFactory(_ =>
@@ -127,7 +127,7 @@ public sealed class CheckManifestWorkflowTests
         var archiveService = new ModPackageArchiveService(archiveFactory, fileSystemOperations);
         var sourceReader = new ManifestSourceReader(archiveService, fileSystemOperations);
 
-        return new CheckManifestWorkflow(sourceReader, logger);
+        return new CheckManifestHandler(sourceReader, logger);
     }
 
     private static Stream StreamFrom(string value)

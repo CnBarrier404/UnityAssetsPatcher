@@ -1,17 +1,21 @@
 using System.IO.Compression;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Messaging;
+using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Infrastructure.IO;
 using UnityAssetsPatcher.Infrastructure.Packages;
 using Xunit;
 
 namespace UnityAssetsPatcher.CLI.Tests;
 
-public sealed class CliApplicationTests : IDisposable
+public sealed class CLIApplicationTests : IDisposable
 {
     private readonly string _temporaryDirectory;
+    private ServiceProvider? _serviceProvider;
 
     private const string ValidManifest = """
                                          {
@@ -33,7 +37,7 @@ public sealed class CliApplicationTests : IDisposable
                                          }
                                          """;
 
-    public CliApplicationTests()
+    public CLIApplicationTests()
     {
         _temporaryDirectory = Path.Combine(Path.GetTempPath(), $"uap-cli-tests-{Guid.NewGuid():N}");
 
@@ -43,7 +47,10 @@ public sealed class CliApplicationTests : IDisposable
     [Fact]
     public async Task RunAsync_WhenCheckUsesDefaultManifest_ReturnsSuccessWithoutOutput()
     {
-        File.WriteAllText(Path.Combine(_temporaryDirectory, "manifest.json"), ValidManifest);
+        await File.WriteAllTextAsync(
+            Path.Combine(_temporaryDirectory, "manifest.json"),
+            ValidManifest,
+            TestContext.Current.CancellationToken);
 
         (CLIApplication application, StringWriter output, StringWriter error) = CreateApplication();
 
@@ -58,13 +65,14 @@ public sealed class CliApplicationTests : IDisposable
     public async Task RunAsync_WhenCheckUsesZip_ReturnsSuccessWithoutOutput()
     {
         string packagePath = Path.Combine(_temporaryDirectory, "mod.zip");
-        using (ZipArchive archive = ZipFile.Open(packagePath, ZipArchiveMode.Create))
+        await using (ZipArchive archive =
+                     await ZipFile.OpenAsync(packagePath, ZipArchiveMode.Create, TestContext.Current.CancellationToken))
         {
             ZipArchiveEntry entry = archive.CreateEntry("manifest.json");
 
-            using StreamWriter writer = new(entry.Open());
+            await using StreamWriter writer = new(await entry.OpenAsync(TestContext.Current.CancellationToken));
 
-            writer.Write(ValidManifest);
+            await writer.WriteAsync(ValidManifest);
         }
 
         (CLIApplication application, StringWriter output, StringWriter error) = CreateApplication();
@@ -83,7 +91,7 @@ public sealed class CliApplicationTests : IDisposable
     {
         string manifestPath = Path.Combine(_temporaryDirectory, "invalid.json");
 
-        File.WriteAllText(manifestPath, "{}");
+        await File.WriteAllTextAsync(manifestPath, "{}", TestContext.Current.CancellationToken);
 
         (CLIApplication application, StringWriter output, StringWriter error) = CreateApplication();
 
@@ -143,6 +151,7 @@ public sealed class CliApplicationTests : IDisposable
 
     public void Dispose()
     {
+        _serviceProvider?.Dispose();
         Directory.Delete(_temporaryDirectory, recursive: true);
     }
 
@@ -154,10 +163,20 @@ public sealed class CliApplicationTests : IDisposable
             NullLogger<ModPackageArchiveFactory>.Instance);
         var archiveService = new ModPackageArchiveService(archiveFactory, fileSystem);
         var sourceReader = new ManifestSourceReader(archiveService, fileSystem);
-        var workflow = new CheckManifestWorkflow(sourceReader, NullLogger<CheckManifestWorkflow>.Instance);
+        var handler = new CheckManifestHandler(sourceReader, NullLogger<CheckManifestHandler>.Instance);
+        var services = new ServiceCollection();
+        services.AddScoped<IRequestDispatcher, RequestDispatcher>();
+        services.AddScoped<IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>>>(_ => handler);
+        _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateScopes = true,
+        });
         var output = new StringWriter();
         var error = new StringWriter();
-        var command = new CheckCLICommand(workflow, () => _temporaryDirectory, error);
+        var command = new CheckCLICommand(
+            _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+            () => _temporaryDirectory,
+            error);
         var application = new CLIApplication([command], output, error);
 
         return (application, output, error);

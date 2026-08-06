@@ -3,10 +3,12 @@ using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Messaging;
+using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
@@ -23,8 +25,10 @@ public static class ApplicationServiceCollectionExtensions
 
         services.AddSingleton<ModPackageArchiveService>();
         services.AddSingleton<ManifestSourceReader>();
-        services.AddSingleton<CheckManifestWorkflow>();
         services.AddScoped<IRequestDispatcher, RequestDispatcher>();
+        services.AddScoped<
+            IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>>,
+            CheckManifestHandler>();
 
         return services;
     }

@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Application.Operations;
 using Xunit;
 
 namespace UnityAssetsPatcher.Infrastructure.Tests.Packages;
@@ -30,10 +32,13 @@ public sealed class PackageDependencyInjectionTests
 
         ManifestSourceReader sourceReader = provider.GetRequiredService<ManifestSourceReader>();
 
-        CheckManifestWorkflow checkWorkflow = provider.GetRequiredService<CheckManifestWorkflow>();
+        using IServiceScope scope = provider.CreateScope();
+        IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>> checkHandler =
+            scope.ServiceProvider.GetRequiredService<
+                IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>>>();
 
         Assert.NotNull(archiveService);
         Assert.NotNull(sourceReader);
-        Assert.NotNull(checkWorkflow);
+        Assert.NotNull(checkHandler);
     }
 }

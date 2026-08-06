@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace UnityAssetsPatcher.Application.Workflows;
+namespace UnityAssetsPatcher.Application.Features.Check;
 
 internal static partial class CheckManifestLog
 {

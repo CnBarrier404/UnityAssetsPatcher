@@ -1,6 +1,8 @@
 using System.CommandLine;
+using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application.Features.Check;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Workflows;
 
 namespace UnityAssetsPatcher.CLI;
 
@@ -8,21 +10,21 @@ public sealed class CheckCLICommand : ICLICommand
 {
     public Command Command { get; }
 
-    private readonly CheckManifestWorkflow _workflow;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly Func<string> _getCurrentDirectory;
     private readonly TextWriter _error;
     private readonly Option<string?> _configOption;
 
     public CheckCLICommand(
-        CheckManifestWorkflow workflow,
+        IServiceScopeFactory scopeFactory,
         Func<string> getCurrentDirectory,
         TextWriter error)
     {
-        ArgumentNullException.ThrowIfNull(workflow);
+        ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(getCurrentDirectory);
         ArgumentNullException.ThrowIfNull(error);
 
-        _workflow = workflow;
+        _scopeFactory = scopeFactory;
         _getCurrentDirectory = getCurrentDirectory;
         _error = error;
         _configOption = new Option<string?>("--config", "-c")
@@ -44,8 +46,10 @@ public sealed class CheckCLICommand : ICLICommand
 
         try
         {
-            var result = await _workflow
-                .RunAsync(new CheckManifestRequest(sourcePath), cancellationToken)
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
+                .DispatchAsync(new CheckManifestRequest(sourcePath), cancellationToken)
                 .ConfigureAwait(false);
 
             if (result is not OperationFailed<CheckManifestResult> failure)
