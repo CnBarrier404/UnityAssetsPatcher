@@ -20,7 +20,7 @@ public sealed class TerminalNavigator
     private readonly Action _requestStop;
     private AvailableUpdate? _availableUpdate;
     private MainMenuView? _visibleMainMenu;
-    private BackupRecoveryReport _recovery = BackupRecoveryReport.Clean;
+    private RepositoryRecoveryReport _recovery = RepositoryRecoveryReport.Clean;
 
     public TerminalNavigator(TerminalShellView shell, CultureInfo culture)
     {
@@ -167,24 +167,24 @@ public sealed class TerminalNavigator
             () => _workflowService!.PreviewPendingTransaction(gameDirectory),
             result =>
             {
-                if (result is not OperationSucceeded<BackupRecoveryPreview> succeeded)
+                if (result is not OperationSucceeded<RepositoryRecoveryPreview> succeeded)
                 {
                     ShowRecoveryFailure();
 
                     return;
                 }
 
-                BackupRecoveryPreview preview = succeeded.Value;
+                RepositoryRecoveryPreview preview = succeeded.Value;
 
                 if (!preview.CanRecover)
                 {
-                    _recovery = new BackupRecoveryReport(preview.Status, [], preview.Issues);
+                    _recovery = new RepositoryRecoveryReport(preview.Status, [], preview.Issues);
                     ShowRecoveryResult();
 
                     return;
                 }
 
-                _shell.ShowContent(new BackupRecoveryPreviewView(
+                _shell.ShowContent(new RepositoryRecoveryPreviewView(
                     _strings,
                     preview,
                     () => Recover(preview.GameDirectory!),
@@ -204,7 +204,7 @@ public sealed class TerminalNavigator
         RunRecoveryOperation(() => _workflowService!.RecoverPendingTransactions(gameDirectory));
     }
 
-    private void RunRecoveryOperation(Func<OperationResult<BackupRecoveryReport>> operation)
+    private void RunRecoveryOperation(Func<OperationResult<RepositoryRecoveryReport>> operation)
     {
         bool started = _taskRunner!.TryRun(
             operation,
@@ -212,8 +212,8 @@ public sealed class TerminalNavigator
             {
                 _recovery = result switch
                 {
-                    OperationSucceeded<BackupRecoveryReport> succeeded => succeeded.Value,
-                    OperationFailed<BackupRecoveryReport> failed => failed.Error.Recovery ?? FailedRecovery(),
+                    OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
+                    OperationFailed<RepositoryRecoveryReport> failed => failed.Error.Recovery ?? FailedRecovery(),
                     _ => throw new ArgumentOutOfRangeException(nameof(result)),
                 };
 
@@ -235,9 +235,9 @@ public sealed class TerminalNavigator
 
     private void ShowRecoveryResult()
     {
-        if (_recovery.Status is BackupRepositoryStatus.RecoveryRequired or BackupRepositoryStatus.Locked)
+        if (_recovery.Status is RepositoryRecoveryStatus.RecoveryRequired or RepositoryRecoveryStatus.Locked)
         {
-            _shell.ShowContent(new BackupRecoveryView(
+            _shell.ShowContent(new RepositoryRecoveryView(
                 _strings,
                 _recovery,
                 PreviewRecovery,
@@ -250,12 +250,12 @@ public sealed class TerminalNavigator
         ShowMainMenu();
     }
 
-    private static BackupRecoveryReport FailedRecovery()
+    private static RepositoryRecoveryReport FailedRecovery()
     {
-        return new BackupRecoveryReport(
-            BackupRepositoryStatus.Locked,
+        return new RepositoryRecoveryReport(
+            RepositoryRecoveryStatus.Locked,
             [],
-            [new BackupRecoveryIssue(BackupRecoveryIssueCode.UnexpectedFailure, string.Empty)]);
+            [new RepositoryRecoveryIssue(RepositoryRecoveryIssueCode.UnexpectedFailure, string.Empty)]);
     }
 
     private TerminalMenuItem CreateEmptyPageMenuItem(string title, string description)

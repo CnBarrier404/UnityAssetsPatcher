@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.Application.Repository;
+using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
@@ -33,11 +34,13 @@ public static class ApplicationServiceCollectionExtensions
 
         services.AddSingleton<GameDirectoryResolver>();
         services.AddSingleton<TargetAssetResolver>();
-        services.AddSingleton(provider => new BackupRepository(
-            provider.GetRequiredService<IBackupRepository>(),
+        services.AddSingleton(provider => new RepositoryService(
+            provider.GetRequiredService<IRepository>(),
+            provider.GetRequiredService<ICompositionRepository>(),
             provider.GetRequiredService<IFileSystemOperations>(),
-            provider.GetService<ILogger<BackupRepository>>()));
-        services.AddSingleton<IBackupService>(provider => provider.GetRequiredService<BackupRepository>());
+            provider.GetService<ILogger<RepositoryService>>()));
+        services.AddSingleton<BaseSnapshotCapturer>();
+        services.AddSingleton<IRepositoryService>(provider => provider.GetRequiredService<RepositoryService>());
         services.AddSingleton<IWorkflowService, WorkflowService>();
 
         AddPatching(services);
@@ -56,6 +59,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<CopyAssetPlanner>();
         services.AddScoped<PatchPlanner>();
         services.AddScoped<PatchOutputWriter>();
+        services.AddScoped<ModComposer>();
+        services.AddScoped<UninstallCompositionService>();
     }
 
     private static void AddWorkflows(IServiceCollection services)

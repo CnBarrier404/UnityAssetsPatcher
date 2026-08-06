@@ -36,6 +36,7 @@ internal static class InstallResultMapper
         IReadOnlyList<InstallPatchAppliedFile> patchedFiles,
         IReadOnlyList<InstallChange> copiedFiles,
         string installId,
+        int baseSnapshotCount,
         TimingSnapshot timing)
     {
         var changes = patchedFiles
@@ -50,11 +51,14 @@ internal static class InstallResultMapper
             .ToArray();
 
         return new InstallModResult(
-            installId,
-            analysis.Manifest.Name,
-            analysis.Manifest.Version,
-            changes,
-            analysis.AppliedOptionalGroups,
-            timing);
+                installId,
+                analysis.Manifest.Name,
+                analysis.Manifest.Version,
+                changes,
+                analysis.AppliedOptionalGroups,
+                timing) with
+            {
+                BaseSnapshotCount = baseSnapshotCount,
+            };
     }
 }

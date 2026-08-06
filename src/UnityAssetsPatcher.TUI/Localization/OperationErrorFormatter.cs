@@ -70,10 +70,10 @@ internal static class OperationErrorFormatter
             _ when error.Code == WorkflowErrorCodes.OperationAlreadyRunning =>
                 strings.Error_OperationAlreadyRunning,
             _ when error.Code == WorkflowErrorCodes.RecoveryRequired => strings.Error_RecoveryRequired,
-            _ when error.Code == WorkflowErrorCodes.BackupRepositoryUnsafe =>
-                strings.Error_BackupRepositoryUnsafe,
-            _ when error.Code == WorkflowErrorCodes.UnsupportedBackupRepositoryVersion =>
-                strings.Error_UnsupportedBackupRepositoryVersion,
+            _ when error.Code == WorkflowErrorCodes.RepositoryUnsafe =>
+                strings.Error_RepositoryUnsafe,
+            _ when error.Code == WorkflowErrorCodes.UnsupportedRepositoryVersion =>
+                strings.Error_UnsupportedRepositoryVersion,
             _ => strings.Error_OperationFailed,
         };
     }
@@ -110,14 +110,14 @@ internal static class OperationErrorFormatter
         };
     }
 
-    public static string Format(LocalizedStrings strings, BackupRecoveryIssue issue)
+    public static string Format(LocalizedStrings strings, RepositoryRecoveryIssue issue)
     {
         return issue.Code switch
         {
-            BackupRecoveryIssueCode.RepositoryUnsafe => strings.BackupRecovery_RepositoryUnsafe,
-            BackupRecoveryIssueCode.RecoveryUnsafe => strings.BackupRecovery_RecoveryUnsafe,
-            BackupRecoveryIssueCode.OperationFailed => strings.BackupRecovery_OperationFailed,
-            BackupRecoveryIssueCode.UnexpectedFailure => FormatUnexpected(strings),
+            RepositoryRecoveryIssueCode.RepositoryUnsafe => strings.RepositoryRecovery_RepositoryUnsafe,
+            RepositoryRecoveryIssueCode.RecoveryUnsafe => strings.RepositoryRecovery_RecoveryUnsafe,
+            RepositoryRecoveryIssueCode.OperationFailed => strings.RepositoryRecovery_OperationFailed,
+            RepositoryRecoveryIssueCode.UnexpectedFailure => FormatUnexpected(strings),
             _ => strings.Error_OperationFailed,
         };
     }

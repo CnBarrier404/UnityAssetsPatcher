@@ -2,12 +2,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.IO;
-using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Integrity;
 
 namespace UnityAssetsPatcher.Application.Workflows;
@@ -17,7 +15,7 @@ public sealed class InstallModWorkflow
     private readonly ModPackageArchiveService _archiveService;
     private readonly InstallPlanBuilder _planBuilder;
     private readonly InstallExecutor _executor;
-    private readonly BackupRepository _backupRepository;
+    private readonly RepositoryService _repositoryService;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly ILogger<InstallModWorkflow> _logger;
@@ -26,7 +24,7 @@ public sealed class InstallModWorkflow
         ModPackageArchiveService archiveService,
         InstallPlanBuilder planBuilder,
         InstallExecutor executor,
-        BackupRepository backupRepository,
+        RepositoryService repositoryService,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
         ILogger<InstallModWorkflow>? logger = null)
@@ -36,7 +34,7 @@ public sealed class InstallModWorkflow
         _archiveService = archiveService;
         _planBuilder = planBuilder;
         _executor = executor;
-        _backupRepository = backupRepository;
+        _repositoryService = repositoryService;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
         _logger = logger ?? NullLogger<InstallModWorkflow>.Instance;
@@ -62,7 +60,7 @@ public sealed class InstallModWorkflow
             mode,
             assetsScope.Reader,
             timings);
-        PreparedInstall preparedInstall = CreatePreparedInstall(request, package, analysis);
+        PreparedInstall preparedInstall = CreatePreparedInstall(request, analysis);
 
         return InstallResultMapper.ToPreviewResult(
                 analysis,
@@ -77,16 +75,18 @@ public sealed class InstallModWorkflow
         _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
 
-        using BackupOperationLock operationLock = _backupRepository.AcquireLock();
-        BackupRecoveryReport recovery = _backupRepository.CheckPendingTransactionsUnderLock();
+        using RepositoryOperationLock operationLock = _repositoryService.AcquireLock();
+        RepositoryRecoveryReport recovery = _repositoryService.CheckPendingTransactionsUnderLock();
 
-        if (recovery.Status != BackupRepositoryStatus.Clean)
+        if (recovery.Status != RepositoryRecoveryStatus.Clean)
         {
-            throw new BackupRecoveryException(
+            throw new RepositoryRecoveryException(
                 recovery.Issues.FirstOrDefault()?.Parameters.GetValueOrDefault("detail") ??
                 "A pending transaction must be recovered before installing another mod.",
                 recovery);
         }
+
+        _ = _repositoryService.RequireWritableMetadata();
 
         using ModPackage package = ModPackage.Open(
             request.ZipFilePath,
@@ -94,21 +94,26 @@ public sealed class InstallModWorkflow
             _archiveService,
             _fileSystemOperations,
             timings);
-        using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
         PreparedInstall? preparedInstall = request.PreparedInstall;
-        InstallAnalysis analysis = preparedInstall is null
-            ? _planBuilder.Analyze(
-                package,
-                request.GameDirectory,
-                InstallAnalysisMode.Apply,
-                assetsScope.Reader,
-                timings)
-            : PrepareAnalysis(request, package, preparedInstall);
+        InstallAnalysis analysis;
+
+        using (IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope())
+        {
+            analysis = preparedInstall is null
+                ? _planBuilder.Analyze(
+                    package,
+                    request.GameDirectory,
+                    InstallAnalysisMode.Apply,
+                    assetsScope.Reader,
+                    timings)
+                : PrepareAnalysis(request, package, preparedInstall, assetsScope.Reader, timings);
+        }
 
         InstallExecutionResult execution = _executor.Execute(
+            request.ZipFilePath,
             package,
             analysis,
-            assetsScope.Writer,
+            operationLock,
             timings,
             preparedInstall?.AssetFiles);
 
@@ -125,6 +130,7 @@ public sealed class InstallModWorkflow
                 execution.PatchedFiles,
                 execution.CopiedFiles,
                 execution.InstallId,
+                execution.BaseSnapshotCount,
                 timings.BuildSnapshot()) with
             {
                 Recovery = recovery,
@@ -133,7 +139,6 @@ public sealed class InstallModWorkflow
 
     private PreparedInstall CreatePreparedInstall(
         InstallRequest request,
-        ModPackage package,
         InstallAnalysis analysis)
     {
         string zipFilePath = TrustedPath.NormalizeAbsolutePath(request.ZipFilePath);
@@ -147,41 +152,29 @@ public sealed class InstallModWorkflow
             zipFilePath,
             gameDirectory,
             request.SelectedOptionalGroups.ToArray(),
-            analysis,
             _fileSystemOperations.ComputeFileIntegrity(zipFilePath),
             [
                 .. assetFilePaths.Select(path => new PreparedInstallAssetFile(
                     path,
                     _fileSystemOperations.ComputeFileIntegrity(path)))
-            ],
-            new Dictionary<string, string>(package.PatchSourcePaths, StringComparer.OrdinalIgnoreCase));
+            ]);
     }
 
     private InstallAnalysis PrepareAnalysis(
         InstallRequest request,
         ModPackage package,
-        PreparedInstall preparedInstall)
+        PreparedInstall preparedInstall,
+        IAssetsFileReader assetsReader,
+        StepTimer timings)
     {
         ValidatePreparedInstall(request, preparedInstall);
-        PatchOperationRules.ValidateModManifest(package.Manifest);
 
-        foreach (InstallTargetAnalysis target in preparedInstall.Analysis.Targets)
-        {
-            if (target.PlanningResult.CanApply)
-            {
-                continue;
-            }
-
-            PatchDiagnostic diagnostic = target.PlanningResult.Diagnostic ??
-                                         throw new InvalidOperationException(
-                                             "Prepared install analysis did not contain an applicable patch plan.");
-            throw new PatchPlanningException(diagnostic);
-        }
-
-        return RebindReplacementSources(
-            preparedInstall.Analysis,
-            preparedInstall.ReplacementSourcePaths,
-            package.PatchSourcePaths);
+        return _planBuilder.Analyze(
+            package,
+            request.GameDirectory,
+            InstallAnalysisMode.Apply,
+            assetsReader,
+            timings);
     }
 
     private void ValidatePreparedInstall(InstallRequest request, PreparedInstall preparedInstall)
@@ -211,72 +204,6 @@ public sealed class InstallModWorkflow
             throw new InstallPreparationStaleException(
                 "The mod package changed after the install preview.");
         }
-    }
-
-    private static InstallAnalysis RebindReplacementSources(
-        InstallAnalysis analysis,
-        IReadOnlyDictionary<string, string> previewSourcePaths,
-        IReadOnlyDictionary<string, string> currentSourcePaths)
-    {
-        InstallTargetAnalysis[] targets =
-        [
-            .. analysis.Targets.Select(target => target with
-            {
-                PlanningResult = target.PlanningResult with
-                {
-                    Plan = RebindPatchPlan(target.PlanningResult.Plan, previewSourcePaths, currentSourcePaths),
-                },
-            }),
-        ];
-
-        return analysis with { Targets = targets };
-    }
-
-    private static PatchPlan? RebindPatchPlan(
-        PatchPlan? plan,
-        IReadOnlyDictionary<string, string> previewSourcePaths,
-        IReadOnlyDictionary<string, string> currentSourcePaths)
-    {
-        return plan switch
-        {
-            AssetReplacementPlan replacementPlan => new AssetReplacementPlan(
-                replacementPlan.Replacements
-                    .Select(replacement => replacement with
-                    {
-                        SourceAssetsFilePath = RebindReplacementSourcePath(
-                            replacement,
-                            previewSourcePaths,
-                            currentSourcePaths),
-                    })
-                    .ToArray()),
-            _ => plan,
-        };
-    }
-
-    private static string RebindReplacementSourcePath(
-        AssetReplacement replacement,
-        IReadOnlyDictionary<string, string> previewSourcePaths,
-        IReadOnlyDictionary<string, string> currentSourcePaths)
-    {
-        foreach ((string sourceEntryPath, string previewSourcePath) in previewSourcePaths)
-        {
-            if (!TrustedPath.PathsEqual(previewSourcePath, replacement.SourceAssetsFilePath))
-            {
-                continue;
-            }
-
-            if (!currentSourcePaths.TryGetValue(sourceEntryPath, out string? currentSourcePath))
-            {
-                throw new InstallPreparationStaleException(
-                    $"The replacement source is missing from the current mod package: {sourceEntryPath}");
-            }
-
-            return currentSourcePath;
-        }
-
-        throw new InstallPreparationStaleException(
-            $"The replacement source from the install preview is no longer available: " +
-            replacement.SourceAssetsFilePath);
     }
 
     private static bool PathsEqual(string? left, string? right)

@@ -21,8 +21,6 @@ This file applies to the entire repository and supplements the coding guidelines
 - Keep short data-only contracts as positional records. Add `init` properties when optional collection values should remain available through object-initializer syntax.
 - Use block bodies for methods, including methods whose implementation is a single statement. Reserve expression bodies for concise non-method members such as simple computed properties.
 - Use an explicit local type when a value comes from a method call, property, deserialization, or other expression whose result type is not visible at the assignment. Use `var` when the initializer names the constructed type, for anonymous types, and for assertion results whose exact type is evident from the assertion.
-- Prefer collection expressions (`[]` and spread elements) for empty collections and compact collection construction.
-- Prefer typed `using` declarations such as `using FileStream stream = ...` and `using IServiceScope scope = ...` instead of `using var` when the acquired type is meaningful.
 
 ## Braces Layout
 
@@ -30,7 +28,7 @@ This file applies to the entire repository and supplements the coding guidelines
 
 ## Blank Lines
 
-- Leave a blank line immediately before every `return` statement, including early returns and the final return in a method.
+- Leave a blank line immediately before a `return` statement when other statements precede it in the same code block. A standalone `return` statement does not require a preceding blank line.
 - Separate branching statements such as `if` and `switch` from surrounding statements with a blank line both before and after the complete branching construct. Keep connected clauses such as `else if` and `else` together with their preceding clause.
 - Keep consecutive argument, dependency, and state checks together as one validation group, then leave a blank line before the method's main logic.
 - Leave a blank line between consecutive statements that invoke methods, including calls used in assignments. Consecutive calls in a validation group are the exception.

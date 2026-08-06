@@ -6,10 +6,8 @@ public sealed record PreparedInstall(
     string ZipFilePath,
     string? GameDirectory,
     IReadOnlyList<string> SelectedOptionalGroups,
-    InstallAnalysis Analysis,
     FileIntegrity PackageIntegrity,
-    IReadOnlyList<PreparedInstallAssetFile> AssetFiles,
-    IReadOnlyDictionary<string, string> ReplacementSourcePaths);
+    IReadOnlyList<PreparedInstallAssetFile> AssetFiles);
 
 public sealed record PreparedInstallAssetFile(string Path, FileIntegrity Integrity);
 

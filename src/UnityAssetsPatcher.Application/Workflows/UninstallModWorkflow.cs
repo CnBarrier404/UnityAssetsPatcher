@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Uninstallation;
 
@@ -10,18 +10,18 @@ public sealed class UninstallModWorkflow
 {
     private readonly UninstallPlanner _planner;
     private readonly UninstallExecutor _executor;
-    private readonly BackupRepository _backupRepository;
+    private readonly RepositoryService _repositoryService;
     private readonly ILogger<UninstallModWorkflow> _logger;
 
     public UninstallModWorkflow(
         UninstallPlanner planner,
         UninstallExecutor executor,
-        BackupRepository backupRepository,
+        RepositoryService repositoryService,
         ILogger<UninstallModWorkflow>? logger = null)
     {
         _planner = planner;
         _executor = executor;
-        _backupRepository = backupRepository;
+        _repositoryService = repositoryService;
         _logger = logger ?? NullLogger<UninstallModWorkflow>.Instance;
     }
 
@@ -38,25 +38,25 @@ public sealed class UninstallModWorkflow
     public UninstallModResult Uninstall(UninstallModRequest request)
     {
         _logger.LogInformation("Uninstalling mod install {InstallId}", request.InstallId);
-        using BackupOperationLock operationLock = _backupRepository.AcquireLock();
-        BackupRecoveryReport recovery = _backupRepository.CheckPendingTransactionsUnderLock();
-        if (recovery.Status != BackupRepositoryStatus.Clean)
+        using RepositoryOperationLock operationLock = _repositoryService.AcquireLock();
+        RepositoryRecoveryReport recovery = _repositoryService.CheckPendingTransactionsUnderLock();
+        if (recovery.Status != RepositoryRecoveryStatus.Clean)
         {
-            throw new BackupRecoveryException(
+            throw new RepositoryRecoveryException(
                 recovery.Issues.FirstOrDefault()?.Parameters.GetValueOrDefault("detail") ??
                 "A pending transaction must be recovered before uninstalling another mod.",
                 recovery);
         }
 
+        _ = _repositoryService.RequireWritableMetadata();
         UninstallPlan plan = _planner.BuildUninstall(request);
         UninstallModResult result = _executor.Execute(plan) with { Recovery = recovery };
 
         _logger.LogInformation(
-            "Uninstalled {ModName} {ModVersion}: {RestoredFileCount} files restored, {DeletedFileCount} files deleted",
+            "Uninstalled {ModName} {ModVersion}: {ChangedFileCount} files composed",
             result.ModName,
             result.ModVersion,
-            result.RestoredFiles.Count,
-            result.DeletedFiles.Count);
+            result.ChangedFiles.Count);
 
         return result;
     }

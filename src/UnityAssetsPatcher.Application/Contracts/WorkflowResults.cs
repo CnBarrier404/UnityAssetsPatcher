@@ -11,17 +11,22 @@ public sealed record UninstallModResult(
     string InstallId,
     string ModName,
     string ModVersion,
-    IReadOnlyList<UninstallRestoredFileResult> RestoredFiles,
-    IReadOnlyList<UninstallDeletedFileResult> DeletedFiles)
+    IReadOnlyList<UninstallChangedFileResult> ChangedFiles)
 {
-    public BackupRecoveryReport Recovery { get; init; } = BackupRecoveryReport.Clean;
+    public RepositoryRecoveryReport Recovery { get; init; } = RepositoryRecoveryReport.Clean;
 }
 
-public sealed record UninstallRestoredFileResult(
-    string Target,
-    string AssetsFilePath);
+public sealed record UninstallChangedFileResult(
+    string RelativePath,
+    UninstallChangedFileAction Action,
+    FileIntegrityStatus Status);
 
-public sealed record UninstallDeletedFileResult(string DestinationPath, bool Deleted);
+public enum UninstallChangedFileAction
+{
+    Rebuild,
+    RestoreBase,
+    Delete,
+}
 
 public sealed record UninstallPreviewResult(
     string InstallId,
@@ -30,18 +35,14 @@ public sealed record UninstallPreviewResult(
     DateTimeOffset InstalledAt,
     string GameDirectory,
     bool CanUninstall,
-    IReadOnlyList<UninstallBlockingModResult> BlockingMods,
-    IReadOnlyList<UninstallPreviewRestoredFileResult> RestoredFiles,
-    IReadOnlyList<UninstallPreviewDeletedFileResult> DeletedFiles);
+    IReadOnlyList<UninstallDependencyFailureResult> DependencyFailures,
+    IReadOnlyList<UninstallChangedFileResult> ChangedFiles);
 
-public sealed record UninstallPreviewRestoredFileResult(
-    string Target,
-    FileIntegrityStatus TargetStatus,
-    FileIntegrityStatus BackupStatus);
-
-public sealed record UninstallPreviewDeletedFileResult(
-    string DestinationPath,
-    FileIntegrityStatus Status);
+public sealed record UninstallDependencyFailureResult(
+    string ModName,
+    string ModVersion,
+    string RelativePath,
+    PatchDiagnostic Diagnostic);
 
 public enum FileIntegrityStatus
 {
@@ -50,12 +51,6 @@ public enum FileIntegrityStatus
     Modified,
     Unreadable,
 }
-
-public sealed record UninstallBlockingModResult(
-    string ModName,
-    string ModVersion,
-    DateTimeOffset InstalledAt,
-    IReadOnlyList<string> OverlappingAssetsFiles);
 
 public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
 
@@ -82,7 +77,7 @@ public sealed record InstallRecordSummary(
     string? GameName,
     DateTimeOffset InstalledAt);
 
-public enum BackupRepositoryStatus
+public enum RepositoryRecoveryStatus
 {
     Clean,
     RecoveryRequired,
@@ -90,34 +85,34 @@ public enum BackupRepositoryStatus
     Locked,
 }
 
-public sealed record BackupRecoveryOperation(string Kind, string InstallId, string Action);
+public sealed record RepositoryRecoveryOperation(string Kind, string InstallId, string Action);
 
-public enum BackupRecoveryPlanAction
+public enum RepositoryRecoveryPlanAction
 {
     RollBack,
     CompleteCleanup,
 }
 
-public enum BackupRecoveryFileAction
+public enum RepositoryRecoveryFileAction
 {
     NoChange,
     Restore,
     Delete,
 }
 
-public sealed record BackupRecoveryFileChange(string RelativePath, BackupRecoveryFileAction Action);
+public sealed record RepositoryRecoveryFileChange(string RelativePath, RepositoryRecoveryFileAction Action);
 
-public sealed record BackupRecoveryPreview(
-    BackupRepositoryStatus Status,
+public sealed record RepositoryRecoveryPreview(
+    RepositoryRecoveryStatus Status,
     string? GameDirectory,
     string? Kind,
     string? InstallId,
-    BackupRecoveryPlanAction? Action,
+    RepositoryRecoveryPlanAction? Action,
     bool CanRecover,
-    IReadOnlyList<BackupRecoveryFileChange> Files,
-    IReadOnlyList<BackupRecoveryIssue> Issues);
+    IReadOnlyList<RepositoryRecoveryFileChange> Files,
+    IReadOnlyList<RepositoryRecoveryIssue> Issues);
 
-public enum BackupRecoveryIssueCode
+public enum RepositoryRecoveryIssueCode
 {
     RepositoryUnsafe,
     RecoveryUnsafe,
@@ -125,25 +120,26 @@ public enum BackupRecoveryIssueCode
     UnexpectedFailure,
 }
 
-public sealed record BackupRecoveryIssue(BackupRecoveryIssueCode Code, string Path)
+public sealed record RepositoryRecoveryIssue(RepositoryRecoveryIssueCode Code, string Path)
 {
     public IReadOnlyDictionary<string, string> Parameters { get; init; } =
         new Dictionary<string, string>();
 }
 
-public sealed record BackupRecoveryReport(
-    BackupRepositoryStatus Status,
-    IReadOnlyList<BackupRecoveryOperation> Operations,
-    IReadOnlyList<BackupRecoveryIssue> Issues)
+public sealed record RepositoryRecoveryReport(
+    RepositoryRecoveryStatus Status,
+    IReadOnlyList<RepositoryRecoveryOperation> Operations,
+    IReadOnlyList<RepositoryRecoveryIssue> Issues)
 {
-    public static BackupRecoveryReport Clean { get; } = new(BackupRepositoryStatus.Clean, [], []);
+    public static RepositoryRecoveryReport Clean { get; } = new(RepositoryRecoveryStatus.Clean, [], []);
 }
 
-public sealed class BackupRecoveryException : InvalidOperationException
+public sealed class RepositoryRecoveryException : InvalidOperationException
 {
-    public BackupRecoveryReport Recovery { get; }
+    public RepositoryRecoveryReport Recovery { get; }
 
-    public BackupRecoveryException(string message, BackupRecoveryReport recovery, Exception? innerException = null)
+    public RepositoryRecoveryException(string message, RepositoryRecoveryReport recovery,
+        Exception? innerException = null)
         : base(message, innerException)
     {
         Recovery = recovery;

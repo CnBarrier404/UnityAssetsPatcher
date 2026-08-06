@@ -1,168 +1,381 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Application.IO;
-using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.Application.Repository;
+using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Domain.Integrity;
 
 namespace UnityAssetsPatcher.Application.Uninstallation;
 
 public sealed class UninstallExecutor
 {
-    private readonly BackupRepository _backupRepository;
+    private readonly RepositoryService _repositoryService;
+    private readonly UninstallCompositionService _compositionService;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly Action<string, string> _restoreFile;
+    private readonly TrustedPathResolver _pathResolver;
     private readonly ILogger<UninstallExecutor> _logger;
 
     public UninstallExecutor(
-        BackupRepository backupRepository,
+        RepositoryService repositoryService,
+        UninstallCompositionService compositionService,
         IFileSystemOperations fileSystemOperations,
-        ILogger<UninstallExecutor>? logger = null) :
-        this(backupRepository, fileSystemOperations, fileSystemOperations.CopyFile, logger) { }
-
-    public UninstallExecutor(
-        BackupRepository backupRepository,
-        IFileSystemOperations fileSystemOperations,
-        Action<string, string> restoreFile,
         ILogger<UninstallExecutor>? logger = null)
     {
-        ArgumentNullException.ThrowIfNull(backupRepository);
+        ArgumentNullException.ThrowIfNull(repositoryService);
+        ArgumentNullException.ThrowIfNull(compositionService);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        ArgumentNullException.ThrowIfNull(restoreFile);
-        _backupRepository = backupRepository;
+
+        _repositoryService = repositoryService;
+        _compositionService = compositionService;
         _fileSystemOperations = fileSystemOperations;
-        _restoreFile = restoreFile;
+        _pathResolver = new TrustedPathResolver(fileSystemOperations);
         _logger = logger ?? NullLogger<UninstallExecutor>.Instance;
     }
 
     public UninstallModResult Execute(UninstallPlan plan)
     {
-        UninstallResolvedPaths paths = UninstallPathValidator.ResolveRecordPaths(
-            _fileSystemOperations,
-            _backupRepository.BackupDirectory, plan.InstallDirectory, plan.GameDirectory, plan.Record);
-        UninstallIntegrityInspector.EnsureSafeToUninstall(_fileSystemOperations, paths);
-        ValidateUninstallAccess(paths, plan.InstallDirectory);
+        ArgumentNullException.ThrowIfNull(plan);
+
+        string gameDirectory = _pathResolver.ResolveExistingDirectory(plan.GameDirectory);
+        string layerDirectory = _pathResolver.ResolveExistingDirectory(plan.LayerDirectory);
 
         _logger.LogInformation(
-            "Executing uninstall of install {InstallId} ({ModName} {ModVersion})",
-            plan.Record.Id,
-            plan.Record.ModName,
-            plan.Record.ModVersion);
+            "Executing layered uninstall of install {InstallId} ({ModName} {ModVersion})",
+            plan.Layer.Id,
+            plan.Layer.ModName,
+            plan.Layer.ModVersion);
 
-        BackupRepositoryMetadata repository = _backupRepository.LoadMetadata();
-        string temporaryDirectory = _backupRepository.CreateTransactionDirectory();
+        RepositoryMetadata repository = _repositoryService.RequireWritableMetadata();
+        string temporaryDirectory = _repositoryService.CreateTransactionDirectory();
         string rollbackDirectory = Path.Combine(temporaryDirectory, "rollback");
-        _fileSystemOperations.CreateDirectory(rollbackDirectory);
-        var files = new List<BackupTransactionFile>();
+        _fileSystemOperations.EnsureDirectory(rollbackDirectory);
+        var transactionFiles = new List<RepositoryTransactionFile>();
         bool transactionSaved = false;
-        BackupTransaction? transaction = null;
+        RepositoryTransaction? transaction = null;
 
         try
         {
-            for (int index = 0; index < paths.PatchedFiles.Count; index++)
-            {
-                UninstallResolvedPatchedFile file = paths.PatchedFiles[index];
-                string rollbackPath = Path.Combine(rollbackDirectory, $"assets-{index}.bin");
-                File.Copy(file.AssetsFilePath, rollbackPath, false);
-                if (!_fileSystemOperations.MatchesFile(rollbackPath, file.InstalledFile))
-                    throw new IOException($"Uninstall rollback snapshot verification failed: {file.AssetsFilePath}");
-                files.Add(new BackupTransactionFile(BackupFileKind.Assets,
-                    Path.GetRelativePath(paths.GameDirectory, file.AssetsFilePath), file.InstalledFile,
-                    file.BackupFile, Path.GetRelativePath(temporaryDirectory, rollbackPath)));
-            }
+            UninstallCompositionAnalysis analysis = _compositionService.Analyze(
+                plan.Layer,
+                gameDirectory,
+                temporaryDirectory);
+            BuildTransactionFiles(
+                analysis,
+                temporaryDirectory,
+                rollbackDirectory,
+                transactionFiles);
 
-            for (int index = 0; index < paths.CopiedFiles.Count; index++)
-            {
-                UninstallResolvedCopiedFile file = paths.CopiedFiles[index];
-                if (!File.Exists(file.DestinationPath)) continue;
-                string rollbackPath = Path.Combine(rollbackDirectory, $"payload-{index}.bin");
-                File.Copy(file.DestinationPath, rollbackPath, false);
-                if (!_fileSystemOperations.MatchesFile(rollbackPath, file.InstalledFile))
-                    throw new IOException($"Payload rollback snapshot verification failed: {file.DestinationPath}");
-                files.Add(new BackupTransactionFile(BackupFileKind.Payload,
-                    Path.GetRelativePath(paths.GameDirectory, file.DestinationPath), file.InstalledFile, null,
-                    Path.GetRelativePath(temporaryDirectory, rollbackPath)));
-            }
-
-            transaction = new BackupTransaction(repository.RepositoryId, BackupOperationKind.Uninstall,
-                plan.Record.Id, plan.Record.GameInstanceFingerprint, files);
-            BackupTransactionStore.Save(_fileSystemOperations, temporaryDirectory, transaction);
+            transaction = new RepositoryTransaction(
+                repository.RepositoryId,
+                RepositoryOperationKind.Uninstall,
+                plan.Layer.Id,
+                plan.Layer.GameInstanceFingerprint,
+                transactionFiles);
+            RepositoryTransactionStore.Save(_fileSystemOperations, temporaryDirectory, transaction);
             transactionSaved = true;
 
-            var restoredFiles = new List<UninstallRestoredFileResult>();
-            foreach (UninstallResolvedPatchedFile file in paths.PatchedFiles)
-            {
-                if (!_fileSystemOperations.MatchesFile(file.AssetsFilePath, file.InstalledFile))
-                    throw new IOException($"Assets file changed during uninstall: {file.AssetsFilePath}");
-                _restoreFile(file.BackupPath, file.AssetsFilePath);
-                if (!_fileSystemOperations.MatchesFile(file.AssetsFilePath, file.BackupFile))
-                    throw new IOException($"Restored assets verification failed: {file.AssetsFilePath}");
-                _logger.LogDebug("Restored {AssetsFilePath} from backup", file.AssetsFilePath);
-                restoredFiles.Add(new UninstallRestoredFileResult(file.Target, file.AssetsFilePath));
-            }
+            ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
 
-            var deletedFiles = new List<UninstallDeletedFileResult>();
-            foreach (UninstallResolvedCopiedFile file in paths.CopiedFiles)
-            {
-                if (!File.Exists(file.DestinationPath))
-                {
-                    deletedFiles.Add(new UninstallDeletedFileResult(file.DestinationPath, false));
-                    continue;
-                }
-
-                if (!_fileSystemOperations.MatchesFile(file.DestinationPath, file.InstalledFile))
-                    throw new IOException($"Payload changed during uninstall: {file.DestinationPath}");
-                _fileSystemOperations.DeleteFile(file.DestinationPath);
-                _logger.LogDebug("Deleted payload {DestinationPath}", file.DestinationPath);
-                deletedFiles.Add(new UninstallDeletedFileResult(file.DestinationPath, true));
-            }
-
-            string removedInstall = Path.Combine(temporaryDirectory, "removed-install");
-            _fileSystemOperations.MoveDirectory(plan.InstallDirectory, removedInstall);
+            string removedLayerDirectory = Path.Combine(temporaryDirectory, "removed-install");
+            _fileSystemOperations.MoveDirectory(layerDirectory, removedLayerDirectory);
             _fileSystemOperations.DeleteDirectory(temporaryDirectory);
-            return new UninstallModResult(plan.Record.Id, plan.Record.ModName, plan.Record.ModVersion,
-                restoredFiles, deletedFiles);
+
+            return new UninstallModResult(
+                plan.Layer.Id,
+                plan.Layer.ModName,
+                plan.Layer.ModVersion,
+                CreateResultFiles(analysis));
         }
         catch (Exception failure)
         {
-            if (!transactionSaved)
-            {
-                _logger.LogError(failure,
-                    "Uninstall failed before the transaction was saved; temporary files removed");
-                if (Directory.Exists(temporaryDirectory)) _fileSystemOperations.DeleteDirectory(temporaryDirectory);
-                throw;
-            }
-
-            _logger.LogError(failure,
-                "Uninstall failed after the transaction was saved; attempting automatic rollback");
-            BackupRecoveryReport recovery =
-                _backupRepository.RecoverTrustedUnderLock(transaction!, paths.GameDirectory);
-            if (recovery.Status == BackupRepositoryStatus.Locked)
-            {
-                _logger.LogWarning("Automatic rollback was unsafe; manual recovery is required");
-                throw new BackupRecoveryException("Uninstall failed and automatic rollback was unsafe.", recovery,
-                    failure);
-            }
+            HandleFailure(failure, transactionSaved, transaction, temporaryDirectory, gameDirectory);
 
             throw;
         }
     }
 
-    private static void ValidateUninstallAccess(UninstallResolvedPaths paths, string installDirectory)
+    private void BuildTransactionFiles(
+        UninstallCompositionAnalysis analysis,
+        string temporaryDirectory,
+        string rollbackDirectory,
+        ICollection<RepositoryTransactionFile> transactionFiles)
     {
-        foreach (UninstallResolvedPatchedFile file in paths.PatchedFiles)
+        var seenPaths = new HashSet<string>(TrustedPath.PathComparer);
+        int fileIndex = 0;
+
+        foreach (CompositionFileTarget target in analysis.Files)
         {
-            using FileStream target = File.Open(file.AssetsFilePath, FileMode.Open, FileAccess.ReadWrite,
-                FileShare.None);
-            using FileStream backup = File.Open(file.BackupPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (!seenPaths.Add(target.RelativePath))
+            {
+                throw new InvalidDataException($"Composition contains duplicate game file: {target.RelativePath}");
+            }
+
+            CompositionFileResult current = FindCompositionFile(analysis.Current, target);
+            CompositionFileResult withoutTarget = FindCompositionFile(analysis.WithoutTarget, target);
+            string targetPath = _pathResolver.ResolveWithinDirectory(analysis.GameDirectory, target.RelativePath);
+            FileIntegrity? expectedBefore = GetPreparedIntegrity(current);
+            FileIntegrity? before = TryComputeFileIntegrity(targetPath);
+
+            EnsureCurrentState(targetPath, expectedBefore, before);
+
+            FileIntegrity? after = GetPreparedIntegrity(withoutTarget);
+
+            if ((before is null && after is null) ||
+                (before is not null && after is not null && before.Matches(after)))
+            {
+                continue;
+            }
+
+            string? rollbackRelativePath = null;
+            if (before is not null)
+            {
+                string rollbackPath = Path.Combine(rollbackDirectory, $"file-{fileIndex:D6}.bin");
+                _fileSystemOperations.CopyFileAtomically(targetPath, rollbackPath, FileDestinationMode.CreateNew);
+
+                if (!_fileSystemOperations.MatchesFile(rollbackPath, before))
+                {
+                    throw new IOException($"Uninstall rollback snapshot verification failed: {targetPath}");
+                }
+
+                rollbackRelativePath = ToTransactionRelativePath(temporaryDirectory, rollbackPath);
+            }
+
+            string? preparedRelativePath = null;
+            if (withoutTarget.PreparedPath is not null)
+            {
+                EnsureRegularFile(withoutTarget.PreparedPath, "Prepared uninstall file");
+                preparedRelativePath = ToTransactionRelativePath(temporaryDirectory, withoutTarget.PreparedPath);
+            }
+
+            transactionFiles.Add(new RepositoryTransactionFile(
+                target.Kind,
+                target.RelativePath,
+                before,
+                after,
+                rollbackRelativePath,
+                preparedRelativePath));
+            fileIndex++;
+        }
+    }
+
+    private IReadOnlyList<UninstallChangedFileResult> CreateResultFiles(
+        UninstallCompositionAnalysis analysis)
+    {
+        var results = new List<UninstallChangedFileResult>(analysis.Files.Count);
+
+        foreach (CompositionFileTarget target in analysis.Files)
+        {
+            CompositionFileResult withoutTarget = FindCompositionFile(analysis.WithoutTarget, target);
+            UninstallChangedFileAction action = DetermineAction(analysis, target, withoutTarget);
+            FileIntegrityStatus status = withoutTarget.PreparedPath is null
+                ? FileIntegrityStatus.Missing
+                : FileIntegrityStatus.Matches;
+            results.Add(new UninstallChangedFileResult(target.RelativePath, action, status));
         }
 
-        foreach (UninstallResolvedCopiedFile file in paths.CopiedFiles)
+        return results;
+    }
+
+    private void ApplyPreparedFiles(
+        RepositoryTransaction transaction,
+        string temporaryDirectory,
+        string gameDirectory)
+    {
+        foreach (RepositoryTransactionFile file in transaction.Files)
         {
-            if (File.Exists(file.DestinationPath))
-                using (File.Open(file.DestinationPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+            string target = _pathResolver.ResolveWithinDirectory(gameDirectory, file.RelativePath);
+            FileIntegrity? before = TryComputeFileIntegrity(target);
+
+            if (!MatchesIntegrity(before, file.Before))
+            {
+                throw new IOException($"Uninstall target changed before mutation: {target}");
+            }
         }
 
-        using FileStream record = File.Open(Path.Combine(installDirectory, "record.json"), FileMode.Open,
-            FileAccess.Read, FileShare.Read);
+        foreach (RepositoryTransactionFile file in transaction.Files)
+        {
+            string target = _pathResolver.ResolveWithinDirectory(gameDirectory, file.RelativePath);
+
+            if (file.After is null)
+            {
+                if (TryGetAttributes(target, out _))
+                {
+                    _fileSystemOperations.DeleteFile(target);
+                }
+
+                if (TryGetAttributes(target, out _))
+                {
+                    throw new IOException($"Deleted file is still present: {target}");
+                }
+
+                continue;
+            }
+
+            string source = _pathResolver.ResolveWithinDirectory(
+                temporaryDirectory,
+                file.PreparedRelativePath ?? throw new InvalidOperationException(
+                    "Prepared uninstall file path is missing."));
+            _fileSystemOperations.CopyFile(source, target);
+
+            if (!_fileSystemOperations.MatchesFile(target, file.After))
+            {
+                throw new IOException($"Uninstalled file verification failed: {target}");
+            }
+        }
+    }
+
+    private void HandleFailure(
+        Exception failure,
+        bool transactionSaved,
+        RepositoryTransaction? transaction,
+        string temporaryDirectory,
+        string gameDirectory)
+    {
+        if (!transactionSaved)
+        {
+            _logger.LogError(
+                failure,
+                "Uninstall failed before the transaction was saved; temporary files removed");
+
+            if (Directory.Exists(temporaryDirectory))
+            {
+                _fileSystemOperations.DeleteDirectory(temporaryDirectory);
+            }
+
+            return;
+        }
+
+        _logger.LogError(
+            failure,
+            "Uninstall failed after the transaction was saved; attempting automatic rollback");
+        RepositoryRecoveryReport recovery = _repositoryService.RecoverTrustedUnderLock(transaction!, gameDirectory);
+
+        if (recovery.Status != RepositoryRecoveryStatus.Locked)
+        {
+            return;
+        }
+
+        _logger.LogWarning("Automatic rollback was unsafe; manual recovery is required");
+
+        throw new RepositoryRecoveryException(
+            "Uninstall failed and automatic rollback was unsafe.",
+            recovery,
+            failure);
+    }
+
+    private FileIntegrity? GetPreparedIntegrity(CompositionFileResult result)
+    {
+        return result.PreparedPath is null
+            ? null
+            : _fileSystemOperations.ComputeFileIntegrity(result.PreparedPath);
+    }
+
+    private void EnsureCurrentState(
+        string targetPath,
+        FileIntegrity? expected,
+        FileIntegrity? actual)
+    {
+        if (!MatchesIntegrity(actual, expected))
+        {
+            throw new InvalidOperationException(
+                $"Cannot uninstall because the current game file differs from the composed active layers: {targetPath}");
+        }
+    }
+
+    private FileIntegrity? TryComputeFileIntegrity(string path)
+    {
+        if (!TryGetAttributes(path, out FileAttributes attributes))
+        {
+            return null;
+        }
+
+        if (attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new IOException($"Uninstall target must be a regular file: {path}");
+        }
+
+        return _fileSystemOperations.ComputeFileIntegrity(path);
+    }
+
+    private bool TryGetAttributes(string path, out FileAttributes attributes)
+    {
+        try
+        {
+            attributes = _fileSystemOperations.GetAttributes(path);
+
+            return true;
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            attributes = default;
+
+            return false;
+        }
+    }
+
+    private void EnsureRegularFile(string path, string description)
+    {
+        FileAttributes attributes = _fileSystemOperations.GetAttributes(path);
+
+        if (attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new IOException($"{description} must be a regular file: {path}");
+        }
+    }
+
+    private static bool MatchesIntegrity(FileIntegrity? actual, FileIntegrity? expected)
+    {
+        return actual is null
+            ? expected is null
+            : expected is not null && expected.Matches(actual);
+    }
+
+    private static CompositionFileResult FindCompositionFile(
+        CompositionResult composition,
+        CompositionFileTarget target)
+    {
+        return composition.Files.FirstOrDefault(file =>
+                   file.Kind == target.Kind &&
+                   TrustedPath.PathComparer.Equals(file.RelativePath, target.RelativePath)) ??
+               throw new InvalidDataException($"Composition result is missing file: {target.RelativePath}");
+    }
+
+    private static UninstallChangedFileAction DetermineAction(
+        UninstallCompositionAnalysis analysis,
+        CompositionFileTarget target,
+        CompositionFileResult withoutTarget)
+    {
+        if (withoutTarget.PreparedPath is null)
+        {
+            return UninstallChangedFileAction.Delete;
+        }
+
+        bool remainingLayerTouchesFile = analysis.ActiveLayers
+            .Where(layer => layer.Enabled && !TrustedPath.PathComparer.Equals(layer.Id, analysis.TargetLayer.Id))
+            .Any(layer => target.Kind == RepositoryFileKind.Assets
+                ? layer.AssetsTargets.Contains(target.RelativePath, TrustedPath.PathComparer)
+                : layer.PayloadTargets.Contains(target.RelativePath, TrustedPath.PathComparer));
+
+        return remainingLayerTouchesFile
+            ? UninstallChangedFileAction.Rebuild
+            : UninstallChangedFileAction.RestoreBase;
+    }
+
+    private static string ToTransactionRelativePath(string transactionDirectory, string path)
+    {
+        string normalizedPath = TrustedPath.NormalizeAbsolutePath(path);
+
+        if (TrustedPath.PathsEqual(normalizedPath, transactionDirectory) ||
+            !TrustedPath.IsWithinRoot(normalizedPath, transactionDirectory))
+        {
+            throw new InvalidOperationException("Prepared uninstall file is outside the active transaction.");
+        }
+
+        string relativePath = Path.GetRelativePath(transactionDirectory, normalizedPath);
+
+        return !TrustedPath.TryNormalizeRelativePath(relativePath, out string normalizedRelativePath)
+            ? throw new InvalidOperationException("Prepared uninstall file path is not trusted.")
+            : normalizedRelativePath;
     }
 }

@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
@@ -26,21 +26,21 @@ public sealed class WorkflowService : IWorkflowService
         _logger = logger ?? NullLogger<WorkflowService>.Instance;
     }
 
-    public OperationResult<BackupRecoveryPreview> PreviewPendingTransaction(string gameDirectory)
+    public OperationResult<RepositoryRecoveryPreview> PreviewPendingTransaction(string gameDirectory)
     {
-        return Invoke<BackupRepository, BackupRecoveryPreview>(repository =>
+        return Invoke<RepositoryService, RepositoryRecoveryPreview>(repository =>
             repository.PreviewPendingTransaction(gameDirectory));
     }
 
-    public OperationResult<BackupRecoveryReport> RecoverPendingTransactions(string gameDirectory)
+    public OperationResult<RepositoryRecoveryReport> RecoverPendingTransactions(string gameDirectory)
     {
-        return Invoke<BackupRepository, BackupRecoveryReport>(repository =>
+        return Invoke<RepositoryService, RepositoryRecoveryReport>(repository =>
             repository.RecoverPendingTransactions(gameDirectory));
     }
 
-    public OperationResult<BackupRecoveryReport> CheckPendingTransactions()
+    public OperationResult<RepositoryRecoveryReport> CheckPendingTransactions()
     {
-        return Invoke<BackupRepository, BackupRecoveryReport>(repository => repository.CheckPendingTransactions());
+        return Invoke<RepositoryService, RepositoryRecoveryReport>(repository => repository.CheckPendingTransactions());
     }
 
     public OperationResult<InspectListResult> InspectList(InspectListRequest request)
@@ -100,7 +100,7 @@ public sealed class WorkflowService : IWorkflowService
 
             return new OperationSucceeded<TResult>(result);
         }
-        catch (BackupRecoveryException exception)
+        catch (RepositoryRecoveryException exception)
         {
             var error = new OperationError(
                 WorkflowErrorCodes.RecoveryRequired,
@@ -159,12 +159,19 @@ public sealed class WorkflowService : IWorkflowService
             return ExpectedFailure<TResult>(operationName, WorkflowErrorCodes.InstallRecordNotFound,
                 exception.Message);
         }
+        catch (LegacyRepositoryWriteException exception)
+        {
+            return ExpectedFailure<TResult>(
+                operationName,
+                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                exception.Message);
+        }
         catch (NotSupportedException exception) when (IsUserContentOperation(operationName))
         {
             OperationErrorCode code = operationName switch
             {
                 nameof(PreviewInstall) or nameof(Install) => ModPackageErrorCodes.InvalidPackage,
-                _ => WorkflowErrorCodes.UnsupportedBackupRepositoryVersion,
+                _ => WorkflowErrorCodes.UnsupportedRepositoryVersion,
             };
 
             return ExpectedFailure<TResult>(operationName, code, exception.Message);
@@ -245,8 +252,8 @@ public sealed class WorkflowService : IWorkflowService
                 nameof(PreviewPendingTransaction) or
                 nameof(RecoverPendingTransactions) => exception.InnerException is IOException
                     ? WorkflowErrorCodes.OperationAlreadyRunning
-                    : WorkflowErrorCodes.BackupRepositoryUnsafe,
-            nameof(PreviewUninstall) => WorkflowErrorCodes.BackupRepositoryUnsafe,
+                    : WorkflowErrorCodes.RepositoryUnsafe,
+            nameof(PreviewUninstall) => WorkflowErrorCodes.RepositoryUnsafe,
             nameof(Uninstall) => WorkflowErrorCodes.FileIntegrityMismatch,
             _ => throw new ArgumentOutOfRangeException(nameof(operationName), operationName, null),
         };

@@ -11,13 +11,13 @@ public sealed record OperationError
 
     public IReadOnlyList<OperationAdvice> Advice { get; }
 
-    public BackupRecoveryReport? Recovery { get; }
+    public RepositoryRecoveryReport? Recovery { get; }
 
     public OperationError(
         OperationErrorCode code,
         IReadOnlyDictionary<string, object?>? parameters = null,
         IReadOnlyList<OperationAdvice>? advice = null,
-        BackupRecoveryReport? recovery = null)
+        RepositoryRecoveryReport? recovery = null)
     {
         ArgumentNullException.ThrowIfNull(code);
 

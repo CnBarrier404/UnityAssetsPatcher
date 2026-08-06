@@ -26,7 +26,7 @@ public sealed class UninstallCLICommand : ICLICommand
 
     private Command CreateListCommand()
     {
-        var command = new Command("list", "List installed mod records.");
+        var command = new Command("list", "List installed mod layers.");
         command.SetAction(ExecuteList);
         return command;
     }
@@ -50,7 +50,7 @@ public sealed class UninstallCLICommand : ICLICommand
         var id = IdOption();
         var gameDirectory = GameDirectoryOption();
         var yes = YesOption();
-        var command = new Command("apply", "Uninstall a mod and restore its files.");
+        var command = new Command("apply", "Uninstall a mod and compose the remaining layers.");
         command.Options.Add(id);
         command.Options.Add(gameDirectory);
         command.Options.Add(yes);
@@ -123,7 +123,7 @@ public sealed class UninstallCLICommand : ICLICommand
 
     private static Option<string> IdOption() => new("--id")
     {
-        Description = "Stable install record ID from 'uninstall list'.",
+        Description = "Stable layer ID from 'uninstall list'.",
         Required = true,
     };
 

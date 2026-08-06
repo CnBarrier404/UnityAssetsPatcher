@@ -58,7 +58,7 @@ Common CLI operations:
 
 `install preview`, `uninstall preview`, and `recovery preview` do not modify game files. When `--game-directory` is omitted, `install` and `uninstall` try to resolve the game directory from Steam installation metadata; `recovery` requires an explicit game directory. Commands that support JSON output accept `--format Json`.
 
-Installation records and backups are stored in `%LOCALAPPDATA%\UnityAssetsPatcher\backup` by default. Logs are stored in `%LOCALAPPDATA%\UnityAssetsPatcher\logs`, with up to five recent log files retained. Keep this directory available to uninstall mods or recover interrupted operations.
+Install records and layered backups are stored in `%LOCALAPPDATA%\UnityAssetsPatcher\backup` by default. `base/` contains base snapshots, `layers/<install-id>/` contains replayable mod layers, and `.temp/` exists only during a transaction. Logs are stored in `%LOCALAPPDATA%\UnityAssetsPatcher\logs`, with up to five recent log files retained. Keep the backup directory available to uninstall mods or recover interrupted operations. Legacy v1 repositories remain available for read-only install listing, but write operations are rejected.
 
 ## Frequently Asked Questions
 

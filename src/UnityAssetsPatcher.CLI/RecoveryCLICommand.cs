@@ -50,7 +50,7 @@ public sealed class RecoveryCLICommand : ICLICommand
     {
         try
         {
-            OperationResult<BackupRecoveryPreview> result =
+            OperationResult<RepositoryRecoveryPreview> result =
                 _workflowService.PreviewPendingTransaction(Path.GetFullPath(gameDirectory));
             return CLIOutput.WriteResult(parseResult, _options, "recovery.preview", result,
                 CLIOutput.RecoveryPreview, CLIOutput.WriteRecoveryPreviewText);
@@ -65,7 +65,7 @@ public sealed class RecoveryCLICommand : ICLICommand
     {
         try
         {
-            OperationResult<BackupRecoveryReport> result =
+            OperationResult<RepositoryRecoveryReport> result =
                 _workflowService.RecoverPendingTransactions(Path.GetFullPath(gameDirectory));
             return CLIOutput.WriteResult(parseResult, _options, "recovery.apply", result,
                 CLIOutput.RecoveryReport, CLIOutput.WriteRecoveryReportText);

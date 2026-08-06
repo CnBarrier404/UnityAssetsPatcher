@@ -58,7 +58,7 @@ Unity Assets Patcher 是一款用于浏览 Unity assets 文件及安装、卸载
 
 `install preview`、`uninstall preview` 和 `recovery preview` 不会修改游戏文件。`install` 和 `uninstall` 在省略 `--game-directory` 时会尝试通过 Steam 安装信息解析游戏目录；`recovery` 必须显式指定游戏目录。支持 JSON 输出的命令可以传入 `--format Json`。
 
-安装记录和备份默认保存在 `%LOCALAPPDATA%\UnityAssetsPatcher\backup`，运行日志保存在 `%LOCALAPPDATA%\UnityAssetsPatcher\logs`，最多保留最近 5 个日志文件。请保留该目录，以便正常卸载 Mod 或恢复意外中断的操作。
+安装记录和分层备份默认保存在 `%LOCALAPPDATA%\UnityAssetsPatcher\backup`，其中 `base/` 保存基础快照，`layers/<install-id>/` 保存可重放的 Mod 层，`.temp/` 仅在事务期间存在。运行日志保存在 `%LOCALAPPDATA%\UnityAssetsPatcher\logs`，最多保留最近 5 个日志文件。请保留备份目录，以便正常卸载 Mod 或恢复意外中断的操作。旧版 v1 仓库仍可用于只读查看安装列表，但写操作会被拒绝。
 
 ## 常见问题
 

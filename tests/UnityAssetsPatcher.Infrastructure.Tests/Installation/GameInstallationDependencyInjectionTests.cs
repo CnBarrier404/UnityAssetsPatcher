@@ -17,7 +17,7 @@ public sealed class GameInstallationDependencyInjectionTests : IDisposable
     {
         string steamRoot = Path.Combine(_temporaryDirectory, "Steam");
         string gameDirectory = CreateInstalledGame(steamRoot);
-        string backupDirectory = Path.Combine(_temporaryDirectory, "Backup");
+        string repositoryDirectory = Path.Combine(_temporaryDirectory, "Backup");
         var services = new ServiceCollection();
 
         services.AddLogging();
@@ -26,7 +26,7 @@ public sealed class GameInstallationDependencyInjectionTests : IDisposable
 
         services.AddUnityAssetsPatcherInfrastructure(OpenClassPackage);
 
-        services.AddUnityAssetsPatcherBackupRepository(backupDirectory);
+        services.AddUnityAssetsPatcherRepository(repositoryDirectory);
 
         services.AddUnityAssetsPatcherApplication();
 

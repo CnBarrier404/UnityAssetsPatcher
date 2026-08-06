@@ -17,7 +17,7 @@ public sealed class Program
             "UnityAssetsPatcher");
 
         string logDirectory = Path.Combine(appDataDirectory, "logs");
-        string backupDirectory = Path.Combine(appDataDirectory, "backup");
+        string repositoryDirectory = Path.Combine(appDataDirectory, "backup");
         AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
         Func<Stream> openClassPackage = () => typeof(Program).Assembly.GetManifestResourceStream("resources.tpk") ??
                                               throw new InvalidOperationException(
@@ -28,7 +28,7 @@ public sealed class Program
             .AddUnityAssetsPatcherLogging(logDirectory)
             .AddUnityAssetsPatcherUpdateChecking()
             .AddUnityAssetsPatcherInfrastructure(openClassPackage)
-            .AddUnityAssetsPatcherBackupRepository(backupDirectory)
+            .AddUnityAssetsPatcherRepository(repositoryDirectory)
             .AddUnityAssetsPatcherApplication()
             .AddUnityAssetsPatcherOperations()
             .AddUnityAssetsPatcherCli()

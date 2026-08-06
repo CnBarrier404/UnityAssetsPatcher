@@ -13,8 +13,8 @@ public static class WorkflowErrorCodes
     public static OperationErrorCode InstallPreviewStale { get; } = new("install.preview_stale");
     public static OperationErrorCode OperationAlreadyRunning { get; } = new("operation.already_running");
     public static OperationErrorCode RecoveryRequired { get; } = new("backup.recovery_required");
-    public static OperationErrorCode BackupRepositoryUnsafe { get; } = new("backup.repository_unsafe");
+    public static OperationErrorCode RepositoryUnsafe { get; } = new("backup.repository_unsafe");
 
-    public static OperationErrorCode UnsupportedBackupRepositoryVersion { get; } =
+    public static OperationErrorCode UnsupportedRepositoryVersion { get; } =
         new("backup.unsupported_repository_version");
 }

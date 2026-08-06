@@ -18,7 +18,8 @@ public sealed record InstallModResult(
     IReadOnlyList<string> OptionalGroups,
     TimingSnapshot Timing)
 {
-    public BackupRecoveryReport Recovery { get; init; } = BackupRecoveryReport.Clean;
+    public int BaseSnapshotCount { get; init; }
+    public RepositoryRecoveryReport Recovery { get; init; } = RepositoryRecoveryReport.Clean;
 }
 
 public sealed record InstallPreviewResult(

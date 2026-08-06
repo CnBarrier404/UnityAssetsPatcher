@@ -407,14 +407,9 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private void ShowResult(InstallModResult result)
     {
-        ShowResult(result, _settings.VerboseOutput);
-    }
-
-    private void ShowResult(InstallModResult result, bool verbose)
-    {
         _form.RemoveAll();
         var summaryRows = GetResultSummaryRows(result);
-        string text = FormatResultDetails(result, verbose);
+        string text = FormatResultDetails(result);
         int detailsHeight = string.IsNullOrEmpty(text) ? 0 : GetReportHeight(text);
         var status = new StyledLabel(
             _strings.InstallResult_InstalledStatus, TextRole.Success) { X = 0, Y = 0 };
@@ -546,63 +541,31 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private (string Label, string Value)[] GetResultSummaryRows(InstallModResult result)
     {
-        var patches = GetChanges(result.Changes, InstallChangeKind.Patch);
-        var payloads = GetChanges(result.Changes, InstallChangeKind.Payload);
         return
         [
             (_strings.Summary_Mod, result.ModName),
             (_strings.Summary_Version, result.ModVersion),
-            (_strings.InstallResult_PatchedFiles, patches.Length.ToString(CultureInfo.InvariantCulture)),
-            (_strings.InstallResult_CopiedFiles, payloads.Length.ToString(CultureInfo.InvariantCulture)),
-            (_strings.Summary_Assets,
-                patches.Sum(change => change.AssetCount).ToString(CultureInfo.InvariantCulture)),
-            (_strings.Summary_Operations,
-                patches.Sum(change => change.OperationCount).ToString(CultureInfo.InvariantCulture)),
             (_strings.Summary_Elapsed, FormatElapsed(result.Timing.Elapsed)),
         ];
     }
 
-    private string FormatResultDetails(InstallModResult result, bool verbose)
+    private string FormatResultDetails(InstallModResult result)
     {
-        var patches = GetChanges(result.Changes, InstallChangeKind.Patch);
-        var payloads = GetChanges(result.Changes, InstallChangeKind.Payload);
         var text = new StringBuilder();
-        if (patches.Length > 0)
+
+        if (result.Changes.Count <= 0)
         {
-            text.AppendLine(_strings.InstallResult_PatchedFiles);
-            foreach (InstallChange change in patches)
-            {
-                text.Append("- ").Append(change.Name).Append(": ")
-                    .Append(change.AssetCount.ToString(CultureInfo.InvariantCulture)).Append(' ')
-                    .Append(_strings.Summary_AssetUnit).Append(", ")
-                    .Append(change.OperationCount.ToString(CultureInfo.InvariantCulture)).Append(' ')
-                    .AppendLine(_strings.Summary_OperationUnit);
-                text.Append("  ").Append(_strings.InstallResult_Backup).Append(' ')
-                    .AppendLine(change.BackupPath ?? string.Empty);
-            }
+            return text.ToString().TrimEnd();
         }
 
-        if (payloads.Length > 0)
-        {
-            text.AppendLine().AppendLine(_strings.InstallResult_CopiedFiles);
-            foreach (InstallChange change in payloads)
-            {
-                text.Append("- ").AppendLine(Path.GetFileName(change.Path));
-            }
-        }
+        text.AppendLine(_strings.InstallResult_OperatedFiles);
 
-        if (result.OptionalGroups.Count > 0)
+        foreach (InstallChange change in result.Changes)
         {
-            text.AppendLine().AppendLine(_strings.InstallResult_OptionalContent);
-            foreach (string group in result.OptionalGroups)
-            {
-                text.Append("- ").AppendLine(group);
-            }
-        }
-
-        if (verbose)
-        {
-            AppendTiming(text, result.Timing);
+            string path = change.Kind == InstallChangeKind.Patch
+                ? change.Name
+                : Path.GetFileName(change.Path);
+            text.Append("- ").AppendLine(path);
         }
 
         return text.ToString().TrimEnd();

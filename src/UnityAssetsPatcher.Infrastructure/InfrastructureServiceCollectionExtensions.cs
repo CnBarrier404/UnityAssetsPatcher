@@ -2,13 +2,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.Backups;
+using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Infrastructure.AssetsTools;
-using UnityAssetsPatcher.Infrastructure.Backups;
+using UnityAssetsPatcher.Infrastructure.Repository;
 using UnityAssetsPatcher.Infrastructure.IO;
 using UnityAssetsPatcher.Infrastructure.Installation;
 using UnityAssetsPatcher.Infrastructure.Packages;
@@ -72,20 +72,22 @@ public static class InfrastructureServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddUnityAssetsPatcherBackupRepository(
+    public static IServiceCollection AddUnityAssetsPatcherRepository(
         this IServiceCollection services,
-        string backupDirectory)
+        string repositoryDirectory)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentException.ThrowIfNullOrWhiteSpace(backupDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(repositoryDirectory);
 
         services.TryAddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
             provider.GetRequiredService<ILoggerFactory>().CreateLogger<FileSystemOperations>()));
 
-        services.TryAddSingleton<IBackupRepository>(provider => new FileBackupRepository(
-            backupDirectory,
+        services.TryAddSingleton<FileRepository>(provider => new FileRepository(
+            repositoryDirectory,
             provider.GetRequiredService<IFileSystemOperations>(),
             provider.GetRequiredService<ILoggerFactory>()));
+        services.TryAddSingleton<IRepository>(provider => provider.GetRequiredService<FileRepository>());
+        services.TryAddSingleton<ICompositionRepository>(provider => provider.GetRequiredService<FileRepository>());
 
         return services;
     }

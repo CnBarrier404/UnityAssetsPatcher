@@ -5,11 +5,11 @@ namespace UnityAssetsPatcher.Application.Contracts;
 
 public interface IWorkflowService
 {
-    public OperationResult<BackupRecoveryReport> CheckPendingTransactions();
+    public OperationResult<RepositoryRecoveryReport> CheckPendingTransactions();
 
-    public OperationResult<BackupRecoveryPreview> PreviewPendingTransaction(string gameDirectory);
+    public OperationResult<RepositoryRecoveryPreview> PreviewPendingTransaction(string gameDirectory);
 
-    public OperationResult<BackupRecoveryReport> RecoverPendingTransactions(string gameDirectory);
+    public OperationResult<RepositoryRecoveryReport> RecoverPendingTransactions(string gameDirectory);
 
     public OperationResult<InspectListResult> InspectList(InspectListRequest request);
 

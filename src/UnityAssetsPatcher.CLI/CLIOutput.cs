@@ -9,6 +9,7 @@ using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Operations;
+using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Domain.Assets;
 
@@ -120,14 +121,14 @@ internal static class CLIOutput
         if (parseResult.GetValue(options.Format) == CLIOutputFormat.Json)
         {
             JsonObject envelope = ErrorEnvelope(command, "command_failed", exception.Message, Flatten(exception));
-            BackupRecoveryException? recovery = EnumerateExceptions(exception).OfType<BackupRecoveryException>()
+            RepositoryRecoveryException? recovery = EnumerateExceptions(exception).OfType<RepositoryRecoveryException>()
                 .FirstOrDefault();
             if (recovery is not null) envelope["recovery"] = Recovery(recovery.Recovery);
             WriteJson(error, envelope);
         }
         else
         {
-            BackupRecoveryException? recovery = EnumerateExceptions(exception).OfType<BackupRecoveryException>()
+            RepositoryRecoveryException? recovery = EnumerateExceptions(exception).OfType<RepositoryRecoveryException>()
                 .FirstOrDefault();
             if (recovery is not null) WriteRecoveryText(error, recovery.Recovery);
             WriteException(error, exception);
@@ -276,23 +277,26 @@ internal static class CLIOutput
             ["installedAt"] = result.InstalledAt.ToString("O"),
             ["gameDirectory"] = result.GameDirectory,
             ["canUninstall"] = result.CanUninstall,
-            ["blockingMods"] = new JsonArray(result.BlockingMods.Select(mod => new JsonObject
+            ["dependencyFailures"] = new JsonArray(result.DependencyFailures.Select(failure => new JsonObject
             {
-                ["name"] = mod.ModName,
-                ["version"] = mod.ModVersion,
-                ["installedAt"] = mod.InstalledAt.ToString("O"),
-                ["overlappingAssetsFiles"] = new JsonArray(
-                    mod.OverlappingAssetsFiles.Select(value => JsonValue.Create(value)).ToArray<JsonNode?>()),
+                ["name"] = failure.ModName,
+                ["version"] = failure.ModVersion,
+                ["relativePath"] = failure.RelativePath,
+                ["diagnostic"] = new JsonObject
+                {
+                    ["code"] = EnumName(failure.Diagnostic.Code),
+                    ["assetsFilePath"] = failure.Diagnostic.AssetsFilePath,
+                    ["pathId"] = failure.Diagnostic.PathId,
+                    ["fieldPath"] = failure.Diagnostic.FieldPath,
+                    ["expected"] = failure.Diagnostic.Expected,
+                    ["actual"] = failure.Diagnostic.Actual,
+                    ["detail"] = failure.Diagnostic.Detail,
+                },
             }).ToArray<JsonNode?>()),
-            ["restoredFiles"] = new JsonArray(result.RestoredFiles.Select(file => new JsonObject
+            ["changedFiles"] = new JsonArray(result.ChangedFiles.Select(file => new JsonObject
             {
-                ["target"] = file.Target,
-                ["targetStatus"] = EnumName(file.TargetStatus),
-                ["backupStatus"] = EnumName(file.BackupStatus),
-            }).ToArray<JsonNode?>()),
-            ["deletedFiles"] = new JsonArray(result.DeletedFiles.Select(file => new JsonObject
-            {
-                ["destinationPath"] = file.DestinationPath,
+                ["relativePath"] = file.RelativePath,
+                ["action"] = EnumName(file.Action),
                 ["status"] = EnumName(file.Status),
             }).ToArray<JsonNode?>()),
         };
@@ -304,15 +308,11 @@ internal static class CLIOutput
         {
             ["installId"] = result.InstallId,
             ["mod"] = Mod(result.ModName, result.ModVersion),
-            ["restoredFiles"] = new JsonArray(result.RestoredFiles.Select(file => new JsonObject
+            ["changedFiles"] = new JsonArray(result.ChangedFiles.Select(file => new JsonObject
             {
-                ["target"] = file.Target,
-                ["assetsFilePath"] = file.AssetsFilePath,
-            }).ToArray<JsonNode?>()),
-            ["deletedFiles"] = new JsonArray(result.DeletedFiles.Select(file => new JsonObject
-            {
-                ["destinationPath"] = file.DestinationPath,
-                ["deleted"] = file.Deleted,
+                ["relativePath"] = file.RelativePath,
+                ["action"] = EnumName(file.Action),
+                ["status"] = EnumName(file.Status),
             }).ToArray<JsonNode?>()),
             ["recovery"] = Recovery(result.Recovery),
         };
@@ -362,23 +362,35 @@ internal static class CLIOutput
         output.WriteLine($"Preview uninstall: {result.ModName} {result.ModVersion}");
         output.WriteLine($"Install ID: {result.InstallId}");
         output.WriteLine($"Game directory: {result.GameDirectory}");
-        output.WriteLine($"Can uninstall: {result.CanUninstall}");
-
-        foreach (UninstallPreviewRestoredFileResult file in result.RestoredFiles)
+        if (result.CanUninstall)
         {
             output.WriteLine(
-                $"- restore {file.Target}: target={EnumName(file.TargetStatus)}, backup={EnumName(file.BackupStatus)}");
+                $"Can uninstall: yes; {result.ChangedFiles.Count} file(s) will be recomposed or restored.");
+        }
+        else if (result.DependencyFailures.Count > 0)
+        {
+            output.WriteLine("Can uninstall: no; real patch dependencies were found.");
+        }
+        else
+        {
+            output.WriteLine("Can uninstall: no; current game files do not match the active composition.");
         }
 
-        foreach (UninstallPreviewDeletedFileResult file in result.DeletedFiles)
+        foreach (UninstallChangedFileResult file in result.ChangedFiles)
         {
-            output.WriteLine($"- delete {file.DestinationPath}: {EnumName(file.Status)}");
+            output.WriteLine($"- {EnumName(file.Action)} {file.RelativePath}: {EnumName(file.Status)}");
         }
 
-        foreach (UninstallBlockingModResult blocker in result.BlockingMods)
+        if (result.DependencyFailures.Count > 0)
         {
-            output.WriteLine($"- blocked by {blocker.ModName} {blocker.ModVersion}: " +
-                             string.Join(", ", blocker.OverlappingAssetsFiles));
+            output.WriteLine("Real patch dependencies:");
+            foreach (UninstallDependencyFailureResult failure in result.DependencyFailures)
+            {
+                PatchDiagnostic diagnostic = failure.Diagnostic;
+                output.WriteLine(
+                    $"- {failure.ModName} {failure.ModVersion} at {failure.RelativePath}: " +
+                    $"{EnumName(diagnostic.Code)}{FormatDiagnosticValues(diagnostic)}");
+            }
         }
     }
 
@@ -387,8 +399,47 @@ internal static class CLIOutput
         WriteRecoveryText(output, result.Recovery);
         output.WriteLine($"Uninstalled: {result.ModName} {result.ModVersion}");
         output.WriteLine($"Install ID: {result.InstallId}");
-        output.WriteLine($"Restored files: {result.RestoredFiles.Count}");
-        output.WriteLine($"Deleted files: {result.DeletedFiles.Count(file => file.Deleted)}");
+        output.WriteLine($"Changed files: {result.ChangedFiles.Count}");
+        foreach (UninstallChangedFileResult file in result.ChangedFiles)
+        {
+            output.WriteLine($"- {EnumName(file.Action)} {file.RelativePath}: {EnumName(file.Status)}");
+        }
+    }
+
+    private static string FormatDiagnosticValues(PatchDiagnostic diagnostic)
+    {
+        var values = new List<string>();
+        if (diagnostic.AssetsFilePath is not null)
+        {
+            values.Add($"file={diagnostic.AssetsFilePath}");
+        }
+
+        if (diagnostic.PathId is not null)
+        {
+            values.Add($"pathId={diagnostic.PathId}");
+        }
+
+        if (diagnostic.FieldPath is not null)
+        {
+            values.Add($"field={diagnostic.FieldPath}");
+        }
+
+        if (diagnostic.Expected is not null)
+        {
+            values.Add($"expected={diagnostic.Expected}");
+        }
+
+        if (diagnostic.Actual is not null)
+        {
+            values.Add($"actual={diagnostic.Actual}");
+        }
+
+        if (diagnostic.Detail is not null)
+        {
+            values.Add($"detail={diagnostic.Detail}");
+        }
+
+        return values.Count == 0 ? string.Empty : $" ({string.Join(", ", values)})";
     }
 
     private static JsonNode? ToJsonNode(object? value)
@@ -570,7 +621,7 @@ internal static class CLIOutput
         };
     }
 
-    public static JsonObject RecoveryPreview(BackupRecoveryPreview preview)
+    public static JsonObject RecoveryPreview(RepositoryRecoveryPreview preview)
     {
         return new JsonObject
         {
@@ -589,24 +640,24 @@ internal static class CLIOutput
         };
     }
 
-    public static JsonObject RecoveryReport(BackupRecoveryReport recovery) => Recovery(recovery);
+    public static JsonObject RecoveryReport(RepositoryRecoveryReport recovery) => Recovery(recovery);
 
-    public static void WriteRecoveryPreviewText(TextWriter output, BackupRecoveryPreview preview)
+    public static void WriteRecoveryPreviewText(TextWriter output, RepositoryRecoveryPreview preview)
     {
         output.WriteLine($"Recovery preview: {EnumName(preview.Status)}");
         if (preview.GameDirectory is not null) output.WriteLine($"Game directory: {preview.GameDirectory}");
         if (preview.Kind is not null) output.WriteLine($"Transaction: {preview.Kind} {preview.InstallId}");
         if (preview.Action is not null) output.WriteLine($"Action: {EnumName(preview.Action.Value)}");
-        foreach (BackupRecoveryFileChange file in preview.Files)
+        foreach (RepositoryRecoveryFileChange file in preview.Files)
             output.WriteLine($"- {EnumName(file.Action)}: {file.RelativePath}");
-        foreach (BackupRecoveryIssue issue in preview.Issues)
+        foreach (RepositoryRecoveryIssue issue in preview.Issues)
             output.WriteLine($"- {RecoveryIssueCode(issue.Code)}: {RecoveryIssueText(issue)} ({issue.Path})");
     }
 
-    public static void WriteRecoveryReportText(TextWriter output, BackupRecoveryReport recovery) =>
+    public static void WriteRecoveryReportText(TextWriter output, RepositoryRecoveryReport recovery) =>
         WriteRecoveryText(output, recovery);
 
-    private static JsonObject Recovery(BackupRecoveryReport recovery)
+    private static JsonObject Recovery(RepositoryRecoveryReport recovery)
     {
         return new JsonObject
         {
@@ -621,7 +672,7 @@ internal static class CLIOutput
         };
     }
 
-    private static JsonArray RecoveryIssues(IEnumerable<BackupRecoveryIssue> issues) =>
+    private static JsonArray RecoveryIssues(IEnumerable<RepositoryRecoveryIssue> issues) =>
         new(issues.Select(issue => new JsonObject
         {
             ["code"] = RecoveryIssueCode(issue.Code),
@@ -631,13 +682,13 @@ internal static class CLIOutput
                 KeyValuePair.Create<string, JsonNode?>(parameter.Key, parameter.Value))),
         }).ToArray<JsonNode?>());
 
-    internal static void WriteRecoveryText(TextWriter output, BackupRecoveryReport recovery)
+    internal static void WriteRecoveryText(TextWriter output, RepositoryRecoveryReport recovery)
     {
-        if (recovery.Status == BackupRepositoryStatus.Clean) return;
+        if (recovery.Status == RepositoryRecoveryStatus.Clean) return;
         output.WriteLine($"Backup recovery: {EnumName(recovery.Status)}");
-        foreach (BackupRecoveryOperation operation in recovery.Operations)
+        foreach (RepositoryRecoveryOperation operation in recovery.Operations)
             output.WriteLine($"- {operation.Kind} {operation.InstallId}: {operation.Action}");
-        foreach (BackupRecoveryIssue issue in recovery.Issues)
+        foreach (RepositoryRecoveryIssue issue in recovery.Issues)
             output.WriteLine($"- {RecoveryIssueCode(issue.Code)}: {RecoveryIssueText(issue)} ({issue.Path})");
     }
 
@@ -674,19 +725,19 @@ internal static class CLIOutput
         return char.ToLowerInvariant(name[0]) + name[1..];
     }
 
-    private static string RecoveryIssueCode(BackupRecoveryIssueCode code)
+    private static string RecoveryIssueCode(RepositoryRecoveryIssueCode code)
     {
         return code switch
         {
-            BackupRecoveryIssueCode.RepositoryUnsafe => "repository_unsafe",
-            BackupRecoveryIssueCode.RecoveryUnsafe => "recovery_unsafe",
-            BackupRecoveryIssueCode.OperationFailed => "operation_failed",
-            BackupRecoveryIssueCode.UnexpectedFailure => "unexpected_failure",
+            RepositoryRecoveryIssueCode.RepositoryUnsafe => "repository_unsafe",
+            RepositoryRecoveryIssueCode.RecoveryUnsafe => "recovery_unsafe",
+            RepositoryRecoveryIssueCode.OperationFailed => "operation_failed",
+            RepositoryRecoveryIssueCode.UnexpectedFailure => "unexpected_failure",
             _ => throw new ArgumentOutOfRangeException(nameof(code), code, null),
         };
     }
 
-    private static string RecoveryIssueText(BackupRecoveryIssue issue)
+    private static string RecoveryIssueText(RepositoryRecoveryIssue issue)
     {
         if (issue.Parameters.GetValueOrDefault("detail") is { Length: > 0 } detail)
         {
@@ -695,10 +746,10 @@ internal static class CLIOutput
 
         return issue.Code switch
         {
-            BackupRecoveryIssueCode.RepositoryUnsafe => "The backup repository is damaged or unsafe.",
-            BackupRecoveryIssueCode.RecoveryUnsafe => "Recovery cannot continue safely.",
-            BackupRecoveryIssueCode.OperationFailed => "The recovery operation failed.",
-            BackupRecoveryIssueCode.UnexpectedFailure => "An unexpected recovery failure occurred.",
+            RepositoryRecoveryIssueCode.RepositoryUnsafe => "The backup repository is damaged or unsafe.",
+            RepositoryRecoveryIssueCode.RecoveryUnsafe => "Recovery cannot continue safely.",
+            RepositoryRecoveryIssueCode.OperationFailed => "The recovery operation failed.",
+            RepositoryRecoveryIssueCode.UnexpectedFailure => "An unexpected recovery failure occurred.",
             _ => "Recovery failed.",
         };
     }
@@ -778,9 +829,9 @@ internal static class OperationErrorText
                 "Another mutating operation is already running.",
             _ when error.Code == WorkflowErrorCodes.RecoveryRequired =>
                 "An interrupted operation must be recovered first.",
-            _ when error.Code == WorkflowErrorCodes.BackupRepositoryUnsafe =>
+            _ when error.Code == WorkflowErrorCodes.RepositoryUnsafe =>
                 "The backup repository is damaged or unsafe.",
-            _ when error.Code == WorkflowErrorCodes.UnsupportedBackupRepositoryVersion =>
+            _ when error.Code == WorkflowErrorCodes.UnsupportedRepositoryVersion =>
                 "The backup repository version is not supported.",
             _ => "The operation failed.",
         };
