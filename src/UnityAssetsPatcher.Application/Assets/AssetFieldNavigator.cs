@@ -52,6 +52,9 @@ public static class AssetFieldNavigator
     private static bool IsArraySizeMetadata(AssetField field)
     {
         return string.Equals(field.Name, "size", StringComparison.Ordinal) &&
-               field.Value is AssetFieldValue.Int64 or AssetFieldValue.UInt64;
+               field.Value is AssetScalarValue.Int8 or AssetScalarValue.UInt8 or
+                   AssetScalarValue.Int16 or AssetScalarValue.UInt16 or
+                   AssetScalarValue.Int32 or AssetScalarValue.UInt32 or
+                   AssetScalarValue.Int64 or AssetScalarValue.UInt64;
     }
 }

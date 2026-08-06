@@ -4,7 +4,7 @@ public abstract record AssetField
 {
     public string Name { get; }
     public string TypeName { get; }
-    public AssetFieldValue? Value => this is AssetScalarField scalar ? ToLegacyValue(scalar.Value) : null;
+    public abstract AssetScalarValue? Value { get; }
     public abstract IReadOnlyList<AssetField> Children { get; }
 
     protected AssetField(string name, string typeName)
@@ -14,26 +14,6 @@ public abstract record AssetField
 
         Name = name;
         TypeName = typeName;
-    }
-
-    private static AssetFieldValue ToLegacyValue(AssetScalarValue value)
-    {
-        return value switch
-        {
-            AssetScalarValue.Boolean boolean => new AssetFieldValue.Boolean(boolean.Value),
-            AssetScalarValue.Int8 integer => new AssetFieldValue.Int64(integer.Value),
-            AssetScalarValue.UInt8 integer => new AssetFieldValue.UInt64(integer.Value),
-            AssetScalarValue.Int16 integer => new AssetFieldValue.Int64(integer.Value),
-            AssetScalarValue.UInt16 integer => new AssetFieldValue.UInt64(integer.Value),
-            AssetScalarValue.Int32 integer => new AssetFieldValue.Int64(integer.Value),
-            AssetScalarValue.UInt32 integer => new AssetFieldValue.UInt64(integer.Value),
-            AssetScalarValue.Int64 integer => new AssetFieldValue.Int64(integer.Value),
-            AssetScalarValue.UInt64 integer => new AssetFieldValue.UInt64(integer.Value),
-            AssetScalarValue.Float single => new AssetFieldValue.Float(single.Value),
-            AssetScalarValue.Double doubleValue => new AssetFieldValue.Double(doubleValue.Value),
-            AssetScalarValue.String text => new AssetFieldValue.String(text.Value),
-            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unsupported scalar value."),
-        };
     }
 
     public AssetField? FindChild(string name)
@@ -53,7 +33,7 @@ public abstract record AssetField
 
 public sealed record AssetScalarField : AssetField
 {
-    public new AssetScalarValue Value { get; }
+    public override AssetScalarValue Value { get; }
     public override IReadOnlyList<AssetField> Children => [];
 
     public AssetScalarField(string name, string typeName, AssetScalarValue value)
@@ -69,6 +49,7 @@ public sealed record AssetArrayField : AssetField
 {
     public AssetFieldSchema ElementSchema { get; }
     public IReadOnlyList<AssetField> Elements { get; }
+    public override AssetScalarValue? Value => null;
     public override IReadOnlyList<AssetField> Children => Elements;
 
     public AssetArrayField(
@@ -96,6 +77,7 @@ public sealed record AssetArrayField : AssetField
 
 public sealed record AssetObjectField : AssetField
 {
+    public override AssetScalarValue? Value => null;
     public override IReadOnlyList<AssetField> Children { get; }
 
     public AssetObjectField(string name, string typeName, IEnumerable<AssetField?> children) : base(name, typeName)

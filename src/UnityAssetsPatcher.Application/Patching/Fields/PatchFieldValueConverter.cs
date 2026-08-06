@@ -18,8 +18,7 @@ public static class PatchFieldValueConverter
 
     public static bool IsJsonArrayPatchValue(JsonElement value)
     {
-        return value.ValueKind == JsonValueKind.Array &&
-               !JsonUtils.TryGetObjectValue(value, out _);
+        return value.ValueKind == JsonValueKind.Array && !JsonUtils.TryGetObjectValue(value, out _);
     }
 
     public static AssetField? ResolveArrayField(AssetField? field)
@@ -129,7 +128,7 @@ public static class PatchFieldValueConverter
             return FormatObjectFieldValue(element);
         }
 
-        return element.Value is AssetFieldValue.String
+        return element.Value is AssetScalarValue.String
             ? FormatJsonStringLiteral(element.Value.ToInvariantString())
             : element.Value.ToInvariantString();
     }
@@ -147,7 +146,7 @@ public static class PatchFieldValueConverter
             : Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private static AssetFieldValue GetArrayElementValue(AssetField field)
+    private static AssetScalarValue GetArrayElementValue(AssetField field)
     {
         return field.Value ?? throw new PatchPlanningException(
             PatchDiagnosticCode.InvalidPatchConfiguration,
@@ -156,26 +155,44 @@ public static class PatchFieldValueConverter
 
     private static void WriteArrayElementValue(Utf8JsonWriter writer, AssetField field)
     {
-        AssetFieldValue value = GetArrayElementValue(field);
+        AssetScalarValue value = GetArrayElementValue(field);
 
         switch (value)
         {
-            case AssetFieldValue.String stringValue:
+            case AssetScalarValue.String stringValue:
                 writer.WriteStringValue(stringValue.Value);
                 break;
-            case AssetFieldValue.Boolean boolValue:
+            case AssetScalarValue.Boolean boolValue:
                 writer.WriteBooleanValue(boolValue.Value);
                 break;
-            case AssetFieldValue.Int64 integerValue:
+            case AssetScalarValue.Int8 integerValue:
                 writer.WriteNumberValue(integerValue.Value);
                 break;
-            case AssetFieldValue.UInt64 integerValue:
+            case AssetScalarValue.UInt8 integerValue:
                 writer.WriteNumberValue(integerValue.Value);
                 break;
-            case AssetFieldValue.Float floatValue:
+            case AssetScalarValue.Int16 integerValue:
+                writer.WriteNumberValue(integerValue.Value);
+                break;
+            case AssetScalarValue.UInt16 integerValue:
+                writer.WriteNumberValue(integerValue.Value);
+                break;
+            case AssetScalarValue.Int32 integerValue:
+                writer.WriteNumberValue(integerValue.Value);
+                break;
+            case AssetScalarValue.UInt32 integerValue:
+                writer.WriteNumberValue(integerValue.Value);
+                break;
+            case AssetScalarValue.Int64 integerValue:
+                writer.WriteNumberValue(integerValue.Value);
+                break;
+            case AssetScalarValue.UInt64 integerValue:
+                writer.WriteNumberValue(integerValue.Value);
+                break;
+            case AssetScalarValue.Float floatValue:
                 writer.WriteNumberValue(floatValue.Value);
                 break;
-            case AssetFieldValue.Double doubleValue:
+            case AssetScalarValue.Double doubleValue:
                 writer.WriteNumberValue(doubleValue.Value);
                 break;
             default:
@@ -215,23 +232,41 @@ public static class PatchFieldValueConverter
             };
         }
 
-        private void Add(AssetFieldValue value)
+        private void Add(AssetScalarValue value)
         {
             switch (value)
             {
-                case AssetFieldValue.Boolean boolean:
+                case AssetScalarValue.Boolean boolean:
                     _booleans.Add(boolean.Value);
                     break;
-                case AssetFieldValue.String text:
+                case AssetScalarValue.String text:
                     _strings.Add(text.Value);
                     break;
-                case AssetFieldValue.Int64 integer:
+                case AssetScalarValue.Int8 integer:
                     _signedIntegers.Add(integer.Value);
                     break;
-                case AssetFieldValue.UInt64 integer:
+                case AssetScalarValue.Int16 integer:
+                    _signedIntegers.Add(integer.Value);
+                    break;
+                case AssetScalarValue.Int32 integer:
+                    _signedIntegers.Add(integer.Value);
+                    break;
+                case AssetScalarValue.Int64 integer:
+                    _signedIntegers.Add(integer.Value);
+                    break;
+                case AssetScalarValue.UInt8 integer:
                     _unsignedIntegers.Add(integer.Value);
                     break;
-                case AssetFieldValue.Float number:
+                case AssetScalarValue.UInt16 integer:
+                    _unsignedIntegers.Add(integer.Value);
+                    break;
+                case AssetScalarValue.UInt32 integer:
+                    _unsignedIntegers.Add(integer.Value);
+                    break;
+                case AssetScalarValue.UInt64 integer:
+                    _unsignedIntegers.Add(integer.Value);
+                    break;
+                case AssetScalarValue.Float number:
                     _floats.Add(number.Value);
 
                     if (float.IsFinite(number.Value))
@@ -240,7 +275,7 @@ public static class PatchFieldValueConverter
                     }
 
                     break;
-                case AssetFieldValue.Double number:
+                case AssetScalarValue.Double number:
                     _doubles.Add(number.Value);
                     break;
                 default:
@@ -294,23 +329,14 @@ public static class PatchFieldValueConverter
 
         public bool Add(JsonElement value)
         {
-            switch (value.ValueKind)
+            return value.ValueKind switch
             {
-                case JsonValueKind.True:
-                case JsonValueKind.False:
-                    return _booleans.Add(value.GetBoolean());
-                case JsonValueKind.String:
-                    return _strings.Add(value.GetString() ?? string.Empty);
-                case JsonValueKind.Number:
-                    return AddNumber(value);
-                case JsonValueKind.Array:
-                case JsonValueKind.Object:
-                case JsonValueKind.Null:
-                case JsonValueKind.Undefined:
-                    return true;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+                JsonValueKind.True or JsonValueKind.False => _booleans.Add(value.GetBoolean()),
+                JsonValueKind.String => _strings.Add(value.GetString() ?? string.Empty),
+                JsonValueKind.Number => AddNumber(value),
+                JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Null or JsonValueKind.Undefined => true,
+                _ => throw new ArgumentOutOfRangeException()
+            };
         }
 
         private bool AddNumber(JsonElement value)

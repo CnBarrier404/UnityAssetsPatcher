@@ -38,30 +38,44 @@ public static class AssetFieldMatcher
         return field.Value is not null && MatchesScalar(field.Value, expectedValue);
     }
 
-    private static bool MatchesScalar(AssetFieldValue actualValue, JsonElement expectedValue)
+    private static bool MatchesScalar(AssetScalarValue actualValue, JsonElement expectedValue)
     {
         return actualValue switch
         {
-            AssetFieldValue.Boolean value =>
+            AssetScalarValue.Boolean value =>
                 expectedValue.ValueKind is JsonValueKind.True or JsonValueKind.False &&
                 value.Value == expectedValue.GetBoolean(),
-            AssetFieldValue.String value =>
+            AssetScalarValue.String value =>
                 expectedValue.ValueKind == JsonValueKind.String &&
                 string.Equals(value.Value, expectedValue.GetString(), StringComparison.Ordinal),
-            AssetFieldValue.Int64 value =>
-                expectedValue.ValueKind == JsonValueKind.Number &&
-                expectedValue.TryGetInt64(out long expected) && value.Value == expected,
-            AssetFieldValue.UInt64 value =>
-                expectedValue.ValueKind == JsonValueKind.Number &&
-                expectedValue.TryGetUInt64(out ulong expected) && value.Value == expected,
-            AssetFieldValue.Float value =>
+            AssetScalarValue.Int8 value => MatchesSignedInteger(value.Value, expectedValue),
+            AssetScalarValue.Int16 value => MatchesSignedInteger(value.Value, expectedValue),
+            AssetScalarValue.Int32 value => MatchesSignedInteger(value.Value, expectedValue),
+            AssetScalarValue.Int64 value => MatchesSignedInteger(value.Value, expectedValue),
+            AssetScalarValue.UInt8 value => MatchesUnsignedInteger(value.Value, expectedValue),
+            AssetScalarValue.UInt16 value => MatchesUnsignedInteger(value.Value, expectedValue),
+            AssetScalarValue.UInt32 value => MatchesUnsignedInteger(value.Value, expectedValue),
+            AssetScalarValue.UInt64 value => MatchesUnsignedInteger(value.Value, expectedValue),
+            AssetScalarValue.Float value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
                 expectedValue.TryGetSingle(out float expected) && FloatValuesEqual(value.Value, expected),
-            AssetFieldValue.Double value =>
+            AssetScalarValue.Double value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
                 expectedValue.TryGetDouble(out double expected) && value.Value.Equals(expected),
             _ => false,
         };
+    }
+
+    private static bool MatchesSignedInteger(long actualValue, JsonElement expectedValue)
+    {
+        return expectedValue.ValueKind == JsonValueKind.Number &&
+               expectedValue.TryGetInt64(out long expected) && actualValue == expected;
+    }
+
+    private static bool MatchesUnsignedInteger(ulong actualValue, JsonElement expectedValue)
+    {
+        return expectedValue.ValueKind == JsonValueKind.Number &&
+               expectedValue.TryGetUInt64(out ulong expected) && actualValue == expected;
     }
 
     private static bool FloatValuesEqual(float actual, float expected)
@@ -105,7 +119,7 @@ public static class AssetFieldMatcher
             return false;
         }
 
-        IReadOnlyList<AssetField> children = AssetFieldNavigator.GetArrayElements(arrayField);
+        var children = AssetFieldNavigator.GetArrayElements(arrayField);
 
         if (children.Count != expectedArray.GetArrayLength())
         {

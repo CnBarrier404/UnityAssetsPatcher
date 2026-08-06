@@ -203,7 +203,7 @@ public sealed class ReplacementPlanner
                 AssetField fieldTree = _context.ReadField(asset.PathId);
                 AssetField? matchField = AssetFieldNavigator.Find(fieldTree, matchFieldPath);
 
-                if (matchField?.Value is not AssetFieldValue.String stringValue)
+                if (matchField?.Value is not AssetScalarValue.String stringValue)
                 {
                     continue;
                 }

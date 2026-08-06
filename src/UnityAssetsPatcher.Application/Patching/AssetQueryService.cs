@@ -203,7 +203,7 @@ public sealed class AssetQueryService
             AssetFieldNavigator.Find(componentReferenceField, "component.m_PathID") ??
             AssetFieldNavigator.Find(componentReferenceField, "m_PathID");
 
-        return pathIdField?.Value is AssetFieldValue.Int64 value ? value.Value : null;
+        return pathIdField?.Value is AssetScalarValue.Int64 value ? value.Value : null;
     }
 
     private sealed record IndexedPatch(int Index, ModPatch Patch);

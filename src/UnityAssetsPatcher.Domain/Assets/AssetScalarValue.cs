@@ -18,13 +18,18 @@ public enum AssetScalarKind
     String,
 }
 
-public abstract record AssetScalarValue : AssetFieldValue
+public abstract record AssetScalarValue
 {
     public abstract AssetScalarKind Kind { get; }
 
-    public abstract override string ToInvariantString();
+    public abstract string ToInvariantString();
 
-    public new sealed record Boolean(bool Value) : AssetScalarValue
+    public sealed override string ToString()
+    {
+        return ToInvariantString();
+    }
+
+    public sealed record Boolean(bool Value) : AssetScalarValue
     {
         public override AssetScalarKind Kind => AssetScalarKind.Boolean;
 
@@ -94,7 +99,7 @@ public abstract record AssetScalarValue : AssetFieldValue
         }
     }
 
-    public new sealed record Int64(long Value) : AssetScalarValue
+    public sealed record Int64(long Value) : AssetScalarValue
     {
         public override AssetScalarKind Kind => AssetScalarKind.Int64;
 
@@ -104,7 +109,7 @@ public abstract record AssetScalarValue : AssetFieldValue
         }
     }
 
-    public new sealed record UInt64(ulong Value) : AssetScalarValue
+    public sealed record UInt64(ulong Value) : AssetScalarValue
     {
         public override AssetScalarKind Kind => AssetScalarKind.UInt64;
 
@@ -114,7 +119,7 @@ public abstract record AssetScalarValue : AssetFieldValue
         }
     }
 
-    public new sealed record Float(float Value) : AssetScalarValue
+    public sealed record Float(float Value) : AssetScalarValue
     {
         public override AssetScalarKind Kind => AssetScalarKind.Float;
 
@@ -124,7 +129,7 @@ public abstract record AssetScalarValue : AssetFieldValue
         }
     }
 
-    public new sealed record Double(double Value) : AssetScalarValue
+    public sealed record Double(double Value) : AssetScalarValue
     {
         public override AssetScalarKind Kind => AssetScalarKind.Double;
 
@@ -134,7 +139,7 @@ public abstract record AssetScalarValue : AssetFieldValue
         }
     }
 
-    public new sealed record String : AssetScalarValue
+    public sealed record String : AssetScalarValue
     {
         public string Value { get; }
         public override AssetScalarKind Kind => AssetScalarKind.String;
