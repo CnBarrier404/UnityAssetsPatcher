@@ -23,7 +23,6 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<ModPackageArchiveService>();
         services.AddSingleton<ManifestSourceReader>();
         services.AddSingleton<CheckManifestWorkflow>();
-        services.AddSingleton<TrustedPathResolver>();
 
         return services;
     }
@@ -51,13 +50,8 @@ public static class ApplicationServiceCollectionExtensions
 
     private static void AddPatching(IServiceCollection services)
     {
-        services.AddScoped<AssetQueryService>();
         services.AddScoped<IFieldPatchOperationHandler, SetFieldPatchOperationHandler>();
         services.AddScoped<IFieldPatchOperationHandler, AddFieldPatchOperationHandler>();
-        services.AddScoped<FieldPatchPlanner>();
-        services.AddScoped<ReplacementPlanner>();
-        services.AddScoped<CopyAssetPlanner>();
-        services.AddScoped<PatchPlanner>();
         services.AddScoped<PatchOutputWriter>();
         services.AddScoped<ModComposer>();
         services.AddScoped<UninstallCompositionService>();

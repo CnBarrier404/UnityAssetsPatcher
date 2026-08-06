@@ -8,13 +8,7 @@ public sealed class PatchPlanner
 {
     private readonly FieldPatchPlanner _fieldPlanner;
     private readonly ReplacementPlanner _replacementPlanner;
-    private readonly CopyAssetPlanner? _copyAssetPlanner;
-
-    public PatchPlanner(FieldPatchPlanner fieldPlanner, ReplacementPlanner replacementPlanner)
-    {
-        _fieldPlanner = fieldPlanner;
-        _replacementPlanner = replacementPlanner;
-    }
+    private readonly CopyAssetPlanner _copyAssetPlanner;
 
     public PatchPlanner(
         FieldPatchPlanner fieldPlanner,
@@ -54,10 +48,7 @@ public sealed class PatchPlanner
                     request.AssetsFilePath,
                     request.Targets.Where(PatchOperationRules.HasFieldPatchOperations).ToArray(),
                     request.IncludePreviewDetails);
-                CopyAssetPlanningOutput copyOutput = (_copyAssetPlanner ??
-                                                      throw new PatchPlanningException(
-                                                          PatchDiagnosticCode.InvalidPatchConfiguration,
-                                                          "Copy asset planner is not configured.")).Plan(
+                CopyAssetPlanningOutput copyOutput = _copyAssetPlanner.Plan(
                     request.AssetsFilePath,
                     request.Targets);
                 preview = new PatchPreviewResult(
