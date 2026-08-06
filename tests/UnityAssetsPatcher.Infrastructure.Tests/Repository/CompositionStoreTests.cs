@@ -289,10 +289,10 @@ public sealed class CompositionStoreTests
         services.AddUnityAssetsPatcherRepository(directory.GetPath("backup"));
 
         using Microsoft.Extensions.DependencyInjection.ServiceProvider provider = services.BuildServiceProvider();
-        IRepository repositoryService = provider.GetRequiredService<IRepository>();
+        IRepositoryStorage repositoryStorage = provider.GetRequiredService<IRepositoryStorage>();
         ICompositionRepository compositionRepository = provider.GetRequiredService<ICompositionRepository>();
 
-        Assert.Same(repositoryService, compositionRepository);
+        Assert.Same(repositoryStorage, compositionRepository);
         Assert.NotNull(compositionRepository.BaseSnapshots);
         Assert.NotNull(compositionRepository.Layers);
     }

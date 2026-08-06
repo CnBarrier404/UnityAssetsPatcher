@@ -67,8 +67,9 @@ public sealed class LayeredInstallTests
     public void Install_WhenRepositoryUsesVersionOne_ReturnsUnsupportedRepositoryVersion()
     {
         using LayeredInstallFixture fixture = new(repositoryVersion: 1);
+        string packagePath = fixture.CreatePackage("legacy", CreateFieldManifest("Text", "Legacy"));
         OperationResult<InstallModResult> result = fixture.InstallOperation(
-            new InstallRequest("missing.zip", fixture.GameDirectory));
+            new InstallRequest(packagePath, fixture.GameDirectory));
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 

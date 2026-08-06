@@ -14,7 +14,7 @@ public sealed class RepositoryService
     public const string LockFileName = ".lock";
 
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly IRepository _repository;
+    private readonly IRepositoryStorage _repository;
     private readonly ICompositionRepository _compositionRepository;
     private readonly ILogger<RepositoryService> _logger;
 
@@ -22,7 +22,7 @@ public sealed class RepositoryService
     public string TransactionDirectory => _repository.TransactionDirectory;
 
     public RepositoryService(
-        IRepository repository,
+        IRepositoryStorage repository,
         ICompositionRepository compositionRepository,
         IFileSystemOperations fileSystemOperations,
         ILogger<RepositoryService>? logger = null)

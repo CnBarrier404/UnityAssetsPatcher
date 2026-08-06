@@ -1,16 +1,15 @@
+using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Uninstall;
+using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Uninstallation;
+
 namespace UnityAssetsPatcher.Application.Repository;
 
 public interface IRepository
 {
-    public string RepositoryDirectory { get; }
+    public IReadOnlyList<InstallRecordSummary> ListInstalledMods();
 
-    public string TransactionDirectory { get; }
+    public RepositoryInstallResult InstallMod(InstallModPlan plan);
 
-    public RepositoryMetadata LoadOrCreateMetadata();
-
-    public string GetLegacyInstallDirectory(string installId);
-
-    public LegacyInstallRecordEntry ReadLegacyRecord(string installId);
-
-    public IReadOnlyList<LegacyInstallRecordEntry> ListLegacyRecords();
+    public UninstallModResult UninstallMod(UninstallPlan plan);
 }

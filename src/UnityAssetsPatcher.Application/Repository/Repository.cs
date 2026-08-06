@@ -5,7 +5,7 @@ using UnityAssetsPatcher.Application.Uninstallation;
 
 namespace UnityAssetsPatcher.Application.Repository;
 
-public sealed class Repository : IRepositoryService
+public sealed class Repository : IRepository
 {
     private readonly RepositoryService _repositoryService;
     private readonly InstallExecutor _installExecutor;

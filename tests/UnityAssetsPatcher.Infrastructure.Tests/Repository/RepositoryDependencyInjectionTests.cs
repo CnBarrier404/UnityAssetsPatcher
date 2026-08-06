@@ -7,7 +7,7 @@ namespace UnityAssetsPatcher.Infrastructure.Tests.Repository;
 public sealed class RepositoryDependencyInjectionTests
 {
     [Fact]
-    public void AddRepository_WhenProviderValidationIsEnabled_RegistersRepositoryService()
+    public void AddRepository_WhenProviderValidationIsEnabled_RegistersRepositoryStorage()
     {
         using RepositoryTestDirectory directory = new();
         var services = new ServiceCollection();
@@ -22,7 +22,7 @@ public sealed class RepositoryDependencyInjectionTests
             ValidateScopes = true,
         });
 
-        IRepository repository = provider.GetRequiredService<IRepository>();
+        IRepositoryStorage repository = provider.GetRequiredService<IRepositoryStorage>();
 
         Assert.NotNull(repository);
     }

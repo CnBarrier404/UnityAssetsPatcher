@@ -21,8 +21,7 @@ public sealed class InstallModHandler :
 {
     private readonly ModPackageArchiveService _archiveService;
     private readonly InstallPlanBuilder _planBuilder;
-    private readonly IRepositoryService _repository;
-    private readonly RepositoryService _repositoryService;
+    private readonly IRepository _repository;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly ILogger<InstallModHandler> _logger;
@@ -30,8 +29,7 @@ public sealed class InstallModHandler :
     public InstallModHandler(
         ModPackageArchiveService archiveService,
         InstallPlanBuilder planBuilder,
-        IRepositoryService repository,
-        RepositoryService repositoryService,
+        IRepository repository,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
         ILogger<InstallModHandler>? logger = null)
@@ -39,14 +37,12 @@ public sealed class InstallModHandler :
         ArgumentNullException.ThrowIfNull(archiveService);
         ArgumentNullException.ThrowIfNull(planBuilder);
         ArgumentNullException.ThrowIfNull(repository);
-        ArgumentNullException.ThrowIfNull(repositoryService);
         ArgumentNullException.ThrowIfNull(assetsAccessScopeFactory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
         _archiveService = archiveService;
         _planBuilder = planBuilder;
         _repository = repository;
-        _repositoryService = repositoryService;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
         _logger = logger ?? NullLogger<InstallModHandler>.Instance;
@@ -118,8 +114,6 @@ public sealed class InstallModHandler :
     {
         _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
-
-        _ = _repositoryService.RequireWritableMetadata();
 
         using ModPackage package = ModPackage.Open(
             request.ZipFilePath,

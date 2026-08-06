@@ -18,12 +18,12 @@ public sealed class UninstallModHandler :
     IRequestHandler<UninstallModRequest, OperationResult<UninstallModResult>>
 {
     private readonly UninstallPlanner _planner;
-    private readonly IRepositoryService _repository;
+    private readonly IRepository _repository;
     private readonly ILogger<UninstallModHandler> _logger;
 
     public UninstallModHandler(
         UninstallPlanner planner,
-        IRepositoryService repository,
+        IRepository repository,
         ILogger<UninstallModHandler>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(planner);

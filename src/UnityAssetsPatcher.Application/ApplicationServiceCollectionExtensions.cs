@@ -16,6 +16,7 @@ using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Workflows;
+using RepositoryFacade = UnityAssetsPatcher.Application.Repository.Repository;
 
 namespace UnityAssetsPatcher.Application;
 
@@ -44,12 +45,12 @@ public static class ApplicationServiceCollectionExtensions
             services.AddSingleton<GameDirectoryResolver>();
             services.AddSingleton<TargetAssetResolver>();
             services.AddSingleton(provider => new RepositoryService(
-                provider.GetRequiredService<IRepository>(),
+                provider.GetRequiredService<IRepositoryStorage>(),
                 provider.GetRequiredService<ICompositionRepository>(),
                 provider.GetRequiredService<IFileSystemOperations>(),
                 provider.GetService<ILogger<RepositoryService>>()));
             services.AddSingleton<BaseSnapshotCapturer>();
-            services.AddScoped<IRepositoryService, Repository.Repository>();
+            services.AddScoped<IRepository, RepositoryFacade>();
             services.AddSingleton<IWorkflowService, WorkflowService>();
 
             AddPatching(services);

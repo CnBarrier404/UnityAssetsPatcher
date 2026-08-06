@@ -55,7 +55,7 @@ public sealed class WorkflowService : IWorkflowService
 
     public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods()
     {
-        return Invoke<IRepositoryService, IReadOnlyList<InstallRecordSummary>>(repository =>
+        return Invoke<IRepository, IReadOnlyList<InstallRecordSummary>>(repository =>
             repository.ListInstalledMods());
     }
 

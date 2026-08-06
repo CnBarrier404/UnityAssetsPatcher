@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Application.IO;
 
 namespace UnityAssetsPatcher.Infrastructure.Repository;
 
-internal sealed class FileRepository : IRepository, ICompositionRepository
+internal sealed class FileRepository : IRepositoryStorage, ICompositionRepository
 {
     public string RepositoryDirectory => _catalogStore.RepositoryDirectory;
 
