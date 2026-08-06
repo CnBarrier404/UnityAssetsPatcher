@@ -49,7 +49,8 @@ public sealed class CheckCLICommand : ICLICommand
             using IServiceScope scope = _scopeFactory.CreateScope();
             var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
             var result = await dispatcher
-                .DispatchAsync(new CheckManifestRequest(sourcePath), cancellationToken)
+                .DispatchAsync<CheckManifestRequest, OperationResult<CheckManifestResult>>(
+                    new CheckManifestRequest(sourcePath), cancellationToken)
                 .ConfigureAwait(false);
 
             if (result is not OperationFailed<CheckManifestResult> failure)

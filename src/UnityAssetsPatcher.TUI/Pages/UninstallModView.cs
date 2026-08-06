@@ -173,7 +173,8 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         bool started = _taskRunner.TryRun(
-            () => DispatchAsync(new UninstallPreviewRequest(installId, gameDirectory)),
+            () => DispatchAsync<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>(
+                new UninstallPreviewRequest(installId, gameDirectory)),
             preview =>
             {
                 _isWorking = false;
@@ -381,7 +382,8 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     {
         if (_isWorking) return;
         bool started = _taskRunner.TryRun(
-            () => DispatchAsync(new UninstallModRequest(preview.InstallId, preview.GameDirectory)),
+            () => DispatchAsync<UninstallModRequest, OperationResult<UninstallModResult>>(
+                new UninstallModRequest(preview.InstallId, preview.GameDirectory)),
             result =>
             {
                 _isWorking = false;
@@ -411,12 +413,13 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         ShowWorking(_strings.UninstallPage_UninstallingMod);
     }
 
-    private async Task<TResponse> DispatchAsync<TResponse>(IRequest<TResponse> request)
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+        where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.DispatchAsync(request).ConfigureAwait(false);
+        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }
 
     private void ShowResult(UninstallModResult result)

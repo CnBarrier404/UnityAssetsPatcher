@@ -163,7 +163,8 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             IncludePatchPreviewDetails = false,
         };
         bool started = _taskRunner.TryRun(
-            () => DispatchAsync(new PreviewInstallRequest(request)),
+            () => DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
+                new PreviewInstallRequest(request)),
             result =>
             {
                 _isWorking = false;
@@ -366,7 +367,8 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             PreparedInstall = _preparedInstall,
         };
         bool started = _taskRunner.TryRun(
-            () => DispatchAsync(new InstallModRequest(request)),
+            () => DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
+                new InstallModRequest(request)),
             result =>
             {
                 _isWorking = false;
@@ -408,12 +410,13 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private async Task<TResponse> DispatchAsync<TResponse>(IRequest<TResponse> request)
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+        where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.DispatchAsync(request).ConfigureAwait(false);
+        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }
 
     private void ShowResult(InstallModResult result)

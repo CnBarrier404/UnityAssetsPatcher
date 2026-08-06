@@ -590,7 +590,8 @@ public sealed class LayeredInstallTests
             using IServiceScope scope = CreateScope();
             IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
             OperationResult<InstallPreviewResult> result = dispatcher
-                .DispatchAsync(new PreviewInstallRequest(request))
+                .DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
+                    new PreviewInstallRequest(request))
                 .GetAwaiter()
                 .GetResult();
 
@@ -603,7 +604,8 @@ public sealed class LayeredInstallTests
             IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
             return dispatcher
-                .DispatchAsync(new InstallModRequest(request))
+                .DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
+                    new InstallModRequest(request))
                 .GetAwaiter()
                 .GetResult();
         }
@@ -621,7 +623,7 @@ public sealed class LayeredInstallTests
             IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
             return dispatcher
-                .DispatchAsync(request)
+                .DispatchAsync<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>(request)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -638,7 +640,7 @@ public sealed class LayeredInstallTests
             IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
             return dispatcher
-                .DispatchAsync(request)
+                .DispatchAsync<UninstallModRequest, OperationResult<UninstallModResult>>(request)
                 .GetAwaiter()
                 .GetResult();
         }

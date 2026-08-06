@@ -2,7 +2,8 @@ namespace UnityAssetsPatcher.Application.Messaging;
 
 public interface IRequestDispatcher
 {
-    public Task<TResponse> DispatchAsync<TResponse>(
-        IRequest<TResponse> request,
-        CancellationToken cancellationToken = default);
+    public Task<TResponse> DispatchAsync<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken cancellationToken = default)
+        where TRequest : IRequest<TResponse>;
 }

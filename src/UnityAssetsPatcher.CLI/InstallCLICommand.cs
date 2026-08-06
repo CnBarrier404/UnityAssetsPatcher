@@ -79,7 +79,7 @@ public sealed class InstallCLICommand : ICLICommand
             using IServiceScope scope = _scopeFactory.CreateScope();
             IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
             OperationResult<InstallPreviewResult> result = await dispatcher
-                .DispatchAsync(
+                .DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
                     new PreviewInstallRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -110,7 +110,7 @@ public sealed class InstallCLICommand : ICLICommand
             using IServiceScope scope = _scopeFactory.CreateScope();
             IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
             OperationResult<InstallModResult> result = await dispatcher
-                .DispatchAsync(
+                .DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
                     new InstallModRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
                     cancellationToken)
                 .ConfigureAwait(false);

@@ -13,7 +13,8 @@ public sealed class RequestDispatcherTests
         var request = new TestRequest("request");
         using CancellationTokenSource cancellation = new();
 
-        TestResponse response = await dispatcher.DispatchAsync(request, cancellation.Token);
+        TestResponse response = await dispatcher
+            .DispatchAsync<TestRequest, TestResponse>(request, cancellation.Token);
 
         Assert.Equal("request", response.Value);
         Assert.Same(request, handler.Request);
@@ -26,7 +27,7 @@ public sealed class RequestDispatcherTests
         var dispatcher = new RequestDispatcher(new StubServiceProvider(null));
 
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            dispatcher.DispatchAsync<TestResponse>(null!, TestContext.Current.CancellationToken));
+            dispatcher.DispatchAsync<TestRequest, TestResponse>(null!, TestContext.Current.CancellationToken));
 
         Assert.Equal("request", exception.ParamName);
     }
@@ -37,7 +38,8 @@ public sealed class RequestDispatcherTests
         var dispatcher = new RequestDispatcher(new StubServiceProvider(null));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            dispatcher.DispatchAsync(new TestRequest("request"), TestContext.Current.CancellationToken));
+            dispatcher.DispatchAsync<TestRequest, TestResponse>(
+                new TestRequest("request"), TestContext.Current.CancellationToken));
     }
 
     private sealed record TestRequest(string Value) : IRequest<TestResponse>;

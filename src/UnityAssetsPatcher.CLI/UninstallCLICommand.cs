@@ -104,7 +104,7 @@ public sealed class UninstallCLICommand : ICLICommand
             using IServiceScope scope = _scopeFactory.CreateScope();
             IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
             OperationResult<UninstallPreviewResult> result = await dispatcher
-                .DispatchAsync(
+                .DispatchAsync<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>(
                     new UninstallPreviewRequest(installId, FullPathOrNull(gameDirectory)),
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -134,7 +134,7 @@ public sealed class UninstallCLICommand : ICLICommand
             using IServiceScope scope = _scopeFactory.CreateScope();
             IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
             OperationResult<UninstallModResult> result = await dispatcher
-                .DispatchAsync(
+                .DispatchAsync<UninstallModRequest, OperationResult<UninstallModResult>>(
                     new UninstallModRequest(installId, FullPathOrNull(gameDirectory)),
                     cancellationToken)
                 .ConfigureAwait(false);
