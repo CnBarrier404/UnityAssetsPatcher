@@ -6,6 +6,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
@@ -23,6 +24,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<ModPackageArchiveService>();
         services.AddSingleton<ManifestSourceReader>();
         services.AddSingleton<CheckManifestWorkflow>();
+        services.AddScoped<IRequestDispatcher, RequestDispatcher>();
 
         return services;
     }
