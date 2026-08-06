@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Operations;
+using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Updates;
+using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
@@ -164,7 +166,53 @@ public sealed class TerminalNavigator
 
     private void CheckRecovery()
     {
-        RunRecoveryOperation(_workflowService!.CheckPendingTransactions);
+        RunRecoveryOperation(InitializeRepository);
+    }
+
+    private OperationResult<RepositoryRecoveryReport> InitializeRepository()
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory!.CreateScope();
+            scope.ServiceProvider.GetRequiredService<IRepository>().Initialize();
+
+            return new OperationSucceeded<RepositoryRecoveryReport>(RepositoryRecoveryReport.Clean);
+        }
+        catch (RepositoryRecoveryException exception)
+        {
+            var error = new OperationError(
+                WorkflowErrorCodes.RecoveryRequired,
+                recovery: exception.Recovery);
+
+            return new OperationFailed<RepositoryRecoveryReport>(error);
+        }
+        catch (LegacyRepositoryWriteException exception)
+        {
+            var error = new OperationError(
+                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                new Dictionary<string, object?> { ["detail"] = exception.Message });
+
+            return new OperationFailed<RepositoryRecoveryReport>(error);
+        }
+        catch (NotSupportedException exception)
+        {
+            var error = new OperationError(
+                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                new Dictionary<string, object?> { ["detail"] = exception.Message });
+
+            return new OperationFailed<RepositoryRecoveryReport>(error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            OperationErrorCode code = exception.InnerException is IOException
+                ? WorkflowErrorCodes.OperationAlreadyRunning
+                : WorkflowErrorCodes.RepositoryUnsafe;
+            var error = new OperationError(
+                code,
+                new Dictionary<string, object?> { ["detail"] = exception.Message });
+
+            return new OperationFailed<RepositoryRecoveryReport>(error);
+        }
     }
 
     private void PreviewRecovery(string gameDirectory)

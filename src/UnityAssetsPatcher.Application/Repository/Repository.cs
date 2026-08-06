@@ -25,6 +25,12 @@ public sealed class Repository : IRepository
         _uninstallExecutor = uninstallExecutor;
     }
 
+    public void Initialize()
+    {
+        using RepositoryOperationLock operationLock = _repositoryService.AcquireLock();
+        _ = CheckPendingTransactions("initializing the repository");
+    }
+
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
     {
         return _repositoryService.ListInstalledMods();

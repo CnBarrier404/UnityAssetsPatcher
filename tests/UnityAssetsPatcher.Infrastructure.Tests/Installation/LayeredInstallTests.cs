@@ -78,6 +78,33 @@ public sealed class LayeredInstallTests
     }
 
     [Fact]
+    public void Initialize_WhenRepositoryIsHealthy_Completes()
+    {
+        using LayeredInstallFixture fixture = new();
+
+        fixture.InitializeRepository();
+    }
+
+    [Fact]
+    public void Initialize_WhenPendingTransactionExists_ThrowsRecoveryRequired()
+    {
+        using LayeredInstallFixture fixture = new();
+        InstallModResult installed = fixture.Install(
+            fixture.CreatePackage("initialize-pending", CreateFieldManifest("Text", "Pending")));
+        fixture.CreatePendingTransaction(
+            installed.InstallId,
+            RepositoryOperationKind.Install,
+            fixture.BaseAssetsPath,
+            fixture.GameAssetsPath,
+            applyAfter: false);
+
+        RepositoryRecoveryException exception = Assert.Throws<RepositoryRecoveryException>(
+            fixture.InitializeRepository);
+
+        Assert.Equal(RepositoryRecoveryStatus.RecoveryRequired, exception.Recovery.Status);
+    }
+
+    [Fact]
     public void Install_WhenPreparedPreviewIsUsed_ReanalyzesAndStoresLayer()
     {
         using LayeredInstallFixture fixture = new();
@@ -644,6 +671,11 @@ public sealed class LayeredInstallTests
                 .DispatchAsync<UninstallModRequest, OperationResult<UninstallModResult>>(request)
                 .GetAwaiter()
                 .GetResult();
+        }
+
+        public void InitializeRepository()
+        {
+            _serviceProvider.GetRequiredService<IRepository>().Initialize();
         }
 
         public IServiceScope CreateScope()

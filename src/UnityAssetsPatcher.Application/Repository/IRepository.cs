@@ -7,6 +7,8 @@ namespace UnityAssetsPatcher.Application.Repository;
 
 public interface IRepository
 {
+    public void Initialize();
+
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods();
 
     public RepositoryInstallResult InstallMod(InstallModPlan plan);
