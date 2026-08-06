@@ -4,7 +4,6 @@ using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Domain.Assets;
 using Xunit;
 
 namespace UnityAssetsPatcher.CLI.Tests;
@@ -148,12 +147,6 @@ public sealed class UninstallCLIOutputTests
             throw new NotSupportedException();
 
         public OperationResult<RepositoryRecoveryReport> RecoverPendingTransactions(string gameDirectory) =>
-            throw new NotSupportedException();
-
-        public OperationResult<InspectListResult> InspectList(InspectListRequest request) =>
-            throw new NotSupportedException();
-
-        public OperationResult<AssetField> InspectFields(InspectFieldsRequest request) =>
             throw new NotSupportedException();
 
         public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods() =>

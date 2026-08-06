@@ -150,7 +150,7 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_InspectAssets_Description,
                 returnToMainMenu => new InspectAssetsView(
                     _strings,
-                    _workflowService,
+                    _scopeFactory,
                     _taskRunner,
                     returnToMainMenu)),
             new TerminalMenuItem(

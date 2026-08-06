@@ -10,7 +10,6 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Uninstallation;
-using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
 
@@ -41,16 +40,6 @@ public sealed class WorkflowService : IWorkflowService
     public OperationResult<RepositoryRecoveryReport> CheckPendingTransactions()
     {
         return Invoke<RepositoryService, RepositoryRecoveryReport>(repository => repository.CheckPendingTransactions());
-    }
-
-    public OperationResult<InspectListResult> InspectList(InspectListRequest request)
-    {
-        return Invoke<InspectAssetsWorkflow, InspectListResult>(workflow => workflow.List(request));
-    }
-
-    public OperationResult<AssetField> InspectFields(InspectFieldsRequest request)
-    {
-        return Invoke<InspectAssetsWorkflow, AssetField>(workflow => workflow.Fields(request));
     }
 
     public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods()
@@ -199,7 +188,6 @@ public sealed class WorkflowService : IWorkflowService
     {
         code = operationName switch
         {
-            nameof(InspectFields) => WorkflowErrorCodes.AssetNotFound,
             nameof(ListInstalledMods) or
                 nameof(CheckPendingTransactions) or
                 nameof(PreviewPendingTransaction) or
@@ -209,8 +197,7 @@ public sealed class WorkflowService : IWorkflowService
             _ => throw new ArgumentOutOfRangeException(nameof(operationName), operationName, null),
         };
 
-        return operationName is nameof(InspectFields) or
-            nameof(ListInstalledMods) or
+        return operationName is nameof(ListInstalledMods) or
             nameof(CheckPendingTransactions) or
             nameof(PreviewPendingTransaction) or
             nameof(RecoverPendingTransactions);

@@ -32,7 +32,7 @@ public static class CLIServiceCollectionExtensions
             services.AddSingleton<CLIOptions>();
 
             services.AddSingleton<ICLICommand>(provider => new InspectCLICommand(
-                provider.GetRequiredService<IWorkflowService>(),
+                provider.GetRequiredService<IServiceScopeFactory>(),
                 provider.GetRequiredService<CLIOptions>()));
 
             services.AddSingleton<ICLICommand>(provider => new InstallCLICommand(

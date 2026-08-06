@@ -1,5 +1,7 @@
 using System.CommandLine;
-using UnityAssetsPatcher.Application.Contracts;
+using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application.Features.Inspect;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Domain.Assets;
 
@@ -11,12 +13,15 @@ public sealed class InspectCLICommand : ICLICommand
 
     public Command Command { get; }
 
-    private readonly IWorkflowService _workflowService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly CLIOptions _options;
 
-    public InspectCLICommand(IWorkflowService workflowService, CLIOptions options)
+    public InspectCLICommand(IServiceScopeFactory scopeFactory, CLIOptions options)
     {
-        _workflowService = workflowService;
+        ArgumentNullException.ThrowIfNull(scopeFactory);
+        ArgumentNullException.ThrowIfNull(options);
+
+        _scopeFactory = scopeFactory;
         _options = options;
 
         Command = new Command("inspect", "Inspect assets file contents.");
@@ -53,10 +58,11 @@ public sealed class InspectCLICommand : ICLICommand
                 result.AddError("--limit must be greater than 0.");
             }
         });
-        command.SetAction(parseResult => ExecuteList(
+        command.SetAction((parseResult, cancellationToken) => ExecuteList(
             parseResult,
             parseResult.GetRequiredValue(assetsFile),
-            parseResult.GetValue(all) ? null : parseResult.GetValue(limit) ?? DefaultLimit));
+            parseResult.GetValue(all) ? null : parseResult.GetValue(limit) ?? DefaultLimit,
+            cancellationToken));
 
         return command;
     }
@@ -71,21 +77,32 @@ public sealed class InspectCLICommand : ICLICommand
         var command = new Command("fields", "Print the field tree for one asset.");
         command.Arguments.Add(assetsFile);
         command.Arguments.Add(pathId);
-        command.SetAction(parseResult => ExecuteFields(
+        command.SetAction((parseResult, cancellationToken) => ExecuteFields(
             parseResult,
             parseResult.GetRequiredValue(assetsFile),
-            parseResult.GetRequiredValue(pathId)));
+            parseResult.GetRequiredValue(pathId),
+            cancellationToken));
 
         return command;
     }
 
-    private int ExecuteList(ParseResult parseResult, string assetsFilePath, int? limit)
+    private async Task<int> ExecuteList(
+        ParseResult parseResult,
+        string assetsFilePath,
+        int? limit,
+        CancellationToken cancellationToken)
     {
         try
         {
             string fullPath = Path.GetFullPath(assetsFilePath);
-            OperationResult<InspectListResult> result =
-                _workflowService.InspectList(new InspectListRequest(fullPath, limit));
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<InspectListResult> result = await dispatcher
+                .DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
+                    new InspectListRequest(fullPath, limit),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             return CLIOutput.WriteResult(
                 parseResult,
                 _options,
@@ -100,13 +117,23 @@ public sealed class InspectCLICommand : ICLICommand
         }
     }
 
-    private int ExecuteFields(ParseResult parseResult, string assetsFilePath, long pathId)
+    private async Task<int> ExecuteFields(
+        ParseResult parseResult,
+        string assetsFilePath,
+        long pathId,
+        CancellationToken cancellationToken)
     {
         try
         {
             string fullPath = Path.GetFullPath(assetsFilePath);
-            OperationResult<AssetField> result =
-                _workflowService.InspectFields(new InspectFieldsRequest(fullPath, pathId));
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<AssetField> result = await dispatcher
+                .DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
+                    new InspectFieldsRequest(fullPath, pathId),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             return CLIOutput.WriteResult(
                 parseResult,
                 _options,

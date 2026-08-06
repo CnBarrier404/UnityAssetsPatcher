@@ -1,10 +1,12 @@
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.Input;
 using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Inspect;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.TUI.Framework;
@@ -17,7 +19,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
 
-    private readonly IWorkflowService _workflowService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private readonly TerminalTaskRunner _taskRunner;
     private readonly StyledLabel _heading;
@@ -29,14 +31,15 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     internal InspectAssetsView(
         LocalizedStrings strings,
-        IWorkflowService workflowService,
+        IServiceScopeFactory scopeFactory,
         TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
+        ArgumentNullException.ThrowIfNull(scopeFactory);
 
         _strings = strings;
-        _workflowService = workflowService;
+        _scopeFactory = scopeFactory;
         _taskRunner = taskRunner;
 
         KeyDown += (_, key) =>
@@ -224,7 +227,8 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         }
 
         bool started = _taskRunner.TryRun(
-            () => _workflowService.InspectList(new InspectListRequest(path, limit)),
+            () => DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
+                new InspectListRequest(path, limit)),
             result =>
             {
                 _isWorking = false;
@@ -333,7 +337,8 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         }
 
         bool started = _taskRunner.TryRun(
-            () => _workflowService.InspectFields(new InspectFieldsRequest(path, pathId)),
+            () => DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
+                new InspectFieldsRequest(path, pathId)),
             result =>
             {
                 _isWorking = false;
@@ -394,6 +399,15 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(error, back);
         back.SetFocus();
+    }
+
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+        where TRequest : IRequest<TResponse>
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+
+        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }
 
     private void SetPage(string title, string description)

@@ -3,10 +3,6 @@ using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Contracts;
 
-public sealed record InspectAssetSummary(long PathId, string TypeName, string? Name);
-
-public sealed record InspectListResult(IReadOnlyList<InspectAssetSummary> Assets, int TotalCount);
-
 public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
 
 public sealed record PatchPreviewResult(

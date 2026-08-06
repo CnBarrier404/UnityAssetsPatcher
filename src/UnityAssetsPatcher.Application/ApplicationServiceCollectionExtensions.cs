@@ -5,6 +5,7 @@ using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Features.Install;
+using UnityAssetsPatcher.Application.Features.Inspect;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
@@ -16,6 +17,7 @@ using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Domain.Assets;
 using RepositoryFacade = UnityAssetsPatcher.Application.Repository.Repository;
 
 namespace UnityAssetsPatcher.Application;
@@ -55,6 +57,7 @@ public static class ApplicationServiceCollectionExtensions
 
             AddPatching(services);
             AddWorkflows(services);
+            AddInspectHandlers(services);
             AddInstallHandlers(services);
             AddUninstallHandlers(services);
 
@@ -75,9 +78,18 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddScoped<InstallPlanBuilder>();
         services.AddScoped<InstallExecutor>();
-        services.AddScoped<InspectAssetsWorkflow>();
         services.AddScoped<UninstallPlanner>();
         services.AddScoped<UninstallExecutor>();
+    }
+
+    private static void AddInspectHandlers(IServiceCollection services)
+    {
+        services.AddScoped<
+            IRequestHandler<InspectListRequest, OperationResult<InspectListResult>>,
+            InspectAssetsHandler>();
+        services.AddScoped<
+            IRequestHandler<InspectFieldsRequest, OperationResult<AssetField>>,
+            InspectAssetsHandler>();
     }
 
     private static void AddInstallHandlers(IServiceCollection services)
