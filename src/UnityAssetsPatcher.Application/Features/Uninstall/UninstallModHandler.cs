@@ -18,23 +18,19 @@ public sealed class UninstallModHandler :
     IRequestHandler<UninstallModRequest, OperationResult<UninstallModResult>>
 {
     private readonly UninstallPlanner _planner;
-    private readonly UninstallExecutor _executor;
-    private readonly RepositoryService _repositoryService;
+    private readonly IRepositoryService _repository;
     private readonly ILogger<UninstallModHandler> _logger;
 
     public UninstallModHandler(
         UninstallPlanner planner,
-        UninstallExecutor executor,
-        RepositoryService repositoryService,
+        IRepositoryService repository,
         ILogger<UninstallModHandler>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(planner);
-        ArgumentNullException.ThrowIfNull(executor);
-        ArgumentNullException.ThrowIfNull(repositoryService);
+        ArgumentNullException.ThrowIfNull(repository);
 
         _planner = planner;
-        _executor = executor;
-        _repositoryService = repositoryService;
+        _repository = repository;
         _logger = logger ?? NullLogger<UninstallModHandler>.Instance;
     }
 
@@ -76,20 +72,8 @@ public sealed class UninstallModHandler :
     private UninstallModResult Uninstall(UninstallModRequest request)
     {
         _logger.LogInformation("Uninstalling mod install {InstallId}", request.InstallId);
-        using RepositoryOperationLock operationLock = _repositoryService.AcquireLock();
-        RepositoryRecoveryReport recovery = _repositoryService.CheckPendingTransactionsUnderLock();
-
-        if (recovery.Status != RepositoryRecoveryStatus.Clean)
-        {
-            throw new RepositoryRecoveryException(
-                recovery.Issues.FirstOrDefault()?.Parameters.GetValueOrDefault("detail") ??
-                "A pending transaction must be recovered before uninstalling another mod.",
-                recovery);
-        }
-
-        _ = _repositoryService.RequireWritableMetadata();
         UninstallPlan plan = _planner.BuildUninstall(request);
-        UninstallModResult result = _executor.Execute(plan) with { Recovery = recovery };
+        UninstallModResult result = _repository.UninstallMod(plan);
 
         _logger.LogInformation(
             "Uninstalled {ModName} {ModVersion}: {ChangedFileCount} files composed",

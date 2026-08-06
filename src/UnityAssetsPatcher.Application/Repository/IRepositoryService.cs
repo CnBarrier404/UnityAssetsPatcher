@@ -1,11 +1,13 @@
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Uninstall;
+using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Uninstallation;
 
 namespace UnityAssetsPatcher.Application.Repository;
 
 public interface IRepositoryService
 {
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods();
-    public RepositoryRecoveryReport CheckRecovery();
-    public RepositoryRecoveryPreview PreviewRecovery(string gameDirectory);
-    public RepositoryRecoveryReport Recover(string gameDirectory);
+    public RepositoryInstallResult InstallMod(InstallModPlan plan);
+    public UninstallModResult UninstallMod(UninstallPlan plan);
 }

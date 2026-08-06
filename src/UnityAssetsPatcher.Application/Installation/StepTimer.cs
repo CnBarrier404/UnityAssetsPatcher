@@ -27,6 +27,13 @@ public sealed class StepTimer
         }
     }
 
+    public void Append(TimingSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        _steps.AddRange(snapshot.Steps);
+    }
+
     public TimingSnapshot BuildSnapshot()
     {
         _stopwatch.Stop();

@@ -21,7 +21,7 @@ public sealed class InstallModHandler :
 {
     private readonly ModPackageArchiveService _archiveService;
     private readonly InstallPlanBuilder _planBuilder;
-    private readonly InstallExecutor _executor;
+    private readonly IRepositoryService _repository;
     private readonly RepositoryService _repositoryService;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
@@ -30,7 +30,7 @@ public sealed class InstallModHandler :
     public InstallModHandler(
         ModPackageArchiveService archiveService,
         InstallPlanBuilder planBuilder,
-        InstallExecutor executor,
+        IRepositoryService repository,
         RepositoryService repositoryService,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
@@ -38,14 +38,14 @@ public sealed class InstallModHandler :
     {
         ArgumentNullException.ThrowIfNull(archiveService);
         ArgumentNullException.ThrowIfNull(planBuilder);
-        ArgumentNullException.ThrowIfNull(executor);
+        ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(repositoryService);
         ArgumentNullException.ThrowIfNull(assetsAccessScopeFactory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
         _archiveService = archiveService;
         _planBuilder = planBuilder;
-        _executor = executor;
+        _repository = repository;
         _repositoryService = repositoryService;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
@@ -119,17 +119,6 @@ public sealed class InstallModHandler :
         _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
 
-        using RepositoryOperationLock operationLock = _repositoryService.AcquireLock();
-        RepositoryRecoveryReport recovery = _repositoryService.CheckPendingTransactionsUnderLock();
-
-        if (recovery.Status != RepositoryRecoveryStatus.Clean)
-        {
-            throw new RepositoryRecoveryException(
-                recovery.Issues.FirstOrDefault()?.Parameters.GetValueOrDefault("detail") ??
-                "A pending transaction must be recovered before installing another mod.",
-                recovery);
-        }
-
         _ = _repositoryService.RequireWritableMetadata();
 
         using ModPackage package = ModPackage.Open(
@@ -153,13 +142,12 @@ public sealed class InstallModHandler :
                 : PrepareAnalysis(request, package, preparedInstall, assetsScope.Reader, timings);
         }
 
-        InstallExecutionResult execution = _executor.Execute(
+        RepositoryInstallResult repositoryResult = _repository.InstallMod(new InstallModPlan(
             request.ZipFilePath,
-            package,
             analysis,
-            operationLock,
-            timings,
-            preparedInstall?.AssetFiles);
+            preparedInstall?.AssetFiles));
+        timings.Append(repositoryResult.Timing);
+        InstallExecutionResult execution = repositoryResult.Execution;
 
         _logger.LogInformation(
             "Installed {ModName} {ModVersion}: {PatchedFileCount} files patched, {CopiedFileCount} files copied, install id {InstallId}",
@@ -177,7 +165,7 @@ public sealed class InstallModHandler :
                 execution.BaseSnapshotCount,
                 timings.BuildSnapshot()) with
             {
-                Recovery = recovery,
+                Recovery = repositoryResult.Recovery,
             };
     }
 

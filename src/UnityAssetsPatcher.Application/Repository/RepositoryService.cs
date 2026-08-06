@@ -5,7 +5,7 @@ using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Application.Repository;
 
-public sealed class RepositoryService : IRepositoryService
+public sealed class RepositoryService
 {
     public const int CurrentRepositoryFormatVersion = 2;
     public const int LegacyRepositoryFormatVersion = 1;

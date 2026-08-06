@@ -60,14 +60,12 @@ public sealed class InstallExecutor
 
     public InstallExecutionResult Execute(
         string packagePath,
-        ModPackage package,
         InstallAnalysis analysis,
         RepositoryOperationLock operationLock,
         StepTimer timings,
         IReadOnlyList<PreparedInstallAssetFile>? expectedAssetFiles = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packagePath);
-        ArgumentNullException.ThrowIfNull(package);
         ArgumentNullException.ThrowIfNull(analysis);
         ArgumentNullException.ThrowIfNull(operationLock);
         ArgumentNullException.ThrowIfNull(timings);

@@ -49,7 +49,7 @@ public static class ApplicationServiceCollectionExtensions
                 provider.GetRequiredService<IFileSystemOperations>(),
                 provider.GetService<ILogger<RepositoryService>>()));
             services.AddSingleton<BaseSnapshotCapturer>();
-            services.AddSingleton<IRepositoryService>(provider => provider.GetRequiredService<RepositoryService>());
+            services.AddScoped<IRepositoryService, Repository.Repository>();
             services.AddSingleton<IWorkflowService, WorkflowService>();
 
             AddPatching(services);
