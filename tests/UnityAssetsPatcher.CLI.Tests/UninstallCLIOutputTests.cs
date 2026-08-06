@@ -1,4 +1,7 @@
+using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Uninstall;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
@@ -11,103 +14,133 @@ public sealed class UninstallCLIOutputTests
     [Fact]
     public async Task RunAsync_WhenUninstallCanProceed_ReportsRecompositionCount()
     {
-        var workflow = new StubWorkflowService
+        var preview = new UninstallPreviewResult(
+            "layer-1",
+            "Test Mod",
+            "1.0.0",
+            DateTimeOffset.UnixEpoch,
+            "C:\\Game",
+            true,
+            [],
+            [
+                new UninstallChangedFileResult(
+                    "Game_Data/sharedassets0.assets",
+                    UninstallChangedFileAction.Rebuild,
+                    FileIntegrityStatus.Matches),
+                new UninstallChangedFileResult(
+                    "Game_Data/config.txt",
+                    UninstallChangedFileAction.RestoreBase,
+                    FileIntegrityStatus.Matches),
+                new UninstallChangedFileResult(
+                    "Game_Data/old.dll",
+                    UninstallChangedFileAction.Delete,
+                    FileIntegrityStatus.Matches),
+            ]);
+        TestApplication test = CreateApplication(preview);
+        using (test.Services)
         {
-            UninstallPreview = new UninstallPreviewResult(
-                "layer-1",
-                "Test Mod",
-                "1.0.0",
-                DateTimeOffset.UnixEpoch,
-                "C:\\Game",
-                true,
-                [],
-                [
-                    new UninstallChangedFileResult(
-                        "Game_Data/sharedassets0.assets",
-                        UninstallChangedFileAction.Rebuild,
-                        FileIntegrityStatus.Matches),
-                    new UninstallChangedFileResult(
-                        "Game_Data/config.txt",
-                        UninstallChangedFileAction.RestoreBase,
-                        FileIntegrityStatus.Matches),
-                    new UninstallChangedFileResult(
-                        "Game_Data/old.dll",
-                        UninstallChangedFileAction.Delete,
-                        FileIntegrityStatus.Matches),
-                ]),
-        };
-        (CLIApplication application, StringWriter output) = CreateApplication(workflow);
+            int exitCode = await test.Application.RunAsync(
+                ["uninstall", "preview", "--id", "layer-1", "--game-directory", "C:\\Game"],
+                TestContext.Current.CancellationToken);
 
-        int exitCode = await application.RunAsync(
-            ["uninstall", "preview", "--id", "layer-1", "--game-directory", "C:\\Game"],
-            TestContext.Current.CancellationToken);
-
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Can uninstall: yes; 3 file(s) will be recomposed or restored.", output.ToString());
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Can uninstall: yes; 3 file(s) will be recomposed or restored.", test.Output.ToString());
+        }
     }
 
     [Fact]
     public async Task RunAsync_WhenUninstallHasDependency_ReportsDetailedDiagnostic()
     {
-        var workflow = new StubWorkflowService
+        var preview = new UninstallPreviewResult(
+            "layer-1",
+            "Target Mod",
+            "1.0.0",
+            DateTimeOffset.UnixEpoch,
+            "C:\\Game",
+            false,
+            [
+                new UninstallDependencyFailureResult(
+                    "Dependent Mod",
+                    "2.0.0",
+                    "Game_Data/sharedassets0.assets",
+                    new PatchDiagnostic(
+                        PatchDiagnosticCode.ValueMismatch,
+                        "C:\\Game\\Game_Data\\sharedassets0.assets",
+                        42,
+                        "m_Name",
+                        "Layer One",
+                        "External Value"))
+            ],
+            []);
+        TestApplication test = CreateApplication(preview);
+        using (test.Services)
         {
-            UninstallPreview = new UninstallPreviewResult(
-                "layer-1",
-                "Target Mod",
-                "1.0.0",
-                DateTimeOffset.UnixEpoch,
-                "C:\\Game",
-                false,
-                [
-                    new UninstallDependencyFailureResult(
-                        "Dependent Mod",
-                        "2.0.0",
-                        "Game_Data/sharedassets0.assets",
-                        new PatchDiagnostic(
-                            PatchDiagnosticCode.ValueMismatch,
-                            "C:\\Game\\Game_Data\\sharedassets0.assets",
-                            42,
-                            "m_Name",
-                            "Layer One",
-                            "External Value"))
-                ],
-                []),
-        };
-        (CLIApplication application, StringWriter output) = CreateApplication(workflow);
+            int exitCode = await test.Application.RunAsync(
+                ["uninstall", "preview", "--id", "layer-1", "--game-directory", "C:\\Game"],
+                TestContext.Current.CancellationToken);
 
-        int exitCode = await application.RunAsync(
-            ["uninstall", "preview", "--id", "layer-1", "--game-directory", "C:\\Game"],
-            TestContext.Current.CancellationToken);
-
-        string text = output.ToString();
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Can uninstall: no; real patch dependencies were found.", text);
-        Assert.Contains("Real patch dependencies:", text);
-        Assert.Contains("Dependent Mod 2.0.0 at Game_Data/sharedassets0.assets", text);
-        Assert.Contains("valueMismatch", text);
-        Assert.Contains("field=m_Name", text);
-        Assert.Contains("expected=Layer One", text);
-        Assert.Contains("actual=External Value", text);
+            string text = test.Output.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Can uninstall: no; real patch dependencies were found.", text);
+            Assert.Contains("Real patch dependencies:", text);
+            Assert.Contains("Dependent Mod 2.0.0 at Game_Data/sharedassets0.assets", text);
+            Assert.Contains("valueMismatch", text);
+            Assert.Contains("field=m_Name", text);
+            Assert.Contains("expected=Layer One", text);
+            Assert.Contains("actual=External Value", text);
+        }
     }
 
-    private static (CLIApplication Application, StringWriter Output) CreateApplication(
-        StubWorkflowService workflow)
+    private static TestApplication CreateApplication(UninstallPreviewResult preview)
     {
         var output = new StringWriter();
         var options = new CLIOptions();
+        var services = new ServiceCollection();
+        services.AddScoped<IRequestDispatcher, RequestDispatcher>();
+        services.AddScoped<
+            IRequestHandler<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>>(
+            _ => new StubUninstallPreviewHandler(preview));
+        services.AddSingleton<IWorkflowService, StubWorkflowService>();
+
+        ServiceProvider provider = services.BuildServiceProvider();
         var application = new CLIApplication(
-            [new UninstallCLICommand(workflow, options)],
+            [new UninstallCLICommand(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                provider.GetRequiredService<IWorkflowService>(),
+                options)],
             output,
             new StringWriter(),
             options);
 
-        return (application, output);
+        return new TestApplication(application, output, provider);
+    }
+
+    private sealed record TestApplication(
+        CLIApplication Application,
+        StringWriter Output,
+        ServiceProvider Services);
+
+    private sealed class StubUninstallPreviewHandler :
+        IRequestHandler<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>
+    {
+        private readonly UninstallPreviewResult _preview;
+
+        public StubUninstallPreviewHandler(UninstallPreviewResult preview)
+        {
+            _preview = preview;
+        }
+
+        public Task<OperationResult<UninstallPreviewResult>> HandleAsync(
+            UninstallPreviewRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<OperationResult<UninstallPreviewResult>>(
+                new OperationSucceeded<UninstallPreviewResult>(_preview));
+        }
     }
 
     private sealed class StubWorkflowService : IWorkflowService
     {
-        public UninstallPreviewResult? UninstallPreview { get; init; }
-
         public OperationResult<RepositoryRecoveryReport> CheckPendingTransactions() =>
             throw new NotSupportedException();
 
@@ -124,16 +157,6 @@ public sealed class UninstallCLIOutputTests
             throw new NotSupportedException();
 
         public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods() =>
-            throw new NotSupportedException();
-
-        public OperationResult<UninstallPreviewResult> PreviewUninstall(UninstallPreviewRequest request)
-        {
-            return UninstallPreview is null
-                ? throw new InvalidOperationException("Uninstall preview was not configured.")
-                : new OperationSucceeded<UninstallPreviewResult>(UninstallPreview);
-        }
-
-        public OperationResult<UninstallModResult> Uninstall(UninstallModRequest request) =>
             throw new NotSupportedException();
     }
 }

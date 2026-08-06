@@ -7,6 +7,7 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Install;
+using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
@@ -118,16 +119,14 @@ public sealed class LayeredInstallTests
         string packagePath = fixture.CreatePackage("uninstall", CreateFieldManifest("Text", "Uninstalled"));
         InstallModResult installed = fixture.Install(packagePath);
 
-        using IServiceScope scope = fixture.CreateScope();
-        UninstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<UninstallModWorkflow>();
-        UninstallPreviewResult preview = workflow.Preview(
+        UninstallPreviewResult preview = fixture.PreviewUninstall(
             new UninstallPreviewRequest(installed.InstallId, fixture.GameDirectory));
 
         Assert.True(preview.CanUninstall);
         Assert.Single(preview.ChangedFiles);
         Assert.Equal(UninstallChangedFileAction.RestoreBase, preview.ChangedFiles[0].Action);
 
-        UninstallModResult result = workflow.Uninstall(
+        UninstallModResult result = fixture.Uninstall(
             new UninstallModRequest(installed.InstallId, fixture.GameDirectory));
 
         Assert.Single(result.ChangedFiles);
@@ -151,16 +150,14 @@ public sealed class LayeredInstallTests
         Assert.Equal("Layer Two", fixture.ReadName(fixture.GameAssetsPath));
         Assert.Equal("Later Layer", fixture.ReadName(fixture.OtherAssetsPath));
 
-        using IServiceScope scope = fixture.CreateScope();
-        UninstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<UninstallModWorkflow>();
-        UninstallPreviewResult preview = workflow.Preview(
+        UninstallPreviewResult preview = fixture.PreviewUninstall(
             new UninstallPreviewRequest(middle.InstallId, fixture.GameDirectory));
 
         Assert.True(preview.CanUninstall);
         Assert.Empty(preview.DependencyFailures);
         Assert.Equal(UninstallChangedFileAction.Rebuild, Assert.Single(preview.ChangedFiles).Action);
 
-        UninstallModResult result = workflow.Uninstall(
+        UninstallModResult result = fixture.Uninstall(
             new UninstallModRequest(middle.InstallId, fixture.GameDirectory));
 
         Assert.Single(result.ChangedFiles);
@@ -180,9 +177,7 @@ public sealed class LayeredInstallTests
         InstallModResult second = fixture.Install(
             fixture.CreatePackage("second", CreateValueMismatchManifest("Layer One", "Layer Two")));
 
-        using IServiceScope scope = fixture.CreateScope();
-        UninstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<UninstallModWorkflow>();
-        UninstallPreviewResult preview = workflow.Preview(
+        UninstallPreviewResult preview = fixture.PreviewUninstall(
             new UninstallPreviewRequest(first.InstallId, fixture.GameDirectory));
 
         Assert.False(preview.CanUninstall);
@@ -191,7 +186,7 @@ public sealed class LayeredInstallTests
         Assert.Equal(second.InstallId, fixture.Repository.Layers.ListLayers()[0].Record.Id);
         Assert.Equal(PatchDiagnosticCode.ValueMismatch, failure.Diagnostic.Code);
 
-        OperationResult<UninstallModResult> result = fixture.WorkflowService.Uninstall(
+        OperationResult<UninstallModResult> result = fixture.UninstallOperation(
             new UninstallModRequest(first.InstallId, fixture.GameDirectory));
 
         OperationFailed<UninstallModResult> failed = Assert.IsType<OperationFailed<UninstallModResult>>(result);
@@ -214,22 +209,14 @@ public sealed class LayeredInstallTests
 
         Assert.Equal("second", File.ReadAllText(fixture.PayloadPath));
 
-        using (IServiceScope scope = fixture.CreateScope())
-        {
-            UninstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<UninstallModWorkflow>();
-            UninstallModResult result = workflow.Uninstall(
-                new UninstallModRequest(second.InstallId, fixture.GameDirectory));
+        UninstallModResult result = fixture.Uninstall(
+            new UninstallModRequest(second.InstallId, fixture.GameDirectory));
 
-            Assert.Equal(2, result.ChangedFiles.Count);
-        }
+        Assert.Equal(2, result.ChangedFiles.Count);
 
         Assert.Equal("first", File.ReadAllText(fixture.PayloadPath));
 
-        using (IServiceScope scope = fixture.CreateScope())
-        {
-            UninstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<UninstallModWorkflow>();
-            _ = workflow.Uninstall(new UninstallModRequest(first.InstallId, fixture.GameDirectory));
-        }
+        _ = fixture.Uninstall(new UninstallModRequest(first.InstallId, fixture.GameDirectory));
 
         Assert.False(File.Exists(fixture.PayloadPath));
     }
@@ -242,15 +229,13 @@ public sealed class LayeredInstallTests
             fixture.CreatePackage("modified", CreateFieldManifest("Text", "Modified")));
         File.AppendAllText(fixture.GameAssetsPath, "external");
 
-        using IServiceScope scope = fixture.CreateScope();
-        UninstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<UninstallModWorkflow>();
-        UninstallPreviewResult preview = workflow.Preview(
+        UninstallPreviewResult preview = fixture.PreviewUninstall(
             new UninstallPreviewRequest(installed.InstallId, fixture.GameDirectory));
 
         Assert.False(preview.CanUninstall);
         Assert.Equal(FileIntegrityStatus.Modified, Assert.Single(preview.ChangedFiles).Status);
 
-        OperationResult<UninstallModResult> result = fixture.WorkflowService.Uninstall(
+        OperationResult<UninstallModResult> result = fixture.UninstallOperation(
             new UninstallModRequest(installed.InstallId, fixture.GameDirectory));
 
         OperationFailed<UninstallModResult> failed = Assert.IsType<OperationFailed<UninstallModResult>>(result);
@@ -267,7 +252,7 @@ public sealed class LayeredInstallTests
         string storedPackagePath = fixture.Repository.Layers.ResolvePackagePath(installed.InstallId);
         File.AppendAllText(storedPackagePath, "corrupted");
 
-        OperationResult<UninstallPreviewResult> result = fixture.WorkflowService.PreviewUninstall(
+        OperationResult<UninstallPreviewResult> result = fixture.PreviewUninstallOperation(
             new UninstallPreviewRequest(installed.InstallId, fixture.GameDirectory));
 
         OperationFailed<UninstallPreviewResult> failed = Assert.IsType<OperationFailed<UninstallPreviewResult>>(result);
@@ -323,9 +308,7 @@ public sealed class LayeredInstallTests
 
         InstallModResult reinstalled = fixture.Install(
             fixture.CreatePackage("after-recovery", CreateFieldManifest("Text", "After Recovery")));
-        using IServiceScope scope = fixture.CreateScope();
-        UninstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<UninstallModWorkflow>();
-        _ = workflow.Uninstall(new UninstallModRequest(reinstalled.InstallId, fixture.GameDirectory));
+        _ = fixture.Uninstall(new UninstallModRequest(reinstalled.InstallId, fixture.GameDirectory));
 
         Assert.Equal("Text", fixture.ReadName(fixture.GameAssetsPath));
         Assert.Empty(fixture.Repository.Layers.ListLayers());
@@ -621,6 +604,41 @@ public sealed class LayeredInstallTests
 
             return dispatcher
                 .DispatchAsync(new InstallModRequest(request))
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        public UninstallPreviewResult PreviewUninstall(UninstallPreviewRequest request)
+        {
+            return Assert.IsType<OperationSucceeded<UninstallPreviewResult>>(
+                PreviewUninstallOperation(request)).Value;
+        }
+
+        public OperationResult<UninstallPreviewResult> PreviewUninstallOperation(
+            UninstallPreviewRequest request)
+        {
+            using IServiceScope scope = CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+
+            return dispatcher
+                .DispatchAsync(request)
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        public UninstallModResult Uninstall(UninstallModRequest request)
+        {
+            return Assert.IsType<OperationSucceeded<UninstallModResult>>(
+                UninstallOperation(request)).Value;
+        }
+
+        public OperationResult<UninstallModResult> UninstallOperation(UninstallModRequest request)
+        {
+            using IServiceScope scope = CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+
+            return dispatcher
+                .DispatchAsync(request)
                 .GetAwaiter()
                 .GetResult();
         }

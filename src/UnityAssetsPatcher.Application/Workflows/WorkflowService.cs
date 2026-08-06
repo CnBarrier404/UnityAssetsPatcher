@@ -6,10 +6,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.IO;
-using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Workflows;
@@ -55,21 +55,7 @@ public sealed class WorkflowService : IWorkflowService
 
     public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods()
     {
-        return Invoke<UninstallModWorkflow, IReadOnlyList<InstallRecordSummary>>(workflow => workflow.ListInstalled());
-    }
-
-    public OperationResult<UninstallPreviewResult> PreviewUninstall(UninstallPreviewRequest request)
-    {
-        return Invoke<UninstallModWorkflow, UninstallPreviewResult>(
-            workflow => workflow.Preview(request),
-            DirectoryError(request.GameDirectory));
-    }
-
-    public OperationResult<UninstallModResult> Uninstall(UninstallModRequest request)
-    {
-        return Invoke<UninstallModWorkflow, UninstallModResult>(
-            workflow => workflow.Uninstall(request),
-            DirectoryError(request.GameDirectory));
+        return Invoke<UninstallPlanner, IReadOnlyList<InstallRecordSummary>>(planner => planner.ListInstalled());
     }
 
     private OperationResult<TResult> Invoke<TService, TResult>(
@@ -109,10 +95,6 @@ public sealed class WorkflowService : IWorkflowService
 
             return new OperationFailed<TResult>(error);
         }
-        catch (InstallPreparationStaleException)
-        {
-            return ExpectedFailure<TResult>(operationName, WorkflowErrorCodes.InstallPreviewStale, null);
-        }
         catch (FileNotFoundException exception)
         {
             return ExpectedFailure<TResult>(
@@ -139,11 +121,6 @@ public sealed class WorkflowService : IWorkflowService
         catch (InvalidDataException exception)
         {
             return ExpectedFailure<TResult>(operationName, ContentError(), exception.Message);
-        }
-        catch (KeyNotFoundException exception) when (operationName is nameof(PreviewUninstall) or nameof(Uninstall))
-        {
-            return ExpectedFailure<TResult>(operationName, WorkflowErrorCodes.InstallRecordNotFound,
-                exception.Message);
         }
         catch (LegacyRepositoryWriteException exception)
         {
@@ -206,13 +183,6 @@ public sealed class WorkflowService : IWorkflowService
         return ModPackageErrorCodes.InvalidPackage;
     }
 
-    private static OperationErrorCode DirectoryError(string? gameDirectory)
-    {
-        return string.IsNullOrWhiteSpace(gameDirectory)
-            ? WorkflowErrorCodes.GameDirectoryRequired
-            : WorkflowErrorCodes.GameDirectoryNotFound;
-    }
-
     private static bool IsUserContentOperation(string operationName)
     {
         return operationName is nameof(CheckPendingTransactions) or
@@ -235,8 +205,6 @@ public sealed class WorkflowService : IWorkflowService
                 nameof(RecoverPendingTransactions) => exception.InnerException is IOException
                     ? WorkflowErrorCodes.OperationAlreadyRunning
                     : WorkflowErrorCodes.RepositoryUnsafe,
-            nameof(PreviewUninstall) => WorkflowErrorCodes.RepositoryUnsafe,
-            nameof(Uninstall) => WorkflowErrorCodes.FileIntegrityMismatch,
             _ => throw new ArgumentOutOfRangeException(nameof(operationName), operationName, null),
         };
 
@@ -244,8 +212,6 @@ public sealed class WorkflowService : IWorkflowService
             nameof(ListInstalledMods) or
             nameof(CheckPendingTransactions) or
             nameof(PreviewPendingTransaction) or
-            nameof(RecoverPendingTransactions) or
-            nameof(PreviewUninstall) or
-            nameof(Uninstall);
+            nameof(RecoverPendingTransactions);
     }
 }

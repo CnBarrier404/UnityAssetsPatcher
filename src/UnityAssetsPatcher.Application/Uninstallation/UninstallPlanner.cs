@@ -1,6 +1,7 @@
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Domain.Integrity;

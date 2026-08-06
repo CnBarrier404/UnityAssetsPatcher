@@ -7,51 +7,6 @@ public sealed record InspectAssetSummary(long PathId, string TypeName, string? N
 
 public sealed record InspectListResult(IReadOnlyList<InspectAssetSummary> Assets, int TotalCount);
 
-public sealed record UninstallModResult(
-    string InstallId,
-    string ModName,
-    string ModVersion,
-    IReadOnlyList<UninstallChangedFileResult> ChangedFiles)
-{
-    public RepositoryRecoveryReport Recovery { get; init; } = RepositoryRecoveryReport.Clean;
-}
-
-public sealed record UninstallChangedFileResult(
-    string RelativePath,
-    UninstallChangedFileAction Action,
-    FileIntegrityStatus Status);
-
-public enum UninstallChangedFileAction
-{
-    Rebuild,
-    RestoreBase,
-    Delete,
-}
-
-public sealed record UninstallPreviewResult(
-    string InstallId,
-    string ModName,
-    string ModVersion,
-    DateTimeOffset InstalledAt,
-    string GameDirectory,
-    bool CanUninstall,
-    IReadOnlyList<UninstallDependencyFailureResult> DependencyFailures,
-    IReadOnlyList<UninstallChangedFileResult> ChangedFiles);
-
-public sealed record UninstallDependencyFailureResult(
-    string ModName,
-    string ModVersion,
-    string RelativePath,
-    PatchDiagnostic Diagnostic);
-
-public enum FileIntegrityStatus
-{
-    Matches,
-    Missing,
-    Modified,
-    Unreadable,
-}
-
 public sealed record PatchApplyResult(string OutputPath, string? BackupPath, int AssetCount, int OperationCount);
 
 public sealed record PatchPreviewResult(

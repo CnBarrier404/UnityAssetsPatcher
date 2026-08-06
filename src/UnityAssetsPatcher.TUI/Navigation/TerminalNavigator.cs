@@ -140,6 +140,7 @@ public sealed class TerminalNavigator
                 returnToMainMenu => new UninstallModView(
                     _strings,
                     _workflowService,
+                    _scopeFactory,
                     _taskRunner,
                     returnToMainMenu)),
             new TerminalMenuItem(

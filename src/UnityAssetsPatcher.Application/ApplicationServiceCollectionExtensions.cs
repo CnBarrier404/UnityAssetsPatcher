@@ -5,6 +5,7 @@ using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Features.Install;
+using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Manifests;
@@ -54,6 +55,7 @@ public static class ApplicationServiceCollectionExtensions
             AddPatching(services);
             AddWorkflows(services);
             AddInstallHandlers(services);
+            AddUninstallHandlers(services);
 
             return services;
         }
@@ -75,7 +77,6 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<InspectAssetsWorkflow>();
         services.AddScoped<UninstallPlanner>();
         services.AddScoped<UninstallExecutor>();
-        services.AddScoped<UninstallModWorkflow>();
     }
 
     private static void AddInstallHandlers(IServiceCollection services)
@@ -86,5 +87,15 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<
             IRequestHandler<InstallModRequest, OperationResult<InstallModResult>>,
             InstallModHandler>();
+    }
+
+    private static void AddUninstallHandlers(IServiceCollection services)
+    {
+        services.AddScoped<
+            IRequestHandler<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>,
+            UninstallModHandler>();
+        services.AddScoped<
+            IRequestHandler<UninstallModRequest, OperationResult<UninstallModResult>>,
+            UninstallModHandler>();
     }
 }

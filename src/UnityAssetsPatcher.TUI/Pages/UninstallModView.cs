@@ -1,9 +1,12 @@
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.Input;
 using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Uninstall;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.TUI.Framework;
@@ -17,6 +20,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     public event EventHandler? RenderRequested;
 
     private readonly IWorkflowService _workflowService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private readonly TerminalTaskRunner _taskRunner;
     private readonly Action _returnToMainMenu;
@@ -26,13 +30,17 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     internal UninstallModView(
         LocalizedStrings strings,
         IWorkflowService workflowService,
+        IServiceScopeFactory scopeFactory,
         TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
+        ArgumentNullException.ThrowIfNull(workflowService);
+        ArgumentNullException.ThrowIfNull(scopeFactory);
 
         _strings = strings;
         _workflowService = workflowService;
+        _scopeFactory = scopeFactory;
         _taskRunner = taskRunner;
         _returnToMainMenu = returnToMainMenu;
 
@@ -165,8 +173,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         bool started = _taskRunner.TryRun(
-            () => _workflowService.PreviewUninstall(
-                new UninstallPreviewRequest(installId, gameDirectory)),
+            () => DispatchAsync(new UninstallPreviewRequest(installId, gameDirectory)),
             preview =>
             {
                 _isWorking = false;
@@ -374,8 +381,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     {
         if (_isWorking) return;
         bool started = _taskRunner.TryRun(
-            () => _workflowService.Uninstall(
-                new UninstallModRequest(preview.InstallId, preview.GameDirectory)),
+            () => DispatchAsync(new UninstallModRequest(preview.InstallId, preview.GameDirectory)),
             result =>
             {
                 _isWorking = false;
@@ -403,6 +409,14 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
         _isWorking = true;
         ShowWorking(_strings.UninstallPage_UninstallingMod);
+    }
+
+    private async Task<TResponse> DispatchAsync<TResponse>(IRequest<TResponse> request)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+
+        return await dispatcher.DispatchAsync(request).ConfigureAwait(false);
     }
 
     private void ShowResult(UninstallModResult result)

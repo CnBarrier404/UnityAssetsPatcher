@@ -1,5 +1,8 @@
 using System.CommandLine;
+using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Uninstall;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.CLI;
@@ -8,13 +11,20 @@ public sealed class UninstallCLICommand : ICLICommand
 {
     public Command Command { get; }
 
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWorkflowService _workflowService;
     private readonly CLIOptions _options;
 
     public UninstallCLICommand(
+        IServiceScopeFactory scopeFactory,
         IWorkflowService workflowService,
         CLIOptions options)
     {
+        ArgumentNullException.ThrowIfNull(scopeFactory);
+        ArgumentNullException.ThrowIfNull(workflowService);
+        ArgumentNullException.ThrowIfNull(options);
+
+        _scopeFactory = scopeFactory;
         _workflowService = workflowService;
         _options = options;
 
@@ -38,10 +48,11 @@ public sealed class UninstallCLICommand : ICLICommand
         var command = new Command("preview", "Analyze an uninstall without changing game files.");
         command.Options.Add(id);
         command.Options.Add(gameDirectory);
-        command.SetAction(parseResult => ExecutePreview(
+        command.SetAction((parseResult, cancellationToken) => ExecutePreview(
             parseResult,
             parseResult.GetRequiredValue(id),
-            parseResult.GetValue(gameDirectory)));
+            parseResult.GetValue(gameDirectory),
+            cancellationToken));
         return command;
     }
 
@@ -55,10 +66,11 @@ public sealed class UninstallCLICommand : ICLICommand
         command.Options.Add(gameDirectory);
         command.Options.Add(yes);
         RequireConfirmation(command, yes);
-        command.SetAction(parseResult => ExecuteApply(
+        command.SetAction((parseResult, cancellationToken) => ExecuteApply(
             parseResult,
             parseResult.GetRequiredValue(id),
-            parseResult.GetValue(gameDirectory)));
+            parseResult.GetValue(gameDirectory),
+            cancellationToken));
         return command;
     }
 
@@ -81,12 +93,22 @@ public sealed class UninstallCLICommand : ICLICommand
         }
     }
 
-    private int ExecutePreview(ParseResult parseResult, string installId, string? gameDirectory)
+    private async Task<int> ExecutePreview(
+        ParseResult parseResult,
+        string installId,
+        string? gameDirectory,
+        CancellationToken cancellationToken)
     {
         try
         {
-            OperationResult<UninstallPreviewResult> result = _workflowService.PreviewUninstall(
-                new UninstallPreviewRequest(installId, FullPathOrNull(gameDirectory)));
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<UninstallPreviewResult> result = await dispatcher
+                .DispatchAsync(
+                    new UninstallPreviewRequest(installId, FullPathOrNull(gameDirectory)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             return CLIOutput.WriteResult(
                 parseResult,
                 _options,
@@ -101,12 +123,21 @@ public sealed class UninstallCLICommand : ICLICommand
         }
     }
 
-    private int ExecuteApply(ParseResult parseResult, string installId, string? gameDirectory)
+    private async Task<int> ExecuteApply(
+        ParseResult parseResult,
+        string installId,
+        string? gameDirectory,
+        CancellationToken cancellationToken)
     {
         try
         {
-            OperationResult<UninstallModResult> result = _workflowService.Uninstall(
-                new UninstallModRequest(installId, FullPathOrNull(gameDirectory)));
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<UninstallModResult> result = await dispatcher
+                .DispatchAsync(
+                    new UninstallModRequest(installId, FullPathOrNull(gameDirectory)),
+                    cancellationToken)
+                .ConfigureAwait(false);
             return CLIOutput.WriteResult(
                 parseResult,
                 _options,
