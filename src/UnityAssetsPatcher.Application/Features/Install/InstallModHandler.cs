@@ -1,16 +1,23 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.IO;
-using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Messaging;
+using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
+using UnityAssetsPatcher.Application.Patching;
+using UnityAssetsPatcher.Application.Repository;
+using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Domain.Integrity;
 
-namespace UnityAssetsPatcher.Application.Workflows;
+namespace UnityAssetsPatcher.Application.Features.Install;
 
-public sealed class InstallModWorkflow
+public sealed class InstallModHandler :
+    IRequestHandler<PreviewInstallRequest, OperationResult<InstallPreviewResult>>,
+    IRequestHandler<InstallModRequest, OperationResult<InstallModResult>>
 {
     private readonly ModPackageArchiveService _archiveService;
     private readonly InstallPlanBuilder _planBuilder;
@@ -18,29 +25,66 @@ public sealed class InstallModWorkflow
     private readonly RepositoryService _repositoryService;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly ILogger<InstallModWorkflow> _logger;
+    private readonly ILogger<InstallModHandler> _logger;
 
-    public InstallModWorkflow(
+    public InstallModHandler(
         ModPackageArchiveService archiveService,
         InstallPlanBuilder planBuilder,
         InstallExecutor executor,
         RepositoryService repositoryService,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
-        ILogger<InstallModWorkflow>? logger = null)
+        ILogger<InstallModHandler>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(archiveService);
+        ArgumentNullException.ThrowIfNull(planBuilder);
+        ArgumentNullException.ThrowIfNull(executor);
+        ArgumentNullException.ThrowIfNull(repositoryService);
+        ArgumentNullException.ThrowIfNull(assetsAccessScopeFactory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+
         _archiveService = archiveService;
         _planBuilder = planBuilder;
         _executor = executor;
         _repositoryService = repositoryService;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
-        _logger = logger ?? NullLogger<InstallModWorkflow>.Instance;
+        _logger = logger ?? NullLogger<InstallModHandler>.Instance;
     }
 
-    public InstallPreviewResult Preview(InstallRequest request)
+    public Task<OperationResult<InstallPreviewResult>> HandleAsync(
+        PreviewInstallRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var result = Invoke(
+            () => Preview(request.Request),
+            DirectoryError(request.Request.GameDirectory),
+            nameof(Preview));
+
+        return Task.FromResult(result);
+    }
+
+    public Task<OperationResult<InstallModResult>> HandleAsync(
+        InstallModRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var result = Invoke(
+            () => Install(request.Request),
+            DirectoryError(request.Request.GameDirectory),
+            nameof(Install));
+
+        return Task.FromResult(result);
+    }
+
+    private InstallPreviewResult Preview(InstallRequest request)
     {
         _logger.LogInformation("Previewing mod install from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
@@ -70,7 +114,7 @@ public sealed class InstallModWorkflow
             };
     }
 
-    public InstallModResult Install(InstallRequest request)
+    private InstallModResult Install(InstallRequest request)
     {
         _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
@@ -135,6 +179,119 @@ public sealed class InstallModWorkflow
             {
                 Recovery = recovery,
             };
+    }
+
+    private OperationResult<TResult> Invoke<TResult>(
+        Func<TResult> operation,
+        OperationErrorCode directoryError,
+        string operationName)
+    {
+        try
+        {
+            TResult result = operation();
+
+            return new OperationSucceeded<TResult>(result);
+        }
+        catch (RepositoryRecoveryException exception)
+        {
+            var error = new OperationError(
+                WorkflowErrorCodes.RecoveryRequired,
+                recovery: exception.Recovery);
+            _logger.LogWarning(
+                "Install operation {OperationName} requires backup recovery",
+                operationName);
+
+            return new OperationFailed<TResult>(error);
+        }
+        catch (PatchPlanningException exception)
+        {
+            var error = new OperationError(
+                WorkflowErrorCodes.PatchPlanningFailed,
+                new Dictionary<string, object?>
+                {
+                    ["diagnosticCode"] = exception.Diagnostic.Code.ToString(),
+                    ["path"] = exception.Diagnostic.AssetsFilePath,
+                });
+
+            return new OperationFailed<TResult>(error);
+        }
+        catch (InstallPreparationStaleException)
+        {
+            return ExpectedFailure<TResult>(operationName, WorkflowErrorCodes.InstallPreviewStale, null);
+        }
+        catch (FileNotFoundException exception)
+        {
+            return ExpectedFailure<TResult>(
+                operationName, FileErrorCodes.NotFound, exception.Message, exception.FileName);
+        }
+        catch (DirectoryNotFoundException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, directoryError, exception.Message);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, FileErrorCodes.AccessDenied, exception.Message);
+        }
+        catch (IOException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
+        }
+        catch (JsonException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
+        }
+        catch (InvalidDataException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
+        }
+        catch (LegacyRepositoryWriteException exception)
+        {
+            return ExpectedFailure<TResult>(
+                operationName,
+                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                exception.Message);
+        }
+        catch (NotSupportedException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Install operation {OperationName} failed", operationName);
+
+            throw;
+        }
+    }
+
+    private OperationFailed<TResult> ExpectedFailure<TResult>(
+        string operationName,
+        OperationErrorCode code,
+        string? detail,
+        string? path = null)
+    {
+        var parameters = new Dictionary<string, object?>();
+        if (!string.IsNullOrWhiteSpace(detail))
+        {
+            parameters["detail"] = detail;
+        }
+
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            parameters["path"] = path;
+        }
+
+        var error = new OperationError(code, parameters);
+        _logger.LogWarning(
+            "Install operation {OperationName} failed with {ErrorCode}: {@Parameters}",
+            operationName,
+            code,
+            parameters);
+
+        return new OperationFailed<TResult>(error);
     }
 
     private PreparedInstall CreatePreparedInstall(
@@ -206,6 +363,13 @@ public sealed class InstallModWorkflow
         }
     }
 
+    private static OperationErrorCode DirectoryError(string? gameDirectory)
+    {
+        return string.IsNullOrWhiteSpace(gameDirectory)
+            ? WorkflowErrorCodes.GameDirectoryRequired
+            : WorkflowErrorCodes.GameDirectoryNotFound;
+    }
+
     private static bool PathsEqual(string? left, string? right)
     {
         if (left is null || right is null)
@@ -220,8 +384,8 @@ public sealed class InstallModWorkflow
         IReadOnlyList<string> selectedOptionalGroups,
         IReadOnlyList<string> preparedOptionalGroups)
     {
-        HashSet<string> selected = selectedOptionalGroups.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        HashSet<string> prepared = preparedOptionalGroups.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var selected = selectedOptionalGroups.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var prepared = preparedOptionalGroups.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return selected.SetEquals(prepared);
     }

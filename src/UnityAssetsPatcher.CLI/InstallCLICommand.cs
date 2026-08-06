@@ -1,5 +1,7 @@
 using System.CommandLine;
-using UnityAssetsPatcher.Application.Contracts;
+using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application.Features.Install;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.CLI;
@@ -8,14 +10,17 @@ public sealed class InstallCLICommand : ICLICommand
 {
     public Command Command { get; }
 
-    private readonly IWorkflowService _workflowService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly CLIOptions _options;
 
     public InstallCLICommand(
-        IWorkflowService workflowService,
+        IServiceScopeFactory scopeFactory,
         CLIOptions options)
     {
-        _workflowService = workflowService;
+        ArgumentNullException.ThrowIfNull(scopeFactory);
+        ArgumentNullException.ThrowIfNull(options);
+
+        _scopeFactory = scopeFactory;
         _options = options;
 
         Command = new Command("install", "Preview or install a mod package.");
@@ -32,11 +37,12 @@ public sealed class InstallCLICommand : ICLICommand
         command.Options.Add(package);
         command.Options.Add(gameDirectory);
         command.Options.Add(optionalGroups);
-        command.SetAction(parseResult => ExecutePreview(
+        command.SetAction((parseResult, cancellationToken) => ExecutePreview(
             parseResult,
             parseResult.GetRequiredValue(package),
             parseResult.GetValue(gameDirectory),
-            parseResult.GetValue(optionalGroups) ?? []));
+            parseResult.GetValue(optionalGroups) ?? [],
+            cancellationToken));
         return command;
     }
 
@@ -52,24 +58,32 @@ public sealed class InstallCLICommand : ICLICommand
         command.Options.Add(optionalGroups);
         command.Options.Add(yes);
         RequireConfirmation(command, yes);
-        command.SetAction(parseResult => ExecuteApply(
+        command.SetAction((parseResult, cancellationToken) => ExecuteApply(
             parseResult,
             parseResult.GetRequiredValue(package),
             parseResult.GetValue(gameDirectory),
-            parseResult.GetValue(optionalGroups) ?? []));
+            parseResult.GetValue(optionalGroups) ?? [],
+            cancellationToken));
         return command;
     }
 
-    private int ExecutePreview(
+    private async Task<int> ExecutePreview(
         ParseResult parseResult,
         string packagePath,
         string? gameDirectory,
-        IReadOnlyList<string> optionalGroups)
+        IReadOnlyList<string> optionalGroups,
+        CancellationToken cancellationToken)
     {
         try
         {
-            OperationResult<InstallPreviewResult> result = _workflowService.PreviewInstall(CreateRequest(
-                packagePath, gameDirectory, optionalGroups));
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<InstallPreviewResult> result = await dispatcher
+                .DispatchAsync(
+                    new PreviewInstallRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             return CLIOutput.WriteResult(
                 parseResult,
                 _options,
@@ -84,16 +98,23 @@ public sealed class InstallCLICommand : ICLICommand
         }
     }
 
-    private int ExecuteApply(
+    private async Task<int> ExecuteApply(
         ParseResult parseResult,
         string packagePath,
         string? gameDirectory,
-        IReadOnlyList<string> optionalGroups)
+        IReadOnlyList<string> optionalGroups,
+        CancellationToken cancellationToken)
     {
         try
         {
-            OperationResult<InstallModResult> result = _workflowService.Install(CreateRequest(
-                packagePath, gameDirectory, optionalGroups));
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<InstallModResult> result = await dispatcher
+                .DispatchAsync(
+                    new InstallModRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             return CLIOutput.WriteResult(
                 parseResult,
                 _options,

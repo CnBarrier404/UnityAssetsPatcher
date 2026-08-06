@@ -1,4 +1,4 @@
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Install;
 
 namespace UnityAssetsPatcher.Application.Installation;
 

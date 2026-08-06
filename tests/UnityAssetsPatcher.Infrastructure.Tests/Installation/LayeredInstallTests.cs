@@ -6,7 +6,9 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Application.Patching;
@@ -64,7 +66,7 @@ public sealed class LayeredInstallTests
     public void Install_WhenRepositoryUsesVersionOne_ReturnsUnsupportedRepositoryVersion()
     {
         using LayeredInstallFixture fixture = new(repositoryVersion: 1);
-        OperationResult<InstallModResult> result = fixture.WorkflowService.Install(
+        OperationResult<InstallModResult> result = fixture.InstallOperation(
             new InstallRequest("missing.zip", fixture.GameDirectory));
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
@@ -78,20 +80,14 @@ public sealed class LayeredInstallTests
     {
         using LayeredInstallFixture fixture = new();
         string packagePath = fixture.CreatePackage("prepared", CreateFieldManifest("Text", "Prepared"));
-        InstallPreviewResult preview;
-
-        using (IServiceScope scope = fixture.CreateScope())
-        {
-            InstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<InstallModWorkflow>();
-            preview = workflow.Preview(new InstallRequest(packagePath, fixture.GameDirectory));
-        }
-
-        using IServiceScope installScope = fixture.CreateScope();
-        InstallModWorkflow installWorkflow = installScope.ServiceProvider.GetRequiredService<InstallModWorkflow>();
-        InstallModResult result = installWorkflow.Install(new InstallRequest(packagePath, fixture.GameDirectory)
+        InstallPreviewResult preview = fixture.Preview(new InstallRequest(packagePath, fixture.GameDirectory));
+        InstallRequest installRequest = new(packagePath, fixture.GameDirectory)
         {
             PreparedInstall = preview.PreparedInstall,
-        });
+        };
+
+        InstallModResult result = Assert.IsType<OperationSucceeded<InstallModResult>>(
+            fixture.InstallOperation(installRequest)).Value;
 
         Assert.Equal(1, result.BaseSnapshotCount);
         Assert.Equal("Prepared", fixture.ReadName(fixture.GameAssetsPath));
@@ -103,7 +99,7 @@ public sealed class LayeredInstallTests
         using LayeredInstallFixture fixture = new();
         string packagePath = fixture.CreatePackage("planning-failure", CreateFieldManifest("Missing", "Never Applied"));
 
-        OperationResult<InstallModResult> result = fixture.WorkflowService.Install(
+        OperationResult<InstallModResult> result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
@@ -288,7 +284,7 @@ public sealed class LayeredInstallTests
         string packagePath = fixture.CreatePackage("duplicate", CreateFieldManifest("Text", "Duplicate"));
         InstallModResult first = fixture.Install(packagePath);
 
-        OperationResult<InstallModResult> result = fixture.WorkflowService.Install(
+        OperationResult<InstallModResult> result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
@@ -600,10 +596,33 @@ public sealed class LayeredInstallTests
 
         public InstallModResult Install(string packagePath)
         {
-            using IServiceScope scope = CreateScope();
-            InstallModWorkflow workflow = scope.ServiceProvider.GetRequiredService<InstallModWorkflow>();
+            OperationResult<InstallModResult> result = InstallOperation(
+                new InstallRequest(packagePath, GameDirectory));
 
-            return workflow.Install(new InstallRequest(packagePath, GameDirectory));
+            return Assert.IsType<OperationSucceeded<InstallModResult>>(result).Value;
+        }
+
+        public InstallPreviewResult Preview(InstallRequest request)
+        {
+            using IServiceScope scope = CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<InstallPreviewResult> result = dispatcher
+                .DispatchAsync(new PreviewInstallRequest(request))
+                .GetAwaiter()
+                .GetResult();
+
+            return Assert.IsType<OperationSucceeded<InstallPreviewResult>>(result).Value;
+        }
+
+        public OperationResult<InstallModResult> InstallOperation(InstallRequest request)
+        {
+            using IServiceScope scope = CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+
+            return dispatcher
+                .DispatchAsync(new InstallModRequest(request))
+                .GetAwaiter()
+                .GetResult();
         }
 
         public IServiceScope CreateScope()

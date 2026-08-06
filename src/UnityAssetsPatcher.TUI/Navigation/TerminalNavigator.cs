@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Operations;
@@ -14,6 +15,7 @@ public sealed class TerminalNavigator
     private readonly TerminalShellView _shell;
     private readonly LocalizedStrings _strings;
     private readonly IWorkflowService? _workflowService;
+    private readonly IServiceScopeFactory? _scopeFactory;
     private readonly TerminalSettings? _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
     private readonly TerminalTaskRunner? _taskRunner;
@@ -36,6 +38,7 @@ public sealed class TerminalNavigator
         TerminalShellView shell,
         CultureInfo culture,
         IWorkflowService workflowService,
+        IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         ILoggingLevelSwitch? loggingLevelSwitch,
         TerminalTaskRunner taskRunner,
@@ -43,11 +46,13 @@ public sealed class TerminalNavigator
         : this(shell, culture)
     {
         ArgumentNullException.ThrowIfNull(workflowService);
+        ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(taskRunner);
         ArgumentNullException.ThrowIfNull(requestStop);
 
         _workflowService = workflowService;
+        _scopeFactory = scopeFactory;
         _settings = settings;
         _loggingLevelSwitch = loggingLevelSwitch;
         _taskRunner = taskRunner;
@@ -99,7 +104,7 @@ public sealed class TerminalNavigator
 
     private TerminalMenuItem[] CreateMenuItems()
     {
-        if (_workflowService is null || _settings is null || _taskRunner is null)
+        if (_workflowService is null || _scopeFactory is null || _settings is null || _taskRunner is null)
         {
             return
             [
@@ -125,7 +130,7 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_InstallMod_Description,
                 returnToMainMenu => new InstallModView(
                     _strings,
-                    _workflowService,
+                    _scopeFactory,
                     _settings,
                     _taskRunner,
                     returnToMainMenu)),

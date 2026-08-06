@@ -53,20 +53,6 @@ public sealed class WorkflowService : IWorkflowService
         return Invoke<InspectAssetsWorkflow, AssetField>(workflow => workflow.Fields(request));
     }
 
-    public OperationResult<InstallPreviewResult> PreviewInstall(InstallRequest request)
-    {
-        return Invoke<InstallModWorkflow, InstallPreviewResult>(
-            workflow => workflow.Preview(request),
-            DirectoryError(request.GameDirectory));
-    }
-
-    public OperationResult<InstallModResult> Install(InstallRequest request)
-    {
-        return Invoke<InstallModWorkflow, InstallModResult>(
-            workflow => workflow.Install(request),
-            DirectoryError(request.GameDirectory));
-    }
-
     public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods()
     {
         return Invoke<UninstallModWorkflow, IReadOnlyList<InstallRecordSummary>>(workflow => workflow.ListInstalled());
@@ -170,7 +156,6 @@ public sealed class WorkflowService : IWorkflowService
         {
             OperationErrorCode code = operationName switch
             {
-                nameof(PreviewInstall) or nameof(Install) => ModPackageErrorCodes.InvalidPackage,
                 _ => WorkflowErrorCodes.UnsupportedRepositoryVersion,
             };
 
@@ -230,9 +215,7 @@ public sealed class WorkflowService : IWorkflowService
 
     private static bool IsUserContentOperation(string operationName)
     {
-        return operationName is nameof(PreviewInstall) or
-            nameof(Install) or
-            nameof(CheckPendingTransactions) or
+        return operationName is nameof(CheckPendingTransactions) or
             nameof(PreviewPendingTransaction) or
             nameof(RecoverPendingTransactions) or
             nameof(ListInstalledMods);
@@ -245,7 +228,6 @@ public sealed class WorkflowService : IWorkflowService
     {
         code = operationName switch
         {
-            nameof(PreviewInstall) or nameof(Install) => ModPackageErrorCodes.InvalidPackage,
             nameof(InspectFields) => WorkflowErrorCodes.AssetNotFound,
             nameof(ListInstalledMods) or
                 nameof(CheckPendingTransactions) or
@@ -258,9 +240,7 @@ public sealed class WorkflowService : IWorkflowService
             _ => throw new ArgumentOutOfRangeException(nameof(operationName), operationName, null),
         };
 
-        return operationName is nameof(PreviewInstall) or
-            nameof(Install) or
-            nameof(InspectFields) or
+        return operationName is nameof(InspectFields) or
             nameof(ListInstalledMods) or
             nameof(CheckPendingTransactions) or
             nameof(PreviewPendingTransaction) or

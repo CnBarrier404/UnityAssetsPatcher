@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.Input;
 using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
-using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Workflows;
@@ -19,7 +21,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
 
-    private readonly IWorkflowService _workflowService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private readonly TerminalSettings _settings;
     private readonly TerminalTaskRunner _taskRunner;
@@ -35,15 +37,16 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     internal InstallModView(
         LocalizedStrings strings,
-        IWorkflowService workflowService,
+        IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
+        ArgumentNullException.ThrowIfNull(scopeFactory);
 
         _strings = strings;
-        _workflowService = workflowService;
+        _scopeFactory = scopeFactory;
         _settings = settings;
         _taskRunner = taskRunner;
         _returnToMainMenu = returnToMainMenu;
@@ -160,7 +163,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             IncludePatchPreviewDetails = false,
         };
         bool started = _taskRunner.TryRun(
-            () => _workflowService.PreviewInstall(request),
+            () => DispatchAsync(new PreviewInstallRequest(request)),
             result =>
             {
                 _isWorking = false;
@@ -363,7 +366,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             PreparedInstall = _preparedInstall,
         };
         bool started = _taskRunner.TryRun(
-            () => _workflowService.Install(request),
+            () => DispatchAsync(new InstallModRequest(request)),
             result =>
             {
                 _isWorking = false;
@@ -403,6 +406,14 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         ShowBusy(text);
         _form.SetContentHeightForRows(2);
         RenderRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task<TResponse> DispatchAsync<TResponse>(IRequest<TResponse> request)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+
+        return await dispatcher.DispatchAsync(request).ConfigureAwait(false);
     }
 
     private void ShowResult(InstallModResult result)

@@ -123,12 +123,6 @@ public sealed class UninstallCLIOutputTests
         public OperationResult<AssetField> InspectFields(InspectFieldsRequest request) =>
             throw new NotSupportedException();
 
-        public OperationResult<InstallPreviewResult> PreviewInstall(InstallRequest request) =>
-            throw new NotSupportedException();
-
-        public OperationResult<InstallModResult> Install(InstallRequest request) =>
-            throw new NotSupportedException();
-
         public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods() =>
             throw new NotSupportedException();
 

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
@@ -78,7 +79,7 @@ internal static class CLIOutput
             JsonObject envelope = ErrorEnvelope(command, code, message, []);
             envelope["error"]!["parameters"] = new JsonObject(
                 error.Parameters.Select(parameter =>
-                    KeyValuePair.Create<string, JsonNode?>(parameter.Key, ToJsonNode(parameter.Value))));
+                    KeyValuePair.Create(parameter.Key, ToJsonNode(parameter.Value))));
             if (error.Recovery is not null)
             {
                 envelope["recovery"] = Recovery(error.Recovery);

@@ -15,10 +15,6 @@ public interface IWorkflowService
 
     public OperationResult<AssetField> InspectFields(InspectFieldsRequest request);
 
-    public OperationResult<InstallPreviewResult> PreviewInstall(InstallRequest request);
-
-    public OperationResult<InstallModResult> Install(InstallRequest request);
-
     public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods();
 
     public OperationResult<UninstallPreviewResult> PreviewUninstall(UninstallPreviewRequest request);

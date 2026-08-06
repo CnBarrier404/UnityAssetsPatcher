@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Integrity;
@@ -75,7 +76,7 @@ public sealed class InstallExecutor
         string normalizedPackagePath = _fileSystemOperations.ResolveExistingFile(packagePath);
         string gameDirectory = _pathResolver.ResolveExistingDirectory(analysis.GameDirectory);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(_pathResolver, gameDirectory);
-        IReadOnlyList<LayerRecord> activeLayers = GetActiveLayers(fingerprint);
+        var activeLayers = GetActiveLayers(fingerprint);
         long sequence = InstallSequenceAllocator.Allocate(activeLayers, fingerprint, repository.RepositoryId);
         string installId = Guid.NewGuid().ToString("N");
         FileIntegrity packageIntegrity = _fileSystemOperations.ComputeFileIntegrity(normalizedPackagePath);
@@ -123,7 +124,7 @@ public sealed class InstallExecutor
                 preparedLayerDirectory,
                 analysis,
                 timings);
-            IReadOnlyDictionary<string, FileIntegrity>? expectedAssetIntegrities = CreateExpectedAssetIntegrities(
+            var expectedAssetIntegrities = CreateExpectedAssetIntegrities(
                 expectedAssetFiles);
 
             BuildTransactionFiles(
@@ -214,10 +215,10 @@ public sealed class InstallExecutor
         string fingerprint)
     {
         BaseCatalog? existingCatalog = _compositionRepository.BaseSnapshots.TryReadCatalog(fingerprint);
-        HashSet<string> existingAssets = existingCatalog?.AssetsFiles
+        var existingAssets = existingCatalog?.AssetsFiles
             .Select(file => file.RelativePath)
             .ToHashSet(TrustedPath.PathComparer) ?? [];
-        HashSet<string> existingPayloads = existingCatalog?.PayloadTargets
+        var existingPayloads = existingCatalog?.PayloadTargets
             .Select(file => file.RelativePath)
             .ToHashSet(TrustedPath.PathComparer) ?? [];
         var capturedAssets = new HashSet<string>(TrustedPath.PathComparer);
@@ -323,7 +324,7 @@ public sealed class InstallExecutor
         ICollection<RepositoryTransactionFile> transactionFiles,
         ICollection<InstallPatchAppliedFile> patched)
     {
-        Dictionary<string, InstallTargetAnalysis> analysesByPath = analysis.Targets
+        var analysesByPath = analysis.Targets
             .ToDictionary(
                 target => ToGameRelativePath(gameDirectory, target.AssetsFilePath),
                 target => target,

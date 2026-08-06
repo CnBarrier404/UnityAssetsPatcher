@@ -24,12 +24,28 @@ public sealed class TerminalTaskRunner
             return false;
         }
 
+        _ = RunAsync(() => Task.FromResult(operation()), onSucceeded, onFailed);
+
+        return true;
+    }
+
+    public bool TryRun<T>(Func<Task<T>> operation, Action<T> onSucceeded, Action<Exception> onFailed)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(onSucceeded);
+        ArgumentNullException.ThrowIfNull(onFailed);
+
+        if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
+        {
+            return false;
+        }
+
         _ = RunAsync(operation, onSucceeded, onFailed);
 
         return true;
     }
 
-    private async Task RunAsync<T>(Func<T> operation, Action<T> onSucceeded, Action<Exception> onFailed)
+    private async Task RunAsync<T>(Func<Task<T>> operation, Action<T> onSucceeded, Action<Exception> onFailed)
     {
         try
         {

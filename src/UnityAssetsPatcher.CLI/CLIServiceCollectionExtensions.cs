@@ -36,7 +36,7 @@ public static class CLIServiceCollectionExtensions
                 provider.GetRequiredService<CLIOptions>()));
 
             services.AddSingleton<ICLICommand>(provider => new InstallCLICommand(
-                provider.GetRequiredService<IWorkflowService>(),
+                provider.GetRequiredService<IServiceScopeFactory>(),
                 provider.GetRequiredService<CLIOptions>()));
 
             services.AddSingleton<ICLICommand>(provider => new UninstallCLICommand(

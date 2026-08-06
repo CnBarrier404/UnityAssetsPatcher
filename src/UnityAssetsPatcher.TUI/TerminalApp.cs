@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Terminal.Gui.App;
 using Terminal.Gui.Drivers;
@@ -17,6 +18,7 @@ public sealed class TerminalApp
     private readonly AppInfo _appInfo;
     private readonly IUpdateChecker _updateChecker;
     private readonly IWorkflowService? _workflowService;
+    private readonly IServiceScopeFactory? _scopeFactory;
     private readonly TerminalSettings _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
     private readonly ILogger<TerminalApp> _logger;
@@ -37,6 +39,7 @@ public sealed class TerminalApp
         AppInfo appInfo,
         IUpdateChecker updateChecker,
         IWorkflowService workflowService,
+        IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         ILoggingLevelSwitch loggingLevelSwitch,
         ILogger<TerminalApp> logger)
@@ -44,6 +47,7 @@ public sealed class TerminalApp
         ArgumentNullException.ThrowIfNull(appInfo);
         ArgumentNullException.ThrowIfNull(updateChecker);
         ArgumentNullException.ThrowIfNull(workflowService);
+        ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(loggingLevelSwitch);
         ArgumentNullException.ThrowIfNull(logger);
@@ -51,6 +55,7 @@ public sealed class TerminalApp
         _appInfo = appInfo;
         _updateChecker = updateChecker;
         _workflowService = workflowService;
+        _scopeFactory = scopeFactory;
         _settings = settings;
         _loggingLevelSwitch = loggingLevelSwitch;
         _logger = logger;
@@ -104,6 +109,7 @@ public sealed class TerminalApp
                 shell,
                 culture,
                 _workflowService,
+                _scopeFactory!,
                 _settings,
                 _loggingLevelSwitch,
                 taskRunner,
