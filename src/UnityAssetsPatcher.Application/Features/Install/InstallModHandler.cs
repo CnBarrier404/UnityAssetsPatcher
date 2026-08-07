@@ -10,7 +10,6 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Repository;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Domain.Integrity;
 
 namespace UnityAssetsPatcher.Application.Features.Install;
@@ -177,7 +176,7 @@ public sealed class InstallModHandler :
         catch (RepositoryRecoveryException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.RecoveryRequired,
+                RepositoryErrorCodes.RecoveryRequired,
                 recovery: exception.Recovery);
             _logger.LogWarning(
                 "Install operation {OperationName} requires backup recovery",
@@ -188,7 +187,7 @@ public sealed class InstallModHandler :
         catch (PatchPlanningException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.PatchPlanningFailed,
+                PatchErrorCodes.PlanningFailed,
                 new Dictionary<string, object?>
                 {
                     ["diagnosticCode"] = exception.Diagnostic.Code.ToString(),
@@ -199,7 +198,7 @@ public sealed class InstallModHandler :
         }
         catch (InstallPreparationStaleException)
         {
-            return ExpectedFailure<TResult>(operationName, WorkflowErrorCodes.InstallPreviewStale, null);
+            return ExpectedFailure<TResult>(operationName, ModOperationErrorCodes.InstallPreviewStale, null);
         }
         catch (FileNotFoundException exception)
         {
@@ -230,7 +229,7 @@ public sealed class InstallModHandler :
         {
             return ExpectedFailure<TResult>(
                 operationName,
-                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
         catch (NotSupportedException exception)
@@ -348,8 +347,8 @@ public sealed class InstallModHandler :
     private static OperationErrorCode DirectoryError(string? gameDirectory)
     {
         return string.IsNullOrWhiteSpace(gameDirectory)
-            ? WorkflowErrorCodes.GameDirectoryRequired
-            : WorkflowErrorCodes.GameDirectoryNotFound;
+            ? GameDirectoryErrorCodes.Required
+            : GameDirectoryErrorCodes.NotFound;
     }
 
     private static bool PathsEqual(string? left, string? right)

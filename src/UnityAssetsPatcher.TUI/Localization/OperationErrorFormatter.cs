@@ -1,9 +1,11 @@
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Application.Repository;
 
 namespace UnityAssetsPatcher.TUI.Localization;
 
@@ -54,25 +56,25 @@ internal static class OperationErrorFormatter
 
         return error.Code switch
         {
-            _ when error.Code == WorkflowErrorCodes.GameDirectoryRequired =>
+            _ when error.Code == GameDirectoryErrorCodes.Required =>
                 strings.Error_GameDirectoryRequired,
-            _ when error.Code == WorkflowErrorCodes.GameDirectoryNotFound =>
+            _ when error.Code == GameDirectoryErrorCodes.NotFound =>
                 FormatContext(strings.Error_GameDirectoryNotFoundFormat, context),
-            _ when error.Code == WorkflowErrorCodes.AssetNotFound => strings.Error_AssetNotFound,
-            _ when error.Code == WorkflowErrorCodes.PatchPlanningFailed =>
+            _ when error.Code == AssetErrorCodes.NotFound => strings.Error_AssetNotFound,
+            _ when error.Code == PatchErrorCodes.PlanningFailed =>
                 strings.Error_PatchPlanningFailed,
-            _ when error.Code == WorkflowErrorCodes.InstallRecordNotFound =>
+            _ when error.Code == ModOperationErrorCodes.InstallRecordNotFound =>
                 strings.Error_InstallRecordNotFound,
-            _ when error.Code == WorkflowErrorCodes.FileIntegrityMismatch =>
+            _ when error.Code == ModOperationErrorCodes.FileIntegrityMismatch =>
                 strings.Error_FileIntegrityMismatch,
-            _ when error.Code == WorkflowErrorCodes.InstallPreviewStale =>
+            _ when error.Code == ModOperationErrorCodes.InstallPreviewStale =>
                 strings.Error_InstallPreviewStale,
-            _ when error.Code == WorkflowErrorCodes.OperationAlreadyRunning =>
+            _ when error.Code == RepositoryErrorCodes.OperationAlreadyRunning =>
                 strings.Error_OperationAlreadyRunning,
-            _ when error.Code == WorkflowErrorCodes.RecoveryRequired => strings.Error_RecoveryRequired,
-            _ when error.Code == WorkflowErrorCodes.RepositoryUnsafe =>
+            _ when error.Code == RepositoryErrorCodes.RecoveryRequired => strings.Error_RecoveryRequired,
+            _ when error.Code == RepositoryErrorCodes.Unsafe =>
                 strings.Error_RepositoryUnsafe,
-            _ when error.Code == WorkflowErrorCodes.UnsupportedRepositoryVersion =>
+            _ when error.Code == RepositoryErrorCodes.UnsupportedVersion =>
                 strings.Error_UnsupportedRepositoryVersion,
             _ => strings.Error_OperationFailed,
         };

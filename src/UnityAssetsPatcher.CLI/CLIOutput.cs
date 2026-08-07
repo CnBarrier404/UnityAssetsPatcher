@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Features.Inspect;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Features.Uninstall;
@@ -13,7 +14,7 @@ using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Application.Workflows;
+using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.CLI;
@@ -816,25 +817,25 @@ internal static class OperationErrorText
 
         return error.Code switch
         {
-            _ when error.Code == WorkflowErrorCodes.GameDirectoryRequired => "Select the game directory to continue.",
-            _ when error.Code == WorkflowErrorCodes.GameDirectoryNotFound =>
+            _ when error.Code == GameDirectoryErrorCodes.Required => "Select the game directory to continue.",
+            _ when error.Code == GameDirectoryErrorCodes.NotFound =>
                 $"The game directory was not found: {context}",
-            _ when error.Code == WorkflowErrorCodes.AssetNotFound => "The requested asset was not found.",
-            _ when error.Code == WorkflowErrorCodes.PatchPlanningFailed =>
+            _ when error.Code == AssetErrorCodes.NotFound => "The requested asset was not found.",
+            _ when error.Code == PatchErrorCodes.PlanningFailed =>
                 "The patch cannot be applied to the selected game files.",
-            _ when error.Code == WorkflowErrorCodes.InstallRecordNotFound =>
+            _ when error.Code == ModOperationErrorCodes.InstallRecordNotFound =>
                 "The selected install record was not found.",
-            _ when error.Code == WorkflowErrorCodes.FileIntegrityMismatch =>
+            _ when error.Code == ModOperationErrorCodes.FileIntegrityMismatch =>
                 "An installed file or backup no longer matches its record.",
-            _ when error.Code == WorkflowErrorCodes.InstallPreviewStale =>
+            _ when error.Code == ModOperationErrorCodes.InstallPreviewStale =>
                 "The install preview is stale. Preview the installation again.",
-            _ when error.Code == WorkflowErrorCodes.OperationAlreadyRunning =>
+            _ when error.Code == RepositoryErrorCodes.OperationAlreadyRunning =>
                 "Another mutating operation is already running.",
-            _ when error.Code == WorkflowErrorCodes.RecoveryRequired =>
+            _ when error.Code == RepositoryErrorCodes.RecoveryRequired =>
                 "An interrupted operation must be recovered first.",
-            _ when error.Code == WorkflowErrorCodes.RepositoryUnsafe =>
+            _ when error.Code == RepositoryErrorCodes.Unsafe =>
                 "The backup repository is damaged or unsafe.",
-            _ when error.Code == WorkflowErrorCodes.UnsupportedRepositoryVersion =>
+            _ when error.Code == RepositoryErrorCodes.UnsupportedVersion =>
                 "The backup repository version is not supported.",
             _ => "The operation failed.",
         };

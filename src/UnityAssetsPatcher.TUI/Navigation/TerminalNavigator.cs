@@ -5,7 +5,6 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Updates;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
@@ -181,7 +180,7 @@ public sealed class TerminalNavigator
         catch (RepositoryRecoveryException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.RecoveryRequired,
+                RepositoryErrorCodes.RecoveryRequired,
                 recovery: exception.Recovery);
 
             return new OperationFailed<RepositoryRecoveryReport>(error);
@@ -189,7 +188,7 @@ public sealed class TerminalNavigator
         catch (LegacyRepositoryWriteException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                RepositoryErrorCodes.UnsupportedVersion,
                 new Dictionary<string, object?> { ["detail"] = exception.Message });
 
             return new OperationFailed<RepositoryRecoveryReport>(error);
@@ -197,7 +196,7 @@ public sealed class TerminalNavigator
         catch (NotSupportedException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                RepositoryErrorCodes.UnsupportedVersion,
                 new Dictionary<string, object?> { ["detail"] = exception.Message });
 
             return new OperationFailed<RepositoryRecoveryReport>(error);
@@ -205,8 +204,8 @@ public sealed class TerminalNavigator
         catch (InvalidOperationException exception)
         {
             OperationErrorCode code = exception.InnerException is IOException
-                ? WorkflowErrorCodes.OperationAlreadyRunning
-                : WorkflowErrorCodes.RepositoryUnsafe;
+                ? RepositoryErrorCodes.OperationAlreadyRunning
+                : RepositoryErrorCodes.Unsafe;
             var error = new OperationError(
                 code,
                 new Dictionary<string, object?> { ["detail"] = exception.Message });

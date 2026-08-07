@@ -3,13 +3,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Uninstallation;
-using UnityAssetsPatcher.Application.Workflows;
 
 namespace UnityAssetsPatcher.Application.Features.Uninstall;
 
@@ -98,7 +98,7 @@ public sealed class UninstallModHandler :
         catch (RepositoryRecoveryException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.RecoveryRequired,
+                RepositoryErrorCodes.RecoveryRequired,
                 recovery: exception.Recovery);
             _logger.LogWarning(
                 "Uninstall operation {OperationName} requires backup recovery",
@@ -109,7 +109,7 @@ public sealed class UninstallModHandler :
         catch (PatchPlanningException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.PatchPlanningFailed,
+                PatchErrorCodes.PlanningFailed,
                 new Dictionary<string, object?>
                 {
                     ["diagnosticCode"] = exception.Diagnostic.Code.ToString(),
@@ -146,20 +146,20 @@ public sealed class UninstallModHandler :
         catch (KeyNotFoundException exception)
         {
             return ExpectedFailure<TResult>(
-                operationName, WorkflowErrorCodes.InstallRecordNotFound, exception.Message);
+                operationName, ModOperationErrorCodes.InstallRecordNotFound, exception.Message);
         }
         catch (LegacyRepositoryWriteException exception)
         {
             return ExpectedFailure<TResult>(
                 operationName,
-                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
         catch (InvalidOperationException exception)
         {
             OperationErrorCode code = operationName == nameof(Uninstall)
-                ? WorkflowErrorCodes.FileIntegrityMismatch
-                : WorkflowErrorCodes.RepositoryUnsafe;
+                ? ModOperationErrorCodes.FileIntegrityMismatch
+                : RepositoryErrorCodes.Unsafe;
 
             return ExpectedFailure<TResult>(operationName, code, exception.Message);
         }
@@ -201,7 +201,7 @@ public sealed class UninstallModHandler :
     private static OperationErrorCode DirectoryError(string? gameDirectory)
     {
         return string.IsNullOrWhiteSpace(gameDirectory)
-            ? WorkflowErrorCodes.GameDirectoryRequired
-            : WorkflowErrorCodes.GameDirectoryNotFound;
+            ? GameDirectoryErrorCodes.Required
+            : GameDirectoryErrorCodes.NotFound;
     }
 }

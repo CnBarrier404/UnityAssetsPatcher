@@ -6,7 +6,6 @@ using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Features.Inspect;
@@ -132,7 +131,7 @@ public sealed class InspectAssetsHandler :
         }
         catch (InvalidOperationException exception) when (operationName == nameof(Fields))
         {
-            return ExpectedFailure<TResult>(operationName, WorkflowErrorCodes.AssetNotFound, exception.Message);
+            return ExpectedFailure<TResult>(operationName, AssetErrorCodes.NotFound, exception.Message);
         }
         catch (Exception exception)
         {

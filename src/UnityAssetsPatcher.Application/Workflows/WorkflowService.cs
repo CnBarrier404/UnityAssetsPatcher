@@ -65,7 +65,7 @@ public sealed class WorkflowService : IWorkflowService
         catch (RepositoryRecoveryException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.RecoveryRequired,
+                RepositoryErrorCodes.RecoveryRequired,
                 recovery: exception.Recovery);
             _logger.LogWarning(
                 "Workflow operation {OperationName} requires backup recovery",
@@ -76,7 +76,7 @@ public sealed class WorkflowService : IWorkflowService
         catch (PatchPlanningException exception)
         {
             var error = new OperationError(
-                WorkflowErrorCodes.PatchPlanningFailed,
+                PatchErrorCodes.PlanningFailed,
                 new Dictionary<string, object?>
                 {
                     ["diagnosticCode"] = exception.Diagnostic.Code.ToString(),
@@ -116,14 +116,14 @@ public sealed class WorkflowService : IWorkflowService
         {
             return ExpectedFailure<TResult>(
                 operationName,
-                WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
         catch (NotSupportedException exception) when (IsUserContentOperation(operationName))
         {
             OperationErrorCode code = operationName switch
             {
-                _ => WorkflowErrorCodes.UnsupportedRepositoryVersion,
+                _ => RepositoryErrorCodes.UnsupportedVersion,
             };
 
             return ExpectedFailure<TResult>(operationName, code, exception.Message);
@@ -192,8 +192,8 @@ public sealed class WorkflowService : IWorkflowService
                 nameof(CheckPendingTransactions) or
                 nameof(PreviewPendingTransaction) or
                 nameof(RecoverPendingTransactions) => exception.InnerException is IOException
-                    ? WorkflowErrorCodes.OperationAlreadyRunning
-                    : WorkflowErrorCodes.RepositoryUnsafe,
+                    ? RepositoryErrorCodes.OperationAlreadyRunning
+                    : RepositoryErrorCodes.Unsafe,
             _ => throw new ArgumentOutOfRangeException(nameof(operationName), operationName, null),
         };
 

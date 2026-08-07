@@ -2,7 +2,6 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Features.Inspect;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Domain.Assets;
 using Xunit;
 
@@ -85,7 +84,7 @@ public sealed class InspectAssetsHandlerTests
             TestContext.Current.CancellationToken);
 
         OperationFailed<AssetField> failure = Assert.IsType<OperationFailed<AssetField>>(result);
-        Assert.Equal(WorkflowErrorCodes.AssetNotFound, failure.Error.Code);
+        Assert.Equal(AssetErrorCodes.NotFound, failure.Error.Code);
     }
 
     [Fact]

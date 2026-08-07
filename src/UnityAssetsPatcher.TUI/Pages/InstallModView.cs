@@ -10,7 +10,6 @@ using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Shell;
@@ -173,8 +172,8 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 if (result is OperationFailed<InstallPreviewResult> failed)
                 {
                     string message = OperationErrorFormatter.Format(_strings, failed.Error);
-                    if ((failed.Error.Code == WorkflowErrorCodes.GameDirectoryRequired ||
-                         failed.Error.Code == WorkflowErrorCodes.GameDirectoryNotFound) &&
+                    if ((failed.Error.Code == GameDirectoryErrorCodes.Required ||
+                         failed.Error.Code == GameDirectoryErrorCodes.NotFound) &&
                         string.IsNullOrEmpty(gameDirectory))
                     {
                         ShowGameDirectory(message);

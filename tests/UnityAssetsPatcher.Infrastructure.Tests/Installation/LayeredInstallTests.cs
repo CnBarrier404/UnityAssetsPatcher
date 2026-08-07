@@ -11,7 +11,6 @@ using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Integrity;
@@ -73,7 +72,7 @@ public sealed class LayeredInstallTests
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
-        Assert.Equal(WorkflowErrorCodes.UnsupportedRepositoryVersion, failed.Error.Code);
+        Assert.Equal(RepositoryErrorCodes.UnsupportedVersion, failed.Error.Code);
         Assert.Contains("legacy format", failed.Error.Parameters["detail"]?.ToString());
     }
 
@@ -133,7 +132,7 @@ public sealed class LayeredInstallTests
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
-        Assert.Equal(WorkflowErrorCodes.PatchPlanningFailed, failed.Error.Code);
+        Assert.Equal(PatchErrorCodes.PlanningFailed, failed.Error.Code);
         Assert.Equal("Text", fixture.ReadName(fixture.GameAssetsPath));
         Assert.Empty(fixture.Repository.Layers.ListLayers());
         Assert.False(Directory.Exists(Path.Combine(fixture.Repository.RepositoryDirectory, "games")));
@@ -218,7 +217,7 @@ public sealed class LayeredInstallTests
             new UninstallModRequest(first.InstallId, fixture.GameDirectory));
 
         OperationFailed<UninstallModResult> failed = Assert.IsType<OperationFailed<UninstallModResult>>(result);
-        Assert.Equal(WorkflowErrorCodes.FileIntegrityMismatch, failed.Error.Code);
+        Assert.Equal(ModOperationErrorCodes.FileIntegrityMismatch, failed.Error.Code);
         Assert.Equal("Layer Two", fixture.ReadName(fixture.GameAssetsPath));
     }
 
@@ -267,7 +266,7 @@ public sealed class LayeredInstallTests
             new UninstallModRequest(installed.InstallId, fixture.GameDirectory));
 
         OperationFailed<UninstallModResult> failed = Assert.IsType<OperationFailed<UninstallModResult>>(result);
-        Assert.Equal(WorkflowErrorCodes.FileIntegrityMismatch, failed.Error.Code);
+        Assert.Equal(ModOperationErrorCodes.FileIntegrityMismatch, failed.Error.Code);
         Assert.Single(fixture.Repository.Layers.ListLayers());
     }
 
@@ -302,7 +301,7 @@ public sealed class LayeredInstallTests
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
-        Assert.Equal(WorkflowErrorCodes.PatchPlanningFailed, failed.Error.Code);
+        Assert.Equal(PatchErrorCodes.PlanningFailed, failed.Error.Code);
         Assert.Equal("Duplicate", fixture.ReadName(fixture.GameAssetsPath));
         Assert.Single(fixture.Repository.Layers.ListLayers());
         Assert.Equal(first.InstallId, fixture.Repository.Layers.ListLayers()[0].Record.Id);
