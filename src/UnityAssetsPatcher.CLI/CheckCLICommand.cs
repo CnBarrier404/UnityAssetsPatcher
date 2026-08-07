@@ -1,8 +1,8 @@
 using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application.Failures;
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Messaging;
-using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.CLI;
 
@@ -48,23 +48,22 @@ public sealed class CheckCLICommand : ICLICommand
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
             var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<CheckManifestRequest, OperationResult<CheckManifestResult>>(
+            await dispatcher
+                .DispatchAsync<CheckManifestRequest, CheckManifestResult>(
                     new CheckManifestRequest(sourcePath), cancellationToken)
                 .ConfigureAwait(false);
 
-            if (result is not OperationFailed<CheckManifestResult> failure)
-            {
-                return CLIExitCodes.Success;
-            }
-
-            CLIOutput.WriteFailure(_error, failure.Error);
-
-            return CLIExitCodes.OperationFailed;
+            return CLIExitCodes.Success;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (ApplicationFailureException exception)
+        {
+            CLIOutput.WriteFailure(_error, CLIErrorMapper.ToOperationError(exception));
+
+            return CLIExitCodes.OperationFailed;
         }
         catch (Exception exception)
         {

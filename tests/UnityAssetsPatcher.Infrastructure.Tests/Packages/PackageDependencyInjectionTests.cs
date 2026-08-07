@@ -4,7 +4,6 @@ using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Application.Operations;
 using Xunit;
 
 namespace UnityAssetsPatcher.Infrastructure.Tests.Packages;
@@ -31,14 +30,16 @@ public sealed class PackageDependencyInjectionTests
         ModPackageArchiveService archiveService = provider.GetRequiredService<ModPackageArchiveService>();
 
         ManifestSourceReader sourceReader = provider.GetRequiredService<ManifestSourceReader>();
+        IModManifestService manifestService = provider.GetRequiredService<IModManifestService>();
 
         using IServiceScope scope = provider.CreateScope();
-        IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>> checkHandler =
+        IRequestHandler<CheckManifestRequest, CheckManifestResult> checkHandler =
             scope.ServiceProvider.GetRequiredService<
-                IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>>>();
+                IRequestHandler<CheckManifestRequest, CheckManifestResult>>();
 
         Assert.NotNull(archiveService);
         Assert.NotNull(sourceReader);
+        Assert.NotNull(manifestService);
         Assert.NotNull(checkHandler);
     }
 }

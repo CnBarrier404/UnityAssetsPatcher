@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Messaging;
-using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Infrastructure.IO;
 using UnityAssetsPatcher.Infrastructure.Packages;
@@ -163,10 +162,11 @@ public sealed class CLIApplicationTests : IDisposable
             NullLogger<ModPackageArchiveFactory>.Instance);
         var archiveService = new ModPackageArchiveService(archiveFactory, fileSystem);
         var sourceReader = new ManifestSourceReader(archiveService, fileSystem);
-        var handler = new CheckManifestHandler(sourceReader, NullLogger<CheckManifestHandler>.Instance);
+        var manifestService = new ModManifestService(sourceReader);
+        var handler = new CheckManifestHandler(manifestService);
         var services = new ServiceCollection();
         services.AddScoped<IRequestDispatcher, RequestDispatcher>();
-        services.AddScoped<IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>>>(_ => handler);
+        services.AddScoped<IRequestHandler<CheckManifestRequest, CheckManifestResult>>(_ => handler);
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateScopes = true,

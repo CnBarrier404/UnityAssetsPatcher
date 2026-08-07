@@ -32,9 +32,10 @@ public static class ApplicationServiceCollectionExtensions
 
             services.AddSingleton<ModPackageArchiveService>();
             services.AddSingleton<ManifestSourceReader>();
+            services.AddSingleton<IModManifestService, ModManifestService>();
             services.AddScoped<IRequestDispatcher, RequestDispatcher>();
             services.AddScoped<
-                IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>>,
+                IRequestHandler<CheckManifestRequest, CheckManifestResult>,
                 CheckManifestHandler>();
 
             return services;
