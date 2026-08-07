@@ -6,6 +6,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Features.Inspect;
+using UnityAssetsPatcher.Application.Features.Recovery;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
@@ -16,7 +17,6 @@ using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Uninstallation;
-using UnityAssetsPatcher.Application.Workflows;
 using UnityAssetsPatcher.Domain.Assets;
 using RepositoryFacade = UnityAssetsPatcher.Application.Repository.Repository;
 
@@ -53,12 +53,11 @@ public static class ApplicationServiceCollectionExtensions
                 provider.GetService<ILogger<RepositoryService>>()));
             services.AddSingleton<BaseSnapshotCapturer>();
             services.AddScoped<IRepository, RepositoryFacade>();
-            services.AddSingleton<IWorkflowService, WorkflowService>();
-
             AddPatching(services);
-            AddWorkflows(services);
+            AddOperationServices(services);
             AddInspectHandlers(services);
             AddInstallHandlers(services);
+            AddRecoveryHandlers(services);
             AddUninstallHandlers(services);
 
             return services;
@@ -74,7 +73,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<UninstallCompositionService>();
     }
 
-    private static void AddWorkflows(IServiceCollection services)
+    private static void AddOperationServices(IServiceCollection services)
     {
         services.AddScoped<InstallPlanBuilder>();
         services.AddScoped<InstallExecutor>();
@@ -102,6 +101,16 @@ public static class ApplicationServiceCollectionExtensions
             InstallModHandler>();
     }
 
+    private static void AddRecoveryHandlers(IServiceCollection services)
+    {
+        services.AddScoped<
+            IRequestHandler<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>,
+            RecoveryHandler>();
+        services.AddScoped<
+            IRequestHandler<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>,
+            RecoveryHandler>();
+    }
+
     private static void AddUninstallHandlers(IServiceCollection services)
     {
         services.AddScoped<
@@ -109,6 +118,9 @@ public static class ApplicationServiceCollectionExtensions
             UninstallModHandler>();
         services.AddScoped<
             IRequestHandler<UninstallModRequest, OperationResult<UninstallModResult>>,
+            UninstallModHandler>();
+        services.AddScoped<
+            IRequestHandler<ListInstalledModsRequest, OperationResult<IReadOnlyList<InstallRecordSummary>>>,
             UninstallModHandler>();
     }
 }

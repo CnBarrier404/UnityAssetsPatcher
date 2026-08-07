@@ -19,7 +19,6 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
 
-    private readonly IWorkflowService _workflowService;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private readonly TerminalTaskRunner _taskRunner;
@@ -29,17 +28,14 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     internal UninstallModView(
         LocalizedStrings strings,
-        IWorkflowService workflowService,
         IServiceScopeFactory scopeFactory,
         TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
-        ArgumentNullException.ThrowIfNull(workflowService);
         ArgumentNullException.ThrowIfNull(scopeFactory);
 
         _strings = strings;
-        _workflowService = workflowService;
         _scopeFactory = scopeFactory;
         _taskRunner = taskRunner;
         _returnToMainMenu = returnToMainMenu;
@@ -89,7 +85,8 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         bool started = _taskRunner.TryRun(
-            _workflowService.ListInstalledMods,
+            () => DispatchAsync<ListInstalledModsRequest, OperationResult<IReadOnlyList<InstallRecordSummary>>>(
+                new ListInstalledModsRequest()),
             installed =>
             {
                 _isWorking = false;

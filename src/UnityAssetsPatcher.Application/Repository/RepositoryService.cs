@@ -112,13 +112,6 @@ public sealed class RepositoryService
         return report;
     }
 
-    public RepositoryRecoveryReport CheckPendingTransactions()
-    {
-        using RepositoryOperationLock operationLock = AcquireLock();
-
-        return new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations).Check();
-    }
-
     public RepositoryRecoveryReport CheckPendingTransactionsUnderLock() =>
         new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations).Check();
 
@@ -151,21 +144,6 @@ public sealed class RepositoryService
                 entry.Record.GameName,
                 entry.Record.InstalledAt))
             .ToArray();
-    }
-
-    public RepositoryRecoveryReport CheckRecovery()
-    {
-        return CheckPendingTransactions();
-    }
-
-    public RepositoryRecoveryPreview PreviewRecovery(string gameDirectory)
-    {
-        return PreviewPendingTransaction(gameDirectory);
-    }
-
-    public RepositoryRecoveryReport Recover(string gameDirectory)
-    {
-        return RecoverPendingTransactions(gameDirectory);
     }
 }
 

@@ -11,6 +11,21 @@ namespace UnityAssetsPatcher.CLI.Tests;
 public sealed class UninstallCLIOutputTests
 {
     [Fact]
+    public async Task RunAsync_WhenListingInstalledMods_WritesInstalledMods()
+    {
+        TestApplication test = CreateApplication();
+        using (test.Services)
+        {
+            int exitCode = await test.Application.RunAsync(
+                ["uninstall", "list"],
+                TestContext.Current.CancellationToken);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("layer-1 | Test Mod 1.0.0 | Test Game", test.Output.ToString());
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_WhenUninstallCanProceed_ReportsRecompositionCount()
     {
         var preview = new UninstallPreviewResult(
@@ -90,23 +105,29 @@ public sealed class UninstallCLIOutputTests
         }
     }
 
-    private static TestApplication CreateApplication(UninstallPreviewResult preview)
+    private static TestApplication CreateApplication(UninstallPreviewResult? preview = null)
     {
         var output = new StringWriter();
         var options = new CLIOptions();
         var services = new ServiceCollection();
         services.AddScoped<IRequestDispatcher, RequestDispatcher>();
-        services.AddScoped<
-            IRequestHandler<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>>(
-            _ => new StubUninstallPreviewHandler(preview));
-        services.AddSingleton<IWorkflowService, StubWorkflowService>();
+        if (preview is not null)
+        {
+            services.AddScoped<
+                IRequestHandler<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>>(_ =>
+                new StubUninstallPreviewHandler(preview));
+        }
 
+        services.AddScoped<
+            IRequestHandler<ListInstalledModsRequest, OperationResult<IReadOnlyList<InstallRecordSummary>>>>(_ =>
+            new StubInstalledModsHandler());
         ServiceProvider provider = services.BuildServiceProvider();
         var application = new CLIApplication(
-            [new UninstallCLICommand(
-                provider.GetRequiredService<IServiceScopeFactory>(),
-                provider.GetRequiredService<IWorkflowService>(),
-                options)],
+            [
+                new UninstallCLICommand(
+                    provider.GetRequiredService<IServiceScopeFactory>(),
+                    options)
+            ],
             output,
             new StringWriter(),
             options);
@@ -138,18 +159,25 @@ public sealed class UninstallCLIOutputTests
         }
     }
 
-    private sealed class StubWorkflowService : IWorkflowService
+    private sealed class StubInstalledModsHandler :
+        IRequestHandler<ListInstalledModsRequest, OperationResult<IReadOnlyList<InstallRecordSummary>>>
     {
-        public OperationResult<RepositoryRecoveryReport> CheckPendingTransactions() =>
-            throw new NotSupportedException();
+        public Task<OperationResult<IReadOnlyList<InstallRecordSummary>>> HandleAsync(
+            ListInstalledModsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<InstallRecordSummary> installed =
+            [
+                new InstallRecordSummary(
+                    "layer-1",
+                    "Test Mod",
+                    "1.0.0",
+                    "Test Game",
+                    DateTimeOffset.UnixEpoch),
+            ];
 
-        public OperationResult<RepositoryRecoveryPreview> PreviewPendingTransaction(string gameDirectory) =>
-            throw new NotSupportedException();
-
-        public OperationResult<RepositoryRecoveryReport> RecoverPendingTransactions(string gameDirectory) =>
-            throw new NotSupportedException();
-
-        public OperationResult<IReadOnlyList<InstallRecordSummary>> ListInstalledMods() =>
-            throw new NotSupportedException();
+            return Task.FromResult<OperationResult<IReadOnlyList<InstallRecordSummary>>>(
+                new OperationSucceeded<IReadOnlyList<InstallRecordSummary>>(installed));
+        }
     }
 }

@@ -2,6 +2,8 @@ using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Recovery;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Updates;
@@ -15,7 +17,6 @@ public sealed class TerminalNavigator
 {
     private readonly TerminalShellView _shell;
     private readonly LocalizedStrings _strings;
-    private readonly IWorkflowService? _workflowService;
     private readonly IServiceScopeFactory? _scopeFactory;
     private readonly TerminalSettings? _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
@@ -38,7 +39,6 @@ public sealed class TerminalNavigator
     public TerminalNavigator(
         TerminalShellView shell,
         CultureInfo culture,
-        IWorkflowService workflowService,
         IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         ILoggingLevelSwitch? loggingLevelSwitch,
@@ -46,13 +46,11 @@ public sealed class TerminalNavigator
         Action requestStop)
         : this(shell, culture)
     {
-        ArgumentNullException.ThrowIfNull(workflowService);
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(taskRunner);
         ArgumentNullException.ThrowIfNull(requestStop);
 
-        _workflowService = workflowService;
         _scopeFactory = scopeFactory;
         _settings = settings;
         _loggingLevelSwitch = loggingLevelSwitch;
@@ -62,7 +60,7 @@ public sealed class TerminalNavigator
 
     public void Start()
     {
-        if (_workflowService is null || _taskRunner is null)
+        if (_scopeFactory is null || _taskRunner is null)
         {
             ShowMainMenu();
 
@@ -105,7 +103,7 @@ public sealed class TerminalNavigator
 
     private TerminalMenuItem[] CreateMenuItems()
     {
-        if (_workflowService is null || _scopeFactory is null || _settings is null || _taskRunner is null)
+        if (_scopeFactory is null || _settings is null || _taskRunner is null)
         {
             return
             [
@@ -140,7 +138,6 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_UninstallMod_Description,
                 returnToMainMenu => new UninstallModView(
                     _strings,
-                    _workflowService,
                     _scopeFactory,
                     _taskRunner,
                     returnToMainMenu)),
@@ -165,7 +162,7 @@ public sealed class TerminalNavigator
 
     private void CheckRecovery()
     {
-        RunRecoveryOperation(InitializeRepository);
+        RunRecoveryOperation(() => Task.FromResult(InitializeRepository()));
     }
 
     private OperationResult<RepositoryRecoveryReport> InitializeRepository()
@@ -217,7 +214,8 @@ public sealed class TerminalNavigator
     private void PreviewRecovery(string gameDirectory)
     {
         bool started = _taskRunner!.TryRun(
-            () => _workflowService!.PreviewPendingTransaction(gameDirectory),
+            () => DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
+                new PreviewRecoveryRequest(gameDirectory)),
             result =>
             {
                 if (result is not OperationSucceeded<RepositoryRecoveryPreview> succeeded)
@@ -254,10 +252,11 @@ public sealed class TerminalNavigator
 
     private void Recover(string gameDirectory)
     {
-        RunRecoveryOperation(() => _workflowService!.RecoverPendingTransactions(gameDirectory));
+        RunRecoveryOperation(() => DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
+            new RecoverRecoveryRequest(gameDirectory)));
     }
 
-    private void RunRecoveryOperation(Func<OperationResult<RepositoryRecoveryReport>> operation)
+    private void RunRecoveryOperation(Func<Task<OperationResult<RepositoryRecoveryReport>>> operation)
     {
         bool started = _taskRunner!.TryRun(
             operation,
@@ -309,6 +308,15 @@ public sealed class TerminalNavigator
             RepositoryRecoveryStatus.Locked,
             [],
             [new RepositoryRecoveryIssue(RepositoryRecoveryIssueCode.UnexpectedFailure, string.Empty)]);
+    }
+
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+        where TRequest : IRequest<TResponse>
+    {
+        using IServiceScope scope = _scopeFactory!.CreateScope();
+        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+
+        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }
 
     private TerminalMenuItem CreateEmptyPageMenuItem(string title, string description)

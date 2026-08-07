@@ -1,5 +1,8 @@
 using System.CommandLine;
+using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Features.Recovery;
+using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.CLI;
@@ -8,12 +11,15 @@ public sealed class RecoveryCLICommand : ICLICommand
 {
     public Command Command { get; }
 
-    private readonly IWorkflowService _workflowService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly CLIOptions _options;
 
-    public RecoveryCLICommand(IWorkflowService workflowService, CLIOptions options)
+    public RecoveryCLICommand(IServiceScopeFactory scopeFactory, CLIOptions options)
     {
-        _workflowService = workflowService;
+        ArgumentNullException.ThrowIfNull(scopeFactory);
+        ArgumentNullException.ThrowIfNull(options);
+
+        _scopeFactory = scopeFactory;
         _options = options;
         Command = new Command("recovery", "Preview or recover an interrupted install or uninstall.");
         Command.Subcommands.Add(CreatePreviewCommand());
@@ -25,7 +31,10 @@ public sealed class RecoveryCLICommand : ICLICommand
         Option<string> gameDirectory = GameDirectoryOption();
         var command = new Command("preview", "Show every recovery action without changing files.");
         command.Options.Add(gameDirectory);
-        command.SetAction(parseResult => ExecutePreview(parseResult, parseResult.GetRequiredValue(gameDirectory)));
+        command.SetAction((parseResult, cancellationToken) => ExecutePreview(
+            parseResult,
+            parseResult.GetRequiredValue(gameDirectory),
+            cancellationToken));
         return command;
     }
 
@@ -42,16 +51,28 @@ public sealed class RecoveryCLICommand : ICLICommand
                 !optionResult.GetValueOrDefault<bool>())
                 result.AddError("Required option '--yes' was not provided.");
         });
-        command.SetAction(parseResult => ExecuteApply(parseResult, parseResult.GetRequiredValue(gameDirectory)));
+        command.SetAction((parseResult, cancellationToken) => ExecuteApply(
+            parseResult,
+            parseResult.GetRequiredValue(gameDirectory),
+            cancellationToken));
         return command;
     }
 
-    private int ExecutePreview(ParseResult parseResult, string gameDirectory)
+    private async Task<int> ExecutePreview(
+        ParseResult parseResult,
+        string gameDirectory,
+        CancellationToken cancellationToken)
     {
         try
         {
-            OperationResult<RepositoryRecoveryPreview> result =
-                _workflowService.PreviewPendingTransaction(Path.GetFullPath(gameDirectory));
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<RepositoryRecoveryPreview> result = await dispatcher
+                .DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
+                    new PreviewRecoveryRequest(Path.GetFullPath(gameDirectory)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             return CLIOutput.WriteResult(parseResult, _options, "recovery.preview", result,
                 CLIOutput.RecoveryPreview, CLIOutput.WriteRecoveryPreviewText);
         }
@@ -61,12 +82,21 @@ public sealed class RecoveryCLICommand : ICLICommand
         }
     }
 
-    private int ExecuteApply(ParseResult parseResult, string gameDirectory)
+    private async Task<int> ExecuteApply(
+        ParseResult parseResult,
+        string gameDirectory,
+        CancellationToken cancellationToken)
     {
         try
         {
-            OperationResult<RepositoryRecoveryReport> result =
-                _workflowService.RecoverPendingTransactions(Path.GetFullPath(gameDirectory));
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<RepositoryRecoveryReport> result = await dispatcher
+                .DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
+                    new RecoverRecoveryRequest(Path.GetFullPath(gameDirectory)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             return CLIOutput.WriteResult(parseResult, _options, "recovery.apply", result,
                 CLIOutput.RecoveryReport, CLIOutput.WriteRecoveryReportText);
         }

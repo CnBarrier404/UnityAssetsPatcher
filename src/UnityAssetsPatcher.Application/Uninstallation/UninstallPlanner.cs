@@ -1,6 +1,5 @@
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Composition;
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
@@ -41,26 +40,6 @@ public sealed class UninstallPlanner
         _compositionService = compositionService;
         _fileSystemOperations = fileSystemOperations;
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
-    }
-
-    public IReadOnlyList<InstallRecordSummary> ListInstalled()
-    {
-        RepositoryMetadata metadata = _repositoryService.LoadMetadata();
-
-        if (metadata.FormatVersion == RepositoryService.LegacyRepositoryFormatVersion)
-        {
-            return _repositoryService.ListLegacyInstalled();
-        }
-
-        return _compositionRepository.Layers
-            .ListLayers()
-            .Select(entry => new InstallRecordSummary(
-                entry.Record.Id,
-                entry.Record.ModName,
-                entry.Record.ModVersion,
-                entry.Record.GameName,
-                entry.Record.InstalledAt))
-            .ToArray();
     }
 
     public UninstallPreviewResult BuildPreview(UninstallPreviewRequest request)

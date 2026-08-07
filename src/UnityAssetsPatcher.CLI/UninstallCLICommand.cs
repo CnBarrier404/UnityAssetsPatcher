@@ -12,20 +12,16 @@ public sealed class UninstallCLICommand : ICLICommand
     public Command Command { get; }
 
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IWorkflowService _workflowService;
     private readonly CLIOptions _options;
 
     public UninstallCLICommand(
         IServiceScopeFactory scopeFactory,
-        IWorkflowService workflowService,
         CLIOptions options)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
-        ArgumentNullException.ThrowIfNull(workflowService);
         ArgumentNullException.ThrowIfNull(options);
 
         _scopeFactory = scopeFactory;
-        _workflowService = workflowService;
         _options = options;
 
         Command = new Command("uninstall", "List, preview, or uninstall installed mods.");
@@ -37,7 +33,7 @@ public sealed class UninstallCLICommand : ICLICommand
     private Command CreateListCommand()
     {
         var command = new Command("list", "List installed mod layers.");
-        command.SetAction(ExecuteList);
+        command.SetAction((parseResult, cancellationToken) => ExecuteList(parseResult, cancellationToken));
         return command;
     }
 
@@ -74,11 +70,18 @@ public sealed class UninstallCLICommand : ICLICommand
         return command;
     }
 
-    private int ExecuteList(ParseResult parseResult)
+    private async Task<int> ExecuteList(ParseResult parseResult, CancellationToken cancellationToken)
     {
         try
         {
-            OperationResult<IReadOnlyList<InstallRecordSummary>> result = _workflowService.ListInstalledMods();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<IReadOnlyList<InstallRecordSummary>> result = await dispatcher
+                .DispatchAsync<ListInstalledModsRequest, OperationResult<IReadOnlyList<InstallRecordSummary>>>(
+                    new ListInstalledModsRequest(),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             return CLIOutput.WriteResult(
                 parseResult,
                 _options,

@@ -17,7 +17,6 @@ public sealed class TerminalApp
 {
     private readonly AppInfo _appInfo;
     private readonly IUpdateChecker _updateChecker;
-    private readonly IWorkflowService? _workflowService;
     private readonly IServiceScopeFactory? _scopeFactory;
     private readonly TerminalSettings _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
@@ -38,7 +37,6 @@ public sealed class TerminalApp
     public TerminalApp(
         AppInfo appInfo,
         IUpdateChecker updateChecker,
-        IWorkflowService workflowService,
         IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         ILoggingLevelSwitch loggingLevelSwitch,
@@ -46,7 +44,6 @@ public sealed class TerminalApp
     {
         ArgumentNullException.ThrowIfNull(appInfo);
         ArgumentNullException.ThrowIfNull(updateChecker);
-        ArgumentNullException.ThrowIfNull(workflowService);
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(loggingLevelSwitch);
@@ -54,7 +51,6 @@ public sealed class TerminalApp
 
         _appInfo = appInfo;
         _updateChecker = updateChecker;
-        _workflowService = workflowService;
         _scopeFactory = scopeFactory;
         _settings = settings;
         _loggingLevelSwitch = loggingLevelSwitch;
@@ -103,12 +99,11 @@ public sealed class TerminalApp
             warningText,
             () => application.LayoutAndDraw());
         var taskRunner = new TerminalTaskRunner(application.Invoke);
-        TerminalNavigator navigator = _workflowService is null
+        TerminalNavigator navigator = _scopeFactory is null
             ? new TerminalNavigator(shell, culture)
             : new TerminalNavigator(
                 shell,
                 culture,
-                _workflowService,
                 _scopeFactory!,
                 _settings,
                 _loggingLevelSwitch,

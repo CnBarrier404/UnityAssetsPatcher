@@ -11,6 +11,9 @@ public sealed record UninstallPreviewRequest(string InstallId, string? GameDirec
 public sealed record UninstallModRequest(string InstallId, string? GameDirectory = null) :
     IRequest<OperationResult<UninstallModResult>>;
 
+public sealed record ListInstalledModsRequest :
+    IRequest<OperationResult<IReadOnlyList<InstallRecordSummary>>>;
+
 public sealed record UninstallModResult(
     string InstallId,
     string ModName,

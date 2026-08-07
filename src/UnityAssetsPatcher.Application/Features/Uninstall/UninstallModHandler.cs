@@ -15,7 +15,8 @@ namespace UnityAssetsPatcher.Application.Features.Uninstall;
 
 public sealed class UninstallModHandler :
     IRequestHandler<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>,
-    IRequestHandler<UninstallModRequest, OperationResult<UninstallModResult>>
+    IRequestHandler<UninstallModRequest, OperationResult<UninstallModResult>>,
+    IRequestHandler<ListInstalledModsRequest, OperationResult<IReadOnlyList<InstallRecordSummary>>>
 {
     private readonly UninstallPlanner _planner;
     private readonly IRepository _repository;
@@ -45,6 +46,21 @@ public sealed class UninstallModHandler :
             () => Preview(request),
             DirectoryError(request.GameDirectory),
             nameof(Preview));
+
+        return Task.FromResult(result);
+    }
+
+    public Task<OperationResult<IReadOnlyList<InstallRecordSummary>>> HandleAsync(
+        ListInstalledModsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        OperationResult<IReadOnlyList<InstallRecordSummary>> result = Invoke(
+            ListInstalledMods,
+            null,
+            nameof(ListInstalledMods));
 
         return Task.FromResult(result);
     }
@@ -84,9 +100,16 @@ public sealed class UninstallModHandler :
         return result;
     }
 
+    private IReadOnlyList<InstallRecordSummary> ListInstalledMods()
+    {
+        _logger.LogInformation("Listing installed mods");
+
+        return _repository.ListInstalledMods();
+    }
+
     private OperationResult<TResult> Invoke<TResult>(
         Func<TResult> operation,
-        OperationErrorCode directoryError,
+        OperationErrorCode? directoryError,
         string operationName)
     {
         try
@@ -125,7 +148,9 @@ public sealed class UninstallModHandler :
         }
         catch (DirectoryNotFoundException exception)
         {
-            return ExpectedFailure<TResult>(operationName, directoryError, exception.Message);
+            OperationErrorCode code = directoryError ?? FileErrorCodes.DirectoryNotFound;
+
+            return ExpectedFailure<TResult>(operationName, code, exception.Message);
         }
         catch (UnauthorizedAccessException exception)
         {

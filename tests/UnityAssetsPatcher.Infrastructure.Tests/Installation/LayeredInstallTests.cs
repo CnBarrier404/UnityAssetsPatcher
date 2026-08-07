@@ -7,6 +7,7 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Install;
+using UnityAssetsPatcher.Application.Features.Recovery;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
@@ -566,7 +567,6 @@ public sealed class LayeredInstallTests
             "Game_Data/sharedassets0.assets");
 
         public ICompositionRepository Repository { get; }
-        public IWorkflowService WorkflowService { get; }
 
         private RepositoryService RepositoryService => _serviceProvider.GetRequiredService<RepositoryService>();
         private IFileSystemOperations FileSystem => _serviceProvider.GetRequiredService<IFileSystemOperations>();
@@ -601,7 +601,6 @@ public sealed class LayeredInstallTests
             services.AddUnityAssetsPatcherRepository(repositoryDirectory);
             _serviceProvider = services.BuildServiceProvider();
             Repository = _serviceProvider.GetRequiredService<ICompositionRepository>();
-            WorkflowService = _serviceProvider.GetRequiredService<IWorkflowService>();
         }
 
         public InstallModResult Install(string packagePath)
@@ -684,16 +683,26 @@ public sealed class LayeredInstallTests
 
         public RepositoryRecoveryPreview PreviewRecovery()
         {
-            OperationResult<RepositoryRecoveryPreview> result =
-                WorkflowService.PreviewPendingTransaction(GameDirectory);
+            using IServiceScope scope = CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<RepositoryRecoveryPreview> result = dispatcher
+                .DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
+                    new PreviewRecoveryRequest(GameDirectory))
+                .GetAwaiter()
+                .GetResult();
 
             return Assert.IsType<OperationSucceeded<RepositoryRecoveryPreview>>(result).Value;
         }
 
         public RepositoryRecoveryReport Recover()
         {
-            OperationResult<RepositoryRecoveryReport> result =
-                WorkflowService.RecoverPendingTransactions(GameDirectory);
+            using IServiceScope scope = CreateScope();
+            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            OperationResult<RepositoryRecoveryReport> result = dispatcher
+                .DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
+                    new RecoverRecoveryRequest(GameDirectory))
+                .GetAwaiter()
+                .GetResult();
 
             return Assert.IsType<OperationSucceeded<RepositoryRecoveryReport>>(result).Value;
         }

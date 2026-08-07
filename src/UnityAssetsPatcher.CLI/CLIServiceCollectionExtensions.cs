@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.CLI;
 
@@ -41,11 +40,10 @@ public static class CLIServiceCollectionExtensions
 
             services.AddSingleton<ICLICommand>(provider => new UninstallCLICommand(
                 provider.GetRequiredService<IServiceScopeFactory>(),
-                provider.GetRequiredService<IWorkflowService>(),
                 provider.GetRequiredService<CLIOptions>()));
 
             services.AddSingleton<ICLICommand>(provider => new RecoveryCLICommand(
-                provider.GetRequiredService<IWorkflowService>(),
+                provider.GetRequiredService<IServiceScopeFactory>(),
                 provider.GetRequiredService<CLIOptions>()));
 
             return services;
