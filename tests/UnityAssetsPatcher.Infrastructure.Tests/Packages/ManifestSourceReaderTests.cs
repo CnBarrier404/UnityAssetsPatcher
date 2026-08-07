@@ -1,44 +1,62 @@
 using System.IO.Compression;
-using System.Text;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Failures;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Infrastructure.IO;
-using UnityAssetsPatcher.Infrastructure.Packages;
+using UnityAssetsPatcher.Infrastructure;
 using Xunit;
 
 namespace UnityAssetsPatcher.Infrastructure.Tests.Packages;
 
-public sealed class ManifestSourceReaderTests : IDisposable
+public sealed class ModManifestServiceIntegrationTests : IDisposable
 {
+    private const string ValidManifest = """
+                                         {
+                                           "$schema": "https://uap.cnbarrier.com/schema-v1.json",
+                                           "name": "Test Mod",
+                                           "author": "Test Author",
+                                           "version": "1.0.0",
+                                           "targets": [
+                                             {
+                                               "file": "sharedassets0.assets",
+                                               "patches": [
+                                                 {
+                                                   "type": "Camera",
+                                                   "match": { "m_Name": "Main" }
+                                                 }
+                                               ]
+                                             }
+                                           ]
+                                         }
+                                         """;
+
     private readonly string _temporaryDirectory = Path.Combine(
         Path.GetTempPath(),
-        $"UnityAssetsPatcher-ManifestReader-{Guid.NewGuid():N}");
+        $"UnityAssetsPatcher-ManifestService-{Guid.NewGuid():N}");
 
-    public ManifestSourceReaderTests()
+    public ModManifestServiceIntegrationTests()
     {
         Directory.CreateDirectory(_temporaryDirectory);
     }
 
     [Fact]
-    public async Task ReadAsync_WhenSourceIsJsonFile_ReturnsFileBytes()
+    public async Task ReadManifestAsync_WhenSourceIsJsonFile_ReturnsManifest()
     {
         string sourcePath = Path.Combine(_temporaryDirectory, "manifest.json");
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
 
-        await File.WriteAllTextAsync(sourcePath, "{\"name\":\"Example\"}", cancellationToken);
+        await File.WriteAllTextAsync(sourcePath, ValidManifest, cancellationToken);
 
-        ManifestSourceReader reader = CreateReader();
+        using ServiceProvider provider = CreateProvider();
+        IModManifestService service = provider.GetRequiredService<IModManifestService>();
+        ModManifest manifest = await service.ReadManifestAsync(sourcePath, cancellationToken);
 
-        OperationResult<byte[]> result = await reader.ReadAsync(sourcePath, cancellationToken);
-
-        var success = Assert.IsType<OperationSucceeded<byte[]>>(result);
-        Assert.Equal("{\"name\":\"Example\"}", Encoding.UTF8.GetString(success.Value));
+        Assert.Equal("Test Mod", manifest.Name);
     }
 
     [Fact]
-    public async Task ReadAsync_WhenSourceIsZipFile_ReturnsNestedManifestBytes()
+    public async Task ReadManifestAsync_WhenSourceIsZipFile_ReturnsNestedManifest()
     {
         string sourcePath = Path.Combine(_temporaryDirectory, "mod.ZIP");
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
@@ -48,27 +66,30 @@ public sealed class ManifestSourceReaderTests : IDisposable
             ZipArchiveEntry entry = archive.CreateEntry("Mod/manifest.json");
             await using Stream output = entry.Open();
 
-            await output.WriteAsync("{}"u8.ToArray(), cancellationToken);
+            await output.WriteAsync(
+                System.Text.Encoding.UTF8.GetBytes(ValidManifest),
+                cancellationToken);
         }
 
-        ManifestSourceReader reader = CreateReader();
+        using ServiceProvider provider = CreateProvider();
+        IModManifestService service = provider.GetRequiredService<IModManifestService>();
+        ModManifest manifest = await service.ReadManifestAsync(sourcePath, cancellationToken);
 
-        OperationResult<byte[]> result = await reader.ReadAsync(sourcePath, cancellationToken);
-
-        var success = Assert.IsType<OperationSucceeded<byte[]>>(result);
-        Assert.Equal("{}", Encoding.UTF8.GetString(success.Value));
+        Assert.Equal("Test Mod", manifest.Name);
     }
 
     [Fact]
-    public async Task ReadAsync_WhenSourceDoesNotExist_ThrowsStandardException()
+    public async Task ReadManifestAsync_WhenSourceDoesNotExist_ThrowsFileOperationException()
     {
         string sourcePath = Path.Combine(_temporaryDirectory, "missing.json");
-        ManifestSourceReader reader = CreateReader();
 
-        FileNotFoundException exception = await Assert.ThrowsAsync<FileNotFoundException>(() =>
-            reader.ReadAsync(sourcePath, TestContext.Current.CancellationToken));
+        using ServiceProvider provider = CreateProvider();
+        IModManifestService service = provider.GetRequiredService<IModManifestService>();
+        FileOperationException exception = await Assert.ThrowsAsync<FileOperationException>(() =>
+            service.ReadManifestAsync(sourcePath, TestContext.Current.CancellationToken));
 
-        Assert.Equal(sourcePath, exception.FileName);
+        Assert.Equal(FileErrorCodes.NotFound.Value, exception.Code);
+        Assert.Equal(sourcePath, exception.Parameters["path"]);
     }
 
     public void Dispose()
@@ -76,14 +97,13 @@ public sealed class ManifestSourceReaderTests : IDisposable
         Directory.Delete(_temporaryDirectory, recursive: true);
     }
 
-    private static ManifestSourceReader CreateReader()
+    private static ServiceProvider CreateProvider()
     {
-        var fileSystemOperations = new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
-        var archiveFactory = new ModPackageArchiveFactory(
-            fileSystemOperations,
-            NullLogger<ModPackageArchiveFactory>.Instance);
-        var archiveService = new ModPackageArchiveService(archiveFactory, fileSystemOperations);
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddUnityAssetsPatcherPackageHandling();
+        services.AddUnityAssetsPatcherApplication();
 
-        return new ManifestSourceReader(archiveService, fileSystemOperations);
+        return services.BuildServiceProvider();
     }
 }

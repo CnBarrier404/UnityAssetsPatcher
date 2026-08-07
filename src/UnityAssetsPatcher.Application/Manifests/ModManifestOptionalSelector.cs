@@ -2,7 +2,7 @@ using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 
-public sealed record ModManifestSelection
+internal sealed record ModManifestSelection
 {
     public ModManifest Manifest { get; }
     public IReadOnlyList<string> AppliedOptionalGroups { get; }
@@ -25,7 +25,7 @@ public sealed record ModManifestSelection
     }
 }
 
-public static class ModManifestOptionalSelector
+internal static class ModManifestOptionalSelector
 {
     public static OperationResult<ModManifestSelection> Select(
         ModManifest manifest,

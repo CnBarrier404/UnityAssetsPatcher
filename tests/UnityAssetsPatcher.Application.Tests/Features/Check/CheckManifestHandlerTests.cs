@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Tests.Manifests;
 using Xunit;
 
 namespace UnityAssetsPatcher.Application.Tests.Features.Check;
@@ -52,16 +53,23 @@ public sealed class CheckManifestHandlerTests
 
     private static ModManifest CreateManifest()
     {
-        return new ModManifest(
-            "https://uap.cnbarrier.com/schema-v1.json",
-            "Test Mod",
-            "Test Author",
-            "1.0.0",
-            null,
-            null,
-            [],
-            [],
-            []);
+        using var host = ManifestServiceTestHost.FromText(
+            """
+            {
+              "$schema": "https://uap.cnbarrier.com/schema-v1.json",
+              "name": "Test Mod",
+              "author": "Test Author",
+              "version": "1.0.0",
+              "targets": [
+                {
+                  "file": "sharedassets0.assets",
+                  "patches": [ { "type": "Camera", "match": { "m_Name": "Main" } } ]
+                }
+              ]
+            }
+            """);
+
+        return host.Read();
     }
 
     private sealed class StubManifestService : IModManifestService

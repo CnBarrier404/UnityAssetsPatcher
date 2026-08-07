@@ -1,8 +1,8 @@
 using System.Text;
+using UnityAssetsPatcher.Application.Failures;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Domain.Integrity;
 using Xunit;
 
 namespace UnityAssetsPatcher.Application.Tests.Manifests;
@@ -30,163 +30,71 @@ public sealed class ModManifestServiceTests
                                          """;
 
     [Fact]
-    public async Task ReadManifestAsync_WhenManifestIsValid_ReturnsManifest()
+    public void ReadManifestAsync_WhenManifestIsValid_ReturnsManifest()
     {
-        var fileSystem = new StubFileSystemOperations(_ => StreamFrom(ValidManifest));
-        ModManifestService service = CreateService(fileSystem);
+        using ManifestServiceTestHost host = ManifestServiceTestHost.FromText(ValidManifest);
 
-        ModManifest manifest = await service.ReadManifestAsync(
-            "manifest.json",
-            TestContext.Current.CancellationToken);
+        ModManifest manifest = host.Read();
 
         Assert.Equal("Test Mod", manifest.Name);
         Assert.Equal("1.0.0", manifest.Version);
     }
 
     [Fact]
-    public async Task ReadManifestAsync_WhenManifestIsInvalid_ThrowsManifestException()
+    public void ReadManifestAsync_WhenManifestIsInvalid_ThrowsManifestException()
     {
-        var fileSystem = new StubFileSystemOperations(_ => StreamFrom("{}"));
-        ModManifestService service = CreateService(fileSystem);
+        using ManifestServiceTestHost host = ManifestServiceTestHost.FromText("{}");
 
-        ManifestException exception = await Assert.ThrowsAsync<ManifestException>(() =>
-            service.ReadManifestAsync(
-                "manifest.json",
-                TestContext.Current.CancellationToken));
+        ManifestException exception = Assert.Throws<ManifestException>(() => host.Read());
 
         Assert.Equal(ManifestErrorCodes.MissingProperty.Value, exception.Code);
     }
 
     [Fact]
-    public async Task ReadManifestAsync_WhenSourceDoesNotExist_ThrowsFileOperationException()
+    public void ReadManifestAsync_WhenSourceDoesNotExist_ThrowsFileOperationException()
     {
-        var fileSystem = new StubFileSystemOperations(path => throw new FileNotFoundException(null, path));
-        ModManifestService service = CreateService(fileSystem);
+        using ManifestServiceTestHost host =
+            ManifestServiceTestHost.Create(path => throw new FileNotFoundException(null, path));
 
-        FileOperationException exception = await Assert.ThrowsAsync<FileOperationException>(() =>
-            service.ReadManifestAsync(
-                "missing.json",
-                TestContext.Current.CancellationToken));
+        FileOperationException exception = Assert.Throws<FileOperationException>(() =>
+            host.Read("missing.json"));
 
         Assert.Equal(FileErrorCodes.NotFound.Value, exception.Code);
         Assert.Equal("missing.json", exception.Parameters["path"]);
     }
 
     [Fact]
-    public async Task ReadManifestAsync_WhenPackageIsInvalid_ThrowsPackageException()
+    public void ReadManifestAsync_WhenPackageIsInvalid_ThrowsPackageException()
     {
-        var fileSystem = new StubFileSystemOperations(_ => StreamFrom(string.Empty));
-        var archiveFactory = new StubModPackageArchiveFactory(_ =>
-            throw new InvalidDataException("Invalid test archive."));
-        ModManifestService service = CreateService(fileSystem, archiveFactory);
+        using ManifestServiceTestHost host = ManifestServiceTestHost.Create(
+            _ => new MemoryStream(),
+            _ => throw new InvalidDataException("Invalid test archive."));
 
-        PackageException exception = await Assert.ThrowsAsync<PackageException>(() =>
-            service.ReadManifestAsync(
-                "mod.zip",
-                TestContext.Current.CancellationToken));
+        PackageException exception = Assert.Throws<PackageException>(() => host.Read("mod.zip"));
 
         Assert.Equal(ModPackageErrorCodes.InvalidArchive.Value, exception.Code);
         Assert.Equal("mod.zip", exception.Parameters["package_path"]);
     }
 
     [Fact]
-    public async Task ReadManifestAsync_WhenDependencyFaults_RethrowsUnexpectedException()
+    public void ReadManifestAsync_WhenDependencyFaults_RethrowsUnexpectedException()
     {
-        var fileSystem = new StubFileSystemOperations(_ => throw new InvalidOperationException("Test fault."));
-        ModManifestService service = CreateService(fileSystem);
+        using ManifestServiceTestHost host =
+            ManifestServiceTestHost.Create(_ => throw new InvalidOperationException("Test fault."));
 
-        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.ReadManifestAsync(
-                "manifest.json",
-                TestContext.Current.CancellationToken));
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => host.Read());
 
         Assert.Equal("Test fault.", exception.Message);
     }
 
-    private static ModManifestService CreateService(
-        IFileSystemOperations fileSystemOperations,
-        IModPackageArchiveFactory? archiveFactory = null)
+    [Fact]
+    public void ReadManifestAsync_WhenSourceContainsUtf8ByteOrderMark_ReturnsManifest()
     {
-        archiveFactory ??= new StubModPackageArchiveFactory(_ =>
-            throw new InvalidOperationException("The archive factory should not be called."));
-        var archiveService = new ModPackageArchiveService(archiveFactory, fileSystemOperations);
-        var sourceReader = new ManifestSourceReader(archiveService, fileSystemOperations);
+        byte[] bytes = [0xef, 0xbb, 0xbf, .. Encoding.UTF8.GetBytes(ValidManifest)];
+        using ManifestServiceTestHost host = ManifestServiceTestHost.FromBytes(bytes);
 
-        return new ModManifestService(sourceReader);
-    }
+        ModManifest manifest = host.Read();
 
-    private static Stream StreamFrom(string value)
-    {
-        return new MemoryStream(Encoding.UTF8.GetBytes(value));
-    }
-
-    private sealed class StubFileSystemOperations : IFileSystemOperations
-    {
-        private readonly Func<string, Stream> _openRead;
-
-        public StubFileSystemOperations(Func<string, Stream> openRead)
-        {
-            _openRead = openRead;
-        }
-
-        public Stream OpenRead(string path)
-        {
-            return _openRead(path);
-        }
-
-        public FileIntegrity ComputeFileIntegrity(string path)
-        {
-            throw new NotSupportedException();
-        }
-
-        public FileAttributes GetAttributes(string path)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void WriteFileAtomically(string destinationPath, FileDestinationMode mode, Action<Stream> writer)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void CopyFileAtomically(string sourcePath, string destinationPath, FileDestinationMode mode)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void DeleteFile(string path)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void EnsureDirectory(string path)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void MoveDirectory(string sourcePath, string destinationPath)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void DeleteDirectoryTree(string path)
-        {
-            throw new NotSupportedException();
-        }
-    }
-
-    private sealed class StubModPackageArchiveFactory : IModPackageArchiveFactory
-    {
-        private readonly Func<string, IModPackageArchive> _openRead;
-
-        public StubModPackageArchiveFactory(Func<string, IModPackageArchive> openRead)
-        {
-            _openRead = openRead;
-        }
-
-        public IModPackageArchive OpenRead(string packagePath)
-        {
-            return _openRead(packagePath);
-        }
+        Assert.Equal("Test Mod", manifest.Name);
     }
 }

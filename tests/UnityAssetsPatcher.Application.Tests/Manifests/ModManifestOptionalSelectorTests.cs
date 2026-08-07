@@ -1,5 +1,8 @@
-using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Operations;
+using System.Text;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Packages;
+using UnityAssetsPatcher.Domain.Integrity;
 using Xunit;
 
 namespace UnityAssetsPatcher.Application.Tests.Manifests;
@@ -39,46 +42,40 @@ public sealed class ModManifestOptionalSelectorTests
         """;
 
     [Fact]
-    public void Select_WhenNoGroupIsSelected_ReturnsRequiredContentOnly()
+    public void Open_WhenNoGroupIsSelected_ReturnsRequiredContentOnly()
     {
-        ModManifest manifest = ParseManifest(ManifestJson);
+        using ModPackage package = OpenPackage(ManifestJson, []);
 
-        ModManifestSelection selection = SelectSuccess(manifest, []);
-
-        Assert.Single(selection.Manifest.Files);
-        Assert.Single(selection.Manifest.Patches);
-        Assert.Empty(selection.Manifest.OptionalGroups);
-        Assert.Empty(selection.AppliedOptionalGroups);
+        Assert.Single(package.Manifest.Files);
+        Assert.Single(package.Manifest.Patches);
+        Assert.Empty(package.Manifest.OptionalGroups);
+        Assert.Empty(package.AppliedOptionalGroups);
     }
 
     [Fact]
-    public void Select_WhenGroupUsesDifferentCase_MergesContentAndReportsCanonicalName()
+    public void Open_WhenGroupUsesDifferentCase_MergesContentAndReportsCanonicalName()
     {
-        ModManifest manifest = ParseManifest(ManifestJson);
+        using ModPackage package = OpenPackage(ManifestJson, ["bonus CAMERA"]);
 
-        ModManifestSelection selection = SelectSuccess(manifest, ["bonus CAMERA"]);
-
-        Assert.Equal(2, selection.Manifest.Patches.Count);
-        Assert.Contains(selection.Manifest.Patches, patch => patch.AssetsFileName == "sharedassets1.assets");
-        Assert.Equal(["Bonus camera"], selection.AppliedOptionalGroups);
+        Assert.Equal(2, package.Manifest.Patches.Count);
+        Assert.Contains(package.Manifest.Patches, patch => patch.AssetsFileName == "sharedassets1.assets");
+        Assert.Equal(["Bonus camera"], package.AppliedOptionalGroups);
     }
 
     [Fact]
-    public void Select_WhenUnknownGroupIsSelected_ReturnsStructuredFailure()
+    public void Open_WhenUnknownGroupIsSelected_ThrowsOperationFailure()
     {
-        ModManifest manifest = ParseManifest(ManifestJson);
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            OpenPackage(ManifestJson, ["Missing"]));
 
-        OperationResult<ModManifestSelection> result = ModManifestOptionalSelector.Select(manifest, ["Missing"]);
-        var failure = Assert.IsType<OperationFailed<ModManifestSelection>>(result);
-
-        Assert.Equal(ManifestErrorCodes.UnknownOptionalGroup, failure.Error.Code);
-        Assert.Equal("Missing", failure.Error.Parameters["name"]);
+        Assert.Contains("manifest.unknown_optional_group", exception.Message);
+        Assert.Contains("name=Missing", exception.Message);
     }
 
     [Fact]
-    public void Select_WhenMergedPayloadFileNamesCollideIgnoringCase_ReturnsStructuredFailure()
+    public void Open_WhenMergedPayloadFileNamesCollideIgnoringCase_ThrowsOperationFailure()
     {
-        ModManifest manifest = ParseManifest(
+        const string manifest =
             """
             {
               "$schema": "https://uap.cnbarrier.com/schema-v1.json",
@@ -99,39 +96,125 @@ public sealed class ModManifestOptionalSelectorTests
                 }
               ]
             }
-            """);
+            """;
 
-        OperationResult<ModManifestSelection> result = ModManifestOptionalSelector.Select(manifest, ["Payload"]);
-        var failure = Assert.IsType<OperationFailed<ModManifestSelection>>(result);
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            OpenPackage(manifest, ["Payload"]));
 
-        Assert.Equal(ManifestErrorCodes.PayloadConflict, failure.Error.Code);
-        Assert.Equal("PAYLOAD.RESOURCE", failure.Error.Parameters["file_name"]);
+        Assert.Contains("manifest.payload_conflict", exception.Message);
+        Assert.Contains("file_name=PAYLOAD.RESOURCE", exception.Message);
     }
 
     [Fact]
-    public void Select_WhenPatchOnlyGroupIsRepeated_PreservesLegacyDuplicateMerge()
+    public void Open_WhenPatchOnlyGroupIsRepeated_PreservesLegacyDuplicateMerge()
     {
-        ModManifest manifest = ParseManifest(ManifestJson);
+        using ModPackage package = OpenPackage(ManifestJson, ["Bonus camera", "BONUS CAMERA"]);
 
-        ModManifestSelection selection = SelectSuccess(manifest, ["Bonus camera", "BONUS CAMERA"]);
-
-        Assert.Equal(3, selection.Manifest.Patches.Count);
-        Assert.Equal(["Bonus camera"], selection.AppliedOptionalGroups);
+        Assert.Equal(3, package.Manifest.Patches.Count);
+        Assert.Equal(["Bonus camera"], package.AppliedOptionalGroups);
     }
 
-    private static ModManifest ParseManifest(string json)
+    private static ModPackage OpenPackage(string manifest, IReadOnlyList<string> selectedNames)
     {
-        OperationResult<ModManifest> result = ModManifestParser.Parse(json);
-        var success = Assert.IsType<OperationSucceeded<ModManifest>>(result);
+        byte[] manifestBytes = Encoding.UTF8.GetBytes(manifest);
+        var fileSystemOperations = new StubFileSystemOperations();
+        var archiveService = new ModPackageArchiveService(
+            new StubModPackageArchiveFactory(manifestBytes),
+            fileSystemOperations);
 
-        return success.Value;
+        return ModPackage.Open(
+            "mod.zip",
+            selectedNames,
+            archiveService,
+            fileSystemOperations,
+            new StepTimer());
     }
 
-    private static ModManifestSelection SelectSuccess(ModManifest manifest, IReadOnlyList<string> selectedNames)
+    private sealed class StubModPackageArchiveFactory : IModPackageArchiveFactory
     {
-        OperationResult<ModManifestSelection> result = ModManifestOptionalSelector.Select(manifest, selectedNames);
-        var success = Assert.IsType<OperationSucceeded<ModManifestSelection>>(result);
+        private readonly byte[] _manifest;
 
-        return success.Value;
+        public StubModPackageArchiveFactory(byte[] manifest)
+        {
+            _manifest = manifest;
+        }
+
+        public IModPackageArchive OpenRead(string packagePath)
+        {
+            return new StubModPackageArchive(packagePath, _manifest);
+        }
+    }
+
+    private sealed class StubModPackageArchive : IModPackageArchive
+    {
+        private readonly byte[] _manifest;
+
+        public string PackagePath { get; }
+
+        public IReadOnlyList<PackageEntryInfo> Entries { get; }
+
+        public StubModPackageArchive(string packagePath, byte[] manifest)
+        {
+            PackagePath = packagePath;
+            _manifest = manifest;
+            Entries = [new PackageEntryInfo(new PackageEntryId(1), "manifest.json", manifest.Length, false)];
+        }
+
+        public Stream OpenEntry(PackageEntryId entryId)
+        {
+            return entryId.Value == 1
+                ? new MemoryStream(_manifest, writable: false)
+                : throw new InvalidOperationException($"Unknown archive entry: {entryId.Value}.");
+        }
+
+        public void Dispose() { }
+    }
+
+    private sealed class StubFileSystemOperations : IFileSystemOperations
+    {
+        public Stream OpenRead(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public FileIntegrity ComputeFileIntegrity(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public FileAttributes GetAttributes(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void WriteFileAtomically(string destinationPath, FileDestinationMode mode, Action<Stream> writer)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void CopyFileAtomically(string sourcePath, string destinationPath, FileDestinationMode mode)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void DeleteFile(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void EnsureDirectory(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void MoveDirectory(string sourcePath, string destinationPath)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void DeleteDirectoryTree(string path)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

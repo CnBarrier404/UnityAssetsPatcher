@@ -15,7 +15,7 @@ public sealed record ModManifest
     public IReadOnlyList<ModPatch> Patches { get; }
     public IReadOnlyList<ModOptionalGroup> OptionalGroups { get; }
 
-    public ModManifest(
+    internal ModManifest(
         string schema,
         string name,
         string author,
@@ -50,7 +50,7 @@ public sealed record ModOptionalGroup
     public IReadOnlyList<ModFile> Files { get; }
     public IReadOnlyList<ModPatch> Patches { get; }
 
-    public ModOptionalGroup(
+    internal ModOptionalGroup(
         string name,
         string? description,
         IEnumerable<ModFile?> files,
@@ -69,7 +69,7 @@ public sealed record ModFile
 {
     public string Source { get; }
 
-    public ModFile(string source)
+    internal ModFile(string source)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(source);
 
@@ -88,7 +88,7 @@ public sealed record ModPatch
     public string? ComponentTypeName { get; }
     public ModCopyAsset? CopyAsset { get; }
 
-    public ModPatch(
+    internal ModPatch(
         string assetsFileName,
         string assetTypeName,
         IReadOnlyDictionary<string, JsonElement> match,
@@ -119,7 +119,7 @@ public sealed record ModSetOperation
     public JsonElement From { get; }
     public JsonElement To { get; }
 
-    public ModSetOperation(string fieldPath, JsonElement from, JsonElement to)
+    internal ModSetOperation(string fieldPath, JsonElement from, JsonElement to)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fieldPath);
 
@@ -134,7 +134,7 @@ public sealed record ModAddOperation
     public string FieldPath { get; }
     public JsonElement Value { get; }
 
-    public ModAddOperation(string fieldPath, JsonElement value)
+    internal ModAddOperation(string fieldPath, JsonElement value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fieldPath);
 
@@ -148,7 +148,7 @@ public sealed record ModReplaceAsset
     public string SourceAssetsFile { get; }
     public string MatchFieldPath { get; }
 
-    public ModReplaceAsset(string sourceAssetsFile, string matchFieldPath)
+    internal ModReplaceAsset(string sourceAssetsFile, string matchFieldPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceAssetsFile);
         ArgumentException.ThrowIfNullOrWhiteSpace(matchFieldPath);
@@ -163,7 +163,7 @@ public sealed record ModCopyAsset
     public string AssetTypeName { get; }
     public IReadOnlyDictionary<string, JsonElement> Match { get; }
 
-    public ModCopyAsset(string assetTypeName, IReadOnlyDictionary<string, JsonElement> match)
+    internal ModCopyAsset(string assetTypeName, IReadOnlyDictionary<string, JsonElement> match)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(assetTypeName);
         ArgumentNullException.ThrowIfNull(match);

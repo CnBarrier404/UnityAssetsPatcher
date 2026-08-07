@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 
-public static class ModManifestParser
+internal static class ModManifestParser
 {
     public static OperationResult<ModManifest> Parse(string json)
     {

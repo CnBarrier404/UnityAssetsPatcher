@@ -1,12 +1,7 @@
 using System.IO.Compression;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Application.Features.Check;
-using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Messaging;
-using UnityAssetsPatcher.Application.Packages;
-using UnityAssetsPatcher.Infrastructure.IO;
-using UnityAssetsPatcher.Infrastructure.Packages;
+using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Infrastructure;
 using Xunit;
 
 namespace UnityAssetsPatcher.CLI.Tests;
@@ -156,17 +151,10 @@ public sealed class CLIApplicationTests : IDisposable
 
     private (CLIApplication Application, StringWriter Output, StringWriter Error) CreateApplication()
     {
-        var fileSystem = new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
-        var archiveFactory = new ModPackageArchiveFactory(
-            fileSystem,
-            NullLogger<ModPackageArchiveFactory>.Instance);
-        var archiveService = new ModPackageArchiveService(archiveFactory, fileSystem);
-        var sourceReader = new ManifestSourceReader(archiveService, fileSystem);
-        var manifestService = new ModManifestService(sourceReader);
-        var handler = new CheckManifestHandler(manifestService);
         var services = new ServiceCollection();
-        services.AddScoped<IRequestDispatcher, RequestDispatcher>();
-        services.AddScoped<IRequestHandler<CheckManifestRequest, CheckManifestResult>>(_ => handler);
+        services.AddLogging();
+        services.AddUnityAssetsPatcherPackageHandling();
+        services.AddUnityAssetsPatcherApplication();
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateScopes = true,

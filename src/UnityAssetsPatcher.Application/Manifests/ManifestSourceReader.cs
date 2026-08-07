@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Application.Packages;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 
-public sealed class ManifestSourceReader
+internal sealed class ManifestSourceReader
 {
     private readonly ModPackageArchiveService _archiveService;
     private readonly IFileSystemOperations _fileSystemOperations;

@@ -5,7 +5,7 @@ using UnityAssetsPatcher.Application.Packages;
 
 namespace UnityAssetsPatcher.Application.Manifests;
 
-public sealed class ModManifestService : IModManifestService
+internal sealed class ModManifestService : IModManifestService
 {
     private readonly ManifestSourceReader _sourceReader;
 

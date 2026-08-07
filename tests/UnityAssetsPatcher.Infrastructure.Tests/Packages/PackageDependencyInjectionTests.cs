@@ -29,7 +29,6 @@ public sealed class PackageDependencyInjectionTests
 
         ModPackageArchiveService archiveService = provider.GetRequiredService<ModPackageArchiveService>();
 
-        ManifestSourceReader sourceReader = provider.GetRequiredService<ManifestSourceReader>();
         IModManifestService manifestService = provider.GetRequiredService<IModManifestService>();
 
         using IServiceScope scope = provider.CreateScope();
@@ -38,7 +37,6 @@ public sealed class PackageDependencyInjectionTests
                 IRequestHandler<CheckManifestRequest, CheckManifestResult>>();
 
         Assert.NotNull(archiveService);
-        Assert.NotNull(sourceReader);
         Assert.NotNull(manifestService);
         Assert.NotNull(checkHandler);
     }

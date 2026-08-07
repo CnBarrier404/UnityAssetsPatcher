@@ -118,10 +118,11 @@ public sealed class ModManifestParserTests
     public void Parse_WhenUtf8JsonHasByteOrderMark_ReturnsManifest()
     {
         byte[] json = [0xef, 0xbb, 0xbf, .. System.Text.Encoding.UTF8.GetBytes(CreateManifest("{}"))];
-        OperationResult<ModManifest> result = ModManifestParser.Parse(json);
+        using ManifestServiceTestHost host = ManifestServiceTestHost.FromBytes(json);
 
-        var success = Assert.IsType<OperationSucceeded<ModManifest>>(result);
-        Assert.Equal("Test Mod", success.Value.Name);
+        ModManifest manifest = host.Read();
+
+        Assert.Equal("Test Mod", manifest.Name);
     }
 
     [Theory]
@@ -684,17 +685,16 @@ public sealed class ModManifestParserTests
 
     private static ModManifest ParseSuccess(string json)
     {
-        OperationResult<ModManifest> result = ModManifestParser.Parse(json);
-        var success = Assert.IsType<OperationSucceeded<ModManifest>>(result);
+        using ManifestServiceTestHost host = ManifestServiceTestHost.FromText(json);
 
-        return success.Value;
+        return host.Read();
     }
 
     private static OperationError ParseFailure(string json)
     {
-        OperationResult<ModManifest> result = ModManifestParser.Parse(json);
-        var failure = Assert.IsType<OperationFailed<ModManifest>>(result);
+        using ManifestServiceTestHost host = ManifestServiceTestHost.FromText(json);
+        ManifestException exception = Assert.Throws<ManifestException>(() => host.Read());
 
-        return failure.Error;
+        return new OperationError(new OperationErrorCode(exception.Code), exception.Parameters);
     }
 }
