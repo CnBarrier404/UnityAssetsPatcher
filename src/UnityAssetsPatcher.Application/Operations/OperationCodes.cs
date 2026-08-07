@@ -17,23 +17,6 @@ public sealed record OperationErrorCode
     }
 }
 
-public sealed record OperationAdviceCode
-{
-    public string Value { get; }
-
-    public OperationAdviceCode(string value)
-    {
-        OperationCodeValidator.Validate(value, nameof(value));
-
-        Value = value;
-    }
-
-    public override string ToString()
-    {
-        return Value;
-    }
-}
-
 internal static class OperationCodeValidator
 {
     public static void Validate(string value, string parameterName)

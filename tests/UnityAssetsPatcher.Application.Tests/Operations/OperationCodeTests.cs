@@ -16,17 +16,6 @@ public sealed class OperationCodeTests
         Assert.Equal("mod_package.empty", first.ToString());
     }
 
-    [Fact]
-    public void OperationAdviceCode_WhenValuesMatch_HasValueEquality()
-    {
-        var first = new OperationAdviceCode("recovery.run_now");
-        var second = new OperationAdviceCode("recovery.run_now");
-
-        Assert.Equal(first, second);
-        Assert.Equal("recovery.run_now", first.Value);
-        Assert.Equal("recovery.run_now", first.ToString());
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData("empty")]
@@ -45,14 +34,6 @@ public sealed class OperationCodeTests
     public void OperationError_WhenCodeIsNull_ThrowsArgumentNullException()
     {
         ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new OperationError(null!));
-
-        Assert.Equal("code", exception.ParamName);
-    }
-
-    [Fact]
-    public void OperationAdvice_WhenCodeIsNull_ThrowsArgumentNullException()
-    {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new OperationAdvice(null!));
 
         Assert.Equal("code", exception.ParamName);
     }

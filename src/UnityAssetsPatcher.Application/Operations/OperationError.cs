@@ -9,21 +9,17 @@ public sealed record OperationError
 
     public IReadOnlyDictionary<string, object?> Parameters { get; }
 
-    public IReadOnlyList<OperationAdvice> Advice { get; }
-
     public RepositoryRecoveryReport? Recovery { get; }
 
     public OperationError(
         OperationErrorCode code,
         IReadOnlyDictionary<string, object?>? parameters = null,
-        IReadOnlyList<OperationAdvice>? advice = null,
         RepositoryRecoveryReport? recovery = null)
     {
         ArgumentNullException.ThrowIfNull(code);
 
         Code = code;
         Parameters = CopyParameters(parameters);
-        Advice = CopyAdvice(advice);
         Recovery = recovery;
     }
 
@@ -43,19 +39,5 @@ public sealed record OperationError
         }
 
         return new ReadOnlyDictionary<string, object?>(copy);
-    }
-
-    private static ReadOnlyCollection<OperationAdvice> CopyAdvice(IReadOnlyList<OperationAdvice>? advice)
-    {
-        if (advice is null || advice.Count == 0)
-        {
-            return [];
-        }
-
-        IEnumerable<object?> nullableAdvice = advice;
-
-        return nullableAdvice.Any(item => item is null)
-            ? throw new ArgumentException("Advice cannot contain null elements.", nameof(advice))
-            : Array.AsReadOnly([.. advice]);
     }
 }
