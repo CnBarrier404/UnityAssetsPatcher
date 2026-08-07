@@ -6,14 +6,14 @@ namespace UnityAssetsPatcher.Application.Manifests;
 
 internal static class ModManifestParser
 {
-    public static OperationResult<ModManifest> Parse(string json)
+    public static ModManifest Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
 
         return Parse(Encoding.UTF8.GetBytes(json));
     }
 
-    public static OperationResult<ModManifest> Parse(ReadOnlySpan<byte> utf8Json)
+    public static ModManifest Parse(ReadOnlySpan<byte> utf8Json)
     {
         if (utf8Json is [0xef, 0xbb, 0xbf, ..])
         {
@@ -28,7 +28,7 @@ internal static class ModManifestParser
 
             if (schemaError is not null)
             {
-                return new OperationFailed<ModManifest>(schemaError);
+                throw Failure(schemaError);
             }
 
             ManifestDocumentDto? document = root.Deserialize(
@@ -36,27 +36,32 @@ internal static class ModManifestParser
 
             if (document is null)
             {
-                return InvalidJson();
+                throw InvalidJson();
             }
 
             OperationError? semanticError = ManifestSemanticValidator.Validate(document);
 
             if (semanticError is not null)
             {
-                return new OperationFailed<ModManifest>(semanticError);
+                throw Failure(semanticError);
             }
 
             ModManifest manifest = ModManifestMapper.Map(document);
 
-            return new OperationSucceeded<ModManifest>(manifest);
+            return manifest;
         }
         catch (JsonException exception)
         {
-            return InvalidJson(exception);
+            throw InvalidJson(exception);
         }
     }
 
-    private static OperationFailed<ModManifest> InvalidJson(JsonException? exception = null)
+    private static ManifestException Failure(OperationError error)
+    {
+        return new ManifestException(error.Code.Value, error.Parameters);
+    }
+
+    private static ManifestException InvalidJson(JsonException? exception = null)
     {
         var parameters = new Dictionary<string, object?>(StringComparer.Ordinal);
 
@@ -70,6 +75,6 @@ internal static class ModManifestParser
             parameters.Add("byte_position", bytePosition);
         }
 
-        return new OperationFailed<ModManifest>(new OperationError(ManifestErrorCodes.InvalidJson, parameters));
+        return new ManifestException(ManifestErrorCodes.InvalidJson.Value, parameters, exception);
     }
 }

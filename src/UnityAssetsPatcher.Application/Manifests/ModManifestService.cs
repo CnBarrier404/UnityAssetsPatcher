@@ -20,13 +20,13 @@ internal sealed class ModManifestService : IModManifestService
         string sourcePath,
         CancellationToken cancellationToken = default)
     {
-        OperationResult<byte[]> readResult;
-
         try
         {
-            readResult = await _sourceReader
+            byte[] manifestBytes = await _sourceReader
                 .ReadAsync(sourcePath, cancellationToken)
                 .ConfigureAwait(false);
+
+            return ModManifestParser.Parse(manifestBytes);
         }
         catch (FileNotFoundException exception)
         {
@@ -48,53 +48,6 @@ internal sealed class ModManifestService : IModManifestService
         {
             throw FileFailure(FileErrorCodes.ReadFailed, sourcePath, exception);
         }
-
-        byte[] manifestBytes = RequireSource(readResult);
-        var parseResult = ModManifestParser.Parse(manifestBytes);
-
-        return RequireManifest(parseResult);
-    }
-
-    private static byte[] RequireSource(OperationResult<byte[]> result)
-    {
-        return result switch
-        {
-            OperationSucceeded<byte[]> succeeded => succeeded.Value,
-            OperationFailed<byte[]> failed => throw ToFailure(failed.Error),
-            _ => throw new InvalidOperationException("The manifest source reader returned an unknown result.")
-        };
-    }
-
-    private static ModManifest RequireManifest(OperationResult<ModManifest> result)
-    {
-        return result switch
-        {
-            OperationSucceeded<ModManifest> succeeded => succeeded.Value,
-            OperationFailed<ModManifest> failed => throw ToFailure(failed.Error),
-            _ => throw new InvalidOperationException("The manifest parser returned an unknown result.")
-        };
-    }
-
-    private static ApplicationFailureException ToFailure(OperationError error)
-    {
-        string code = error.Code.Value;
-
-        if (code.StartsWith("file.", StringComparison.Ordinal))
-        {
-            return new FileOperationException(code, error.Parameters);
-        }
-
-        if (code.StartsWith("mod_package.", StringComparison.Ordinal))
-        {
-            return new PackageException(code, error.Parameters);
-        }
-
-        if (code.StartsWith("manifest.", StringComparison.Ordinal))
-        {
-            return new ManifestException(code, error.Parameters);
-        }
-
-        throw new InvalidOperationException($"The manifest operation returned an unsupported error code: {code}.");
     }
 
     private static FileOperationException FileFailure(

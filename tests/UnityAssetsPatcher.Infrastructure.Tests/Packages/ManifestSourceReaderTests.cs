@@ -4,6 +4,7 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Failures;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Infrastructure;
 using Xunit;
 
@@ -76,6 +77,29 @@ public sealed class ModManifestServiceIntegrationTests : IDisposable
         ModManifest manifest = await service.ReadManifestAsync(sourcePath, cancellationToken);
 
         Assert.Equal("Test Mod", manifest.Name);
+    }
+
+    [Fact]
+    public async Task ReadManifestAsync_WhenZipManifestIsMissing_ThrowsPackageException()
+    {
+        string sourcePath = Path.Combine(_temporaryDirectory, "missing-manifest.zip");
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
+        using (ZipArchive archive = ZipFile.Open(sourcePath, ZipArchiveMode.Create))
+        {
+            ZipArchiveEntry entry = archive.CreateEntry("payload.bin");
+            await using Stream output = entry.Open();
+            byte[] payload = [1, 2, 3];
+            await output.WriteAsync(payload, cancellationToken);
+        }
+
+        using ServiceProvider provider = CreateProvider();
+        IModManifestService service = provider.GetRequiredService<IModManifestService>();
+        PackageException exception = await Assert.ThrowsAsync<PackageException>(() =>
+            service.ReadManifestAsync(sourcePath, cancellationToken));
+
+        Assert.Equal(ModPackageErrorCodes.ManifestMissing.Value, exception.Code);
+        Assert.Equal(sourcePath, exception.Parameters["package_path"]);
     }
 
     [Fact]

@@ -58,7 +58,7 @@ public sealed class ModPackage : IDisposable
                 () =>
                 {
                     byte[] manifestBytes = RequireResult(archiveSession.ReadManifest());
-                    ModManifest manifest = RequireResult(ModManifestParser.Parse(manifestBytes));
+                    ModManifest manifest = ModManifestParser.Parse(manifestBytes);
                     ModManifestSelection selected = RequireResult(
                         ModManifestOptionalSelector.Select(manifest, selectedOptionalGroups));
 

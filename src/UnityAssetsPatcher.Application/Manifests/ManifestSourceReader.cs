@@ -20,14 +20,11 @@ internal sealed class ManifestSourceReader
         _fileSystemOperations = fileSystemOperations;
     }
 
-    public async Task<OperationResult<byte[]>> ReadAsync(
+    public async Task<byte[]> ReadAsync(
         string sourcePath,
         CancellationToken cancellationToken)
     {
-        if (!TryGetFullPath(sourcePath, out string fullSourcePath))
-        {
-            return Failure(FileErrorCodes.InvalidPath, sourcePath);
-        }
+        string fullSourcePath = GetFullPath(sourcePath);
 
         if (Path.GetExtension(fullSourcePath).Equals(".zip", StringComparison.OrdinalIgnoreCase))
         {
@@ -39,61 +36,68 @@ internal sealed class ManifestSourceReader
 
         await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
 
-        return new OperationSucceeded<byte[]>(output.ToArray());
+        return output.ToArray();
     }
 
-    private async Task<OperationResult<byte[]>> ReadPackageAsync(
+    private async Task<byte[]> ReadPackageAsync(
         string packagePath,
         CancellationToken cancellationToken)
     {
         OperationResult<ModPackageArchiveSession> openResult = _archiveService.OpenRead(packagePath);
 
-        if (openResult is OperationFailed<ModPackageArchiveSession> failure)
-        {
-            return new OperationFailed<byte[]>(failure.Error);
-        }
+        using ModPackageArchiveSession session = RequirePackageResult(openResult);
 
-        using ModPackageArchiveSession session = ((OperationSucceeded<ModPackageArchiveSession>)openResult).Value;
+        OperationResult<byte[]> manifestResult = await session
+            .ReadManifestAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        return await session.ReadManifestAsync(cancellationToken).ConfigureAwait(false);
+        return RequirePackageResult(manifestResult);
     }
 
-    private static bool TryGetFullPath(string sourcePath, out string fullSourcePath)
+    private static string GetFullPath(string sourcePath)
     {
         if (string.IsNullOrWhiteSpace(sourcePath))
         {
-            fullSourcePath = sourcePath;
-
-            return false;
+            throw InvalidPath(sourcePath);
         }
 
         try
         {
-            fullSourcePath = Path.GetFullPath(sourcePath);
-
-            return true;
+            return Path.GetFullPath(sourcePath);
         }
-        catch (ArgumentException)
+        catch (ArgumentException exception)
         {
-            fullSourcePath = sourcePath;
-
-            return false;
+            throw InvalidPath(sourcePath, exception);
         }
-        catch (NotSupportedException)
+        catch (NotSupportedException exception)
         {
-            fullSourcePath = sourcePath;
-
-            return false;
+            throw InvalidPath(sourcePath, exception);
         }
     }
 
-    private static OperationFailed<byte[]> Failure(OperationErrorCode code, string? sourcePath)
+    private static T RequirePackageResult<T>(OperationResult<T> result)
     {
-        return new OperationFailed<byte[]>(new OperationError(
-            code,
+        return result switch
+        {
+            OperationSucceeded<T> succeeded => succeeded.Value,
+            OperationFailed<T> failed => throw new PackageException(
+                failed.Error.Code.Value,
+                failed.Error.Parameters),
+            _ => throw new InvalidOperationException(
+                "The package archive operation returned an unknown result."),
+        };
+    }
+
+    private static FileOperationException InvalidPath(
+        string? sourcePath,
+        Exception? innerException = null)
+    {
+        return new FileOperationException(
+            FileErrorCodes.InvalidPath.Value,
             new Dictionary<string, object?>
             {
                 ["path"] = sourcePath,
-            }));
+            },
+            innerException);
     }
 }
