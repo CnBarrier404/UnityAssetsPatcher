@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.IO;
-using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Mods;
+using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Installation;
 

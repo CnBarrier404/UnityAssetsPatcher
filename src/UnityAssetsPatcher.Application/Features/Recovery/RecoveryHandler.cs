@@ -5,7 +5,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Packages;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Repository;
 

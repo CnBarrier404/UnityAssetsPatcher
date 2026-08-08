@@ -1,4 +1,4 @@
-using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Mods;
 
 namespace UnityAssetsPatcher.Application.Patching;
 

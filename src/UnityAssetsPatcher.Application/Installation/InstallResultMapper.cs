@@ -1,4 +1,5 @@
 using UnityAssetsPatcher.Application.Features.Install;
+using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Installation;
 

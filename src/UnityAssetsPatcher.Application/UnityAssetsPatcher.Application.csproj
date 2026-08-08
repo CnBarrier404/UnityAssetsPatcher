@@ -18,8 +18,8 @@
 
     <ItemGroup>
         <EmbeddedResource Include="..\..\schema\schema-v1.json"
-                          Link="Manifests\Schema\schema-v1.json"
-                          LogicalName="UnityAssetsPatcher.Application.Manifests.schema-v1.json"/>
+                          Link="Mods\Schema\schema-v1.json"
+                          LogicalName="UnityAssetsPatcher.Application.Mods.schema-v1.json"/>
     </ItemGroup>
 
 </Project>

@@ -2,7 +2,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Repository;

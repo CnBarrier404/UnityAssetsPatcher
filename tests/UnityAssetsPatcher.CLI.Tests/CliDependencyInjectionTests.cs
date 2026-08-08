@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Infrastructure;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Infrastructure.IO;
 using Xunit;
 
 namespace UnityAssetsPatcher.CLI.Tests;
@@ -14,7 +15,8 @@ public sealed class CliDependencyInjectionTests
 
         services.AddLogging();
 
-        services.AddUnityAssetsPatcherPackageHandling();
+        services.AddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileSystemOperations>>()));
 
         services.AddUnityAssetsPatcherApplication();
 

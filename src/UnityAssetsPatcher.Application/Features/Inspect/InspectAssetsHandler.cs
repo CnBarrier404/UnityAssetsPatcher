@@ -5,7 +5,7 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Packages;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Features.Inspect;

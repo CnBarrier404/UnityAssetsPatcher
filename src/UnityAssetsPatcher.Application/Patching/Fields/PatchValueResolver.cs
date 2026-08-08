@@ -1,5 +1,5 @@
 using System.Text.Json;
-using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Domain.Json;
 
 namespace UnityAssetsPatcher.Application.Patching.Fields;

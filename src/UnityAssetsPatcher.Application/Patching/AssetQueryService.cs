@@ -1,5 +1,5 @@
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Domain.Assets;
 
 namespace UnityAssetsPatcher.Application.Patching;

@@ -11,7 +11,7 @@ using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Repository;

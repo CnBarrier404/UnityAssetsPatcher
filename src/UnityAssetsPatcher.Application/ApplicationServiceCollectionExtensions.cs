@@ -10,10 +10,9 @@ using UnityAssetsPatcher.Application.Features.Recovery;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
-using UnityAssetsPatcher.Application.Manifests;
 using UnityAssetsPatcher.Application.Messaging;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Uninstallation;
@@ -30,12 +29,10 @@ public static class ApplicationServiceCollectionExtensions
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            services.AddSingleton<ModPackageArchiveService>();
-            services.AddSingleton<ManifestSourceReader>();
-            services.AddSingleton<IModManifestService, ModManifestService>();
             services.AddScoped<IRequestDispatcher, RequestDispatcher>();
+            services.AddScoped<ModManifestReader>();
             services.AddScoped<
-                IRequestHandler<CheckManifestRequest, CheckManifestResult>,
+                IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>>,
                 CheckManifestHandler>();
 
             return services;

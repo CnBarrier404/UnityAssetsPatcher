@@ -1,49 +1,80 @@
+using System.Text;
 using UnityAssetsPatcher.Application.Features.Check;
-using UnityAssetsPatcher.Application.Manifests;
-using UnityAssetsPatcher.Application.Tests.Manifests;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Mods;
+using UnityAssetsPatcher.Application.Operations;
+using UnityAssetsPatcher.Domain.Integrity;
 using Xunit;
 
 namespace UnityAssetsPatcher.Application.Tests.Features.Check;
 
 public sealed class CheckManifestHandlerTests
 {
-    [Fact]
-    public async Task HandleAsync_WhenManifestServiceSucceeds_ReturnsCheckResult()
-    {
-        ModManifest manifest = CreateManifest();
-        var service = new StubManifestService((_, _) => Task.FromResult(manifest));
-        var handler = new CheckManifestHandler(service);
+    private const string ValidManifest =
+        """
+        {
+          "$schema": "https://uap.cnbarrier.com/schema-v1.json",
+          "name": "Test Mod",
+          "author": "Test Author",
+          "version": "1.0.0",
+          "targets": [
+            {
+              "file": "sharedassets0.assets",
+              "patches": [ { "type": "Camera", "match": { "m_Name": "Main" } } ]
+            }
+          ]
+        }
+        """;
 
-        CheckManifestResult result = await handler.HandleAsync(
+    [Fact]
+    public async Task HandleAsync_WhenManifestIsValid_ReturnsCheckResult()
+    {
+        var fileSystem = new StubFileSystemOperations(_ => OpenText(ValidManifest));
+        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
+
+        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
             TestContext.Current.CancellationToken);
 
-        Assert.Same(manifest, result.Manifest);
+        var success = Assert.IsType<OperationSucceeded<CheckManifestResult>>(result);
+        Assert.Equal("Test Mod", success.Value.Manifest.Name);
     }
 
     [Fact]
-    public async Task HandleAsync_WhenCalled_ForwardsSourcePathAndCancellationToken()
+    public async Task HandleAsync_WhenCalled_OpensNormalizedSourcePath()
     {
-        var service = new StubManifestService((_, _) => Task.FromResult(CreateManifest()));
-        var handler = new CheckManifestHandler(service);
-        using CancellationTokenSource cancellation = new();
+        var fileSystem = new StubFileSystemOperations(_ => OpenText(ValidManifest));
+        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
 
         _ = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
-            cancellation.Token);
+            TestContext.Current.CancellationToken);
 
-        Assert.Equal("manifest.json", service.SourcePath);
-        Assert.Equal(cancellation.Token, service.CancellationToken);
+        Assert.Equal(Path.GetFullPath("manifest.json"), fileSystem.OpenedPath);
     }
 
     [Fact]
-    public async Task HandleAsync_WhenManifestServiceFails_PropagatesFailure()
+    public async Task HandleAsync_WhenManifestIsInvalid_ReturnsManifestFailure()
     {
-        var expected = new ManifestException(ManifestErrorCodes.InvalidJson.Value);
-        var service = new StubManifestService((_, _) => Task.FromException<ModManifest>(expected));
-        var handler = new CheckManifestHandler(service);
+        var fileSystem = new StubFileSystemOperations(_ => OpenText("{}"));
+        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
 
-        ManifestException exception = await Assert.ThrowsAsync<ManifestException>(() =>
+        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+            new CheckManifestRequest("manifest.json"),
+            TestContext.Current.CancellationToken);
+
+        var failure = Assert.IsType<OperationFailed<CheckManifestResult>>(result);
+        Assert.Equal(ManifestErrorCodes.MissingProperty, failure.Error.Code);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenDependencyFaults_PropagatesOriginalException()
+    {
+        var expected = new InvalidOperationException("Test fault.");
+        var fileSystem = new StubFileSystemOperations(_ => throw expected);
+        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.HandleAsync(
                 new CheckManifestRequest("manifest.json"),
                 TestContext.Current.CancellationToken));
@@ -51,48 +82,67 @@ public sealed class CheckManifestHandlerTests
         Assert.Same(expected, exception);
     }
 
-    private static ModManifest CreateManifest()
+    private static MemoryStream OpenText(string text)
     {
-        using var host = ManifestServiceTestHost.FromText(
-            """
-            {
-              "$schema": "https://uap.cnbarrier.com/schema-v1.json",
-              "name": "Test Mod",
-              "author": "Test Author",
-              "version": "1.0.0",
-              "targets": [
-                {
-                  "file": "sharedassets0.assets",
-                  "patches": [ { "type": "Camera", "match": { "m_Name": "Main" } } ]
-                }
-              ]
-            }
-            """);
-
-        return host.Read();
+        return new MemoryStream(Encoding.UTF8.GetBytes(text), writable: false);
     }
 
-    private sealed class StubManifestService : IModManifestService
+    private sealed class StubFileSystemOperations : IFileSystemOperations
     {
-        private readonly Func<string, CancellationToken, Task<ModManifest>> _readManifest;
+        private readonly Func<string, Stream> _openRead;
 
-        public string? SourcePath { get; private set; }
+        public string? OpenedPath { get; private set; }
 
-        public CancellationToken CancellationToken { get; private set; }
-
-        public StubManifestService(Func<string, CancellationToken, Task<ModManifest>> readManifest)
+        public StubFileSystemOperations(Func<string, Stream> openRead)
         {
-            _readManifest = readManifest;
+            _openRead = openRead;
         }
 
-        public Task<ModManifest> ReadManifestAsync(
-            string sourcePath,
-            CancellationToken cancellationToken = default)
+        public Stream OpenRead(string path)
         {
-            SourcePath = sourcePath;
-            CancellationToken = cancellationToken;
+            OpenedPath = path;
 
-            return _readManifest(sourcePath, cancellationToken);
+            return _openRead(path);
+        }
+
+        public FileIntegrity ComputeFileIntegrity(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public FileAttributes GetAttributes(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void WriteFileAtomically(string destinationPath, FileDestinationMode mode, Action<Stream> writer)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void CopyFileAtomically(string sourcePath, string destinationPath, FileDestinationMode mode)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void DeleteFile(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void EnsureDirectory(string path)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void MoveDirectory(string sourcePath, string destinationPath)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void DeleteDirectoryTree(string path)
+        {
+            throw new NotSupportedException();
         }
     }
 }

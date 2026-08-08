@@ -11,6 +11,7 @@ using UnityAssetsPatcher.Application.Features.Recovery;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Assets;
@@ -22,6 +23,21 @@ namespace UnityAssetsPatcher.Infrastructure.Tests.Installation;
 
 public sealed class LayeredInstallTests
 {
+    [Fact]
+    public void Install_WhenManifestJsonIsInvalid_ReturnsStructuredPackageFailure()
+    {
+        using LayeredInstallFixture fixture = new();
+        string packagePath = fixture.CreatePackage("invalid-manifest", Encoding.UTF8.GetBytes("{"));
+
+        OperationResult<InstallModResult> result = fixture.InstallOperation(
+            new InstallRequest(packagePath, fixture.GameDirectory));
+
+        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+
+        Assert.Equal(ModPackageErrorCodes.InvalidPackage, failed.Error.Code);
+        Assert.True(failed.Error.Parameters.ContainsKey("detail"));
+    }
+
     [Fact]
     public void Install_WhenRepositoryIsNew_CapturesBaseAndPersistsSingleLayer()
     {

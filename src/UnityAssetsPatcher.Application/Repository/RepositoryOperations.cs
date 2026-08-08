@@ -1,6 +1,7 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Repository;
 

@@ -4,7 +4,8 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
-using UnityAssetsPatcher.Application.Packages;
+using UnityAssetsPatcher.Application.Mods;
+using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Domain.Integrity;
@@ -14,7 +15,6 @@ namespace UnityAssetsPatcher.Application.Composition;
 public sealed class ModComposer
 {
     private readonly ICompositionRepository _compositionRepository;
-    private readonly ModPackageArchiveService _archiveService;
     private readonly TargetAssetResolver _targetAssetResolver;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
@@ -24,7 +24,6 @@ public sealed class ModComposer
 
     public ModComposer(
         ICompositionRepository compositionRepository,
-        ModPackageArchiveService archiveService,
         TargetAssetResolver targetAssetResolver,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
@@ -32,14 +31,12 @@ public sealed class ModComposer
         ILogger<ModComposer>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(compositionRepository);
-        ArgumentNullException.ThrowIfNull(archiveService);
         ArgumentNullException.ThrowIfNull(targetAssetResolver);
         ArgumentNullException.ThrowIfNull(assetsAccessScopeFactory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(operationHandlers);
 
         _compositionRepository = compositionRepository;
-        _archiveService = archiveService;
         _targetAssetResolver = targetAssetResolver;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
@@ -55,7 +52,7 @@ public sealed class ModComposer
         string gameDirectory = _pathResolver.ResolveExistingDirectory(request.GameDirectory);
         string workingDirectory = _pathResolver.ResolveExistingDirectory(request.WorkingDirectory);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(_pathResolver, gameDirectory);
-        IReadOnlyList<LayerRecord> layers = SelectLayers(request, fingerprint);
+        var layers = SelectLayers(request, fingerprint);
         BaseCatalog baseCatalog = _compositionRepository.BaseSnapshots.ReadCatalog(fingerprint);
         string compositionDirectory = CreateCompositionDirectory(workingDirectory);
 
@@ -131,7 +128,10 @@ public sealed class ModComposer
         foreach (LayerRecord layer in layers)
         {
             using ModPackage package = OpenLayerPackage(layer, layerPackagePaths);
-            TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, new StepTimer());
+            TargetAssetSet targets = _targetAssetResolver.Execute(
+                gameDirectory,
+                package.EffectiveManifest,
+                new StepTimer());
             TargetAsset? target = FindTargetAsset(gameDirectory, targets, file.RelativePath);
 
             if (target is null)
@@ -202,7 +202,7 @@ public sealed class ModComposer
                 fileIndex,
                 0,
                 file.RelativePath);
-            package.CopyPayloadFile(provider.Source, providerOutputPath);
+            _ = RequirePackageResult(package.CopyPayloadFile(provider.Source, providerOutputPath));
             EnsureRegularFile(providerOutputPath, "Composed payload file");
 
             return new FileCompositionAttempt(
@@ -251,9 +251,12 @@ public sealed class ModComposer
             LayerRecord layer = layers[index];
 
             using ModPackage package = OpenLayerPackage(layer, layerPackagePaths);
-            TargetAssetSet targets = _targetAssetResolver.Execute(gameDirectory, package.Manifest, new StepTimer());
-            IReadOnlyList<InstallPayloadFilePlan> payloadFiles = InstallPlanBuilder.PlanPayloadFiles(
-                package.Manifest,
+            TargetAssetSet targets = _targetAssetResolver.Execute(
+                gameDirectory,
+                package.EffectiveManifest,
+                new StepTimer());
+            var payloadFiles = InstallPlanBuilder.PlanPayloadFiles(
+                package.EffectiveManifest,
                 targets);
             PayloadProvider? provider = FindPayloadProviderInLayer(
                 gameDirectory,
@@ -322,12 +325,11 @@ public sealed class ModComposer
             packagePath = _compositionRepository.Layers.ResolvePackagePath(layer.Id);
         }
 
-        return ModPackage.Open(
+        return RequirePackageResult(ModPackage.Open(
             packagePath,
             layer.OptionalGroups ?? [],
-            _archiveService,
             _fileSystemOperations,
-            new StepTimer());
+            new StepTimer()));
     }
 
     private IReadOnlyList<LayerRecord> SelectLayers(CompositionRequest request, string fingerprint)
@@ -468,6 +470,21 @@ public sealed class ModComposer
         var copyAssetPlanner = new CopyAssetPlanner(assetQueryService);
 
         return new PatchPlanner(fieldPatchPlanner, replacementPlanner, copyAssetPlanner);
+    }
+
+    private static TResult RequirePackageResult<TResult>(OperationResult<TResult> result)
+    {
+        return result switch
+        {
+            OperationSucceeded<TResult> succeeded => succeeded.Value,
+            OperationFailed<TResult> failed => throw PackageFailure(failed.Error),
+            _ => throw new ArgumentOutOfRangeException(nameof(result)),
+        };
+    }
+
+    private static InvalidDataException PackageFailure(OperationError error)
+    {
+        return new InvalidDataException(ModOperationErrorMapper.FormatPackageFailure(error));
     }
 
     private sealed record FileCompositionAttempt(

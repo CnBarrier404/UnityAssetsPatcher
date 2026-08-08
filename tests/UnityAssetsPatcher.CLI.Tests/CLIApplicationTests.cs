@@ -1,7 +1,8 @@
 using System.IO.Compression;
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Infrastructure;
+using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Infrastructure.IO;
 using Xunit;
 
 namespace UnityAssetsPatcher.CLI.Tests;
@@ -101,6 +102,52 @@ public sealed class CLIApplicationTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_WhenManifestJsonIsMalformed_WritesManifestFailure()
+    {
+        string manifestPath = Path.Combine(_temporaryDirectory, "malformed.json");
+
+        await File.WriteAllTextAsync(manifestPath, "{", TestContext.Current.CancellationToken);
+
+        (CLIApplication application, StringWriter output, StringWriter error) = CreateApplication();
+
+        int exitCode = await application.RunAsync(
+            ["check", "-c", manifestPath],
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(string.Empty, output.ToString());
+        Assert.StartsWith(
+            $"Error [manifest.invalid_json]: The mod manifest is invalid.{Environment.NewLine}",
+            error.ToString());
+        Assert.Contains("byte_position: 1", error.ToString());
+        Assert.Contains("line_number: 0", error.ToString());
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenPackageManifestIsMissing_WritesPackageFailure()
+    {
+        string packagePath = Path.Combine(_temporaryDirectory, "missing-manifest.zip");
+        await using (ZipArchive archive =
+                     await ZipFile.OpenAsync(packagePath, ZipArchiveMode.Create, TestContext.Current.CancellationToken))
+        {
+            archive.CreateEntry("payload.bin");
+        }
+
+        (CLIApplication application, StringWriter output, StringWriter error) = CreateApplication();
+
+        int exitCode = await application.RunAsync(
+            ["check", "-c", packagePath],
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(string.Empty, output.ToString());
+        Assert.StartsWith(
+            $"Error [mod_package.manifest_missing]: The mod package is invalid.{Environment.NewLine}",
+            error.ToString());
+        Assert.Contains($"package_path: {packagePath}", error.ToString());
+    }
+
+    [Fact]
     public async Task RunAsync_WhenArgumentsAreInvalid_ReturnsUsageErrorAndWritesHelp()
     {
         (CLIApplication application, StringWriter output, StringWriter error) = CreateApplication();
@@ -153,7 +200,8 @@ public sealed class CLIApplicationTests : IDisposable
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddUnityAssetsPatcherPackageHandling();
+        services.AddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileSystemOperations>>()));
         services.AddUnityAssetsPatcherApplication();
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
         {

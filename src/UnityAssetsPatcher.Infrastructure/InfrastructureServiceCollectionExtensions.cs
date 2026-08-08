@@ -5,13 +5,11 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Infrastructure.AssetsTools;
 using UnityAssetsPatcher.Infrastructure.Repository;
 using UnityAssetsPatcher.Infrastructure.IO;
 using UnityAssetsPatcher.Infrastructure.Installation;
-using UnityAssetsPatcher.Infrastructure.Packages;
 using UnityAssetsPatcher.Infrastructure.Updates;
 
 namespace UnityAssetsPatcher.Infrastructure;
@@ -37,7 +35,8 @@ public static class InfrastructureServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(openClassPackage);
 
-        services.AddUnityAssetsPatcherPackageHandling();
+        services.TryAddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
+            provider.GetRequiredService<ILoggerFactory>().CreateLogger<FileSystemOperations>()));
 
         services.TryAddSingleton<SteamInstallationOptions>(_ => SteamInstallationOptions.FromCurrentMachine());
         services.TryAddSingleton<IGameInstallationLocator, SteamGameInstallationLocator>();
@@ -54,20 +53,6 @@ public static class InfrastructureServiceCollectionExtensions
         services.TryAddScoped(provider => provider.GetRequiredService<IAssetsAccessScopeFactory>().CreateScope());
         services.TryAddScoped(provider => provider.GetRequiredService<IAssetsAccessScope>().Reader);
         services.TryAddScoped(provider => provider.GetRequiredService<IAssetsAccessScope>().Writer);
-
-        return services;
-    }
-
-    public static IServiceCollection AddUnityAssetsPatcherPackageHandling(this IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        services.TryAddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
-            provider.GetRequiredService<ILoggerFactory>().CreateLogger<FileSystemOperations>()));
-
-        services.TryAddSingleton<IModPackageArchiveFactory>(provider => new ModPackageArchiveFactory(
-            provider.GetRequiredService<IFileSystemOperations>(),
-            provider.GetRequiredService<ILoggerFactory>().CreateLogger<ModPackageArchiveFactory>()));
 
         return services;
     }

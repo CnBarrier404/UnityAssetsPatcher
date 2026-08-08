@@ -5,6 +5,7 @@ using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Domain.Integrity;
 

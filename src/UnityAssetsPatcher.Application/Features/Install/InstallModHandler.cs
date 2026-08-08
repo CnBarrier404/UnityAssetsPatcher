@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Assets;
@@ -6,8 +5,8 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Messaging;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Packages;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Domain.Integrity;
@@ -18,7 +17,6 @@ public sealed class InstallModHandler :
     IRequestHandler<PreviewInstallRequest, OperationResult<InstallPreviewResult>>,
     IRequestHandler<InstallModRequest, OperationResult<InstallModResult>>
 {
-    private readonly ModPackageArchiveService _archiveService;
     private readonly InstallPlanBuilder _planBuilder;
     private readonly IRepository _repository;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
@@ -26,20 +24,17 @@ public sealed class InstallModHandler :
     private readonly ILogger<InstallModHandler> _logger;
 
     public InstallModHandler(
-        ModPackageArchiveService archiveService,
         InstallPlanBuilder planBuilder,
         IRepository repository,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
         ILogger<InstallModHandler>? logger = null)
     {
-        ArgumentNullException.ThrowIfNull(archiveService);
         ArgumentNullException.ThrowIfNull(planBuilder);
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(assetsAccessScopeFactory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
-        _archiveService = archiveService;
         _planBuilder = planBuilder;
         _repository = repository;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
@@ -79,16 +74,22 @@ public sealed class InstallModHandler :
         return Task.FromResult(result);
     }
 
-    private InstallPreviewResult Preview(InstallRequest request)
+    private OperationResult<InstallPreviewResult> Preview(InstallRequest request)
     {
         _logger.LogInformation("Previewing mod install from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
-        using ModPackage package = ModPackage.Open(
+        OperationResult<ModPackage> packageResult = ModPackage.Open(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
-            _archiveService,
             _fileSystemOperations,
             timings);
+
+        if (packageResult is OperationFailed<ModPackage> packageFailure)
+        {
+            return PackageFailure<InstallPreviewResult>(nameof(Preview), packageFailure.Error);
+        }
+
+        using ModPackage package = ((OperationSucceeded<ModPackage>)packageResult).Value;
         using IAssetsAccessScope assetsScope = _assetsAccessScopeFactory.CreateScope();
         InstallAnalysisMode mode = request.IncludePatchPreviewDetails
             ? InstallAnalysisMode.PreviewDetailed
@@ -101,25 +102,33 @@ public sealed class InstallModHandler :
             timings);
         PreparedInstall preparedInstall = CreatePreparedInstall(request, analysis);
 
-        return InstallResultMapper.ToPreviewResult(
+        InstallPreviewResult result = InstallResultMapper.ToPreviewResult(
                 analysis,
                 timings.BuildSnapshot()) with
             {
                 PreparedInstall = preparedInstall,
             };
+
+        return new OperationSucceeded<InstallPreviewResult>(result);
     }
 
-    private InstallModResult Install(InstallRequest request)
+    private OperationResult<InstallModResult> Install(InstallRequest request)
     {
         _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
 
-        using ModPackage package = ModPackage.Open(
+        OperationResult<ModPackage> packageResult = ModPackage.Open(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
-            _archiveService,
             _fileSystemOperations,
             timings);
+
+        if (packageResult is OperationFailed<ModPackage> packageFailure)
+        {
+            return PackageFailure<InstallModResult>(nameof(Install), packageFailure.Error);
+        }
+
+        using ModPackage package = ((OperationSucceeded<ModPackage>)packageResult).Value;
         PreparedInstall? preparedInstall = request.PreparedInstall;
         InstallAnalysis analysis;
 
@@ -150,7 +159,7 @@ public sealed class InstallModHandler :
             execution.CopiedFiles.Count,
             execution.InstallId);
 
-        return InstallResultMapper.ToInstallResult(
+        InstallModResult result = InstallResultMapper.ToInstallResult(
                 analysis,
                 execution.PatchedFiles,
                 execution.CopiedFiles,
@@ -160,18 +169,18 @@ public sealed class InstallModHandler :
             {
                 Recovery = repositoryResult.Recovery,
             };
+
+        return new OperationSucceeded<InstallModResult>(result);
     }
 
     private OperationResult<TResult> Invoke<TResult>(
-        Func<TResult> operation,
+        Func<OperationResult<TResult>> operation,
         OperationErrorCode directoryError,
         string operationName)
     {
         try
         {
-            TResult result = operation();
-
-            return new OperationSucceeded<TResult>(result);
+            return operation();
         }
         catch (RepositoryRecoveryException exception)
         {
@@ -217,14 +226,6 @@ public sealed class InstallModHandler :
         {
             return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
         }
-        catch (JsonException exception)
-        {
-            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
-        }
-        catch (InvalidDataException exception)
-        {
-            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
-        }
         catch (LegacyRepositoryWriteException exception)
         {
             return ExpectedFailure<TResult>(
@@ -232,11 +233,7 @@ public sealed class InstallModHandler :
                 RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
-        catch (NotSupportedException exception)
-        {
-            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
-        }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (ModOperationErrorMapper.IsInvalidPackageException(exception))
         {
             return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
         }
@@ -246,6 +243,14 @@ public sealed class InstallModHandler :
 
             throw;
         }
+    }
+
+    private OperationFailed<TResult> PackageFailure<TResult>(string operationName, OperationError error)
+    {
+        return ExpectedFailure<TResult>(
+            operationName,
+            ModPackageErrorCodes.InvalidPackage,
+            ModOperationErrorMapper.FormatPackageFailure(error));
     }
 
     private OperationFailed<TResult> ExpectedFailure<TResult>(

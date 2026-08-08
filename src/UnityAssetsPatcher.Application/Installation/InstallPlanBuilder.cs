@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Assets;
-using UnityAssetsPatcher.Application.Manifests;
+using UnityAssetsPatcher.Application.Mods;
+using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 
@@ -67,13 +68,13 @@ public sealed class InstallPlanBuilder
 
         string gameDirectory = _gameDirectoryResolver.ResolveRequired(
             requestedGameDirectory,
-            package.Manifest.Game);
-        TargetAssetSet targetSet = _targetAssetResolver.Execute(gameDirectory, package.Manifest, timings);
-        var payloadFiles = PlanPayloadFiles(package.Manifest, targetSet);
+            package.EffectiveManifest.Game);
+        TargetAssetSet targetSet = _targetAssetResolver.Execute(gameDirectory, package.EffectiveManifest, timings);
+        var payloadFiles = PlanPayloadFiles(package.EffectiveManifest, targetSet);
 
         if (mode == InstallAnalysisMode.Apply)
         {
-            PatchOperationRules.ValidateModManifest(package.Manifest);
+            PatchOperationRules.ValidateModManifest(package.EffectiveManifest);
         }
 
         PatchPlanner patchPlanner = CreatePatchPlanner(assetsReader);
@@ -82,11 +83,11 @@ public sealed class InstallPlanBuilder
             () => AnalyzeTargets(targetSet, package, mode, patchPlanner));
 
         return new InstallAnalysis(
-            package.Manifest,
+            package.EffectiveManifest,
             gameDirectory,
             targets,
             payloadFiles,
-            package.OptionalGroups.ToArray(),
+            package.SourceManifest.OptionalGroups.ToArray(),
             package.AppliedOptionalGroups.ToArray());
     }
 
