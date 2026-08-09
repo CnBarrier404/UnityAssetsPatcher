@@ -157,6 +157,28 @@ public sealed class LayeredInstallTests
     }
 
     [Fact]
+    public void Install_WhenPayloadTargetMatchesAssetsTarget_RejectsPackageWithoutSideEffects()
+    {
+        using LayeredInstallFixture fixture = new();
+        string packagePath = fixture.CreatePackage(
+            "conflicting-targets",
+            CreatePayloadManifest("payload/sharedassets0.assets"),
+            ("payload/sharedassets0.assets", "Payload Content"u8.ToArray()));
+
+        OperationResult<InstallModResult> result = fixture.InstallOperation(
+            new InstallRequest(packagePath, fixture.GameDirectory));
+
+        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+
+        Assert.Equal(ModPackageErrorCodes.InvalidPackage, failed.Error.Code);
+        Assert.Contains(fixture.GameAssetsPath, failed.Error.Parameters["detail"]?.ToString());
+        Assert.Equal("Text", fixture.ReadName(fixture.GameAssetsPath));
+        Assert.Empty(fixture.Repository.Layers.ListLayers());
+        Assert.False(Directory.Exists(Path.Combine(fixture.Repository.RepositoryDirectory, "games")));
+        Assert.False(Directory.Exists(fixture.Repository.TransactionDirectory));
+    }
+
+    [Fact]
     public void Uninstall_WhenLatestLayerIsRemoved_ReplaysBaseAndRemovesLayer()
     {
         using LayeredInstallFixture fixture = new();

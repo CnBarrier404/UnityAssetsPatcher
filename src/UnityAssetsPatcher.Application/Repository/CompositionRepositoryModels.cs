@@ -177,6 +177,9 @@ public sealed record LayerRecord
 
         CompositionRepositoryModelValidation.EnsureUniquePaths(AssetsTargets, nameof(assetsTargets));
         CompositionRepositoryModelValidation.EnsureUniquePaths(PayloadTargets, nameof(payloadTargets));
+        CompositionRepositoryModelValidation.EnsureUniquePaths(
+            AssetsTargets.Concat(PayloadTargets),
+            nameof(payloadTargets));
     }
 }
 

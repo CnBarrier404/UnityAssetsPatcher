@@ -117,6 +117,28 @@ public sealed class CompositionRepositoryModelTests
     }
 
     [Fact]
+    public void LayerRecord_WhenAssetsAndPayloadTargetsOverlap_ThrowsArgumentException()
+    {
+        ArgumentException exception = Assert.Throws<ArgumentException>(() => new LayerRecord(
+            "repository",
+            "game-fingerprint",
+            1,
+            "layer-1",
+            DateTimeOffset.UnixEpoch,
+            "Test Mod",
+            "1.0.0",
+            "Test Author",
+            "Test Game",
+            null,
+            true,
+            new LayerPackageInfo("package.zip", CreateIntegrity()),
+            ["Game_Data/sharedassets0.assets"],
+            ["Game_Data/sharedassets0.assets"]));
+
+        Assert.Equal("payloadTargets", exception.ParamName);
+    }
+
+    [Fact]
     public void LayerPackageInfo_WhenFileNameContainsDirectory_ThrowsArgumentException()
     {
         ArgumentException exception = Assert.Throws<ArgumentException>(() => new LayerPackageInfo(

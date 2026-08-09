@@ -85,12 +85,10 @@ public sealed record CompositionRequest
 
         foreach (CompositionFileTarget file in files)
         {
-            string key = $"{file.Kind}:{file.RelativePath}";
-
-            if (!seen.Add(key))
+            if (!seen.Add(file.RelativePath))
             {
                 throw new ArgumentException(
-                    $"The composition request contains duplicate file entries: '{file.RelativePath}'.",
+                    $"The composition request contains duplicate target paths: '{file.RelativePath}'.",
                     nameof(files));
             }
         }

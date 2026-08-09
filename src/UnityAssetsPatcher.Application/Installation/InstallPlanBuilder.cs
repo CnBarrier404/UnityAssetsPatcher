@@ -1,4 +1,5 @@
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
@@ -99,12 +100,23 @@ public sealed class InstallPlanBuilder
         }
 
         string payloadDirectory = ResolvePayloadDirectory(targets.AssetsFilePaths);
-
-        return (from file in manifest.Files
+        List<InstallPayloadFilePlan> payloadFiles = (from file in manifest.Files
             select file.Source.Replace('\\', '/')
             into entryPath
             let fileName = Path.GetFileName(entryPath.Replace('/', Path.DirectorySeparatorChar))
             select new InstallPayloadFilePlan(entryPath, Path.Combine(payloadDirectory, fileName))).ToList();
+        HashSet<string> assetsPaths = targets.AssetsFilePaths.ToHashSet(TrustedPath.PathComparer);
+
+        foreach (InstallPayloadFilePlan payloadFile in payloadFiles)
+        {
+            if (assetsPaths.Contains(payloadFile.DestinationPath))
+            {
+                throw new InvalidDataException(
+                    $"Payload target conflicts with assets target: {payloadFile.DestinationPath}");
+            }
+        }
+
+        return payloadFiles;
     }
 
     private static List<InstallTargetAnalysis> AnalyzeTargets(
