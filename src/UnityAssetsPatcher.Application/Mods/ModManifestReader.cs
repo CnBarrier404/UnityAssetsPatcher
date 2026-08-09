@@ -6,12 +6,15 @@ namespace UnityAssetsPatcher.Application.Mods;
 public sealed class ModManifestReader
 {
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly IPackageReader _packageReader;
 
-    public ModManifestReader(IFileSystemOperations fileSystemOperations)
+    public ModManifestReader(IFileSystemOperations fileSystemOperations, IPackageReader packageReader)
     {
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(packageReader);
 
         _fileSystemOperations = fileSystemOperations;
+        _packageReader = packageReader;
     }
 
     public async Task<OperationResult<ModManifest>> ReadAsync(
@@ -41,18 +44,16 @@ public sealed class ModManifestReader
         string packagePath,
         CancellationToken cancellationToken)
     {
-        OperationResult<ModPackageArchive> archiveResult = ModPackageArchive.OpenRead(
-            packagePath,
-            _fileSystemOperations);
+        OperationResult<IPackageSession> sessionResult = _packageReader.Open(packagePath);
 
-        if (archiveResult is OperationFailed<ModPackageArchive> failure)
+        if (sessionResult is OperationFailed<IPackageSession> failure)
         {
             return new OperationFailed<byte[]>(failure.Error);
         }
 
-        using ModPackageArchive archive = ((OperationSucceeded<ModPackageArchive>)archiveResult).Value;
+        using IPackageSession session = ((OperationSucceeded<IPackageSession>)sessionResult).Value;
 
-        return await archive.ReadManifestAsync(cancellationToken).ConfigureAwait(false);
+        return await session.ReadManifestAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<byte[]> ReadFileAsync(string sourcePath, CancellationToken cancellationToken)

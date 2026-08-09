@@ -5,6 +5,7 @@ using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Infrastructure.IO;
+using UnityAssetsPatcher.Infrastructure.Mods;
 using Xunit;
 
 namespace UnityAssetsPatcher.Infrastructure.Tests.Features.Check;
@@ -120,7 +121,8 @@ public sealed class CheckManifestIntegrationTests : IDisposable
     private static CheckManifestHandler CreateHandler()
     {
         var fileSystemOperations = new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
+        var packageReader = new ZipPackageReader(fileSystemOperations);
 
-        return new CheckManifestHandler(new ModManifestReader(fileSystemOperations));
+        return new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader));
     }
 }

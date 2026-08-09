@@ -1,4 +1,5 @@
 using System.Text;
+using UnityAssetsPatcher.Application.Tests.Mods;
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
@@ -30,7 +31,7 @@ public sealed class CheckManifestHandlerTests
     public async Task HandleAsync_WhenManifestIsValid_ReturnsCheckResult()
     {
         var fileSystem = new StubFileSystemOperations(_ => OpenText(ValidManifest));
-        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
+        var handler = CreateHandler(fileSystem);
 
         OperationResult<CheckManifestResult> result = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
@@ -44,7 +45,7 @@ public sealed class CheckManifestHandlerTests
     public async Task HandleAsync_WhenCalled_OpensNormalizedSourcePath()
     {
         var fileSystem = new StubFileSystemOperations(_ => OpenText(ValidManifest));
-        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
+        var handler = CreateHandler(fileSystem);
 
         _ = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
@@ -57,7 +58,7 @@ public sealed class CheckManifestHandlerTests
     public async Task HandleAsync_WhenManifestIsInvalid_ReturnsManifestFailure()
     {
         var fileSystem = new StubFileSystemOperations(_ => OpenText("{}"));
-        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
+        var handler = CreateHandler(fileSystem);
 
         OperationResult<CheckManifestResult> result = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
@@ -72,7 +73,7 @@ public sealed class CheckManifestHandlerTests
     {
         var expected = new InvalidOperationException("Test fault.");
         var fileSystem = new StubFileSystemOperations(_ => throw expected);
-        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
+        var handler = CreateHandler(fileSystem);
 
         InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.HandleAsync(
@@ -85,6 +86,13 @@ public sealed class CheckManifestHandlerTests
     private static MemoryStream OpenText(string text)
     {
         return new MemoryStream(Encoding.UTF8.GetBytes(text), writable: false);
+    }
+
+    private static CheckManifestHandler CreateHandler(IFileSystemOperations fileSystemOperations)
+    {
+        var packageReader = new StubPackageReader(_ => throw new NotSupportedException());
+
+        return new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader));
     }
 
     private sealed class StubFileSystemOperations : IFileSystemOperations

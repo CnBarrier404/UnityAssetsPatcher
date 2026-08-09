@@ -5,11 +5,13 @@ using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Infrastructure.AssetsTools;
 using UnityAssetsPatcher.Infrastructure.Repository;
 using UnityAssetsPatcher.Infrastructure.IO;
 using UnityAssetsPatcher.Infrastructure.Installation;
+using UnityAssetsPatcher.Infrastructure.Mods;
 using UnityAssetsPatcher.Infrastructure.Updates;
 
 namespace UnityAssetsPatcher.Infrastructure;
@@ -37,6 +39,7 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.TryAddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
             provider.GetRequiredService<ILoggerFactory>().CreateLogger<FileSystemOperations>()));
+        services.TryAddSingleton<IPackageReader, ZipPackageReader>();
 
         services.TryAddSingleton<SteamInstallationOptions>(_ => SteamInstallationOptions.FromCurrentMachine());
         services.TryAddSingleton<IGameInstallationLocator, SteamGameInstallationLocator>();

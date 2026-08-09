@@ -35,9 +35,10 @@ internal sealed class ManifestTestHost
         ArgumentNullException.ThrowIfNull(openRead);
 
         var fileSystemOperations = new StubFileSystemOperations(openRead);
+        var packageReader = new StubPackageReader(_ => throw new NotSupportedException());
 
         return new ManifestTestHost(
-            new CheckManifestHandler(new ModManifestReader(fileSystemOperations)));
+            new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader)));
     }
 
     public ModManifest Read(string sourcePath = "manifest.json")

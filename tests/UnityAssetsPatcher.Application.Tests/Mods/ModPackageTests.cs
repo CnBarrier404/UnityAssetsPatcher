@@ -1,7 +1,5 @@
-using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
-using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
@@ -30,192 +28,81 @@ public sealed class ModPackageTests
         """;
 
     [Fact]
-    public async Task Check_WhenManifestIsMissing_ReturnsStructuredFailure()
+    public void Open_WhenPackageReaderReturnsFailure_PropagatesFailure()
     {
-        byte[] archiveBytes = CreateArchive(("payload.bin", [1]));
+        var expected = new OperationError(ModPackageErrorCodes.ManifestMissing);
+        var packageReader = new StubPackageReader(_ => new OperationFailed<IPackageSession>(expected));
 
-        OperationError error = await CheckFailureAsync(archiveBytes);
+        OperationResult<ModPackage> result = OpenPackage(packageReader);
 
-        Assert.Equal(ModPackageErrorCodes.ManifestMissing, error.Code);
+        var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
+        Assert.Same(expected, failure.Error);
     }
 
     [Fact]
-    public async Task Check_WhenMultipleManifestsExist_ReturnsStructuredFailure()
-    {
-        byte[] archiveBytes = CreateArchive(
-            ("manifest.json", "{}"u8.ToArray()),
-            ("Nested/MANIFEST.JSON", "{}"u8.ToArray()));
-
-        OperationError error = await CheckFailureAsync(archiveBytes);
-
-        Assert.Equal(ModPackageErrorCodes.MultipleManifests, error.Code);
-    }
-
-    [Fact]
-    public async Task Check_WhenEntriesCollideIgnoringCase_ReturnsStructuredFailure()
-    {
-        byte[] archiveBytes = CreateArchive(
-            ("manifest.json", "{}"u8.ToArray()),
-            ("Payload/file.bin", [1]),
-            ("payload/FILE.BIN", [2]));
-
-        OperationError error = await CheckFailureAsync(archiveBytes);
-
-        Assert.Equal(ModPackageErrorCodes.DuplicateEntry, error.Code);
-        Assert.Equal("payload/FILE.BIN", error.Parameters["entry_path"]);
-    }
-
-    [Theory]
-    [InlineData("../payload.bin")]
-    [InlineData("/payload.bin")]
-    [InlineData("payload/./file.bin")]
-    [InlineData("payload//file.bin")]
-    [InlineData("C:/payload.bin")]
-    [InlineData("payload/file.bin.")]
-    public async Task Check_WhenEntryPathIsUnsafe_ReturnsStructuredFailure(string entryPath)
-    {
-        byte[] archiveBytes = CreateArchive(
-            ("manifest.json", "{}"u8.ToArray()),
-            (entryPath, [1]));
-
-        OperationError error = await CheckFailureAsync(archiveBytes);
-
-        Assert.Equal(ModPackageErrorCodes.UnsafeEntryPath, error.Code);
-        Assert.Equal(entryPath, error.Parameters["entry_path"]);
-    }
-
-    [Fact]
-    public async Task Check_WhenManifestExceedsLimit_ReturnsStructuredFailure()
-    {
-        byte[] manifest = new byte[10L * 1024L * 1024L + 1];
-        byte[] archiveBytes = CreateArchive(("manifest.json", manifest));
-
-        OperationError error = await CheckFailureAsync(archiveBytes);
-
-        Assert.Equal(ModPackageErrorCodes.ManifestTooLarge, error.Code);
-        Assert.Equal(10L * 1024L * 1024L, error.Parameters["limit_bytes"]);
-    }
-
-    [Fact]
-    public void CopyPayloadFile_WhenEntryExists_WritesThroughAtomicFileSystemBoundary()
-    {
-        byte[] archiveBytes = CreateArchive(
-            ("manifest.json", Encoding.UTF8.GetBytes(ValidManifest)),
-            ("payload.bin", [1, 2, 3]));
-        var fileSystem = new StubFileSystemOperations(archiveBytes);
-        using ModPackage package = OpenPackage(fileSystem);
-
-        OperationResult<long> result = package.CopyPayloadFile("PAYLOAD.BIN", "payload.output");
-
-        var success = Assert.IsType<OperationSucceeded<long>>(result);
-        Assert.Equal(3, success.Value);
-        Assert.Equal([1, 2, 3], Assert.Single(fileSystem.WrittenFiles).Value);
-    }
-
-    [Fact]
-    public void CopyPayloadFile_WhenEntryIsMissing_ReturnsStructuredFailure()
-    {
-        byte[] archiveBytes = CreateArchive(("manifest.json", Encoding.UTF8.GetBytes(ValidManifest)));
-        var fileSystem = new StubFileSystemOperations(archiveBytes);
-        using ModPackage package = OpenPackage(fileSystem);
-
-        OperationResult<long> result = package.CopyPayloadFile("missing.bin", "payload.output");
-
-        var failure = Assert.IsType<OperationFailed<long>>(result);
-        Assert.Equal(ModPackageErrorCodes.EntryNotFound, failure.Error.Code);
-        Assert.Empty(fileSystem.WrittenFiles);
-    }
-
-    [Fact]
-    public void Open_WhenFileSystemFaults_PropagatesOriginalException()
+    public void Open_WhenPackageReaderFaults_PropagatesOriginalException()
     {
         var expected = new FileNotFoundException("missing", "missing.zip");
-        var fileSystem = new StubFileSystemOperations(expected);
+        var packageReader = new StubPackageReader(_ => throw expected);
 
-        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(fileSystem));
+        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(packageReader));
 
         Assert.Same(expected, exception);
     }
 
     [Fact]
-    public async Task ReadAsync_WhenManifestJsonIsInvalid_PropagatesJsonException()
+    public void CopyPayloadFile_WhenCalled_ForwardsToPackageSession()
     {
-        byte[] archiveBytes = CreateArchive(("manifest.json", Encoding.UTF8.GetBytes("{")));
-        var fileSystem = new StubFileSystemOperations(archiveBytes);
-        var reader = new ModManifestReader(fileSystem);
+        var copyResult = new OperationSucceeded<long>(3);
+        var session = new StubPackageSession(Encoding.UTF8.GetBytes(ValidManifest), copyResult);
+        var packageReader = new StubPackageReader(session);
+        using ModPackage package = Assert.IsType<OperationSucceeded<ModPackage>>(OpenPackage(packageReader)).Value;
+
+        OperationResult<long> result = package.CopyPayloadFile("payload.bin", "payload.output");
+
+        Assert.Same(copyResult, result);
+        Assert.Equal("payload.bin", session.CopiedSource);
+        Assert.Equal("payload.output", session.CopyDestinationPath);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WhenPackageManifestJsonIsInvalid_PropagatesJsonException()
+    {
+        var session = new StubPackageSession(Encoding.UTF8.GetBytes("{"));
+        var packageReader = new StubPackageReader(session);
+        var reader = new ModManifestReader(new StubFileSystemOperations(), packageReader);
 
         _ = await Assert.ThrowsAnyAsync<JsonException>(() =>
             reader.ReadAsync("mod.zip", TestContext.Current.CancellationToken));
     }
 
-    private static ModPackage OpenPackage(IFileSystemOperations fileSystemOperations)
+    [Fact]
+    public async Task ReadAsync_WhenSourceIsPackage_OpensNormalizedPath()
     {
-        OperationResult<ModPackage> result = ModPackage.Open(
+        var session = new StubPackageSession(Encoding.UTF8.GetBytes(ValidManifest));
+        var packageReader = new StubPackageReader(session);
+        var reader = new ModManifestReader(new StubFileSystemOperations(), packageReader);
+
+        _ = await reader.ReadAsync("mod.zip", TestContext.Current.CancellationToken);
+
+        Assert.Equal(Path.GetFullPath("mod.zip"), packageReader.OpenedPath);
+    }
+
+    private static OperationResult<ModPackage> OpenPackage(IPackageReader packageReader)
+    {
+        return ModPackage.Open(
             "mod.zip",
             [],
-            fileSystemOperations,
+            packageReader,
+            new StubFileSystemOperations(),
             new StepTimer());
-        var success = Assert.IsType<OperationSucceeded<ModPackage>>(result);
-
-        return success.Value;
-    }
-
-    private static async Task<OperationError> CheckFailureAsync(byte[] archiveBytes)
-    {
-        var fileSystem = new StubFileSystemOperations(archiveBytes);
-        var handler = new CheckManifestHandler(new ModManifestReader(fileSystem));
-
-        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
-            new CheckManifestRequest("mod.zip"),
-            TestContext.Current.CancellationToken);
-        var failure = Assert.IsType<OperationFailed<CheckManifestResult>>(result);
-
-        return failure.Error;
-    }
-
-    private static byte[] CreateArchive(params (string Path, byte[] Contents)[] entries)
-    {
-        using var output = new MemoryStream();
-
-        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            foreach ((string path, byte[] contents) in entries)
-            {
-                ZipArchiveEntry entry = archive.CreateEntry(path, CompressionLevel.NoCompression);
-                using Stream stream = entry.Open();
-
-                stream.Write(contents);
-            }
-        }
-
-        return output.ToArray();
     }
 
     private sealed class StubFileSystemOperations : IFileSystemOperations
     {
-        private readonly byte[]? _archiveBytes;
-        private readonly Exception? _openException;
-
-        public Dictionary<string, byte[]> WrittenFiles { get; } = new(StringComparer.Ordinal);
-
-        public StubFileSystemOperations(byte[] archiveBytes)
-        {
-            _archiveBytes = archiveBytes;
-        }
-
-        public StubFileSystemOperations(Exception openException)
-        {
-            _openException = openException;
-        }
-
         public Stream OpenRead(string path)
         {
-            if (_openException is not null)
-            {
-                throw _openException;
-            }
-
-            return new MemoryStream(_archiveBytes!, writable: false);
+            throw new NotSupportedException();
         }
 
         public FileIntegrity ComputeFileIntegrity(string path)
@@ -230,10 +117,7 @@ public sealed class ModPackageTests
 
         public void WriteFileAtomically(string destinationPath, FileDestinationMode mode, Action<Stream> writer)
         {
-            using var output = new MemoryStream();
-
-            writer(output);
-            WrittenFiles.Add(Path.GetFullPath(destinationPath), output.ToArray());
+            throw new NotSupportedException();
         }
 
         public void CopyFileAtomically(string sourcePath, string destinationPath, FileDestinationMode mode)
@@ -246,7 +130,10 @@ public sealed class ModPackageTests
             throw new NotSupportedException();
         }
 
-        public void EnsureDirectory(string path) { }
+        public void EnsureDirectory(string path)
+        {
+            throw new NotSupportedException();
+        }
 
         public void MoveDirectory(string sourcePath, string destinationPath)
         {

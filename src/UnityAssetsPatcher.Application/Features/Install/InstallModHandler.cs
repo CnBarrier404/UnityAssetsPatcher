@@ -21,6 +21,7 @@ public sealed class InstallModHandler :
     private readonly IRepository _repository;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly IPackageReader _packageReader;
     private readonly ILogger<InstallModHandler> _logger;
 
     public InstallModHandler(
@@ -28,17 +29,20 @@ public sealed class InstallModHandler :
         IRepository repository,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
+        IPackageReader packageReader,
         ILogger<InstallModHandler>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(planBuilder);
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(assetsAccessScopeFactory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(packageReader);
 
         _planBuilder = planBuilder;
         _repository = repository;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
+        _packageReader = packageReader;
         _logger = logger ?? NullLogger<InstallModHandler>.Instance;
     }
 
@@ -81,6 +85,7 @@ public sealed class InstallModHandler :
         OperationResult<ModPackage> packageResult = ModPackage.Open(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
+            _packageReader,
             _fileSystemOperations,
             timings);
 
@@ -120,6 +125,7 @@ public sealed class InstallModHandler :
         OperationResult<ModPackage> packageResult = ModPackage.Open(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
+            _packageReader,
             _fileSystemOperations,
             timings);
 

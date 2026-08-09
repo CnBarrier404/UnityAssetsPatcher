@@ -1,5 +1,4 @@
 using System.Text;
-using System.IO.Compression;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
@@ -130,44 +129,23 @@ public sealed class ModManifestOptionalSelectorTests
         string manifest,
         IReadOnlyList<string> selectedNames)
     {
-        byte[] archiveBytes = CreateArchive(manifest);
-        var fileSystemOperations = new StubFileSystemOperations(archiveBytes);
+        var session = new StubPackageSession(Encoding.UTF8.GetBytes(manifest));
+        var packageReader = new StubPackageReader(session);
+        var fileSystemOperations = new StubFileSystemOperations();
 
         return ModPackage.Open(
             "mod.zip",
             selectedNames,
+            packageReader,
             fileSystemOperations,
             new StepTimer());
     }
 
-    private static byte[] CreateArchive(string manifest)
-    {
-        using var output = new MemoryStream();
-
-        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            ZipArchiveEntry entry = archive.CreateEntry("manifest.json");
-            using Stream stream = entry.Open();
-            byte[] manifestBytes = Encoding.UTF8.GetBytes(manifest);
-
-            stream.Write(manifestBytes);
-        }
-
-        return output.ToArray();
-    }
-
     private sealed class StubFileSystemOperations : IFileSystemOperations
     {
-        private readonly byte[] _archiveBytes;
-
-        public StubFileSystemOperations(byte[] archiveBytes)
-        {
-            _archiveBytes = archiveBytes;
-        }
-
         public Stream OpenRead(string path)
         {
-            return new MemoryStream(_archiveBytes, writable: false);
+            throw new NotSupportedException();
         }
 
         public FileIntegrity ComputeFileIntegrity(string path)

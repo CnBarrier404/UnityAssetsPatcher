@@ -2,7 +2,9 @@ using System.IO.Compression;
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Infrastructure.IO;
+using UnityAssetsPatcher.Infrastructure.Mods;
 using Xunit;
 
 namespace UnityAssetsPatcher.CLI.Tests;
@@ -202,6 +204,7 @@ public sealed class CLIApplicationTests : IDisposable
         services.AddLogging();
         services.AddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileSystemOperations>>()));
+        services.AddSingleton<IPackageReader, ZipPackageReader>();
         services.AddUnityAssetsPatcherApplication();
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
         {

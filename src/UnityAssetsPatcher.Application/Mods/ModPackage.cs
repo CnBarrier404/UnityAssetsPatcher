@@ -10,7 +10,7 @@ public sealed class ModPackage : IDisposable
     public ModManifest SourceManifest { get; }
     public ModManifest EffectiveManifest { get; }
 
-    private readonly ModPackageArchive _archive;
+    private readonly IPackageSession _packageSession;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly string? _temporaryDirectory;
 
@@ -19,7 +19,7 @@ public sealed class ModPackage : IDisposable
         ModManifest effectiveManifest,
         IReadOnlyList<string> appliedOptionalGroups,
         IReadOnlyDictionary<string, string> patchSourcePaths,
-        ModPackageArchive archive,
+        IPackageSession packageSession,
         IFileSystemOperations fileSystemOperations,
         string? temporaryDirectory)
     {
@@ -27,7 +27,7 @@ public sealed class ModPackage : IDisposable
         EffectiveManifest = effectiveManifest;
         AppliedOptionalGroups = appliedOptionalGroups;
         PatchSourcePaths = patchSourcePaths;
-        _archive = archive;
+        _packageSession = packageSession;
         _fileSystemOperations = fileSystemOperations;
         _temporaryDirectory = temporaryDirectory;
     }
@@ -35,35 +35,35 @@ public sealed class ModPackage : IDisposable
     public static OperationResult<ModPackage> Open(
         string modPackagePath,
         IReadOnlyList<string> selectedOptionalGroups,
+        IPackageReader packageReader,
         IFileSystemOperations fileSystemOperations,
         StepTimer timings)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modPackagePath);
         ArgumentNullException.ThrowIfNull(selectedOptionalGroups);
+        ArgumentNullException.ThrowIfNull(packageReader);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(timings);
 
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
-        OperationResult<ModPackageArchive> archiveResult = ModPackageArchive.OpenRead(
-            modPackageFullPath,
-            fileSystemOperations);
+        OperationResult<IPackageSession> sessionResult = packageReader.Open(modPackageFullPath);
 
-        if (archiveResult is OperationFailed<ModPackageArchive> archiveFailure)
+        if (sessionResult is OperationFailed<IPackageSession> sessionFailure)
         {
-            return new OperationFailed<ModPackage>(archiveFailure.Error);
+            return new OperationFailed<ModPackage>(sessionFailure.Error);
         }
 
-        ModPackageArchive archive = ((OperationSucceeded<ModPackageArchive>)archiveResult).Value;
+        IPackageSession packageSession = ((OperationSucceeded<IPackageSession>)sessionResult).Value;
 
         try
         {
             OperationResult<ModPackageContent> contentResult = timings.Measure(
                 "read-package",
-                () => ReadContent(archive, selectedOptionalGroups));
+                () => ReadContent(packageSession, selectedOptionalGroups));
 
             if (contentResult is OperationFailed<ModPackageContent> contentFailure)
             {
-                archive.Dispose();
+                packageSession.Dispose();
 
                 return new OperationFailed<ModPackage>(contentFailure.Error);
             }
@@ -71,11 +71,11 @@ public sealed class ModPackage : IDisposable
             ModPackageContent content = ((OperationSucceeded<ModPackageContent>)contentResult).Value;
             OperationResult<PreparedSources> sourcesResult = timings.Measure(
                 "prepare-sources",
-                () => ExtractPatchSources(archive, fileSystemOperations, content.Selection.EffectiveManifest));
+                () => ExtractPatchSources(packageSession, fileSystemOperations, content.Selection.EffectiveManifest));
 
             if (sourcesResult is OperationFailed<PreparedSources> sourcesFailure)
             {
-                archive.Dispose();
+                packageSession.Dispose();
 
                 return new OperationFailed<ModPackage>(sourcesFailure.Error);
             }
@@ -86,7 +86,7 @@ public sealed class ModPackage : IDisposable
                 content.Selection.EffectiveManifest,
                 content.Selection.AppliedOptionalGroups,
                 sources.Paths,
-                archive,
+                packageSession,
                 fileSystemOperations,
                 sources.TemporaryDirectory);
 
@@ -94,7 +94,7 @@ public sealed class ModPackage : IDisposable
         }
         catch
         {
-            archive.Dispose();
+            packageSession.Dispose();
 
             throw;
         }
@@ -102,14 +102,14 @@ public sealed class ModPackage : IDisposable
 
     public OperationResult<long> CopyPayloadFile(string source, string destinationPath)
     {
-        return _archive.CopyEntryToNewFile(source, destinationPath);
+        return _packageSession.CopyEntryToNewFile(source, destinationPath);
     }
 
     public void Dispose()
     {
         try
         {
-            _archive.Dispose();
+            _packageSession.Dispose();
         }
         finally
         {
@@ -121,10 +121,10 @@ public sealed class ModPackage : IDisposable
     }
 
     private static OperationResult<ModPackageContent> ReadContent(
-        ModPackageArchive archive,
+        IPackageSession packageSession,
         IReadOnlyList<string> selectedOptionalGroups)
     {
-        OperationResult<byte[]> manifestBytesResult = archive.ReadManifest();
+        OperationResult<byte[]> manifestBytesResult = packageSession.ReadManifest();
 
         if (manifestBytesResult is OperationFailed<byte[]> manifestBytesFailure)
         {
@@ -155,7 +155,7 @@ public sealed class ModPackage : IDisposable
     }
 
     private static OperationResult<PreparedSources> ExtractPatchSources(
-        ModPackageArchive archive,
+        IPackageSession packageSession,
         IFileSystemOperations fileSystemOperations,
         ModManifest manifest)
     {
@@ -186,7 +186,7 @@ public sealed class ModPackage : IDisposable
             foreach (string source in replacementSources)
             {
                 string destinationPath = ResolveUnderDirectory(fileSystemOperations, temporaryDirectory, source);
-                OperationResult<long> copyResult = archive.CopyEntryToNewFile(source, destinationPath);
+                OperationResult<long> copyResult = packageSession.CopyEntryToNewFile(source, destinationPath);
 
                 if (copyResult is OperationFailed<long> copyFailure)
                 {
@@ -227,7 +227,7 @@ public sealed class ModPackage : IDisposable
         if (!fileSystemOperations.IsPathWithinDirectory(fullPath, fullRootDirectory))
         {
             throw new InvalidDataException(
-                $"Zip payload source cannot escape its extraction directory: {relativePath}");
+                $"Package payload source cannot escape its extraction directory: {relativePath}");
         }
 
         return fullPath;

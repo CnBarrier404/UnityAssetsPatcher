@@ -1,6 +1,6 @@
-namespace UnityAssetsPatcher.Application.Mods;
+namespace UnityAssetsPatcher.Infrastructure.Mods;
 
-internal static class ModPackagePath
+internal static class PackagePath
 {
     public static bool TryNormalize(string path, bool isDirectory, out string normalizedPath)
     {

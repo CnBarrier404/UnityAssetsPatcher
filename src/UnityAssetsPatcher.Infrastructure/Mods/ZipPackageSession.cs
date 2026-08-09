@@ -1,17 +1,17 @@
 using System.IO.Compression;
 using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
 
-namespace UnityAssetsPatcher.Application.Mods;
+namespace UnityAssetsPatcher.Infrastructure.Mods;
 
-internal sealed class ModPackageArchive : IDisposable
+internal sealed class ZipPackageSession : IPackageSession
 {
-    public string PackagePath { get; }
-
     private readonly ZipArchive _archive;
     private readonly ZipArchiveEntry _manifestEntry;
     private readonly IReadOnlyDictionary<string, ZipArchiveEntry> _fileEntries;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly string _packagePath;
     private readonly Lock _budgetLock = new();
     private long _reservedExtractionBytes;
 
@@ -19,21 +19,21 @@ internal sealed class ModPackageArchive : IDisposable
     private const long MaxManifestSize = 10L * 1024L * 1024L;
     private const long MaxExtractionSize = 10L * 1024L * 1024L * 1024L;
 
-    private ModPackageArchive(
+    private ZipPackageSession(
         string packagePath,
         ZipArchive archive,
         ZipArchiveEntry manifestEntry,
         IReadOnlyDictionary<string, ZipArchiveEntry> fileEntries,
         IFileSystemOperations fileSystemOperations)
     {
-        PackagePath = packagePath;
+        _packagePath = packagePath;
         _archive = archive;
         _manifestEntry = manifestEntry;
         _fileEntries = fileEntries;
         _fileSystemOperations = fileSystemOperations;
     }
 
-    public static OperationResult<ModPackageArchive> OpenRead(
+    public static OperationResult<IPackageSession> Open(
         string packagePath,
         IFileSystemOperations fileSystemOperations)
     {
@@ -49,18 +49,18 @@ internal sealed class ModPackageArchive : IDisposable
             archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
             stream = null;
 
-            OperationResult<ModPackageArchiveIndex> validationResult = Validate(archive, fullPackagePath);
+            OperationResult<PackageIndex> validationResult = Validate(archive, fullPackagePath);
 
-            if (validationResult is OperationFailed<ModPackageArchiveIndex> failure)
+            if (validationResult is OperationFailed<PackageIndex> failure)
             {
                 archive.Dispose();
                 archive = null;
 
-                return new OperationFailed<ModPackageArchive>(failure.Error);
+                return new OperationFailed<IPackageSession>(failure.Error);
             }
 
-            ModPackageArchiveIndex index = ((OperationSucceeded<ModPackageArchiveIndex>)validationResult).Value;
-            var packageArchive = new ModPackageArchive(
+            PackageIndex index = ((OperationSucceeded<PackageIndex>)validationResult).Value;
+            var session = new ZipPackageSession(
                 fullPackagePath,
                 archive,
                 index.ManifestEntry,
@@ -69,7 +69,7 @@ internal sealed class ModPackageArchive : IDisposable
 
             archive = null;
 
-            return new OperationSucceeded<ModPackageArchive>(packageArchive);
+            return new OperationSucceeded<IPackageSession>(session);
         }
         finally
         {
@@ -141,7 +141,7 @@ internal sealed class ModPackageArchive : IDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!ModPackagePath.TryNormalize(source, isDirectory: false, out string normalizedSource))
+        if (!PackagePath.TryNormalize(source, isDirectory: false, out string normalizedSource))
         {
             return Failure<long>(ModPackageErrorCodes.UnsafeEntryPath, ("entry_path", source));
         }
@@ -223,7 +223,7 @@ internal sealed class ModPackageArchive : IDisposable
         _archive.Dispose();
     }
 
-    private static OperationResult<ModPackageArchiveIndex> Validate(ZipArchive archive, string packagePath)
+    private static OperationResult<PackageIndex> Validate(ZipArchive archive, string packagePath)
     {
         var fileEntries = new Dictionary<string, ZipArchiveEntry>(StringComparer.OrdinalIgnoreCase);
         var allEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -233,9 +233,9 @@ internal sealed class ModPackageArchive : IDisposable
         {
             bool isDirectory = string.IsNullOrEmpty(entry.Name);
 
-            if (!ModPackagePath.TryNormalize(entry.FullName, isDirectory, out string normalizedPath))
+            if (!PackagePath.TryNormalize(entry.FullName, isDirectory, out string normalizedPath))
             {
-                return Failure<ModPackageArchiveIndex>(
+                return Failure<PackageIndex>(
                     ModPackageErrorCodes.UnsafeEntryPath,
                     packagePath,
                     ("entry_path", entry.FullName));
@@ -243,7 +243,7 @@ internal sealed class ModPackageArchive : IDisposable
 
             if (!allEntries.Add(normalizedPath))
             {
-                return Failure<ModPackageArchiveIndex>(
+                return Failure<PackageIndex>(
                     ModPackageErrorCodes.DuplicateEntry,
                     packagePath,
                     ("entry_path", normalizedPath));
@@ -257,7 +257,7 @@ internal sealed class ModPackageArchive : IDisposable
             fileEntries.Add(normalizedPath, entry);
 
             if (string.Equals(
-                    ModPackagePath.GetFileName(normalizedPath),
+                    PackagePath.GetFileName(normalizedPath),
                     "manifest.json",
                     StringComparison.OrdinalIgnoreCase))
             {
@@ -267,17 +267,17 @@ internal sealed class ModPackageArchive : IDisposable
 
         if (manifests.Count == 0)
         {
-            return Failure<ModPackageArchiveIndex>(ModPackageErrorCodes.ManifestMissing, packagePath);
+            return Failure<PackageIndex>(ModPackageErrorCodes.ManifestMissing, packagePath);
         }
 
         if (manifests.Count > 1)
         {
-            return Failure<ModPackageArchiveIndex>(ModPackageErrorCodes.MultipleManifests, packagePath);
+            return Failure<PackageIndex>(ModPackageErrorCodes.MultipleManifests, packagePath);
         }
 
-        var index = new ModPackageArchiveIndex(manifests[0], fileEntries);
+        var index = new PackageIndex(manifests[0], fileEntries);
 
-        return new OperationSucceeded<ModPackageArchiveIndex>(index);
+        return new OperationSucceeded<PackageIndex>(index);
     }
 
     private OperationFailed<byte[]> ManifestTooLarge(long observedLength)
@@ -318,7 +318,7 @@ internal sealed class ModPackageArchive : IDisposable
         OperationErrorCode code,
         params (string Key, object? Value)[] parameters)
     {
-        return CreateError(code, PackagePath, parameters);
+        return CreateError(code, _packagePath, parameters);
     }
 
     private static OperationFailed<T> Failure<T>(
@@ -347,7 +347,7 @@ internal sealed class ModPackageArchive : IDisposable
         return new OperationError(code, values);
     }
 
-    private sealed record ModPackageArchiveIndex(
+    private sealed record PackageIndex(
         ZipArchiveEntry ManifestEntry,
         IReadOnlyDictionary<string, ZipArchiveEntry> FileEntries);
 }
