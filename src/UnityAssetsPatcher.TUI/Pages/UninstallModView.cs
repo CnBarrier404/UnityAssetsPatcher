@@ -263,14 +263,10 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             (_strings.UninstallSummary_GameDirectory, preview.GameDirectory),
             (_strings.UninstallSummary_Installed,
                 FormatInstalledAt(preview.InstalledAt)),
-            (_strings.UninstallSummary_ChangedFiles,
-                preview.ChangedFiles.Count.ToString(CultureInfo.InvariantCulture)),
-            (_strings.UninstallSummary_Dependencies,
-                preview.DependencyFailures.Count.ToString(CultureInfo.InvariantCulture)),
         };
         var summary = new SummaryTableView(rows) { X = 0, Y = 2 };
         string availability = preview.CanUninstall
-            ? _strings.UninstallPreview_CanRemoveFormat(preview.ChangedFiles.Count)
+            ? _strings.UninstallPreview_WillModify
             : preview.DependencyFailures.Count > 0
                 ? _strings.UninstallPreview_CannotRemoveDependency
                 : _strings.UninstallPreview_CannotRemoveIntegrity;
@@ -324,13 +320,9 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     private int AddChangedPreviewFiles(IReadOnlyList<UninstallChangedFileResult> files, int row)
     {
         if (files.Count == 0) return row;
-        row = AddSectionHeader(_strings.UninstallPreview_ChangedFiles, row);
         foreach (UninstallChangedFileResult file in files)
         {
-            var details = new StyledLabel(
-                $"- {file.RelativePath}  {FormatChangedFileAction(file.Action)} | " +
-                FormatIntegrityStatus(file.Status),
-                TextRole.Muted)
+            var details = new StyledLabel($"- {file.RelativePath}", TextRole.Muted)
             {
                 X = 0,
                 Y = row,
