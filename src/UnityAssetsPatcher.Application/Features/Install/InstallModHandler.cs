@@ -46,7 +46,7 @@ public sealed class InstallModHandler :
         _logger = logger ?? NullLogger<InstallModHandler>.Instance;
     }
 
-    public Task<OperationResult<InstallPreviewResult>> HandleAsync(
+    public async Task<OperationResult<InstallPreviewResult>> HandleAsync(
         PreviewInstallRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -54,15 +54,15 @@ public sealed class InstallModHandler :
         ArgumentNullException.ThrowIfNull(request.Request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var result = Invoke(
-            () => Preview(request.Request),
+        OperationResult<InstallPreviewResult> result = await InvokeAsync(
+            () => PreviewAsync(request.Request, cancellationToken),
             DirectoryError(request.Request.GameDirectory),
-            nameof(Preview));
+            nameof(PreviewAsync)).ConfigureAwait(false);
 
-        return Task.FromResult(result);
+        return result;
     }
 
-    public Task<OperationResult<InstallModResult>> HandleAsync(
+    public async Task<OperationResult<InstallModResult>> HandleAsync(
         InstallModRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -70,28 +70,31 @@ public sealed class InstallModHandler :
         ArgumentNullException.ThrowIfNull(request.Request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var result = Invoke(
-            () => Install(request.Request),
+        OperationResult<InstallModResult> result = await InvokeAsync(
+            () => InstallAsync(request.Request, cancellationToken),
             DirectoryError(request.Request.GameDirectory),
-            nameof(Install));
+            nameof(InstallAsync)).ConfigureAwait(false);
 
-        return Task.FromResult(result);
+        return result;
     }
 
-    private OperationResult<InstallPreviewResult> Preview(InstallRequest request)
+    private async Task<OperationResult<InstallPreviewResult>> PreviewAsync(
+        InstallRequest request,
+        CancellationToken cancellationToken)
     {
         _logger.LogInformation("Previewing mod install from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
-        OperationResult<ModPackage> packageResult = ModPackage.Open(
+        OperationResult<ModPackage> packageResult = await ModPackage.OpenAsync(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             _modPackageReader,
             _fileSystemOperations,
-            timings);
+            timings,
+            cancellationToken).ConfigureAwait(false);
 
         if (packageResult is OperationFailed<ModPackage> packageFailure)
         {
-            return PackageFailure<InstallPreviewResult>(nameof(Preview), packageFailure.Error);
+            return PackageFailure<InstallPreviewResult>(nameof(PreviewAsync), packageFailure.Error);
         }
 
         using ModPackage package = ((OperationSucceeded<ModPackage>)packageResult).Value;
@@ -117,21 +120,24 @@ public sealed class InstallModHandler :
         return new OperationSucceeded<InstallPreviewResult>(result);
     }
 
-    private OperationResult<InstallModResult> Install(InstallRequest request)
+    private async Task<OperationResult<InstallModResult>> InstallAsync(
+        InstallRequest request,
+        CancellationToken cancellationToken)
     {
         _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
 
-        OperationResult<ModPackage> packageResult = ModPackage.Open(
+        OperationResult<ModPackage> packageResult = await ModPackage.OpenAsync(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             _modPackageReader,
             _fileSystemOperations,
-            timings);
+            timings,
+            cancellationToken).ConfigureAwait(false);
 
         if (packageResult is OperationFailed<ModPackage> packageFailure)
         {
-            return PackageFailure<InstallModResult>(nameof(Install), packageFailure.Error);
+            return PackageFailure<InstallModResult>(nameof(InstallAsync), packageFailure.Error);
         }
 
         using ModPackage package = ((OperationSucceeded<ModPackage>)packageResult).Value;
@@ -150,10 +156,10 @@ public sealed class InstallModHandler :
                 : PrepareAnalysis(request, package, preparedInstall, assetsScope.Reader, timings);
         }
 
-        RepositoryInstallResult repositoryResult = _repository.InstallMod(new InstallModPlan(
+        RepositoryInstallResult repositoryResult = await _repository.InstallModAsync(new InstallModPlan(
             request.ZipFilePath,
             analysis,
-            preparedInstall?.AssetFiles));
+            preparedInstall?.AssetFiles), cancellationToken).ConfigureAwait(false);
         timings.Append(repositoryResult.Timing);
         InstallExecutionResult execution = repositoryResult.Execution;
 
@@ -179,14 +185,14 @@ public sealed class InstallModHandler :
         return new OperationSucceeded<InstallModResult>(result);
     }
 
-    private OperationResult<TResult> Invoke<TResult>(
-        Func<OperationResult<TResult>> operation,
+    private async Task<OperationResult<TResult>> InvokeAsync<TResult>(
+        Func<Task<OperationResult<TResult>>> operation,
         OperationErrorCode directoryError,
         string operationName)
     {
         try
         {
-            return operation();
+            return await operation().ConfigureAwait(false);
         }
         catch (RepositoryRecoveryException exception)
         {

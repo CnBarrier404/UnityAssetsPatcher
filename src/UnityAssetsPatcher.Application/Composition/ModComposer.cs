@@ -49,9 +49,12 @@ public sealed class ModComposer
         _logger = logger ?? NullLogger<ModComposer>.Instance;
     }
 
-    public CompositionOutcome Compose(CompositionRequest request)
+    public async Task<CompositionOutcome> ComposeAsync(
+        CompositionRequest request,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
 
         string gameDirectory = _pathResolver.ResolveExistingDirectory(request.GameDirectory);
         string workingDirectory = _pathResolver.ResolveExistingDirectory(request.WorkingDirectory);
@@ -70,7 +73,7 @@ public sealed class ModComposer
             CompositionFileTarget file = request.Files[fileIndex];
             FileCompositionAttempt attempt = file.Kind switch
             {
-                RepositoryFileKind.Assets => ComposeAssetsFile(
+                RepositoryFileKind.Assets => await ComposeAssetsFileAsync(
                     gameDirectory,
                     fingerprint,
                     baseCatalog,
@@ -80,8 +83,9 @@ public sealed class ModComposer
                     fileIndex,
                     patchPlanner,
                     outputWriter,
-                    request.LayerPackagePaths),
-                RepositoryFileKind.Payload => ComposePayloadFile(
+                    request.LayerPackagePaths,
+                    cancellationToken).ConfigureAwait(false),
+                RepositoryFileKind.Payload => await ComposePayloadFileAsync(
                     gameDirectory,
                     fingerprint,
                     baseCatalog,
@@ -89,7 +93,8 @@ public sealed class ModComposer
                     compositionDirectory,
                     file,
                     fileIndex,
-                    request.LayerPackagePaths),
+                    request.LayerPackagePaths,
+                    cancellationToken).ConfigureAwait(false),
                 _ => throw new ArgumentOutOfRangeException(nameof(file.Kind), file.Kind, "Unsupported file kind."),
             };
 
@@ -105,7 +110,7 @@ public sealed class ModComposer
         return new CompositionSucceeded(new CompositionResult(results));
     }
 
-    private FileCompositionAttempt ComposeAssetsFile(
+    private async Task<FileCompositionAttempt> ComposeAssetsFileAsync(
         string gameDirectory,
         string fingerprint,
         BaseCatalog baseCatalog,
@@ -115,7 +120,8 @@ public sealed class ModComposer
         int fileIndex,
         PatchPlanner patchPlanner,
         PatchOutputWriter outputWriter,
-        IReadOnlyDictionary<string, string> layerPackagePaths)
+        IReadOnlyDictionary<string, string> layerPackagePaths,
+        CancellationToken cancellationToken)
     {
         BaseFileEntry baseEntry = baseCatalog.AssetsFiles.FirstOrDefault(entry =>
                                       TrustedPath.PathComparer.Equals(entry.RelativePath, file.RelativePath)) ??
@@ -131,7 +137,8 @@ public sealed class ModComposer
 
         foreach (LayerRecord layer in layers)
         {
-            using ModPackage package = OpenLayerPackage(layer, layerPackagePaths);
+            using ModPackage package = await OpenLayerPackageAsync(layer, layerPackagePaths, cancellationToken)
+                .ConfigureAwait(false);
             TargetAssetSet targets = _targetAssetResolver.Execute(
                 gameDirectory,
                 package.EffectiveManifest,
@@ -181,7 +188,7 @@ public sealed class ModComposer
             null);
     }
 
-    private FileCompositionAttempt ComposePayloadFile(
+    private async Task<FileCompositionAttempt> ComposePayloadFileAsync(
         string gameDirectory,
         string fingerprint,
         BaseCatalog baseCatalog,
@@ -189,17 +196,20 @@ public sealed class ModComposer
         string compositionDirectory,
         CompositionFileTarget file,
         int fileIndex,
-        IReadOnlyDictionary<string, string> layerPackagePaths)
+        IReadOnlyDictionary<string, string> layerPackagePaths,
+        CancellationToken cancellationToken)
     {
-        PayloadProvider? provider = FindPayloadProvider(
+        PayloadProvider? provider = await FindPayloadProviderAsync(
             gameDirectory,
             file.RelativePath,
             layers,
-            layerPackagePaths);
+            layerPackagePaths,
+            cancellationToken).ConfigureAwait(false);
 
         if (provider is not null)
         {
-            using ModPackage package = OpenLayerPackage(provider.Layer, layerPackagePaths);
+            using ModPackage package = await OpenLayerPackageAsync(provider.Layer, layerPackagePaths, cancellationToken)
+                .ConfigureAwait(false);
             string providerOutputPath = CreateWorkPath(
                 compositionDirectory,
                 RepositoryFileKind.Payload,
@@ -244,17 +254,19 @@ public sealed class ModComposer
             null);
     }
 
-    private PayloadProvider? FindPayloadProvider(
+    private async Task<PayloadProvider?> FindPayloadProviderAsync(
         string gameDirectory,
         string relativePath,
         IReadOnlyList<LayerRecord> layers,
-        IReadOnlyDictionary<string, string> layerPackagePaths)
+        IReadOnlyDictionary<string, string> layerPackagePaths,
+        CancellationToken cancellationToken)
     {
         for (int index = layers.Count - 1; index >= 0; index--)
         {
             LayerRecord layer = layers[index];
 
-            using ModPackage package = OpenLayerPackage(layer, layerPackagePaths);
+            using ModPackage package = await OpenLayerPackageAsync(layer, layerPackagePaths, cancellationToken)
+                .ConfigureAwait(false);
             TargetAssetSet targets = _targetAssetResolver.Execute(
                 gameDirectory,
                 package.EffectiveManifest,
@@ -306,9 +318,10 @@ public sealed class ModComposer
         return provider;
     }
 
-    private ModPackage OpenLayerPackage(
+    private async Task<ModPackage> OpenLayerPackageAsync(
         LayerRecord layer,
-        IReadOnlyDictionary<string, string> layerPackagePaths)
+        IReadOnlyDictionary<string, string> layerPackagePaths,
+        CancellationToken cancellationToken)
     {
         string packagePath;
 
@@ -329,12 +342,15 @@ public sealed class ModComposer
             packagePath = _compositionRepository.Layers.ResolvePackagePath(layer.Id);
         }
 
-        return RequirePackageResult(ModPackage.Open(
+        OperationResult<ModPackage> result = await ModPackage.OpenAsync(
             packagePath,
             layer.OptionalGroups ?? [],
             _modPackageReader,
             _fileSystemOperations,
-            new StepTimer()));
+            new StepTimer(),
+            cancellationToken).ConfigureAwait(false);
+
+        return RequirePackageResult(result);
     }
 
     private IReadOnlyList<LayerRecord> SelectLayers(CompositionRequest request, string fingerprint)

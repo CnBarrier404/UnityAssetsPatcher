@@ -35,61 +35,65 @@ public sealed class UninstallModHandler :
         _logger = logger ?? NullLogger<UninstallModHandler>.Instance;
     }
 
-    public Task<OperationResult<UninstallPreviewResult>> HandleAsync(
+    public async Task<OperationResult<UninstallPreviewResult>> HandleAsync(
         UninstallPreviewRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<UninstallPreviewResult> result = Invoke(
-            () => Preview(request),
+        OperationResult<UninstallPreviewResult> result = await InvokeAsync(
+            () => PreviewAsync(request, cancellationToken),
             DirectoryError(request.GameDirectory),
-            nameof(Preview));
+            nameof(PreviewAsync)).ConfigureAwait(false);
 
-        return Task.FromResult(result);
+        return result;
     }
 
-    public Task<OperationResult<IReadOnlyList<InstallRecordSummary>>> HandleAsync(
+    public async Task<OperationResult<IReadOnlyList<InstallRecordSummary>>> HandleAsync(
         ListInstalledModsRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<IReadOnlyList<InstallRecordSummary>> result = Invoke(
-            ListInstalledMods,
+        OperationResult<IReadOnlyList<InstallRecordSummary>> result = await InvokeAsync(
+            () => Task.FromResult(ListInstalledMods()),
             null,
-            nameof(ListInstalledMods));
+            nameof(ListInstalledMods)).ConfigureAwait(false);
 
-        return Task.FromResult(result);
+        return result;
     }
 
-    public Task<OperationResult<UninstallModResult>> HandleAsync(
+    public async Task<OperationResult<UninstallModResult>> HandleAsync(
         UninstallModRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<UninstallModResult> result = Invoke(
-            () => Uninstall(request),
+        OperationResult<UninstallModResult> result = await InvokeAsync(
+            () => UninstallAsync(request, cancellationToken),
             DirectoryError(request.GameDirectory),
-            nameof(Uninstall));
+            nameof(UninstallAsync)).ConfigureAwait(false);
 
-        return Task.FromResult(result);
+        return result;
     }
 
-    private UninstallPreviewResult Preview(UninstallPreviewRequest request)
+    private async Task<UninstallPreviewResult> PreviewAsync(
+        UninstallPreviewRequest request,
+        CancellationToken cancellationToken)
     {
-        return _planner.BuildPreview(request);
+        return await _planner.BuildPreviewAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private UninstallModResult Uninstall(UninstallModRequest request)
+    private async Task<UninstallModResult> UninstallAsync(
+        UninstallModRequest request,
+        CancellationToken cancellationToken)
     {
         _logger.LogInformation("Uninstalling mod install {InstallId}", request.InstallId);
-        UninstallPlan plan = _planner.BuildUninstall(request);
-        UninstallModResult result = _repository.UninstallMod(plan);
+        UninstallPlan plan = await _planner.BuildUninstallAsync(request, cancellationToken).ConfigureAwait(false);
+        UninstallModResult result = await _repository.UninstallModAsync(plan, cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation(
             "Uninstalled {ModName} {ModVersion}: {ChangedFileCount} files composed",
@@ -107,14 +111,14 @@ public sealed class UninstallModHandler :
         return _repository.ListInstalledMods();
     }
 
-    private OperationResult<TResult> Invoke<TResult>(
-        Func<TResult> operation,
+    private async Task<OperationResult<TResult>> InvokeAsync<TResult>(
+        Func<Task<TResult>> operation,
         OperationErrorCode? directoryError,
         string operationName)
     {
         try
         {
-            TResult result = operation();
+            TResult result = await operation().ConfigureAwait(false);
 
             return new OperationSucceeded<TResult>(result);
         }
@@ -182,7 +186,7 @@ public sealed class UninstallModHandler :
         }
         catch (InvalidOperationException exception)
         {
-            OperationErrorCode code = operationName == nameof(Uninstall)
+            OperationErrorCode code = operationName == nameof(UninstallAsync)
                 ? ModOperationErrorCodes.FileIntegrityMismatch
                 : RepositoryErrorCodes.Unsafe;
 

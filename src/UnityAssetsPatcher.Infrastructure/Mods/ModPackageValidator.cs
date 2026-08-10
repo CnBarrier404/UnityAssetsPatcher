@@ -15,8 +15,8 @@ internal static class ModPackageValidator
         var fileEntries = new Dictionary<string, ZipArchiveEntry>(StringComparer.OrdinalIgnoreCase);
         var allEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var manifests = new List<ZipArchiveEntry>();
-        long packageSize = archive.Entries.Aggregate<ZipArchiveEntry, long>(0,
-            (current, entry) => ValidateEntry(entry, packagePath, current, allEntries, fileEntries, manifests));
+        _ = archive.Entries.Aggregate<ZipArchiveEntry, long>(0, (current, entry) =>
+            ValidateEntry(entry, packagePath, current, allEntries, fileEntries, manifests));
 
         ZipArchiveEntry manifestEntry = manifests.Count switch
         {

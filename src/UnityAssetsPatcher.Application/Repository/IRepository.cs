@@ -11,7 +11,11 @@ public interface IRepository
 
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods();
 
-    public RepositoryInstallResult InstallMod(InstallModPlan plan);
+    public Task<RepositoryInstallResult> InstallModAsync(
+        InstallModPlan plan,
+        CancellationToken cancellationToken = default);
 
-    public UninstallModResult UninstallMod(UninstallPlan plan);
+    public Task<UninstallModResult> UninstallModAsync(
+        UninstallPlan plan,
+        CancellationToken cancellationToken = default);
 }

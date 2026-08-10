@@ -101,15 +101,28 @@ public sealed class ModPackageReaderTests
     }
 
     [Fact]
-    public void ReadManifest_WhenManifestExceedsLimit_ThrowsInvalidDataException()
+    public async Task ReadManifestAsync_WhenManifestExceedsLimit_ThrowsInvalidDataException()
     {
         byte[] manifest = new byte[10L * 1024L * 1024L + 1];
         byte[] archiveBytes = CreateArchive(("manifest.json", manifest));
         using IModPackageSession session = OpenPackage(new StubFileSystemOperations(archiveBytes));
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => session.ReadManifest());
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => session.ReadManifestAsync(TestContext.Current.CancellationToken));
 
         Assert.Contains("10485760-byte limit", exception.Message);
+    }
+
+    [Fact]
+    public async Task ReadManifestAsync_WhenCancelled_ThrowsOperationCanceledException()
+    {
+        byte[] archiveBytes = CreateArchive(("manifest.json", "{}"u8.ToArray()));
+        using IModPackageSession session = OpenPackage(new StubFileSystemOperations(archiveBytes));
+        using var cancellationSource = new CancellationTokenSource();
+        cancellationSource.Cancel();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => session.ReadManifestAsync(cancellationSource.Token));
     }
 
     [Fact]

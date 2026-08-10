@@ -34,7 +34,9 @@ public sealed class UninstallExecutor
         _logger = logger ?? NullLogger<UninstallExecutor>.Instance;
     }
 
-    public UninstallModResult Execute(UninstallPlan plan)
+    public async Task<UninstallModResult> ExecuteAsync(
+        UninstallPlan plan,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -57,10 +59,11 @@ public sealed class UninstallExecutor
 
         try
         {
-            UninstallCompositionAnalysis analysis = _compositionService.Analyze(
+            UninstallCompositionAnalysis analysis = await _compositionService.AnalyzeAsync(
                 plan.Layer,
                 gameDirectory,
-                temporaryDirectory);
+                temporaryDirectory,
+                cancellationToken).ConfigureAwait(false);
             BuildTransactionFiles(
                 analysis,
                 temporaryDirectory,

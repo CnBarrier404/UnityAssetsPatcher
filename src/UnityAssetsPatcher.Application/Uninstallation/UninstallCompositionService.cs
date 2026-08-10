@@ -63,10 +63,11 @@ public sealed class UninstallCompositionService
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
     }
 
-    public UninstallCompositionAnalysis Analyze(
+    public async Task<UninstallCompositionAnalysis> AnalyzeAsync(
         LayerRecord targetLayer,
         string gameDirectory,
-        string workingDirectory)
+        string workingDirectory,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(targetLayer);
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
@@ -83,18 +84,20 @@ public sealed class UninstallCompositionService
         string normalizedWorkingDirectory = _pathResolver.ResolveExistingDirectory(workingDirectory);
         LayerRecord[] activeLayers = GetActiveLayers(fingerprint, targetLayer.Id);
         CompositionFileTarget[] files = CreateFileTargets(targetLayer);
-        CompositionResult current = Compose(
+        CompositionResult current = await ComposeAsync(
             normalizedGameDirectory,
             normalizedWorkingDirectory,
             activeLayers,
             null,
-            files);
-        CompositionResult withoutTarget = Compose(
+            files,
+            cancellationToken).ConfigureAwait(false);
+        CompositionResult withoutTarget = await ComposeAsync(
             normalizedGameDirectory,
             normalizedWorkingDirectory,
             activeLayers,
             targetLayer.Id,
-            files);
+            files,
+            cancellationToken).ConfigureAwait(false);
 
         return new UninstallCompositionAnalysis(
             targetLayer,
@@ -147,19 +150,20 @@ public sealed class UninstallCompositionService
         return targets;
     }
 
-    private CompositionResult Compose(
+    private async Task<CompositionResult> ComposeAsync(
         string gameDirectory,
         string workingDirectory,
         IReadOnlyList<LayerRecord> activeLayers,
         string? excludedLayerId,
-        IReadOnlyList<CompositionFileTarget> files)
+        IReadOnlyList<CompositionFileTarget> files,
+        CancellationToken cancellationToken)
     {
-        CompositionOutcome outcome = _modComposer.Compose(new CompositionRequest(
+        CompositionOutcome outcome = await _modComposer.ComposeAsync(new CompositionRequest(
             gameDirectory,
             workingDirectory,
             activeLayers,
             excludedLayerId,
-            files));
+            files), cancellationToken).ConfigureAwait(false);
 
         return outcome switch
         {

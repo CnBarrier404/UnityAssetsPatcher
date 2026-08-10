@@ -42,11 +42,6 @@ internal sealed class StubModPackageSession : IModPackageSession
         _copiedBytes = copiedBytes;
     }
 
-    public byte[] ReadManifest()
-    {
-        return _manifestBytes;
-    }
-
     public Task<byte[]> ReadManifestAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

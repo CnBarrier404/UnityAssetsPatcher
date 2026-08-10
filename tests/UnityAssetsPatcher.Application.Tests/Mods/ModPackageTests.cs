@@ -28,33 +28,36 @@ public sealed class ModPackageTests
         """;
 
     [Fact]
-    public void Open_WhenPackageReaderRejectsPackage_PropagatesException()
+    public async Task OpenAsync_WhenPackageReaderRejectsPackage_PropagatesException()
     {
         var expected = new InvalidDataException("invalid package");
         var packageReader = new StubModPackageReader(_ => throw expected);
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => OpenPackage(packageReader));
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => OpenPackageAsync(packageReader));
 
         Assert.Same(expected, exception);
     }
 
     [Fact]
-    public void Open_WhenPackageReaderFaults_PropagatesOriginalException()
+    public async Task OpenAsync_WhenPackageReaderFaults_PropagatesOriginalException()
     {
         var expected = new FileNotFoundException("missing", "missing.zip");
         var packageReader = new StubModPackageReader(_ => throw expected);
 
-        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(packageReader));
+        FileNotFoundException exception = await Assert.ThrowsAsync<FileNotFoundException>(
+            () => OpenPackageAsync(packageReader));
 
         Assert.Same(expected, exception);
     }
 
     [Fact]
-    public void CopyPayloadFile_WhenCalled_ForwardsToPackageSession()
+    public async Task CopyPayloadFile_WhenCalled_ForwardsToPackageSession()
     {
         var session = new StubModPackageSession(Encoding.UTF8.GetBytes(ValidManifest), 3);
         var packageReader = new StubModPackageReader(session);
-        using ModPackage package = Assert.IsType<OperationSucceeded<ModPackage>>(OpenPackage(packageReader)).Value;
+        OperationResult<ModPackage> result = await OpenPackageAsync(packageReader);
+        using ModPackage package = Assert.IsType<OperationSucceeded<ModPackage>>(result).Value;
 
         long copiedBytes = package.CopyPayloadFile("payload.bin", "payload.output");
 
@@ -86,14 +89,15 @@ public sealed class ModPackageTests
         Assert.Equal(Path.GetFullPath("mod.zip"), packageReader.OpenedPath);
     }
 
-    private static OperationResult<ModPackage> OpenPackage(IModPackageReader modPackageReader)
+    private static Task<OperationResult<ModPackage>> OpenPackageAsync(IModPackageReader modPackageReader)
     {
-        return ModPackage.Open(
+        return ModPackage.OpenAsync(
             "mod.zip",
             [],
             modPackageReader,
             new StubFileSystemOperations(),
-            new StepTimer());
+            new StepTimer(),
+            TestContext.Current.CancellationToken);
     }
 
     private sealed class StubFileSystemOperations : IFileSystemOperations

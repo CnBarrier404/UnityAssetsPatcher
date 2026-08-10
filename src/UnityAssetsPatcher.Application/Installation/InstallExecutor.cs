@@ -59,17 +59,19 @@ public sealed class InstallExecutor
         _logger = logger ?? NullLogger<InstallExecutor>.Instance;
     }
 
-    public InstallExecutionResult Execute(
+    public async Task<InstallExecutionResult> ExecuteAsync(
         string packagePath,
         InstallAnalysis analysis,
         RepositoryOperationLock operationLock,
         StepTimer timings,
-        IReadOnlyList<PreparedInstallAssetFile>? expectedAssetFiles = null)
+        IReadOnlyList<PreparedInstallAssetFile>? expectedAssetFiles = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packagePath);
         ArgumentNullException.ThrowIfNull(analysis);
         ArgumentNullException.ThrowIfNull(operationLock);
         ArgumentNullException.ThrowIfNull(timings);
+        cancellationToken.ThrowIfCancellationRequested();
 
         RepositoryMetadata repository = _repositoryService.RequireWritableMetadata();
         string normalizedPackagePath = _fileSystemOperations.ResolveExistingFile(packagePath);
@@ -115,14 +117,15 @@ public sealed class InstallExecutor
             int baseSnapshotCount = CaptureBaseSnapshots(operationLock, gameDirectory, analysis, fingerprint);
             PrepareLayer(layer, normalizedPackagePath, preparedLayerDirectory);
 
-            CompositionResult composition = Compose(
+            CompositionResult composition = await ComposeAsync(
                 gameDirectory,
                 preparedDirectory,
                 activeLayers,
                 layer,
                 preparedLayerDirectory,
                 analysis,
-                timings);
+                timings,
+                cancellationToken).ConfigureAwait(false);
             var expectedAssetIntegrities = CreateExpectedAssetIntegrities(
                 expectedAssetFiles);
 
@@ -270,14 +273,15 @@ public sealed class InstallExecutor
         _compositionRepository.Layers.WritePreparedLayer(layer, preparedLayerDirectory);
     }
 
-    private CompositionResult Compose(
+    private async Task<CompositionResult> ComposeAsync(
         string gameDirectory,
         string preparedDirectory,
         IReadOnlyList<LayerRecord> activeLayers,
         LayerRecord newLayer,
         string preparedLayerDirectory,
         InstallAnalysis analysis,
-        StepTimer timings)
+        StepTimer timings,
+        CancellationToken cancellationToken)
     {
         CompositionFileTarget[] files =
         [
@@ -303,7 +307,9 @@ public sealed class InstallExecutor
             null,
             files,
             layerPackagePaths);
-        CompositionOutcome outcome = timings.Measure("compose", () => _modComposer.Compose(request));
+        CompositionOutcome outcome = await timings.MeasureAsync(
+            "compose",
+            () => _modComposer.ComposeAsync(request, cancellationToken)).ConfigureAwait(false);
 
         return outcome switch
         {

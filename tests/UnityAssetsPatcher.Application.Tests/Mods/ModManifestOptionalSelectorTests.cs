@@ -42,9 +42,9 @@ public sealed class ModManifestOptionalSelectorTests
         """;
 
     [Fact]
-    public void Open_WhenNoGroupIsSelected_ReturnsRequiredContentOnly()
+    public async Task OpenAsync_WhenNoGroupIsSelected_ReturnsRequiredContentOnly()
     {
-        using ModPackage package = OpenPackage(ManifestJson, []);
+        using ModPackage package = await OpenPackageAsync(ManifestJson, []);
 
         Assert.Single(package.EffectiveManifest.Files);
         Assert.Single(package.EffectiveManifest.Patches);
@@ -54,9 +54,9 @@ public sealed class ModManifestOptionalSelectorTests
     }
 
     [Fact]
-    public void Open_WhenGroupUsesDifferentCase_MergesContentAndReportsCanonicalName()
+    public async Task OpenAsync_WhenGroupUsesDifferentCase_MergesContentAndReportsCanonicalName()
     {
-        using ModPackage package = OpenPackage(ManifestJson, ["bonus CAMERA"]);
+        using ModPackage package = await OpenPackageAsync(ManifestJson, ["bonus CAMERA"]);
 
         Assert.Equal(2, package.EffectiveManifest.Patches.Count);
         Assert.Contains(
@@ -66,9 +66,9 @@ public sealed class ModManifestOptionalSelectorTests
     }
 
     [Fact]
-    public void Open_WhenUnknownGroupIsSelected_ReturnsStructuredFailure()
+    public async Task OpenAsync_WhenUnknownGroupIsSelected_ReturnsStructuredFailure()
     {
-        OperationResult<ModPackage> result = OpenPackageResult(ManifestJson, ["Missing"]);
+        OperationResult<ModPackage> result = await OpenPackageResultAsync(ManifestJson, ["Missing"]);
 
         var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
         Assert.Equal(ManifestErrorCodes.UnknownOptionalGroup, failure.Error.Code);
@@ -76,7 +76,7 @@ public sealed class ModManifestOptionalSelectorTests
     }
 
     [Fact]
-    public void Open_WhenMergedPayloadFileNamesCollideIgnoringCase_ReturnsStructuredFailure()
+    public async Task OpenAsync_WhenMergedPayloadFileNamesCollideIgnoringCase_ReturnsStructuredFailure()
     {
         const string manifest =
             """
@@ -101,7 +101,7 @@ public sealed class ModManifestOptionalSelectorTests
             }
             """;
 
-        OperationResult<ModPackage> result = OpenPackageResult(manifest, ["Payload"]);
+        OperationResult<ModPackage> result = await OpenPackageResultAsync(manifest, ["Payload"]);
 
         var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
         Assert.Equal(ManifestErrorCodes.PayloadConflict, failure.Error.Code);
@@ -109,23 +109,25 @@ public sealed class ModManifestOptionalSelectorTests
     }
 
     [Fact]
-    public void Open_WhenPatchOnlyGroupIsRepeated_PreservesLegacyDuplicateMerge()
+    public async Task OpenAsync_WhenPatchOnlyGroupIsRepeated_PreservesLegacyDuplicateMerge()
     {
-        using ModPackage package = OpenPackage(ManifestJson, ["Bonus camera", "BONUS CAMERA"]);
+        using ModPackage package = await OpenPackageAsync(ManifestJson, ["Bonus camera", "BONUS CAMERA"]);
 
         Assert.Equal(3, package.EffectiveManifest.Patches.Count);
         Assert.Equal(["Bonus camera"], package.AppliedOptionalGroups);
     }
 
-    private static ModPackage OpenPackage(string manifest, IReadOnlyList<string> selectedNames)
+    private static async Task<ModPackage> OpenPackageAsync(
+        string manifest,
+        IReadOnlyList<string> selectedNames)
     {
-        OperationResult<ModPackage> result = OpenPackageResult(manifest, selectedNames);
+        OperationResult<ModPackage> result = await OpenPackageResultAsync(manifest, selectedNames);
         var success = Assert.IsType<OperationSucceeded<ModPackage>>(result);
 
         return success.Value;
     }
 
-    private static OperationResult<ModPackage> OpenPackageResult(
+    private static Task<OperationResult<ModPackage>> OpenPackageResultAsync(
         string manifest,
         IReadOnlyList<string> selectedNames)
     {
@@ -133,12 +135,13 @@ public sealed class ModManifestOptionalSelectorTests
         var packageReader = new StubModPackageReader(session);
         var fileSystemOperations = new StubFileSystemOperations();
 
-        return ModPackage.Open(
+        return ModPackage.OpenAsync(
             "mod.zip",
             selectedNames,
             packageReader,
             fileSystemOperations,
-            new StepTimer());
+            new StepTimer(),
+            TestContext.Current.CancellationToken);
     }
 
     private sealed class StubFileSystemOperations : IFileSystemOperations

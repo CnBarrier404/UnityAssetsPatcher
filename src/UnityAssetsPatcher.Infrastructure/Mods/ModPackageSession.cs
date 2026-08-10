@@ -64,38 +64,6 @@ internal sealed class ModPackageSession : IModPackageSession
         }
     }
 
-    public byte[] ReadManifest()
-    {
-        if (_manifestEntry.Length > MaxManifestSize)
-        {
-            throw new InvalidDataException(
-                $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
-                $"{_manifestEntry.FullName} ({_manifestEntry.Length} bytes observed). Package: {_packagePath}");
-        }
-
-        using Stream input = _manifestEntry.Open();
-        using MemoryStream output = new((int)_manifestEntry.Length);
-        byte[] buffer = new byte[CopyBufferSize];
-        long totalBytes = 0;
-        int bytesRead;
-
-        while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
-        {
-            totalBytes += bytesRead;
-
-            if (totalBytes > MaxManifestSize)
-            {
-                throw new InvalidDataException(
-                    $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
-                    $"{_manifestEntry.FullName} ({totalBytes} bytes observed). Package: {_packagePath}");
-            }
-
-            output.Write(buffer, 0, bytesRead);
-        }
-
-        return output.ToArray();
-    }
-
     public async Task<byte[]> ReadManifestAsync(CancellationToken cancellationToken = default)
     {
         if (_manifestEntry.Length > MaxManifestSize)

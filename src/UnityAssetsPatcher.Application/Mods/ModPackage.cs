@@ -32,27 +32,30 @@ public sealed class ModPackage : IDisposable
         _temporaryDirectory = temporaryDirectory;
     }
 
-    public static OperationResult<ModPackage> Open(
+    public static async Task<OperationResult<ModPackage>> OpenAsync(
         string modPackagePath,
         IReadOnlyList<string> selectedOptionalGroups,
         IModPackageReader modPackageReader,
         IFileSystemOperations fileSystemOperations,
-        StepTimer timings)
+        StepTimer timings,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modPackagePath);
         ArgumentNullException.ThrowIfNull(selectedOptionalGroups);
         ArgumentNullException.ThrowIfNull(modPackageReader);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(timings);
+        cancellationToken.ThrowIfCancellationRequested();
 
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
         IModPackageSession modPackageSession = modPackageReader.Open(modPackageFullPath);
 
         try
         {
-            OperationResult<ModPackageContent> contentResult = timings.Measure(
+            OperationResult<ModPackageContent> contentResult = await timings.MeasureAsync(
                 "read-package",
-                () => ReadContent(modPackageSession, selectedOptionalGroups));
+                () => ReadContentAsync(modPackageSession, selectedOptionalGroups, cancellationToken))
+                .ConfigureAwait(false);
 
             if (contentResult is OperationFailed<ModPackageContent> contentFailure)
             {
@@ -113,11 +116,12 @@ public sealed class ModPackage : IDisposable
         }
     }
 
-    private static OperationResult<ModPackageContent> ReadContent(
+    private static async Task<OperationResult<ModPackageContent>> ReadContentAsync(
         IModPackageSession modPackageSession,
-        IReadOnlyList<string> selectedOptionalGroups)
+        IReadOnlyList<string> selectedOptionalGroups,
+        CancellationToken cancellationToken)
     {
-        byte[] manifestBytes = modPackageSession.ReadManifest();
+        byte[] manifestBytes = await modPackageSession.ReadManifestAsync(cancellationToken).ConfigureAwait(false);
         OperationResult<ModManifest> manifestResult = ModManifestParser.Parse(manifestBytes);
 
         if (manifestResult is OperationFailed<ModManifest> manifestFailure)

@@ -37,7 +37,9 @@ public sealed class Repository : IRepository
         return _repositoryService.ListInstalledMods();
     }
 
-    public RepositoryInstallResult InstallMod(InstallModPlan plan)
+    public async Task<RepositoryInstallResult> InstallModAsync(
+        InstallModPlan plan,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -46,17 +48,20 @@ public sealed class Repository : IRepository
         _ = _repositoryService.RequireWritableMetadata();
 
         var timings = new StepTimer();
-        InstallExecutionResult execution = _installExecutor.Execute(
+        InstallExecutionResult execution = await _installExecutor.ExecuteAsync(
             plan.PackagePath,
             plan.Analysis,
             operationLock,
             timings,
-            plan.ExpectedAssetFiles);
+            plan.ExpectedAssetFiles,
+            cancellationToken).ConfigureAwait(false);
 
         return new RepositoryInstallResult(execution, recovery, timings.BuildSnapshot());
     }
 
-    public UninstallModResult UninstallMod(UninstallPlan plan)
+    public async Task<UninstallModResult> UninstallModAsync(
+        UninstallPlan plan,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -64,7 +69,10 @@ public sealed class Repository : IRepository
         RepositoryRecoveryReport recovery = CheckPendingTransactions("uninstalling another mod");
         _ = _repositoryService.RequireWritableMetadata();
 
-        return _uninstallExecutor.Execute(plan) with
+        UninstallModResult result = await _uninstallExecutor.ExecuteAsync(plan, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result with
         {
             Recovery = recovery,
         };

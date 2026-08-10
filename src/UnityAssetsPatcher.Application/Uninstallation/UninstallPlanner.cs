@@ -42,7 +42,9 @@ public sealed class UninstallPlanner
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
     }
 
-    public UninstallPreviewResult BuildPreview(UninstallPreviewRequest request)
+    public async Task<UninstallPreviewResult> BuildPreviewAsync(
+        UninstallPreviewRequest request,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -58,7 +60,11 @@ public sealed class UninstallPlanner
 
             try
             {
-                analysis = _compositionService.Analyze(layer, gameDirectory, workingDirectory);
+                analysis = await _compositionService.AnalyzeAsync(
+                    layer,
+                    gameDirectory,
+                    workingDirectory,
+                    cancellationToken).ConfigureAwait(false);
             }
             catch (UninstallCompositionException exception)
             {
@@ -92,7 +98,9 @@ public sealed class UninstallPlanner
         }
     }
 
-    public UninstallPlan BuildUninstall(UninstallModRequest request)
+    public async Task<UninstallPlan> BuildUninstallAsync(
+        UninstallModRequest request,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -108,7 +116,11 @@ public sealed class UninstallPlanner
 
             try
             {
-                analysis = _compositionService.Analyze(layer, gameDirectory, workingDirectory);
+                analysis = await _compositionService.AnalyzeAsync(
+                    layer,
+                    gameDirectory,
+                    workingDirectory,
+                    cancellationToken).ConfigureAwait(false);
             }
             catch (UninstallCompositionException exception)
             {

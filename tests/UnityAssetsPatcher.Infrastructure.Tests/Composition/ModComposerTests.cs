@@ -18,7 +18,7 @@ namespace UnityAssetsPatcher.Infrastructure.Tests.Composition;
 public sealed class ModComposerTests
 {
     [Fact]
-    public void Compose_WhenSingleLayerPatchesField_ReplaysBaseIntoWorkingCopyAndReResolvesTarget()
+    public async Task ComposeAsync_WhenSingleLayerPatchesField_ReplaysBaseIntoWorkingCopyAndReResolvesTarget()
     {
         using CompositionTestFixture fixture = new();
         LayerRecord layer = fixture.AddLayer(
@@ -33,7 +33,7 @@ public sealed class ModComposerTests
             null,
             [new CompositionFileTarget(RepositoryFileKind.Assets, fixture.AssetsRelativePath)]);
 
-        CompositionOutcome outcome = fixture.Compose(request);
+        CompositionOutcome outcome = await fixture.ComposeAsync(request);
 
         CompositionSucceeded succeeded = Assert.IsType<CompositionSucceeded>(outcome);
         CompositionFileResult result = Assert.Single(succeeded.Result.Files);
@@ -45,7 +45,7 @@ public sealed class ModComposerTests
     }
 
     [Fact]
-    public void Compose_WhenTwoLayersPatchAndReplace_ReplaysBothLayersInOrder()
+    public async Task ComposeAsync_WhenTwoLayersPatchAndReplace_ReplaysBothLayersInOrder()
     {
         using CompositionTestFixture fixture = new();
         LayerRecord firstLayer = fixture.AddLayer(
@@ -68,7 +68,7 @@ public sealed class ModComposerTests
             null,
             [new CompositionFileTarget(RepositoryFileKind.Assets, fixture.AssetsRelativePath)]);
 
-        CompositionOutcome outcome = fixture.Compose(request);
+        CompositionOutcome outcome = await fixture.ComposeAsync(request);
 
         CompositionSucceeded succeeded = Assert.IsType<CompositionSucceeded>(outcome);
         string preparedPath = Assert.Single(succeeded.Result.Files).PreparedPath!;
@@ -78,7 +78,7 @@ public sealed class ModComposerTests
     }
 
     [Fact]
-    public void Compose_WhenUpperLayerExpectedValueDoesNotMatch_ReturnsValueMismatchForUpperLayer()
+    public async Task ComposeAsync_WhenUpperLayerExpectedValueDoesNotMatch_ReturnsValueMismatchForUpperLayer()
     {
         using CompositionTestFixture fixture = new();
         LayerRecord firstLayer = fixture.AddLayer(
@@ -100,7 +100,7 @@ public sealed class ModComposerTests
             null,
             [new CompositionFileTarget(RepositoryFileKind.Assets, fixture.AssetsRelativePath)]);
 
-        CompositionOutcome outcome = fixture.Compose(request);
+        CompositionOutcome outcome = await fixture.ComposeAsync(request);
 
         CompositionFailed failed = Assert.IsType<CompositionFailed>(outcome);
         PatchDiagnostic diagnostic = Assert.Single(failed.Failure.Diagnostics);
@@ -111,7 +111,7 @@ public sealed class ModComposerTests
     }
 
     [Fact]
-    public void Compose_WhenTopPayloadLayerIsExcluded_UsesFallbackAndRestoresBaseOrDeletesAbsentPayload()
+    public async Task ComposeAsync_WhenTopPayloadLayerIsExcluded_UsesFallbackAndRestoresBaseOrDeletesAbsentPayload()
     {
         using CompositionTestFixture fixture = new();
         LayerRecord fallbackLayer = fixture.AddLayer(
@@ -137,7 +137,7 @@ public sealed class ModComposerTests
                 new CompositionFileTarget(RepositoryFileKind.Payload, fixture.AbsentPayloadRelativePath),
             ]);
 
-        CompositionOutcome outcome = fixture.Compose(request);
+        CompositionOutcome outcome = await fixture.ComposeAsync(request);
 
         CompositionSucceeded succeeded = Assert.IsType<CompositionSucceeded>(outcome);
         CompositionFileResult[] results = [.. succeeded.Result.Files];
@@ -148,7 +148,7 @@ public sealed class ModComposerTests
     }
 
     [Fact]
-    public void Compose_WhenLayerPackageIntegrityChanges_RejectsComposition()
+    public async Task ComposeAsync_WhenLayerPackageIntegrityChanges_RejectsComposition()
     {
         using CompositionTestFixture fixture = new();
         LayerRecord layer = fixture.AddLayer(
@@ -165,7 +165,8 @@ public sealed class ModComposerTests
             null,
             [new CompositionFileTarget(RepositoryFileKind.Assets, fixture.AssetsRelativePath)]);
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => fixture.Compose(request));
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => fixture.ComposeAsync(request));
 
         Assert.Contains("integrity does not match", exception.Message);
     }
@@ -318,12 +319,12 @@ public sealed class ModComposerTests
             return new CompositionRequest(GameDirectory, workingDirectory, layers, excludedLayerId, files);
         }
 
-        public CompositionOutcome Compose(CompositionRequest request)
+        public async Task<CompositionOutcome> ComposeAsync(CompositionRequest request)
         {
             using IServiceScope scope = _serviceProvider.CreateScope();
             ModComposer composer = scope.ServiceProvider.GetRequiredService<ModComposer>();
 
-            return composer.Compose(request);
+            return await composer.ComposeAsync(request, TestContext.Current.CancellationToken);
         }
 
         public LayerRecord AddLayer(

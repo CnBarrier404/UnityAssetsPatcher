@@ -27,6 +27,22 @@ public sealed class StepTimer
         }
     }
 
+    public async Task<T> MeasureAsync<T>(string name, Func<Task<T>> action)
+    {
+        var stepStopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            return await action().ConfigureAwait(false);
+        }
+        finally
+        {
+            stepStopwatch.Stop();
+
+            _steps.Add(new TimingStep(name, stepStopwatch.Elapsed));
+        }
+    }
+
     public void Append(TimingSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
