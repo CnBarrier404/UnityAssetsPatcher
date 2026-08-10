@@ -14,7 +14,6 @@ internal sealed class ModPackageSession : IModPackageSession
 
     private const int CopyBufferSize = 81920;
     private const long MaxManifestSize = 10L * 1024L * 1024L;
-    private const long MaxPackageSize = 10L * 1024L * 1024L * 1024L;
 
     private ModPackageSession(
         string packagePath,
@@ -46,7 +45,7 @@ internal sealed class ModPackageSession : IModPackageSession
             archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
             stream = null;
 
-            PackageIndex index = Validate(archive, fullPackagePath);
+            ModPackageIndex index = ModPackageValidator.Validate(archive, fullPackagePath);
             var session = new ModPackageSession(
                 fullPackagePath,
                 archive,
@@ -69,7 +68,9 @@ internal sealed class ModPackageSession : IModPackageSession
     {
         if (_manifestEntry.Length > MaxManifestSize)
         {
-            throw ManifestTooLarge(_manifestEntry.Length);
+            throw new InvalidDataException(
+                $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
+                $"{_manifestEntry.FullName} ({_manifestEntry.Length} bytes observed). Package: {_packagePath}");
         }
 
         using Stream input = _manifestEntry.Open();
@@ -84,7 +85,9 @@ internal sealed class ModPackageSession : IModPackageSession
 
             if (totalBytes > MaxManifestSize)
             {
-                throw ManifestTooLarge(totalBytes);
+                throw new InvalidDataException(
+                    $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
+                    $"{_manifestEntry.FullName} ({totalBytes} bytes observed). Package: {_packagePath}");
             }
 
             output.Write(buffer, 0, bytesRead);
@@ -97,10 +100,12 @@ internal sealed class ModPackageSession : IModPackageSession
     {
         if (_manifestEntry.Length > MaxManifestSize)
         {
-            throw ManifestTooLarge(_manifestEntry.Length);
+            throw new InvalidDataException(
+                $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
+                $"{_manifestEntry.FullName} ({_manifestEntry.Length} bytes observed). Package: {_packagePath}");
         }
 
-        using Stream input = _manifestEntry.Open();
+        await using Stream input = await _manifestEntry.OpenAsync(cancellationToken);
         using MemoryStream output = new((int)_manifestEntry.Length);
         byte[] buffer = new byte[CopyBufferSize];
         long totalBytes = 0;
@@ -112,7 +117,9 @@ internal sealed class ModPackageSession : IModPackageSession
 
             if (totalBytes > MaxManifestSize)
             {
-                throw ManifestTooLarge(totalBytes);
+                throw new InvalidDataException(
+                    $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
+                    $"{_manifestEntry.FullName} ({totalBytes} bytes observed). Package: {_packagePath}");
             }
 
             await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
@@ -128,14 +135,16 @@ internal sealed class ModPackageSession : IModPackageSession
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!PackagePath.TryNormalize(source, isDirectory: false, out string normalizedSource))
+        if (!ModPackageValidator.TryNormalizePath(source, isDirectory: false, out string normalizedSource))
         {
-            throw InvalidPackage($"The package entry path is unsafe: {source}");
+            throw new InvalidDataException(
+                $"The package entry path is unsafe: {source}. Package: {_packagePath}");
         }
 
         if (!_fileEntries.TryGetValue(normalizedSource, out ZipArchiveEntry? entry))
         {
-            throw InvalidPackage($"The package entry was not found: {normalizedSource}");
+            throw new InvalidDataException(
+                $"The package entry was not found: {normalizedSource}. Package: {_packagePath}");
         }
 
         string fullDestinationPath = Path.GetFullPath(destinationPath);
@@ -165,7 +174,9 @@ internal sealed class ModPackageSession : IModPackageSession
 
                     if (copiedBytes > entry.Length)
                     {
-                        throw InvalidPackage($"The package entry exceeds its declared size: {normalizedSource}");
+                        throw new InvalidDataException(
+                            $"The package entry exceeds its declared size: {normalizedSource}. " +
+                            $"Package: {_packagePath}");
                     }
 
                     output.Write(buffer, 0, bytesRead);
@@ -181,83 +192,4 @@ internal sealed class ModPackageSession : IModPackageSession
     {
         _archive.Dispose();
     }
-
-    private static PackageIndex Validate(ZipArchive archive, string packagePath)
-    {
-        var fileEntries = new Dictionary<string, ZipArchiveEntry>(StringComparer.OrdinalIgnoreCase);
-        var allEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var manifests = new List<ZipArchiveEntry>();
-        long packageSize = 0;
-
-        foreach (ZipArchiveEntry entry in archive.Entries)
-        {
-            bool isDirectory = string.IsNullOrEmpty(entry.Name);
-
-            if (!PackagePath.TryNormalize(entry.FullName, isDirectory, out string normalizedPath))
-            {
-                throw InvalidPackage(packagePath, $"The package entry path is unsafe: {entry.FullName}");
-            }
-
-            if (!allEntries.Add(normalizedPath))
-            {
-                throw InvalidPackage(packagePath, $"The package contains a duplicate entry: {normalizedPath}");
-            }
-
-            if (isDirectory)
-            {
-                continue;
-            }
-
-            if (entry.Length > MaxPackageSize - packageSize)
-            {
-                throw InvalidPackage(
-                    packagePath,
-                    $"The package exceeds the {MaxPackageSize}-byte uncompressed size limit");
-            }
-
-            packageSize += entry.Length;
-            fileEntries.Add(normalizedPath, entry);
-
-            if (string.Equals(
-                    PackagePath.GetFileName(normalizedPath),
-                    "manifest.json",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                manifests.Add(entry);
-            }
-        }
-
-        if (manifests.Count == 0)
-        {
-            throw InvalidPackage(packagePath, "The package does not contain a manifest.json file");
-        }
-
-        if (manifests.Count > 1)
-        {
-            throw InvalidPackage(packagePath, "The package contains multiple manifest.json files");
-        }
-
-        return new PackageIndex(manifests[0], fileEntries);
-    }
-
-    private InvalidDataException ManifestTooLarge(long observedLength)
-    {
-        return InvalidPackage(
-            $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
-            $"{_manifestEntry.FullName} ({observedLength} bytes observed)");
-    }
-
-    private InvalidDataException InvalidPackage(string detail)
-    {
-        return InvalidPackage(_packagePath, detail);
-    }
-
-    private static InvalidDataException InvalidPackage(string packagePath, string detail)
-    {
-        return new InvalidDataException($"{detail}. Package: {packagePath}");
-    }
-
-    private sealed record PackageIndex(
-        ZipArchiveEntry ManifestEntry,
-        IReadOnlyDictionary<string, ZipArchiveEntry> FileEntries);
 }
