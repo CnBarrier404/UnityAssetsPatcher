@@ -1,4 +1,5 @@
 using UnityAssetsPatcher.Application.Mods;
+using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Tests.Mods;
 
@@ -6,60 +7,69 @@ internal sealed class StubPackageReader : IPackageReader
 {
     public string? OpenedPath { get; private set; }
 
-    private readonly Func<string, string, CancellationToken, PackageContent> _read;
-    private readonly Func<string, CancellationToken, Task<byte[]>> _readManifestAsync;
+    private readonly Func<string, OperationResult<IPackageSession>> _open;
 
-    public StubPackageReader(PackageContent content)
-        : this((_, _, _) => content, (_, _) => Task.FromResult(content.Manifest)) { }
+    public StubPackageReader(IPackageSession session)
+        : this(_ => new OperationSucceeded<IPackageSession>(session)) { }
 
-    public StubPackageReader(byte[] manifest)
-        : this(
-            (_, _, _) => new PackageContent(manifest, new Dictionary<string, string>()),
-            (_, cancellationToken) =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                return Task.FromResult(manifest);
-            }) { }
-
-    public StubPackageReader(Func<string, string, CancellationToken, PackageContent> read)
-        : this(read, (_, _) => throw new NotSupportedException()) { }
-
-    public StubPackageReader(Func<string, PackageContent> read)
-        : this((path, _, cancellationToken) =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            return read(path);
-        }) { }
-
-    public StubPackageReader(
-        Func<string, string, CancellationToken, PackageContent> read,
-        Func<string, CancellationToken, Task<byte[]>> readManifestAsync)
+    public StubPackageReader(Func<string, OperationResult<IPackageSession>> open)
     {
-        ArgumentNullException.ThrowIfNull(read);
-        ArgumentNullException.ThrowIfNull(readManifestAsync);
+        ArgumentNullException.ThrowIfNull(open);
 
-        _read = read;
-        _readManifestAsync = readManifestAsync;
+        _open = open;
     }
 
-    public PackageContent Read(
-        string packagePath,
-        string extractionDirectory,
-        CancellationToken cancellationToken = default)
+    public OperationResult<IPackageSession> Open(string packagePath)
     {
         OpenedPath = packagePath;
 
-        return _read(packagePath, extractionDirectory, cancellationToken);
+        return _open(packagePath);
+    }
+}
+
+internal sealed class StubPackageSession : IPackageSession
+{
+    public string? CopiedSource { get; private set; }
+    public string? CopyDestinationPath { get; private set; }
+    public bool IsDisposed { get; private set; }
+
+    private readonly byte[] _manifestBytes;
+    private readonly OperationResult<long> _copyResult;
+
+    public StubPackageSession(byte[] manifestBytes, OperationResult<long>? copyResult = null)
+    {
+        ArgumentNullException.ThrowIfNull(manifestBytes);
+
+        _manifestBytes = manifestBytes;
+        _copyResult = copyResult ?? new OperationSucceeded<long>(0);
     }
 
-    public Task<byte[]> ReadManifestAsync(
-        string packagePath,
+    public OperationResult<byte[]> ReadManifest()
+    {
+        return new OperationSucceeded<byte[]>(_manifestBytes);
+    }
+
+    public Task<OperationResult<byte[]>> ReadManifestAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult<OperationResult<byte[]>>(new OperationSucceeded<byte[]>(_manifestBytes));
+    }
+
+    public OperationResult<long> CopyEntryToNewFile(
+        string source,
+        string destinationPath,
         CancellationToken cancellationToken = default)
     {
-        OpenedPath = packagePath;
+        cancellationToken.ThrowIfCancellationRequested();
+        CopiedSource = source;
+        CopyDestinationPath = destinationPath;
 
-        return _readManifestAsync(packagePath, cancellationToken);
+        return _copyResult;
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
     }
 }

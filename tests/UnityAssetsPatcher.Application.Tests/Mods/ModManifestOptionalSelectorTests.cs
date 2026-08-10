@@ -129,7 +129,8 @@ public sealed class ModManifestOptionalSelectorTests
         string manifest,
         IReadOnlyList<string> selectedNames)
     {
-        var packageReader = new StubPackageReader(Encoding.UTF8.GetBytes(manifest));
+        var session = new StubPackageSession(Encoding.UTF8.GetBytes(manifest));
+        var packageReader = new StubPackageReader(session);
         var fileSystemOperations = new StubFileSystemOperations();
 
         return ModPackage.Open(

@@ -1,13 +1,8 @@
-namespace UnityAssetsPatcher.Application.Mods;
+using UnityAssetsPatcher.Application.Operations;
 
-public sealed record PackageContent(byte[] Manifest, IReadOnlyDictionary<string, string> EntryPaths);
+namespace UnityAssetsPatcher.Application.Mods;
 
 public interface IPackageReader
 {
-    public PackageContent Read(
-        string packagePath,
-        string extractionDirectory,
-        CancellationToken cancellationToken = default);
-
-    public Task<byte[]> ReadManifestAsync(string packagePath, CancellationToken cancellationToken = default);
+    public OperationResult<IPackageSession> Open(string packagePath);
 }

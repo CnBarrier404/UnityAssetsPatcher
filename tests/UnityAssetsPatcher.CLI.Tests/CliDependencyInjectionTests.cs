@@ -19,7 +19,7 @@ public sealed class CliDependencyInjectionTests
 
         services.AddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileSystemOperations>>()));
-        services.AddSingleton<IPackageReader, ModPackageReader>();
+        services.AddSingleton<IPackageReader, ZipPackageReader>();
 
         services.AddUnityAssetsPatcherApplication();
 

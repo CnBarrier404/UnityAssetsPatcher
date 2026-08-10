@@ -206,7 +206,7 @@ public sealed class ModComposer
                 fileIndex,
                 0,
                 file.RelativePath);
-            package.CopyPayloadFile(provider.Source, providerOutputPath);
+            _ = RequirePackageResult(package.CopyPayloadFile(provider.Source, providerOutputPath));
             EnsureRegularFile(providerOutputPath, "Composed payload file");
 
             return new FileCompositionAttempt(
