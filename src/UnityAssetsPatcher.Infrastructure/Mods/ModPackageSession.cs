@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Compression;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
@@ -77,23 +78,31 @@ internal sealed class ModPackageSession : IModPackageSession
         using MemoryStream output = new((int)_manifestEntry.Length);
         byte[] buffer = new byte[CopyBufferSize];
         long totalBytes = 0;
-        int bytesRead;
+        var stopwatch = Stopwatch.StartNew();
 
-        while ((bytesRead = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+        try
         {
-            totalBytes += bytesRead;
-
-            if (totalBytes > MaxManifestSize)
+            int bytesRead;
+            while ((bytesRead = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
             {
-                throw new InvalidDataException(
-                    $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
-                    $"{_manifestEntry.FullName} ({totalBytes} bytes observed). Package: {_packagePath}");
+                totalBytes += bytesRead;
+
+                if (totalBytes > MaxManifestSize)
+                {
+                    throw new InvalidDataException(
+                        $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
+                        $"{_manifestEntry.FullName} ({totalBytes} bytes observed). Package: {_packagePath}");
+                }
+
+                await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
             }
 
-            await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+            return output.ToArray();
         }
-
-        return output.ToArray();
+        finally
+        {
+            stopwatch.Stop();
+        }
     }
 
     public long CopyEntryToNewFile(
@@ -132,25 +141,33 @@ internal sealed class ModPackageSession : IModPackageSession
 
                 using Stream input = entry.Open();
                 byte[] buffer = new byte[CopyBufferSize];
-                int bytesRead;
+                var stopwatch = Stopwatch.StartNew();
 
-                while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    copiedBytes += bytesRead;
-
-                    if (copiedBytes > entry.Length)
+                    int bytesRead;
+                    while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
                     {
-                        throw new InvalidDataException(
-                            $"The package entry exceeds its declared size: {normalizedSource}. " +
-                            $"Package: {_packagePath}");
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        copiedBytes += bytesRead;
+
+                        if (copiedBytes > entry.Length)
+                        {
+                            throw new InvalidDataException(
+                                $"The package entry exceeds its declared size: {normalizedSource}. " +
+                                $"Package: {_packagePath}");
+                        }
+
+                        output.Write(buffer, 0, bytesRead);
                     }
 
-                    output.Write(buffer, 0, bytesRead);
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
-
-                cancellationToken.ThrowIfCancellationRequested();
+                finally
+                {
+                    stopwatch.Stop();
+                }
             });
 
         return copiedBytes;
