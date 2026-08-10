@@ -28,22 +28,10 @@ public sealed class ModPackageTests
         """;
 
     [Fact]
-    public void Open_WhenPackageReaderReturnsFailure_PropagatesFailure()
-    {
-        var expected = new OperationError(ModPackageErrorCodes.ManifestMissing);
-        var packageReader = new StubPackageReader(_ => new OperationFailed<IPackageSession>(expected));
-
-        OperationResult<ModPackage> result = OpenPackage(packageReader);
-
-        var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
-        Assert.Same(expected, failure.Error);
-    }
-
-    [Fact]
     public void Open_WhenPackageReaderFaults_PropagatesOriginalException()
     {
         var expected = new FileNotFoundException("missing", "missing.zip");
-        var packageReader = new StubPackageReader(_ => throw expected);
+        var packageReader = new StubPackageReader((_, _, _) => throw expected);
 
         FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(packageReader));
 
@@ -51,25 +39,29 @@ public sealed class ModPackageTests
     }
 
     [Fact]
-    public void CopyPayloadFile_WhenCalled_ForwardsToPackageSession()
+    public void CopyPayloadFile_WhenCalled_CopiesExtractedEntry()
     {
-        var copyResult = new OperationSucceeded<long>(3);
-        var session = new StubPackageSession(Encoding.UTF8.GetBytes(ValidManifest), copyResult);
-        var packageReader = new StubPackageReader(session);
-        using ModPackage package = Assert.IsType<OperationSucceeded<ModPackage>>(OpenPackage(packageReader)).Value;
+        var content = new PackageContent(
+            Encoding.UTF8.GetBytes(ValidManifest),
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["payload.bin"] = "payload.extracted",
+            });
+        var packageReader = new StubPackageReader(content);
+        var fileSystem = new StubFileSystemOperations();
+        using ModPackage package = Assert.IsType<OperationSucceeded<ModPackage>>(
+            OpenPackage(packageReader, fileSystem)).Value;
 
-        OperationResult<long> result = package.CopyPayloadFile("payload.bin", "payload.output");
+        package.CopyPayloadFile("PAYLOAD.BIN", "payload.output");
 
-        Assert.Same(copyResult, result);
-        Assert.Equal("payload.bin", session.CopiedSource);
-        Assert.Equal("payload.output", session.CopyDestinationPath);
+        Assert.Equal("payload.extracted", fileSystem.CopiedSourcePath);
+        Assert.Equal("payload.output", fileSystem.CopyDestinationPath);
     }
 
     [Fact]
     public async Task ReadAsync_WhenPackageManifestJsonIsInvalid_PropagatesJsonException()
     {
-        var session = new StubPackageSession(Encoding.UTF8.GetBytes("{"));
-        var packageReader = new StubPackageReader(session);
+        var packageReader = new StubPackageReader(Encoding.UTF8.GetBytes("{"));
         var reader = new ModManifestReader(new StubFileSystemOperations(), packageReader);
 
         _ = await Assert.ThrowsAnyAsync<JsonException>(() =>
@@ -79,8 +71,7 @@ public sealed class ModPackageTests
     [Fact]
     public async Task ReadAsync_WhenSourceIsPackage_OpensNormalizedPath()
     {
-        var session = new StubPackageSession(Encoding.UTF8.GetBytes(ValidManifest));
-        var packageReader = new StubPackageReader(session);
+        var packageReader = new StubPackageReader(Encoding.UTF8.GetBytes(ValidManifest));
         var reader = new ModManifestReader(new StubFileSystemOperations(), packageReader);
 
         _ = await reader.ReadAsync("mod.zip", TestContext.Current.CancellationToken);
@@ -88,18 +79,23 @@ public sealed class ModPackageTests
         Assert.Equal(Path.GetFullPath("mod.zip"), packageReader.OpenedPath);
     }
 
-    private static OperationResult<ModPackage> OpenPackage(IPackageReader packageReader)
+    private static OperationResult<ModPackage> OpenPackage(
+        IPackageReader packageReader,
+        IFileSystemOperations? fileSystemOperations = null)
     {
         return ModPackage.Open(
             "mod.zip",
             [],
             packageReader,
-            new StubFileSystemOperations(),
+            fileSystemOperations ?? new StubFileSystemOperations(),
             new StepTimer());
     }
 
     private sealed class StubFileSystemOperations : IFileSystemOperations
     {
+        public string? CopiedSourcePath { get; private set; }
+        public string? CopyDestinationPath { get; private set; }
+
         public Stream OpenRead(string path)
         {
             throw new NotSupportedException();
@@ -122,7 +118,8 @@ public sealed class ModPackageTests
 
         public void CopyFileAtomically(string sourcePath, string destinationPath, FileDestinationMode mode)
         {
-            throw new NotSupportedException();
+            CopiedSourcePath = sourcePath;
+            CopyDestinationPath = destinationPath;
         }
 
         public void DeleteFile(string path)

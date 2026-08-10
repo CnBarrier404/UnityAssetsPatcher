@@ -25,35 +25,18 @@ public sealed class ModManifestReader
         cancellationToken.ThrowIfCancellationRequested();
 
         string fullSourcePath = Path.GetFullPath(sourcePath);
-        OperationResult<byte[]> manifestBytesResult = IsPackagePath(fullSourcePath)
+        byte[] manifestBytes = IsPackagePath(fullSourcePath)
             ? await ReadPackageManifestAsync(fullSourcePath, cancellationToken).ConfigureAwait(false)
-            : new OperationSucceeded<byte[]>(
-                await ReadFileAsync(fullSourcePath, cancellationToken).ConfigureAwait(false));
-
-        if (manifestBytesResult is OperationFailed<byte[]> failure)
-        {
-            return new OperationFailed<ModManifest>(failure.Error);
-        }
-
-        byte[] manifestBytes = ((OperationSucceeded<byte[]>)manifestBytesResult).Value;
+            : await ReadFileAsync(fullSourcePath, cancellationToken).ConfigureAwait(false);
 
         return ModManifestParser.Parse(manifestBytes);
     }
 
-    private async Task<OperationResult<byte[]>> ReadPackageManifestAsync(
+    private Task<byte[]> ReadPackageManifestAsync(
         string packagePath,
         CancellationToken cancellationToken)
     {
-        OperationResult<IPackageSession> sessionResult = _packageReader.Open(packagePath);
-
-        if (sessionResult is OperationFailed<IPackageSession> failure)
-        {
-            return new OperationFailed<byte[]>(failure.Error);
-        }
-
-        using IPackageSession session = ((OperationSucceeded<IPackageSession>)sessionResult).Value;
-
-        return await session.ReadManifestAsync(cancellationToken).ConfigureAwait(false);
+        return _packageReader.ReadManifestAsync(packagePath, cancellationToken);
     }
 
     private async Task<byte[]> ReadFileAsync(string sourcePath, CancellationToken cancellationToken)

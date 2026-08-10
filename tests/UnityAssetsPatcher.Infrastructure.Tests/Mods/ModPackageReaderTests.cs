@@ -1,49 +1,47 @@
 using System.IO.Compression;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
-using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Domain.Integrity;
 using UnityAssetsPatcher.Infrastructure.Mods;
 using Xunit;
 
 namespace UnityAssetsPatcher.Infrastructure.Tests.Mods;
 
-public sealed class ZipPackageReaderTests
+public sealed class ModPackageReaderTests
 {
     [Fact]
-    public void Open_WhenManifestIsMissing_ReturnsStructuredFailure()
+    public void Read_WhenManifestIsMissing_ThrowsInvalidDataException()
     {
         byte[] archiveBytes = CreateArchive(("payload.bin", [1]));
 
-        OperationError error = OpenFailure(archiveBytes);
+        InvalidDataException exception = ReadFailure(archiveBytes);
 
-        Assert.Equal(ModPackageErrorCodes.ManifestMissing, error.Code);
+        Assert.Contains("does not contain a manifest.json", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Open_WhenMultipleManifestsExist_ReturnsStructuredFailure()
+    public void Read_WhenMultipleManifestsExist_ThrowsInvalidDataException()
     {
         byte[] archiveBytes = CreateArchive(
             ("manifest.json", "{}"u8.ToArray()),
             ("Nested/MANIFEST.JSON", "{}"u8.ToArray()));
 
-        OperationError error = OpenFailure(archiveBytes);
+        InvalidDataException exception = ReadFailure(archiveBytes);
 
-        Assert.Equal(ModPackageErrorCodes.MultipleManifests, error.Code);
+        Assert.Contains("multiple manifest.json", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Open_WhenEntriesCollideIgnoringCase_ReturnsStructuredFailure()
+    public void Read_WhenEntriesCollideIgnoringCase_ThrowsInvalidDataException()
     {
         byte[] archiveBytes = CreateArchive(
             ("manifest.json", "{}"u8.ToArray()),
             ("Payload/file.bin", [1]),
             ("payload/FILE.BIN", [2]));
 
-        OperationError error = OpenFailure(archiveBytes);
+        InvalidDataException exception = ReadFailure(archiveBytes);
 
-        Assert.Equal(ModPackageErrorCodes.DuplicateEntry, error.Code);
-        Assert.Equal("payload/FILE.BIN", error.Parameters["entry_path"]);
+        Assert.Contains("payload/FILE.BIN", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -53,97 +51,80 @@ public sealed class ZipPackageReaderTests
     [InlineData("payload//file.bin")]
     [InlineData("C:/payload.bin")]
     [InlineData("payload/file.bin.")]
-    public void Open_WhenEntryPathIsUnsafe_ReturnsStructuredFailure(string entryPath)
+    public void Read_WhenEntryPathIsUnsafe_ThrowsInvalidDataException(string entryPath)
     {
         byte[] archiveBytes = CreateArchive(
             ("manifest.json", "{}"u8.ToArray()),
             (entryPath, [1]));
 
-        OperationError error = OpenFailure(archiveBytes);
+        InvalidDataException exception = ReadFailure(archiveBytes);
 
-        Assert.Equal(ModPackageErrorCodes.UnsafeEntryPath, error.Code);
-        Assert.Equal(entryPath, error.Parameters["entry_path"]);
+        Assert.Contains(entryPath, exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ReadManifest_WhenManifestExceedsLimit_ReturnsStructuredFailure()
+    public async Task ReadManifestAsync_WhenManifestExceedsLimit_ThrowsInvalidDataException()
     {
         byte[] manifest = new byte[10L * 1024L * 1024L + 1];
         byte[] archiveBytes = CreateArchive(("manifest.json", manifest));
-        using IPackageSession session = OpenPackage(new StubFileSystemOperations(archiveBytes));
+        var reader = new ModPackageReader(new StubFileSystemOperations(archiveBytes));
 
-        OperationResult<byte[]> result = session.ReadManifest();
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            reader.ReadManifestAsync("mod.zip", TestContext.Current.CancellationToken));
 
-        var failure = Assert.IsType<OperationFailed<byte[]>>(result);
-        Assert.Equal(ModPackageErrorCodes.ManifestTooLarge, failure.Error.Code);
-        Assert.Equal(10L * 1024L * 1024L, failure.Error.Parameters["limit_bytes"]);
+        Assert.Contains("10485760-byte", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void CopyEntryToNewFile_WhenEntryExists_WritesThroughAtomicFileSystemBoundary()
+    public void Read_WhenEntriesExist_ExtractsContentAndReturnsPaths()
     {
         byte[] archiveBytes = CreateArchive(
             ("manifest.json", "{}"u8.ToArray()),
-            ("payload.bin", [1, 2, 3]));
+            ("payload/file.bin", [1, 2, 3]));
         var fileSystem = new StubFileSystemOperations(archiveBytes);
-        using IPackageSession session = OpenPackage(fileSystem);
+        var reader = new ModPackageReader(fileSystem);
 
-        OperationResult<long> result = session.CopyEntryToNewFile(
-            "PAYLOAD.BIN",
-            "payload.output",
+        PackageContent content = reader.Read(
+            "mod.zip",
+            "extracted",
             TestContext.Current.CancellationToken);
 
-        var success = Assert.IsType<OperationSucceeded<long>>(result);
-        Assert.Equal(3, success.Value);
-        Assert.Equal([1, 2, 3], Assert.Single(fileSystem.WrittenFiles).Value);
+        Assert.Equal("{}"u8.ToArray(), content.Manifest);
+        string extractedPath = content.EntryPaths["PAYLOAD/FILE.BIN"];
+        Assert.Equal([1, 2, 3], fileSystem.WrittenFiles[extractedPath]);
+        Assert.DoesNotContain(content.EntryPaths.Keys, path =>
+            path.Equals("manifest.json", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void CopyEntryToNewFile_WhenEntryIsMissing_ReturnsStructuredFailure()
+    public void Read_WhenCompleted_ClosesPackageStream()
     {
         byte[] archiveBytes = CreateArchive(("manifest.json", "{}"u8.ToArray()));
         var fileSystem = new StubFileSystemOperations(archiveBytes);
-        using IPackageSession session = OpenPackage(fileSystem);
+        var reader = new ModPackageReader(fileSystem);
 
-        OperationResult<long> result = session.CopyEntryToNewFile(
-            "missing.bin",
-            "payload.output",
-            TestContext.Current.CancellationToken);
+        _ = reader.Read("mod.zip", "extracted", TestContext.Current.CancellationToken);
 
-        var failure = Assert.IsType<OperationFailed<long>>(result);
-        Assert.Equal(ModPackageErrorCodes.EntryNotFound, failure.Error.Code);
-        Assert.Empty(fileSystem.WrittenFiles);
+        Assert.True(fileSystem.LastOpenedStream!.IsDisposed);
     }
 
     [Fact]
-    public void Open_WhenFileSystemFaults_PropagatesOriginalException()
+    public void Read_WhenFileSystemFaults_PropagatesOriginalException()
     {
         var expected = new FileNotFoundException("missing", "missing.zip");
-        var reader = new ZipPackageReader(new StubFileSystemOperations(expected));
+        var reader = new ModPackageReader(new StubFileSystemOperations(expected));
 
-        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => reader.Open("missing.zip"));
+        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() =>
+            reader.Read("missing.zip", "extracted", TestContext.Current.CancellationToken));
 
         Assert.Same(expected, exception);
     }
 
-    private static OperationError OpenFailure(byte[] archiveBytes)
+    private static InvalidDataException ReadFailure(byte[] archiveBytes)
     {
-        var reader = new ZipPackageReader(new StubFileSystemOperations(archiveBytes));
+        var reader = new ModPackageReader(new StubFileSystemOperations(archiveBytes));
 
-        OperationResult<IPackageSession> result = reader.Open("mod.zip");
-        var failure = Assert.IsType<OperationFailed<IPackageSession>>(result);
-
-        return failure.Error;
-    }
-
-    private static IPackageSession OpenPackage(IFileSystemOperations fileSystemOperations)
-    {
-        var reader = new ZipPackageReader(fileSystemOperations);
-
-        OperationResult<IPackageSession> result = reader.Open("mod.zip");
-        var success = Assert.IsType<OperationSucceeded<IPackageSession>>(result);
-
-        return success.Value;
+        return Assert.Throws<InvalidDataException>(() => reader.Read("mod.zip", "extracted"));
     }
 
     private static byte[] CreateArchive(params (string Path, byte[] Contents)[] entries)
@@ -170,6 +151,7 @@ public sealed class ZipPackageReaderTests
         private readonly Exception? _openException;
 
         public Dictionary<string, byte[]> WrittenFiles { get; } = new(StringComparer.Ordinal);
+        public TrackingStream? LastOpenedStream { get; private set; }
 
         public StubFileSystemOperations(byte[] archiveBytes)
         {
@@ -188,7 +170,9 @@ public sealed class ZipPackageReaderTests
                 throw _openException;
             }
 
-            return new MemoryStream(_archiveBytes!, writable: false);
+            LastOpenedStream = new TrackingStream(_archiveBytes!);
+
+            return LastOpenedStream;
         }
 
         public FileIntegrity ComputeFileIntegrity(string path)
@@ -229,6 +213,20 @@ public sealed class ZipPackageReaderTests
         public void DeleteDirectoryTree(string path)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class TrackingStream : MemoryStream
+    {
+        public bool IsDisposed { get; private set; }
+
+        public TrackingStream(byte[] buffer)
+            : base(buffer, writable: false) { }
+
+        protected override void Dispose(bool disposing)
+        {
+            IsDisposed = true;
+            base.Dispose(disposing);
         }
     }
 }

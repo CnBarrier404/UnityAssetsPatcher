@@ -1,5 +1,4 @@
 using UnityAssetsPatcher.Application.Mods;
-using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Tests.Mods;
 
@@ -7,69 +6,60 @@ internal sealed class StubPackageReader : IPackageReader
 {
     public string? OpenedPath { get; private set; }
 
-    private readonly Func<string, OperationResult<IPackageSession>> _open;
+    private readonly Func<string, string, CancellationToken, PackageContent> _read;
+    private readonly Func<string, CancellationToken, Task<byte[]>> _readManifestAsync;
 
-    public StubPackageReader(IPackageSession session)
-        : this(_ => new OperationSucceeded<IPackageSession>(session)) { }
+    public StubPackageReader(PackageContent content)
+        : this((_, _, _) => content, (_, _) => Task.FromResult(content.Manifest)) { }
 
-    public StubPackageReader(Func<string, OperationResult<IPackageSession>> open)
+    public StubPackageReader(byte[] manifest)
+        : this(
+            (_, _, _) => new PackageContent(manifest, new Dictionary<string, string>()),
+            (_, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                return Task.FromResult(manifest);
+            }) { }
+
+    public StubPackageReader(Func<string, string, CancellationToken, PackageContent> read)
+        : this(read, (_, _) => throw new NotSupportedException()) { }
+
+    public StubPackageReader(Func<string, PackageContent> read)
+        : this((path, _, cancellationToken) =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return read(path);
+        }) { }
+
+    public StubPackageReader(
+        Func<string, string, CancellationToken, PackageContent> read,
+        Func<string, CancellationToken, Task<byte[]>> readManifestAsync)
     {
-        ArgumentNullException.ThrowIfNull(open);
+        ArgumentNullException.ThrowIfNull(read);
+        ArgumentNullException.ThrowIfNull(readManifestAsync);
 
-        _open = open;
+        _read = read;
+        _readManifestAsync = readManifestAsync;
     }
 
-    public OperationResult<IPackageSession> Open(string packagePath)
+    public PackageContent Read(
+        string packagePath,
+        string extractionDirectory,
+        CancellationToken cancellationToken = default)
     {
         OpenedPath = packagePath;
 
-        return _open(packagePath);
-    }
-}
-
-internal sealed class StubPackageSession : IPackageSession
-{
-    public string? CopiedSource { get; private set; }
-    public string? CopyDestinationPath { get; private set; }
-    public bool IsDisposed { get; private set; }
-
-    private readonly byte[] _manifestBytes;
-    private readonly OperationResult<long> _copyResult;
-
-    public StubPackageSession(byte[] manifestBytes, OperationResult<long>? copyResult = null)
-    {
-        ArgumentNullException.ThrowIfNull(manifestBytes);
-
-        _manifestBytes = manifestBytes;
-        _copyResult = copyResult ?? new OperationSucceeded<long>(0);
+        return _read(packagePath, extractionDirectory, cancellationToken);
     }
 
-    public OperationResult<byte[]> ReadManifest()
-    {
-        return new OperationSucceeded<byte[]>(_manifestBytes);
-    }
-
-    public Task<OperationResult<byte[]>> ReadManifestAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        return Task.FromResult<OperationResult<byte[]>>(new OperationSucceeded<byte[]>(_manifestBytes));
-    }
-
-    public OperationResult<long> CopyEntryToNewFile(
-        string source,
-        string destinationPath,
+    public Task<byte[]> ReadManifestAsync(
+        string packagePath,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        CopiedSource = source;
-        CopyDestinationPath = destinationPath;
+        OpenedPath = packagePath;
 
-        return _copyResult;
-    }
-
-    public void Dispose()
-    {
-        IsDisposed = true;
+        return _readManifestAsync(packagePath, cancellationToken);
     }
 }

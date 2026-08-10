@@ -10,7 +10,7 @@ public sealed class ModPackage : IDisposable
     public ModManifest SourceManifest { get; }
     public ModManifest EffectiveManifest { get; }
 
-    private readonly IPackageSession _packageSession;
+    private readonly IReadOnlyDictionary<string, string> _entryPaths;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly string? _temporaryDirectory;
 
@@ -19,7 +19,7 @@ public sealed class ModPackage : IDisposable
         ModManifest effectiveManifest,
         IReadOnlyList<string> appliedOptionalGroups,
         IReadOnlyDictionary<string, string> patchSourcePaths,
-        IPackageSession packageSession,
+        IReadOnlyDictionary<string, string> entryPaths,
         IFileSystemOperations fileSystemOperations,
         string? temporaryDirectory)
     {
@@ -27,7 +27,7 @@ public sealed class ModPackage : IDisposable
         EffectiveManifest = effectiveManifest;
         AppliedOptionalGroups = appliedOptionalGroups;
         PatchSourcePaths = patchSourcePaths;
-        _packageSession = packageSession;
+        _entryPaths = entryPaths;
         _fileSystemOperations = fileSystemOperations;
         _temporaryDirectory = temporaryDirectory;
     }
@@ -46,92 +46,71 @@ public sealed class ModPackage : IDisposable
         ArgumentNullException.ThrowIfNull(timings);
 
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
-        OperationResult<IPackageSession> sessionResult = packageReader.Open(modPackageFullPath);
-
-        if (sessionResult is OperationFailed<IPackageSession> sessionFailure)
-        {
-            return new OperationFailed<ModPackage>(sessionFailure.Error);
-        }
-
-        IPackageSession packageSession = ((OperationSucceeded<IPackageSession>)sessionResult).Value;
+        string temporaryDirectory = Path.Combine(Path.GetTempPath(), $"UnityAssetsPatcher.{Guid.NewGuid():N}");
 
         try
         {
-            OperationResult<ModPackageContent> contentResult = timings.Measure(
+            PackageContent packageContent = timings.Measure(
                 "read-package",
-                () => ReadContent(packageSession, selectedOptionalGroups));
+                () => packageReader.Read(modPackageFullPath, temporaryDirectory));
+            OperationResult<ModPackageContent> contentResult = timings.Measure(
+                "parse-package",
+                () => ReadContent(packageContent.Manifest, selectedOptionalGroups));
 
             if (contentResult is OperationFailed<ModPackageContent> contentFailure)
             {
-                packageSession.Dispose();
+                DeleteTemporaryDirectory(fileSystemOperations, temporaryDirectory);
 
                 return new OperationFailed<ModPackage>(contentFailure.Error);
             }
 
             ModPackageContent content = ((OperationSucceeded<ModPackageContent>)contentResult).Value;
-            OperationResult<PreparedSources> sourcesResult = timings.Measure(
+            IReadOnlyDictionary<string, string> patchSourcePaths = timings.Measure(
                 "prepare-sources",
-                () => ExtractPatchSources(packageSession, fileSystemOperations, content.Selection.EffectiveManifest));
-
-            if (sourcesResult is OperationFailed<PreparedSources> sourcesFailure)
-            {
-                packageSession.Dispose();
-
-                return new OperationFailed<ModPackage>(sourcesFailure.Error);
-            }
-
-            PreparedSources sources = ((OperationSucceeded<PreparedSources>)sourcesResult).Value;
+                () => SelectPatchSourcePaths(packageContent.EntryPaths, content.Selection.EffectiveManifest));
             var package = new ModPackage(
                 content.SourceManifest,
                 content.Selection.EffectiveManifest,
                 content.Selection.AppliedOptionalGroups,
-                sources.Paths,
-                packageSession,
+                patchSourcePaths,
+                packageContent.EntryPaths,
                 fileSystemOperations,
-                sources.TemporaryDirectory);
+                temporaryDirectory);
 
             return new OperationSucceeded<ModPackage>(package);
         }
         catch
         {
-            packageSession.Dispose();
+            DeleteTemporaryDirectory(fileSystemOperations, temporaryDirectory);
 
             throw;
         }
     }
 
-    public OperationResult<long> CopyPayloadFile(string source, string destinationPath)
+    public void CopyPayloadFile(string source, string destinationPath)
     {
-        return _packageSession.CopyEntryToNewFile(source, destinationPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+
+        string normalizedSource = source.Replace('\\', '/');
+
+        if (!_entryPaths.TryGetValue(normalizedSource, out string? extractedPath))
+        {
+            throw new InvalidDataException($"Package entry does not exist: {normalizedSource}");
+        }
+
+        _fileSystemOperations.CopyFileAtomically(extractedPath, destinationPath, FileDestinationMode.CreateNew);
     }
 
     public void Dispose()
     {
-        try
-        {
-            _packageSession.Dispose();
-        }
-        finally
-        {
-            if (_temporaryDirectory is not null && Directory.Exists(_temporaryDirectory))
-            {
-                _fileSystemOperations.DeleteDirectoryTree(_temporaryDirectory);
-            }
-        }
+        DeleteTemporaryDirectory(_fileSystemOperations, _temporaryDirectory);
     }
 
     private static OperationResult<ModPackageContent> ReadContent(
-        IPackageSession packageSession,
+        byte[] manifestBytes,
         IReadOnlyList<string> selectedOptionalGroups)
     {
-        OperationResult<byte[]> manifestBytesResult = packageSession.ReadManifest();
-
-        if (manifestBytesResult is OperationFailed<byte[]> manifestBytesFailure)
-        {
-            return new OperationFailed<ModPackageContent>(manifestBytesFailure.Error);
-        }
-
-        byte[] manifestBytes = ((OperationSucceeded<byte[]>)manifestBytesResult).Value;
         OperationResult<ModManifest> manifestResult = ModManifestParser.Parse(manifestBytes);
 
         if (manifestResult is OperationFailed<ModManifest> manifestFailure)
@@ -154,9 +133,8 @@ public sealed class ModPackage : IDisposable
         return new OperationSucceeded<ModPackageContent>(new ModPackageContent(manifest, selection));
     }
 
-    private static OperationResult<PreparedSources> ExtractPatchSources(
-        IPackageSession packageSession,
-        IFileSystemOperations fileSystemOperations,
+    private static IReadOnlyDictionary<string, string> SelectPatchSourcePaths(
+        IReadOnlyDictionary<string, string> entryPaths,
         ModManifest manifest)
     {
         string[] replacementSources =
@@ -170,72 +148,33 @@ public sealed class ModPackage : IDisposable
 
         if (replacementSources.Length == 0)
         {
-            var emptySources = new PreparedSources(
-                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
-                null);
-
-            return new OperationSucceeded<PreparedSources>(emptySources);
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        string temporaryDirectory = Path.Combine(Path.GetTempPath(), $"UnityAssetsPatcher.{Guid.NewGuid():N}");
+        var paths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        try
+        foreach (string source in replacementSources)
         {
-            var paths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (string source in replacementSources)
+            if (!entryPaths.TryGetValue(source, out string? extractedPath))
             {
-                string destinationPath = ResolveUnderDirectory(fileSystemOperations, temporaryDirectory, source);
-                OperationResult<long> copyResult = packageSession.CopyEntryToNewFile(source, destinationPath);
-
-                if (copyResult is OperationFailed<long> copyFailure)
-                {
-                    if (Directory.Exists(temporaryDirectory))
-                    {
-                        fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
-                    }
-
-                    return new OperationFailed<PreparedSources>(copyFailure.Error);
-                }
-
-                paths[source] = destinationPath;
+                throw new InvalidDataException($"Package entry does not exist: {source}");
             }
 
-            return new OperationSucceeded<PreparedSources>(new PreparedSources(paths, temporaryDirectory));
+            paths[source] = extractedPath;
         }
-        catch
-        {
-            if (Directory.Exists(temporaryDirectory))
-            {
-                fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
-            }
 
-            throw;
-        }
+        return paths;
     }
 
-    private static string ResolveUnderDirectory(
+    private static void DeleteTemporaryDirectory(
         IFileSystemOperations fileSystemOperations,
-        string rootDirectory,
-        string relativePath)
+        string? temporaryDirectory)
     {
-        string fullRootDirectory = Path.GetFullPath(rootDirectory);
-        string fullPath = Path.GetFullPath(Path.Combine(
-            fullRootDirectory,
-            relativePath.Replace('/', Path.DirectorySeparatorChar)));
-
-        if (!fileSystemOperations.IsPathWithinDirectory(fullPath, fullRootDirectory))
+        if (temporaryDirectory is not null && Directory.Exists(temporaryDirectory))
         {
-            throw new InvalidDataException(
-                $"Package payload source cannot escape its extraction directory: {relativePath}");
+            fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
         }
-
-        return fullPath;
     }
 
     private sealed record ModPackageContent(ModManifest SourceManifest, ModManifestSelection Selection);
-
-    private sealed record PreparedSources(
-        IReadOnlyDictionary<string, string> Paths,
-        string? TemporaryDirectory);
 }
