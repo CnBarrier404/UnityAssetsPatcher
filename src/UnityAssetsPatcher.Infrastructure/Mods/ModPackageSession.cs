@@ -11,12 +11,10 @@ internal sealed class ModPackageSession : IModPackageSession
     private readonly IReadOnlyDictionary<string, ZipArchiveEntry> _fileEntries;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly string _packagePath;
-    private readonly Lock _budgetLock = new();
-    private long _reservedExtractionBytes;
 
     private const int CopyBufferSize = 81920;
     private const long MaxManifestSize = 10L * 1024L * 1024L;
-    private const long MaxExtractionSize = 10L * 1024L * 1024L * 1024L;
+    private const long MaxPackageSize = 10L * 1024L * 1024L * 1024L;
 
     private ModPackageSession(
         string packagePath,
@@ -140,9 +138,6 @@ internal sealed class ModPackageSession : IModPackageSession
             throw InvalidPackage($"The package entry was not found: {normalizedSource}");
         }
 
-        long declaredLength = entry.Length;
-        ReserveExtractionBytes(normalizedSource, declaredLength);
-
         string fullDestinationPath = Path.GetFullPath(destinationPath);
         string destinationDirectory = Path.GetDirectoryName(fullDestinationPath) ??
                                       throw new IOException("The destination directory could not be resolved.");
@@ -150,7 +145,6 @@ internal sealed class ModPackageSession : IModPackageSession
         _fileSystemOperations.EnsureDirectory(destinationDirectory);
 
         long copiedBytes = 0;
-        long reservedOverageBytes = 0;
 
         _fileSystemOperations.WriteFileAtomically(
             fullDestinationPath,
@@ -168,14 +162,10 @@ internal sealed class ModPackageSession : IModPackageSession
                     cancellationToken.ThrowIfCancellationRequested();
 
                     copiedBytes += bytesRead;
-                    long overageBytes = copiedBytes - declaredLength;
 
-                    if (overageBytes > reservedOverageBytes)
+                    if (copiedBytes > entry.Length)
                     {
-                        long additionalBytes = overageBytes - reservedOverageBytes;
-                        ReserveExtractionBytes(normalizedSource, additionalBytes);
-
-                        reservedOverageBytes += additionalBytes;
+                        throw InvalidPackage($"The package entry exceeds its declared size: {normalizedSource}");
                     }
 
                     output.Write(buffer, 0, bytesRead);
@@ -197,6 +187,7 @@ internal sealed class ModPackageSession : IModPackageSession
         var fileEntries = new Dictionary<string, ZipArchiveEntry>(StringComparer.OrdinalIgnoreCase);
         var allEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var manifests = new List<ZipArchiveEntry>();
+        long packageSize = 0;
 
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
@@ -217,6 +208,14 @@ internal sealed class ModPackageSession : IModPackageSession
                 continue;
             }
 
+            if (entry.Length > MaxPackageSize - packageSize)
+            {
+                throw InvalidPackage(
+                    packagePath,
+                    $"The package exceeds the {MaxPackageSize}-byte uncompressed size limit");
+            }
+
+            packageSize += entry.Length;
             fileEntries.Add(normalizedPath, entry);
 
             if (string.Equals(
@@ -246,20 +245,6 @@ internal sealed class ModPackageSession : IModPackageSession
         return InvalidPackage(
             $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
             $"{_manifestEntry.FullName} ({observedLength} bytes observed)");
-    }
-
-    private void ReserveExtractionBytes(string entryPath, long bytes)
-    {
-        lock (_budgetLock)
-        {
-            if (bytes < 0 || _reservedExtractionBytes > MaxExtractionSize - bytes)
-            {
-                throw InvalidPackage(
-                    $"The package exceeds the {MaxExtractionSize}-byte extraction limit while reading: {entryPath}");
-            }
-
-            _reservedExtractionBytes += bytes;
-        }
     }
 
     private InvalidDataException InvalidPackage(string detail)

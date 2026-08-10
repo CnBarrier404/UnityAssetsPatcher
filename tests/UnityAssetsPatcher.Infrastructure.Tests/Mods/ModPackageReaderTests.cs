@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Text;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Domain.Integrity;
@@ -62,6 +64,40 @@ public sealed class ModPackageReaderTests
 
         Assert.Contains("entry path is unsafe", exception.Message);
         Assert.Contains(entryPath, exception.Message);
+    }
+
+    [Fact]
+    public void Open_WhenTotalUncompressedSizeExceedsLimit_ThrowsInvalidDataException()
+    {
+        byte[] archiveBytes = CreateArchive(
+            ("manifest.json", "{}"u8.ToArray()),
+            ("payload-1.bin", [1]),
+            ("payload-2.bin", [2]),
+            ("payload-3.bin", [3]));
+        SetDeclaredEntrySize(archiveBytes, "payload-1.bin", uint.MaxValue);
+        SetDeclaredEntrySize(archiveBytes, "payload-2.bin", uint.MaxValue);
+        SetDeclaredEntrySize(archiveBytes, "payload-3.bin", uint.MaxValue);
+
+        InvalidDataException exception = OpenFailure(archiveBytes);
+
+        Assert.Contains("10737418240-byte uncompressed size limit", exception.Message);
+    }
+
+    [Fact]
+    public void Open_WhenTotalUncompressedSizeEqualsLimit_OpensPackage()
+    {
+        byte[] archiveBytes = CreateArchive(
+            ("manifest.json", "{}"u8.ToArray()),
+            ("payload-1.bin", [1]),
+            ("payload-2.bin", [2]),
+            ("payload-3.bin", [3]));
+        SetDeclaredEntrySize(archiveBytes, "payload-1.bin", uint.MaxValue);
+        SetDeclaredEntrySize(archiveBytes, "payload-2.bin", uint.MaxValue);
+        SetDeclaredEntrySize(archiveBytes, "payload-3.bin", 2_147_483_648);
+
+        using IModPackageSession session = OpenPackage(new StubFileSystemOperations(archiveBytes));
+
+        Assert.NotNull(session);
     }
 
     [Fact]
@@ -151,6 +187,37 @@ public sealed class ModPackageReaderTests
         }
 
         return output.ToArray();
+    }
+
+    private static void SetDeclaredEntrySize(byte[] archiveBytes, string entryPath, uint size)
+    {
+        ReadOnlySpan<byte> centralDirectorySignature = [0x50, 0x4b, 0x01, 0x02];
+
+        for (int offset = 0; offset <= archiveBytes.Length - 46; offset++)
+        {
+            Span<byte> header = archiveBytes.AsSpan(offset);
+
+            if (!header.StartsWith(centralDirectorySignature))
+            {
+                continue;
+            }
+
+            ushort fileNameLength = BinaryPrimitives.ReadUInt16LittleEndian(header[28..]);
+            string fileName = Encoding.UTF8.GetString(header.Slice(46, fileNameLength));
+
+            if (string.Equals(fileName, entryPath, StringComparison.Ordinal))
+            {
+                BinaryPrimitives.WriteUInt32LittleEndian(header[24..], size);
+
+                return;
+            }
+
+            ushort extraFieldLength = BinaryPrimitives.ReadUInt16LittleEndian(header[30..]);
+            ushort commentLength = BinaryPrimitives.ReadUInt16LittleEndian(header[32..]);
+            offset += 45 + fileNameLength + extraFieldLength + commentLength;
+        }
+
+        throw new InvalidOperationException($"The archive entry was not found: {entryPath}");
     }
 
     private sealed class StubFileSystemOperations : IFileSystemOperations
