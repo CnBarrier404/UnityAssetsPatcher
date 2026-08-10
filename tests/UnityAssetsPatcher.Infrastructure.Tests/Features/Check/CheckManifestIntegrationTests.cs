@@ -121,7 +121,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
     private static CheckManifestHandler CreateHandler()
     {
         var fileSystemOperations = new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
-        var packageReader = new ModPackageReader(fileSystemOperations);
+        var packageReader = new ModPackageReader(fileSystemOperations, NullLoggerFactory.Instance);
 
         return new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader));
     }

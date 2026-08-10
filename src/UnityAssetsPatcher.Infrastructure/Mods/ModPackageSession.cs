@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
 
@@ -11,6 +12,7 @@ internal sealed class ModPackageSession : IModPackageSession
     private readonly ZipArchiveEntry _manifestEntry;
     private readonly IReadOnlyDictionary<string, ZipArchiveEntry> _fileEntries;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly ILogger<ModPackageSession> _logger;
     private readonly string _packagePath;
 
     private const int CopyBufferSize = 81920;
@@ -21,21 +23,25 @@ internal sealed class ModPackageSession : IModPackageSession
         ZipArchive archive,
         ZipArchiveEntry manifestEntry,
         IReadOnlyDictionary<string, ZipArchiveEntry> fileEntries,
-        IFileSystemOperations fileSystemOperations)
+        IFileSystemOperations fileSystemOperations,
+        ILogger<ModPackageSession> logger)
     {
         _packagePath = packagePath;
         _archive = archive;
         _manifestEntry = manifestEntry;
         _fileEntries = fileEntries;
         _fileSystemOperations = fileSystemOperations;
+        _logger = logger;
     }
 
     public static IModPackageSession Open(
         string packagePath,
-        IFileSystemOperations fileSystemOperations)
+        IFileSystemOperations fileSystemOperations,
+        ILogger<ModPackageSession> logger)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packagePath);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(logger);
 
         string fullPackagePath = Path.GetFullPath(packagePath);
         Stream? stream = fileSystemOperations.OpenRead(fullPackagePath);
@@ -52,7 +58,8 @@ internal sealed class ModPackageSession : IModPackageSession
                 archive,
                 index.ManifestEntry,
                 index.FileEntries,
-                fileSystemOperations);
+                fileSystemOperations,
+                logger);
 
             archive = null;
 
@@ -96,13 +103,20 @@ internal sealed class ModPackageSession : IModPackageSession
 
                 await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
             }
-
-            return output.ToArray();
         }
         finally
         {
             stopwatch.Stop();
         }
+
+        ModPackageLog.ManifestDecompressed(
+            _logger,
+            _manifestEntry.FullName,
+            _packagePath,
+            totalBytes,
+            stopwatch.Elapsed.TotalMilliseconds);
+
+        return output.ToArray();
     }
 
     public long CopyEntryToNewFile(
@@ -131,6 +145,7 @@ internal sealed class ModPackageSession : IModPackageSession
         _fileSystemOperations.EnsureDirectory(destinationDirectory);
 
         long copiedBytes = 0;
+        TimeSpan decompressionElapsed = TimeSpan.Zero;
 
         _fileSystemOperations.WriteFileAtomically(
             fullDestinationPath,
@@ -167,8 +182,17 @@ internal sealed class ModPackageSession : IModPackageSession
                 finally
                 {
                     stopwatch.Stop();
+                    decompressionElapsed = stopwatch.Elapsed;
                 }
             });
+
+        ModPackageLog.EntryExtracted(
+            _logger,
+            entry.FullName,
+            _packagePath,
+            fullDestinationPath,
+            copiedBytes,
+            decompressionElapsed.TotalMilliseconds);
 
         return copiedBytes;
     }

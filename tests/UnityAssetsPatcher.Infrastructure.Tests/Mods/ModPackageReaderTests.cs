@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Domain.Integrity;
@@ -126,13 +128,34 @@ public sealed class ModPackageReaderTests
     }
 
     [Fact]
+    public async Task ReadManifestAsync_WhenSuccessful_LogsDecompressionMetrics()
+    {
+        byte[] manifest = "{}"u8.ToArray();
+        byte[] archiveBytes = CreateArchive(("manifest.json", manifest));
+        var loggerFactory = new RecordingLoggerFactory();
+        using IModPackageSession session = OpenPackage(
+            new StubFileSystemOperations(archiveBytes),
+            loggerFactory);
+
+        _ = await session.ReadManifestAsync(TestContext.Current.CancellationToken);
+
+        LogRecord record = Assert.Single(loggerFactory.Records, record => record.EventId.Id == 4000);
+        Assert.Equal(LogLevel.Debug, record.Level);
+        Assert.Equal("manifest.json", record.Properties["ManifestEntry"]);
+        Assert.Equal(Path.GetFullPath("mod.zip"), record.Properties["PackagePath"]);
+        Assert.Equal((long)manifest.Length, record.Properties["ByteCount"]);
+        Assert.True(Assert.IsType<double>(record.Properties["ElapsedMilliseconds"]) >= 0);
+    }
+
+    [Fact]
     public void CopyEntryToNewFile_WhenEntryExists_WritesThroughAtomicFileSystemBoundary()
     {
         byte[] archiveBytes = CreateArchive(
             ("manifest.json", "{}"u8.ToArray()),
             ("payload.bin", [1, 2, 3]));
         var fileSystem = new StubFileSystemOperations(archiveBytes);
-        using IModPackageSession session = OpenPackage(fileSystem);
+        var loggerFactory = new RecordingLoggerFactory();
+        using IModPackageSession session = OpenPackage(fileSystem, loggerFactory);
 
         long copiedBytes = session.CopyEntryToNewFile(
             "PAYLOAD.BIN",
@@ -141,6 +164,13 @@ public sealed class ModPackageReaderTests
 
         Assert.Equal(3, copiedBytes);
         Assert.Equal([1, 2, 3], Assert.Single(fileSystem.WrittenFiles).Value);
+        LogRecord record = Assert.Single(loggerFactory.Records, record => record.EventId.Id == 4001);
+        Assert.Equal(LogLevel.Debug, record.Level);
+        Assert.Equal("payload.bin", record.Properties["EntryPath"]);
+        Assert.Equal(Path.GetFullPath("mod.zip"), record.Properties["PackagePath"]);
+        Assert.Equal(Path.GetFullPath("payload.output"), record.Properties["DestinationPath"]);
+        Assert.Equal(3L, record.Properties["ByteCount"]);
+        Assert.True(Assert.IsType<double>(record.Properties["ElapsedMilliseconds"]) >= 0);
     }
 
     [Fact]
@@ -163,7 +193,9 @@ public sealed class ModPackageReaderTests
     public void Open_WhenFileSystemFaults_PropagatesOriginalException()
     {
         var expected = new FileNotFoundException("missing", "missing.zip");
-        var reader = new ModPackageReader(new StubFileSystemOperations(expected));
+        var reader = new ModPackageReader(
+            new StubFileSystemOperations(expected),
+            NullLoggerFactory.Instance);
 
         FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => reader.Open("missing.zip"));
 
@@ -172,14 +204,18 @@ public sealed class ModPackageReaderTests
 
     private static InvalidDataException OpenFailure(byte[] archiveBytes)
     {
-        var reader = new ModPackageReader(new StubFileSystemOperations(archiveBytes));
+        var reader = new ModPackageReader(
+            new StubFileSystemOperations(archiveBytes),
+            NullLoggerFactory.Instance);
 
         return Assert.Throws<InvalidDataException>(() => reader.Open("mod.zip"));
     }
 
-    private static IModPackageSession OpenPackage(IFileSystemOperations fileSystemOperations)
+    private static IModPackageSession OpenPackage(
+        IFileSystemOperations fileSystemOperations,
+        ILoggerFactory? loggerFactory = null)
     {
-        var reader = new ModPackageReader(fileSystemOperations);
+        var reader = new ModPackageReader(fileSystemOperations, loggerFactory ?? NullLoggerFactory.Instance);
 
         return reader.Open("mod.zip");
     }
@@ -231,6 +267,59 @@ public sealed class ModPackageReaderTests
         }
 
         throw new InvalidOperationException($"The archive entry was not found: {entryPath}");
+    }
+
+    private sealed record LogRecord(
+        LogLevel Level,
+        EventId EventId,
+        IReadOnlyDictionary<string, object?> Properties);
+
+    private sealed class RecordingLoggerFactory : ILoggerFactory
+    {
+        public List<LogRecord> Records { get; } = [];
+
+        public ILogger CreateLogger(string categoryName)
+        {
+            return new RecordingLogger(Records);
+        }
+
+        public void AddProvider(ILoggerProvider provider) { }
+
+        public void Dispose() { }
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        private readonly ICollection<LogRecord> _records;
+
+        public RecordingLogger(ICollection<LogRecord> records)
+        {
+            _records = records;
+        }
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            IReadOnlyDictionary<string, object?> properties = state is IEnumerable<KeyValuePair<string, object?>> pairs
+                ? pairs.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal)
+                : new Dictionary<string, object?>(StringComparer.Ordinal);
+
+            _records.Add(new LogRecord(logLevel, eventId, properties));
+        }
     }
 
     private sealed class StubFileSystemOperations : IFileSystemOperations
