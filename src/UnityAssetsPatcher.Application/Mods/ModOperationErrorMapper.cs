@@ -43,15 +43,6 @@ internal static class ModOperationErrorMapper
     {
         ArgumentNullException.ThrowIfNull(error);
 
-        if (error.Code == ModPackageErrorCodes.ExtractionLimitExceeded)
-        {
-            string entryPath = GetParameter(error, "entry_path");
-            string limit = GetParameter(error, "limit_bytes");
-
-            return $"Zip package exceeds the maximum allowed total uncompressed size while extracting {entryPath}: " +
-                   $"more than {limit} bytes.";
-        }
-
         string parameters = error.Parameters.Count == 0
             ? string.Empty
             : $" ({string.Join(", ", error.Parameters.Select(parameter =>
@@ -85,13 +76,6 @@ internal static class ModOperationErrorMapper
             {
                 [parameterName] = parameterValue,
             });
-    }
-
-    private static string GetParameter(OperationError error, string name)
-    {
-        return error.Parameters.TryGetValue(name, out object? value)
-            ? value?.ToString() ?? "<unknown>"
-            : "<unknown>";
     }
 
     private static bool IsPackagePath(string? sourcePath)

@@ -28,22 +28,21 @@ public sealed class ModPackageTests
         """;
 
     [Fact]
-    public void Open_WhenPackageReaderReturnsFailure_PropagatesFailure()
+    public void Open_WhenPackageReaderRejectsPackage_PropagatesException()
     {
-        var expected = new OperationError(ModPackageErrorCodes.ManifestMissing);
-        var packageReader = new StubPackageReader(_ => new OperationFailed<IPackageSession>(expected));
+        var expected = new InvalidDataException("invalid package");
+        var packageReader = new StubModPackageReader(_ => throw expected);
 
-        OperationResult<ModPackage> result = OpenPackage(packageReader);
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => OpenPackage(packageReader));
 
-        var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
-        Assert.Same(expected, failure.Error);
+        Assert.Same(expected, exception);
     }
 
     [Fact]
     public void Open_WhenPackageReaderFaults_PropagatesOriginalException()
     {
         var expected = new FileNotFoundException("missing", "missing.zip");
-        var packageReader = new StubPackageReader(_ => throw expected);
+        var packageReader = new StubModPackageReader(_ => throw expected);
 
         FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(packageReader));
 
@@ -53,14 +52,13 @@ public sealed class ModPackageTests
     [Fact]
     public void CopyPayloadFile_WhenCalled_ForwardsToPackageSession()
     {
-        var copyResult = new OperationSucceeded<long>(3);
-        var session = new StubPackageSession(Encoding.UTF8.GetBytes(ValidManifest), copyResult);
-        var packageReader = new StubPackageReader(session);
+        var session = new StubModPackageSession(Encoding.UTF8.GetBytes(ValidManifest), 3);
+        var packageReader = new StubModPackageReader(session);
         using ModPackage package = Assert.IsType<OperationSucceeded<ModPackage>>(OpenPackage(packageReader)).Value;
 
-        OperationResult<long> result = package.CopyPayloadFile("payload.bin", "payload.output");
+        long copiedBytes = package.CopyPayloadFile("payload.bin", "payload.output");
 
-        Assert.Same(copyResult, result);
+        Assert.Equal(3, copiedBytes);
         Assert.Equal("payload.bin", session.CopiedSource);
         Assert.Equal("payload.output", session.CopyDestinationPath);
     }
@@ -68,8 +66,8 @@ public sealed class ModPackageTests
     [Fact]
     public async Task ReadAsync_WhenPackageManifestJsonIsInvalid_PropagatesJsonException()
     {
-        var session = new StubPackageSession(Encoding.UTF8.GetBytes("{"));
-        var packageReader = new StubPackageReader(session);
+        var session = new StubModPackageSession(Encoding.UTF8.GetBytes("{"));
+        var packageReader = new StubModPackageReader(session);
         var reader = new ModManifestReader(new StubFileSystemOperations(), packageReader);
 
         _ = await Assert.ThrowsAnyAsync<JsonException>(() =>
@@ -79,8 +77,8 @@ public sealed class ModPackageTests
     [Fact]
     public async Task ReadAsync_WhenSourceIsPackage_OpensNormalizedPath()
     {
-        var session = new StubPackageSession(Encoding.UTF8.GetBytes(ValidManifest));
-        var packageReader = new StubPackageReader(session);
+        var session = new StubModPackageSession(Encoding.UTF8.GetBytes(ValidManifest));
+        var packageReader = new StubModPackageReader(session);
         var reader = new ModManifestReader(new StubFileSystemOperations(), packageReader);
 
         _ = await reader.ReadAsync("mod.zip", TestContext.Current.CancellationToken);
@@ -88,12 +86,12 @@ public sealed class ModPackageTests
         Assert.Equal(Path.GetFullPath("mod.zip"), packageReader.OpenedPath);
     }
 
-    private static OperationResult<ModPackage> OpenPackage(IPackageReader packageReader)
+    private static OperationResult<ModPackage> OpenPackage(IModPackageReader modPackageReader)
     {
         return ModPackage.Open(
             "mod.zip",
             [],
-            packageReader,
+            modPackageReader,
             new StubFileSystemOperations(),
             new StepTimer());
     }

@@ -6,15 +6,15 @@ namespace UnityAssetsPatcher.Application.Mods;
 public sealed class ModManifestReader
 {
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly IPackageReader _packageReader;
+    private readonly IModPackageReader _modPackageReader;
 
-    public ModManifestReader(IFileSystemOperations fileSystemOperations, IPackageReader packageReader)
+    public ModManifestReader(IFileSystemOperations fileSystemOperations, IModPackageReader modPackageReader)
     {
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        ArgumentNullException.ThrowIfNull(packageReader);
+        ArgumentNullException.ThrowIfNull(modPackageReader);
 
         _fileSystemOperations = fileSystemOperations;
-        _packageReader = packageReader;
+        _modPackageReader = modPackageReader;
     }
 
     public async Task<OperationResult<ModManifest>> ReadAsync(
@@ -25,33 +25,18 @@ public sealed class ModManifestReader
         cancellationToken.ThrowIfCancellationRequested();
 
         string fullSourcePath = Path.GetFullPath(sourcePath);
-        OperationResult<byte[]> manifestBytesResult = IsPackagePath(fullSourcePath)
+        byte[] manifestBytes = IsPackagePath(fullSourcePath)
             ? await ReadPackageManifestAsync(fullSourcePath, cancellationToken).ConfigureAwait(false)
-            : new OperationSucceeded<byte[]>(
-                await ReadFileAsync(fullSourcePath, cancellationToken).ConfigureAwait(false));
-
-        if (manifestBytesResult is OperationFailed<byte[]> failure)
-        {
-            return new OperationFailed<ModManifest>(failure.Error);
-        }
-
-        byte[] manifestBytes = ((OperationSucceeded<byte[]>)manifestBytesResult).Value;
+            : await ReadFileAsync(fullSourcePath, cancellationToken).ConfigureAwait(false);
 
         return ModManifestParser.Parse(manifestBytes);
     }
 
-    private async Task<OperationResult<byte[]>> ReadPackageManifestAsync(
+    private async Task<byte[]> ReadPackageManifestAsync(
         string packagePath,
         CancellationToken cancellationToken)
     {
-        OperationResult<IPackageSession> sessionResult = _packageReader.Open(packagePath);
-
-        if (sessionResult is OperationFailed<IPackageSession> failure)
-        {
-            return new OperationFailed<byte[]>(failure.Error);
-        }
-
-        using IPackageSession session = ((OperationSucceeded<IPackageSession>)sessionResult).Value;
+        using IModPackageSession session = _modPackageReader.Open(packagePath);
 
         return await session.ReadManifestAsync(cancellationToken).ConfigureAwait(false);
     }

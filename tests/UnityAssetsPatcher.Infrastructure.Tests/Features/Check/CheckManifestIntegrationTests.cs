@@ -94,7 +94,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
             cancellationToken);
 
         var failure = Assert.IsType<OperationFailed<CheckManifestResult>>(result);
-        Assert.Equal(ModPackageErrorCodes.ManifestMissing, failure.Error.Code);
+        Assert.Equal(ModPackageErrorCodes.InvalidArchive, failure.Error.Code);
         Assert.Equal(sourcePath, failure.Error.Parameters["package_path"]);
     }
 
@@ -121,7 +121,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
     private static CheckManifestHandler CreateHandler()
     {
         var fileSystemOperations = new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
-        var packageReader = new ZipPackageReader(fileSystemOperations);
+        var packageReader = new ModPackageReader(fileSystemOperations);
 
         return new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader));
     }

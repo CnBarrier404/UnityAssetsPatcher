@@ -18,7 +18,7 @@ public sealed class ModComposer
     private readonly TargetAssetResolver _targetAssetResolver;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly IPackageReader _packageReader;
+    private readonly IModPackageReader _modPackageReader;
     private readonly IReadOnlyList<IFieldPatchOperationHandler> _operationHandlers;
     private readonly TrustedPathResolver _pathResolver;
     private readonly ILogger<ModComposer> _logger;
@@ -28,7 +28,7 @@ public sealed class ModComposer
         TargetAssetResolver targetAssetResolver,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
-        IPackageReader packageReader,
+        IModPackageReader modPackageReader,
         IEnumerable<IFieldPatchOperationHandler> operationHandlers,
         ILogger<ModComposer>? logger = null)
     {
@@ -36,14 +36,14 @@ public sealed class ModComposer
         ArgumentNullException.ThrowIfNull(targetAssetResolver);
         ArgumentNullException.ThrowIfNull(assetsAccessScopeFactory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        ArgumentNullException.ThrowIfNull(packageReader);
+        ArgumentNullException.ThrowIfNull(modPackageReader);
         ArgumentNullException.ThrowIfNull(operationHandlers);
 
         _compositionRepository = compositionRepository;
         _targetAssetResolver = targetAssetResolver;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
-        _packageReader = packageReader;
+        _modPackageReader = modPackageReader;
         _operationHandlers = operationHandlers.ToArray();
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
         _logger = logger ?? NullLogger<ModComposer>.Instance;
@@ -206,7 +206,7 @@ public sealed class ModComposer
                 fileIndex,
                 0,
                 file.RelativePath);
-            _ = RequirePackageResult(package.CopyPayloadFile(provider.Source, providerOutputPath));
+            _ = package.CopyPayloadFile(provider.Source, providerOutputPath);
             EnsureRegularFile(providerOutputPath, "Composed payload file");
 
             return new FileCompositionAttempt(
@@ -332,7 +332,7 @@ public sealed class ModComposer
         return RequirePackageResult(ModPackage.Open(
             packagePath,
             layer.OptionalGroups ?? [],
-            _packageReader,
+            _modPackageReader,
             _fileSystemOperations,
             new StepTimer()));
     }

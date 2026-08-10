@@ -90,7 +90,7 @@ public sealed class CheckManifestHandlerTests
 
     private static CheckManifestHandler CreateHandler(IFileSystemOperations fileSystemOperations)
     {
-        var packageReader = new StubPackageReader(_ => throw new NotSupportedException());
+        var packageReader = new StubModPackageReader(_ => throw new NotSupportedException());
 
         return new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader));
     }

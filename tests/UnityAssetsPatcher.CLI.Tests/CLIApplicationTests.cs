@@ -144,7 +144,7 @@ public sealed class CLIApplicationTests : IDisposable
         Assert.Equal(1, exitCode);
         Assert.Equal(string.Empty, output.ToString());
         Assert.StartsWith(
-            $"Error [mod_package.manifest_missing]: The mod package is invalid.{Environment.NewLine}",
+            $"Error [mod_package.invalid_archive]: The mod package is invalid.{Environment.NewLine}",
             error.ToString());
         Assert.Contains($"package_path: {packagePath}", error.ToString());
     }
@@ -204,7 +204,7 @@ public sealed class CLIApplicationTests : IDisposable
         services.AddLogging();
         services.AddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileSystemOperations>>()));
-        services.AddSingleton<IPackageReader, ZipPackageReader>();
+        services.AddSingleton<IModPackageReader, ModPackageReader>();
         services.AddUnityAssetsPatcherApplication();
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
         {
