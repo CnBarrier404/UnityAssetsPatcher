@@ -103,6 +103,40 @@ public sealed class ModPackageReaderTests
     }
 
     [Fact]
+    public async Task ReadManifestAsync_WhenUnrelatedEntryPathIsUnsafe_ReturnsManifest()
+    {
+        byte[] manifest = "{}"u8.ToArray();
+        byte[] archiveBytes = CreateArchive(
+            ("manifest.json", manifest),
+            ("../payload.bin", [1]));
+        var reader = new ModPackageReader(
+            new StubFileSystemOperations(archiveBytes),
+            NullLoggerFactory.Instance);
+
+        byte[] result = await reader.ReadManifestAsync(
+            "mod.zip",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(manifest, result);
+    }
+
+    [Fact]
+    public async Task ReadManifestAsync_WhenMultipleManifestsExist_ThrowsInvalidDataException()
+    {
+        byte[] archiveBytes = CreateArchive(
+            ("manifest.json", "{}"u8.ToArray()),
+            ("Nested/MANIFEST.JSON", "{}"u8.ToArray()));
+        var reader = new ModPackageReader(
+            new StubFileSystemOperations(archiveBytes),
+            NullLoggerFactory.Instance);
+
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            reader.ReadManifestAsync("mod.zip", TestContext.Current.CancellationToken));
+
+        Assert.Contains("contains multiple manifest.json files", exception.Message);
+    }
+
+    [Fact]
     public async Task ReadManifestAsync_WhenManifestExceedsLimit_ThrowsInvalidDataException()
     {
         byte[] manifest = new byte[10L * 1024L * 1024L + 1];

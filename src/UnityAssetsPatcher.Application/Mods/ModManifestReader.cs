@@ -36,14 +36,12 @@ public sealed class ModManifestReader
         string packagePath,
         CancellationToken cancellationToken)
     {
-        using IModPackageSession session = _modPackageReader.Open(packagePath);
-
-        return await session.ReadManifestAsync(cancellationToken).ConfigureAwait(false);
+        return await _modPackageReader.ReadManifestAsync(packagePath, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<byte[]> ReadFileAsync(string sourcePath, CancellationToken cancellationToken)
     {
-        using Stream input = _fileSystemOperations.OpenRead(sourcePath);
+        await using Stream input = _fileSystemOperations.OpenRead(sourcePath);
         using MemoryStream output = new();
 
         await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);

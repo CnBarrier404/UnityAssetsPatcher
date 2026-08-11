@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
@@ -16,6 +17,28 @@ public sealed class ModPackageReader : IModPackageReader
 
         _fileSystemOperations = fileSystemOperations;
         _loggerFactory = loggerFactory;
+    }
+
+    public async Task<byte[]> ReadManifestAsync(
+        string packagePath,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(packagePath);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        string fullPackagePath = Path.GetFullPath(packagePath);
+        await using Stream stream = _fileSystemOperations.OpenRead(fullPackagePath);
+        await using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+        ZipArchiveEntry manifestEntry = ModPackageManifest.FindEntry(
+            archive,
+            fullPackagePath,
+            cancellationToken);
+
+        return await ModPackageManifest.ReadAsync(
+            manifestEntry,
+            fullPackagePath,
+            _loggerFactory.CreateLogger<ModPackageReader>(),
+            cancellationToken).ConfigureAwait(false);
     }
 
     public IModPackageSession Open(string packagePath)

@@ -4,17 +4,35 @@ namespace UnityAssetsPatcher.Application.Tests.Mods;
 internal sealed class StubModPackageReader : IModPackageReader
 {
     public string? OpenedPath { get; private set; }
+    public string? ManifestReadPath { get; private set; }
 
     private readonly Func<string, IModPackageSession> _open;
+    private readonly Func<string, CancellationToken, Task<byte[]>> _readManifest;
 
     public StubModPackageReader(IModPackageSession session)
-        : this(_ => session) { }
+        : this(_ => session, (_, cancellationToken) => session.ReadManifestAsync(cancellationToken)) { }
 
     public StubModPackageReader(Func<string, IModPackageSession> open)
+        : this(open, (_, _) => throw new NotSupportedException()) { }
+
+    private StubModPackageReader(
+        Func<string, IModPackageSession> open,
+        Func<string, CancellationToken, Task<byte[]>> readManifest)
     {
         ArgumentNullException.ThrowIfNull(open);
+        ArgumentNullException.ThrowIfNull(readManifest);
 
         _open = open;
+        _readManifest = readManifest;
+    }
+
+    public Task<byte[]> ReadManifestAsync(
+        string packagePath,
+        CancellationToken cancellationToken = default)
+    {
+        ManifestReadPath = packagePath;
+
+        return _readManifest(packagePath, cancellationToken);
     }
 
     public IModPackageSession Open(string packagePath)

@@ -78,7 +78,7 @@ public sealed class ModPackageTests
     }
 
     [Fact]
-    public async Task ReadAsync_WhenSourceIsPackage_OpensNormalizedPath()
+    public async Task ReadAsync_WhenSourceIsPackage_ReadsManifestFromNormalizedPath()
     {
         var session = new StubModPackageSession(Encoding.UTF8.GetBytes(ValidManifest));
         var packageReader = new StubModPackageReader(session);
@@ -86,7 +86,8 @@ public sealed class ModPackageTests
 
         _ = await reader.ReadAsync("mod.zip", TestContext.Current.CancellationToken);
 
-        Assert.Equal(Path.GetFullPath("mod.zip"), packageReader.OpenedPath);
+        Assert.Equal(Path.GetFullPath("mod.zip"), packageReader.ManifestReadPath);
+        Assert.Null(packageReader.OpenedPath);
     }
 
     private static Task<OperationResult<ModPackage>> OpenPackageAsync(IModPackageReader modPackageReader)

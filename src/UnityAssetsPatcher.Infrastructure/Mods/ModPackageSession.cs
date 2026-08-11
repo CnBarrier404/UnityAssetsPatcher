@@ -16,7 +16,6 @@ internal sealed class ModPackageSession : IModPackageSession
     private readonly string _packagePath;
 
     private const int CopyBufferSize = 81920;
-    private const long MaxManifestSize = 10L * 1024L * 1024L;
 
     private ModPackageSession(
         string packagePath,
@@ -72,51 +71,13 @@ internal sealed class ModPackageSession : IModPackageSession
         }
     }
 
-    public async Task<byte[]> ReadManifestAsync(CancellationToken cancellationToken = default)
+    public Task<byte[]> ReadManifestAsync(CancellationToken cancellationToken = default)
     {
-        if (_manifestEntry.Length > MaxManifestSize)
-        {
-            throw new InvalidDataException(
-                $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
-                $"{_manifestEntry.FullName} ({_manifestEntry.Length} bytes observed). Package: {_packagePath}");
-        }
-
-        await using Stream input = await _manifestEntry.OpenAsync(cancellationToken);
-        using MemoryStream output = new((int)_manifestEntry.Length);
-        byte[] buffer = new byte[CopyBufferSize];
-        long totalBytes = 0;
-        var stopwatch = Stopwatch.StartNew();
-
-        try
-        {
-            int bytesRead;
-            while ((bytesRead = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
-            {
-                totalBytes += bytesRead;
-
-                if (totalBytes > MaxManifestSize)
-                {
-                    throw new InvalidDataException(
-                        $"The package manifest exceeds the {MaxManifestSize}-byte limit: " +
-                        $"{_manifestEntry.FullName} ({totalBytes} bytes observed). Package: {_packagePath}");
-                }
-
-                await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
-            }
-        }
-        finally
-        {
-            stopwatch.Stop();
-        }
-
-        ModPackageLog.ManifestDecompressed(
-            _logger,
-            _manifestEntry.FullName,
+        return ModPackageManifest.ReadAsync(
+            _manifestEntry,
             _packagePath,
-            totalBytes,
-            stopwatch.Elapsed.TotalMilliseconds);
-
-        return output.ToArray();
+            _logger,
+            cancellationToken);
     }
 
     public long CopyEntryToNewFile(
