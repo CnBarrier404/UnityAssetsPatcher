@@ -49,3 +49,36 @@ Follow [`.agents/code-style.md`](.agents/code-style.md) for repository-specific 
 2. Identify the root cause and support the diagnosis with concrete evidence from the code or reproduction. Do not present an unverified guess as the cause.
 3. Explain the root cause, affected behavior, proposed fix, and validation plan to the user. Wait for explicit approval before modifying source code or other implementation files.
 4. After approval, implement the fix within the agreed scope, add or update regression coverage when appropriate, and run the required validation commands.
+
+## Error Handling
+
+* Use `OperationResult<T>` / `OperationError` for expected application failures.
+* Do not throw exceptions for ordinary validation or domain failures when the API already returns `OperationResult<T>`.
+* Exceptions are for unexpected technical failures, programming errors, and violated invariants.
+* Translate exceptions into `OperationError` only where their application meaning is known.
+* Do not convert unknown exceptions into generic error codes; let them propagate.
+* Do not use `Exception.Message`, string matching, or file extensions to determine error semantics.
+* Prefer typed exceptions with structured reasons when infrastructure must communicate domain-specific technical failures.
+* Cancellation is not a failure: propagate `OperationCanceledException` and do not convert or log normal cancellation as an error.
+
+## Application Error Codes
+
+* Error codes must be stable, machine-readable application semantics.
+* Preserve the same error code across different handlers and entry points.
+* Do not collapse distinct actionable failures into generic codes such as `*.invalid` or `*.failed`.
+* Store structured data in `OperationError.Parameters`; do not store exceptions, stack traces, or raw exception messages.
+* User-facing text belongs to presentation/formatting code, not application error objects.
+
+## Logging
+
+* Logging must not be used for failure propagation.
+* Expected `OperationError` failures should normally not be logged at `Error`.
+* Log unexpected exceptions once, at the boundary that finally handles or terminates the operation.
+* Avoid log-and-rethrow when a higher layer will log the same exception.
+* Use:
+
+  * `Debug` for internal details and timings.
+  * `Information` for meaningful lifecycle events.
+  * `Warning` for expected but noteworthy/recoverable conditions.
+  * `Error` for unexpected failures requiring investigation.
+* Cleanup-only `catch` blocks may rethrow without translating or logging.
