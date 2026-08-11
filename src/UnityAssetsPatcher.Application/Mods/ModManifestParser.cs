@@ -20,8 +20,25 @@ internal static class ModManifestParser
             utf8Json = utf8Json[3..];
         }
 
-        using JsonDocument jsonDocument = JsonDocument.Parse(utf8Json.ToArray());
-        JsonElement root = jsonDocument.RootElement;
+        JsonDocument jsonDocument;
+
+        try
+        {
+            jsonDocument = JsonDocument.Parse(utf8Json.ToArray());
+        }
+        catch (JsonException exception)
+        {
+            return new OperationFailed<ModManifest>(InvalidJson(exception));
+        }
+
+        using (jsonDocument)
+        {
+            return Parse(jsonDocument.RootElement);
+        }
+    }
+
+    private static OperationResult<ModManifest> Parse(JsonElement root)
+    {
         OperationError? schemaError = ManifestSchemaValidator.Validate(root);
 
         if (schemaError is not null)
@@ -47,5 +64,22 @@ internal static class ModManifestParser
         ModManifest manifest = ModManifestMapper.Map(document);
 
         return new OperationSucceeded<ModManifest>(manifest);
+    }
+
+    private static OperationError InvalidJson(JsonException exception)
+    {
+        var parameters = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        if (exception.BytePositionInLine is { } bytePosition)
+        {
+            parameters.Add("byte_position", bytePosition);
+        }
+
+        if (exception.LineNumber is { } lineNumber)
+        {
+            parameters.Add("line_number", lineNumber);
+        }
+
+        return new OperationError(ManifestErrorCodes.InvalidJson, parameters);
     }
 }

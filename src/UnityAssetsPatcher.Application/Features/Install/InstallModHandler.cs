@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Messaging;
@@ -21,7 +22,7 @@ public sealed class InstallModHandler :
     private readonly IRepository _repository;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly IModPackageReader _modPackageReader;
+    private readonly ModPackageReader _modPackageReader;
     private readonly ILogger<InstallModHandler> _logger;
 
     public InstallModHandler(
@@ -29,7 +30,7 @@ public sealed class InstallModHandler :
         IRepository repository,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
-        IModPackageReader modPackageReader,
+        ModPackageReader modPackageReader,
         ILogger<InstallModHandler>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(planBuilder);
@@ -94,7 +95,7 @@ public sealed class InstallModHandler :
 
         if (packageResult is OperationFailed<ModPackage> packageFailure)
         {
-            return PackageFailure<InstallPreviewResult>(nameof(PreviewAsync), packageFailure.Error);
+            return new OperationFailed<InstallPreviewResult>(packageFailure.Error);
         }
 
         using ModPackage package = ((OperationSucceeded<ModPackage>)packageResult).Value;
@@ -137,7 +138,7 @@ public sealed class InstallModHandler :
 
         if (packageResult is OperationFailed<ModPackage> packageFailure)
         {
-            return PackageFailure<InstallModResult>(nameof(InstallAsync), packageFailure.Error);
+            return new OperationFailed<InstallModResult>(packageFailure.Error);
         }
 
         using ModPackage package = ((OperationSucceeded<ModPackage>)packageResult).Value;
@@ -164,7 +165,8 @@ public sealed class InstallModHandler :
         InstallExecutionResult execution = repositoryResult.Execution;
 
         _logger.LogInformation(
-            "Installed {ModName} {ModVersion}: {PatchedFileCount} files patched, {CopiedFileCount} files copied, install id {InstallId}",
+            "Installed {ModName} {ModVersion}: {PatchedFileCount} files patched, " +
+            "{CopiedFileCount} files copied, install id {InstallId}",
             analysis.Manifest.Name,
             analysis.Manifest.Version,
             execution.PatchedFiles.Count,
@@ -221,6 +223,18 @@ public sealed class InstallModHandler :
         {
             return ExpectedFailure<TResult>(operationName, ModOperationErrorCodes.InstallPreviewStale, null);
         }
+        catch (LayerPackageValidationException exception)
+        {
+            return new OperationFailed<TResult>(exception.Error);
+        }
+        catch (LayerPackageIntegrityException exception)
+        {
+            return ExpectedFailure<TResult>(
+                operationName,
+                ModOperationErrorCodes.FileIntegrityMismatch,
+                null,
+                exception.PackagePath);
+        }
         catch (FileNotFoundException exception)
         {
             return ExpectedFailure<TResult>(
@@ -245,24 +259,12 @@ public sealed class InstallModHandler :
                 RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
-        catch (Exception exception) when (ModOperationErrorMapper.IsInvalidPackageException(exception))
-        {
-            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
-        }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Install operation {OperationName} failed", operationName);
 
             throw;
         }
-    }
-
-    private OperationFailed<TResult> PackageFailure<TResult>(string operationName, OperationError error)
-    {
-        return ExpectedFailure<TResult>(
-            operationName,
-            ModPackageErrorCodes.InvalidPackage,
-            ModOperationErrorMapper.FormatPackageFailure(error));
     }
 
     private OperationFailed<TResult> ExpectedFailure<TResult>(

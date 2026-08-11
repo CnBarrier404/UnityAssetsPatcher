@@ -1,86 +1,93 @@
 using UnityAssetsPatcher.Application.Mods;
+
 namespace UnityAssetsPatcher.Application.Tests.Mods;
 
 internal sealed class StubModPackageReader : IModPackageReader
 {
     public string? OpenedPath { get; private set; }
-    public string? ManifestReadPath { get; private set; }
 
-    private readonly Func<string, IModPackageSession> _open;
-    private readonly Func<string, CancellationToken, Task<byte[]>> _readManifest;
+    private readonly Func<string, CancellationToken, Task<IModPackageSession>> _openAsync;
 
     public StubModPackageReader(IModPackageSession session)
-        : this(_ => session, (_, cancellationToken) => session.ReadManifestAsync(cancellationToken)) { }
+        : this(_ => session) { }
 
     public StubModPackageReader(Func<string, IModPackageSession> open)
-        : this(open, (_, _) => throw new NotSupportedException()) { }
-
-    private StubModPackageReader(
-        Func<string, IModPackageSession> open,
-        Func<string, CancellationToken, Task<byte[]>> readManifest)
     {
         ArgumentNullException.ThrowIfNull(open);
-        ArgumentNullException.ThrowIfNull(readManifest);
 
-        _open = open;
-        _readManifest = readManifest;
+        _openAsync = (path, _) => Task.FromResult(open(path));
     }
 
-    public Task<byte[]> ReadManifestAsync(
-        string packagePath,
+    public async Task<IModPackageSession> OpenAsync(
+        string archivePath,
         CancellationToken cancellationToken = default)
     {
-        ManifestReadPath = packagePath;
+        OpenedPath = archivePath;
 
-        return _readManifest(packagePath, cancellationToken);
-    }
-
-    public IModPackageSession Open(string packagePath)
-    {
-        OpenedPath = packagePath;
-
-        return _open(packagePath);
+        return await _openAsync(archivePath, cancellationToken).ConfigureAwait(false);
     }
 }
 
 internal sealed class StubModPackageSession : IModPackageSession
 {
-    public string? CopiedSource { get; private set; }
-    public string? CopyDestinationPath { get; private set; }
+    public IReadOnlyList<IModPackageEntry> Entries { get; }
     public bool IsDisposed { get; private set; }
 
-    private readonly byte[] _manifestBytes;
-    private readonly long _copiedBytes;
+    public StubModPackageSession(byte[] manifestBytes, params (string Path, byte[] Contents)[] entries)
+        : this(new StubModPackageEntry("manifest.json", manifestBytes), entries) { }
 
-    public StubModPackageSession(byte[] manifestBytes, long copiedBytes = 0)
+    public StubModPackageSession(
+        byte[] manifestBytes,
+        long declaredManifestLength,
+        params (string Path, byte[] Contents)[] entries)
+        : this(new StubModPackageEntry("manifest.json", manifestBytes, declaredManifestLength), entries) { }
+
+    private StubModPackageSession(
+        IModPackageEntry manifestEntry,
+        params (string Path, byte[] Contents)[] entries)
     {
-        ArgumentNullException.ThrowIfNull(manifestBytes);
+        ArgumentNullException.ThrowIfNull(manifestEntry);
 
-        _manifestBytes = manifestBytes;
-        _copiedBytes = copiedBytes;
-    }
-
-    public Task<byte[]> ReadManifestAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        return Task.FromResult(_manifestBytes);
-    }
-
-    public long CopyEntryToNewFile(
-        string source,
-        string destinationPath,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        CopiedSource = source;
-        CopyDestinationPath = destinationPath;
-
-        return _copiedBytes;
+        Entries =
+        [
+            manifestEntry,
+            .. entries.Select(entry => new StubModPackageEntry(entry.Path, entry.Contents)),
+        ];
     }
 
     public void Dispose()
     {
         IsDisposed = true;
+    }
+}
+
+internal sealed class StubModPackageEntry : IModPackageEntry
+{
+    public string FullName { get; }
+    public string Name => Path.GetFileName(FullName);
+    public long Length { get; }
+
+    private readonly byte[] _contents;
+
+    public StubModPackageEntry(string fullName, byte[] contents)
+        : this(fullName, contents, contents.Length) { }
+
+    public StubModPackageEntry(string fullName, byte[] contents, long length)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
+        ArgumentNullException.ThrowIfNull(contents);
+        ArgumentOutOfRangeException.ThrowIfNegative(length);
+
+        FullName = fullName;
+        _contents = contents;
+        Length = length;
+    }
+
+    public Task<Stream> OpenReadAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Stream stream = new MemoryStream(_contents, writable: false);
+
+        return Task.FromResult(stream);
     }
 }

@@ -12,13 +12,37 @@ using UnityAssetsPatcher.Domain.Integrity;
 
 namespace UnityAssetsPatcher.Application.Composition;
 
+internal sealed class LayerPackageIntegrityException : Exception
+{
+    public string PackagePath { get; }
+
+    public LayerPackageIntegrityException(string packagePath)
+        : base("Layer package integrity mismatch.")
+    {
+        PackagePath = packagePath;
+    }
+}
+
+internal sealed class LayerPackageValidationException : Exception
+{
+    public OperationError Error { get; }
+
+    public LayerPackageValidationException(OperationError error)
+        : base("Layer package validation failed.")
+    {
+        ArgumentNullException.ThrowIfNull(error);
+
+        Error = error;
+    }
+}
+
 public sealed class ModComposer
 {
     private readonly ICompositionRepository _compositionRepository;
     private readonly TargetAssetResolver _targetAssetResolver;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly IModPackageReader _modPackageReader;
+    private readonly ModPackageReader _modPackageReader;
     private readonly IReadOnlyList<IFieldPatchOperationHandler> _operationHandlers;
     private readonly TrustedPathResolver _pathResolver;
     private readonly ILogger<ModComposer> _logger;
@@ -28,7 +52,7 @@ public sealed class ModComposer
         TargetAssetResolver targetAssetResolver,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
-        IModPackageReader modPackageReader,
+        ModPackageReader modPackageReader,
         IEnumerable<IFieldPatchOperationHandler> operationHandlers,
         ILogger<ModComposer>? logger = null)
     {
@@ -148,7 +172,8 @@ public sealed class ModComposer
             if (target is null)
             {
                 _logger.LogDebug(
-                    "Layer {LayerId} did not resolve an assets target for {RelativePath}; its stored target snapshot was ignored.",
+                    "Layer {LayerId} did not resolve an assets target for {RelativePath}; " +
+                    "its stored target snapshot was ignored.",
                     layer.Id,
                     file.RelativePath);
 
@@ -216,7 +241,11 @@ public sealed class ModComposer
                 fileIndex,
                 0,
                 file.RelativePath);
-            _ = package.CopyPayloadFile(provider.Source, providerOutputPath);
+            OperationResult<long> copyResult = await package
+                .CopyPayloadFileAsync(provider.Source, providerOutputPath, cancellationToken)
+                .ConfigureAwait(false);
+
+            _ = RequirePackageResult(copyResult);
             EnsureRegularFile(providerOutputPath, "Composed payload file");
 
             return new FileCompositionAttempt(
@@ -329,17 +358,17 @@ public sealed class ModComposer
         {
             packagePath = TrustedPath.NormalizeAbsolutePath(preparedPackagePath);
             EnsureRegularFile(packagePath, "Prepared layer package");
-            FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(packagePath);
-
-            if (!layer.Package.Integrity.Matches(actual))
-            {
-                throw new InvalidDataException($"Layer package integrity does not match: {packagePath}");
-            }
         }
         else
         {
-            _compositionRepository.Layers.VerifyPackage(layer.Id);
             packagePath = _compositionRepository.Layers.ResolvePackagePath(layer.Id);
+        }
+
+        FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(packagePath);
+
+        if (!layer.Package.Integrity.Matches(actual))
+        {
+            throw new LayerPackageIntegrityException(packagePath);
         }
 
         OperationResult<ModPackage> result = await ModPackage.OpenAsync(
@@ -503,9 +532,9 @@ public sealed class ModComposer
         };
     }
 
-    private static InvalidDataException PackageFailure(OperationError error)
+    private static LayerPackageValidationException PackageFailure(OperationError error)
     {
-        return new InvalidDataException(ModOperationErrorMapper.FormatPackageFailure(error));
+        return new LayerPackageValidationException(error);
     }
 
     private sealed record FileCompositionAttempt(

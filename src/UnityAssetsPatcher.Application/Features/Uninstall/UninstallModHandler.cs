@@ -1,7 +1,7 @@
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Composition;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Messaging;
@@ -145,6 +145,18 @@ public sealed class UninstallModHandler :
 
             return new OperationFailed<TResult>(error);
         }
+        catch (LayerPackageValidationException exception)
+        {
+            return new OperationFailed<TResult>(exception.Error);
+        }
+        catch (LayerPackageIntegrityException exception)
+        {
+            return ExpectedFailure<TResult>(
+                operationName,
+                ModOperationErrorCodes.FileIntegrityMismatch,
+                null,
+                exception.PackagePath);
+        }
         catch (FileNotFoundException exception)
         {
             return ExpectedFailure<TResult>(
@@ -163,14 +175,6 @@ public sealed class UninstallModHandler :
         catch (IOException exception)
         {
             return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
-        }
-        catch (JsonException exception)
-        {
-            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
-        }
-        catch (InvalidDataException exception)
-        {
-            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
         }
         catch (KeyNotFoundException exception)
         {

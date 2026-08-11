@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Tests.Mods;
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.IO;
@@ -90,7 +91,11 @@ public sealed class CheckManifestHandlerTests
 
     private static CheckManifestHandler CreateHandler(IFileSystemOperations fileSystemOperations)
     {
-        var packageReader = new StubModPackageReader(_ => throw new NotSupportedException());
+        var archiveReader = new StubModPackageReader(_ => throw new NotSupportedException());
+        var packageReader = new ModPackageReader(
+            archiveReader,
+            fileSystemOperations,
+            NullLoggerFactory.Instance);
 
         return new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader));
     }

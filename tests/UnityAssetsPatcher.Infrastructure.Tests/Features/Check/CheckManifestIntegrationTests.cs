@@ -55,9 +55,9 @@ public sealed class CheckManifestIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task HandleAsync_WhenSourceIsZipFile_ReturnsNestedManifest()
+    public async Task HandleAsync_WhenZipHasNonZipExtension_ReturnsNestedManifest()
     {
-        string sourcePath = Path.Combine(_temporaryDirectory, "mod.ZIP");
+        string sourcePath = Path.Combine(_temporaryDirectory, "mod.package");
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
 
         using (ZipArchive archive = ZipFile.Open(sourcePath, ZipArchiveMode.Create))
@@ -78,6 +78,28 @@ public sealed class CheckManifestIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task HandleAsync_WhenPackageContentIsInvalid_ReturnsArchiveFailure()
+    {
+        string sourcePath = Path.Combine(_temporaryDirectory, "invalid-package.json");
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
+        await File.WriteAllBytesAsync(
+            sourcePath,
+            [(byte)'P', (byte)'K', 0x03, 0x04, 0xff],
+            cancellationToken);
+
+        CheckManifestHandler handler = CreateHandler();
+        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+            new CheckManifestRequest(sourcePath),
+            cancellationToken);
+
+        var failure = Assert.IsType<OperationFailed<CheckManifestResult>>(result);
+
+        Assert.Equal(ModPackageErrorCodes.InvalidArchive, failure.Error.Code);
+        Assert.Equal(sourcePath, failure.Error.Parameters["package_path"]);
+    }
+
+    [Fact]
     public async Task HandleAsync_WhenZipManifestIsMissing_ReturnsPackageFailure()
     {
         string sourcePath = Path.Combine(_temporaryDirectory, "missing-manifest.zip");
@@ -94,7 +116,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
             cancellationToken);
 
         var failure = Assert.IsType<OperationFailed<CheckManifestResult>>(result);
-        Assert.Equal(ModPackageErrorCodes.InvalidArchive, failure.Error.Code);
+        Assert.Equal(ModPackageErrorCodes.MissingManifest, failure.Error.Code);
         Assert.Equal(sourcePath, failure.Error.Parameters["package_path"]);
     }
 
@@ -121,7 +143,11 @@ public sealed class CheckManifestIntegrationTests : IDisposable
     private static CheckManifestHandler CreateHandler()
     {
         var fileSystemOperations = new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
-        var packageReader = new ModPackageReader(fileSystemOperations, NullLoggerFactory.Instance);
+        var archiveReader = new ZipModPackageReader(fileSystemOperations);
+        var packageReader = new ModPackageReader(
+            archiveReader,
+            fileSystemOperations,
+            NullLoggerFactory.Instance);
 
         return new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader));
     }

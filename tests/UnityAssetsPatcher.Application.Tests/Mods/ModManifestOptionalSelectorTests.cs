@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
@@ -131,9 +132,16 @@ public sealed class ModManifestOptionalSelectorTests
         string manifest,
         IReadOnlyList<string> selectedNames)
     {
-        var session = new StubModPackageSession(Encoding.UTF8.GetBytes(manifest));
-        var packageReader = new StubModPackageReader(session);
+        var session = new StubModPackageSession(
+            Encoding.UTF8.GetBytes(manifest),
+            ("base/base.resource", Array.Empty<byte>()),
+            ("extra/payload.resource", Array.Empty<byte>()));
+        var archiveReader = new StubModPackageReader(session);
         var fileSystemOperations = new StubFileSystemOperations();
+        var packageReader = new ModPackageReader(
+            archiveReader,
+            fileSystemOperations,
+            NullLoggerFactory.Instance);
 
         return ModPackage.OpenAsync(
             "mod.zip",

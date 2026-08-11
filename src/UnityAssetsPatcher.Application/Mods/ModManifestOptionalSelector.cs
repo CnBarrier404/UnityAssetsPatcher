@@ -34,11 +34,6 @@ internal static class ModManifestOptionalSelector
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(selectedNames);
 
-        if (selectedNames.Count == 0)
-        {
-            return Success(manifest, manifest.Files, manifest.Patches, []);
-        }
-
         var available = new Dictionary<string, ModOptionalGroup>(StringComparer.OrdinalIgnoreCase);
 
         foreach (ModOptionalGroup group in manifest.OptionalGroups)
@@ -86,6 +81,18 @@ internal static class ModManifestOptionalSelector
         }
 
         ModPatch[] patches = [.. manifest.Patches, .. selectedGroups.SelectMany(group => group.Patches)];
+        string? conflictingTarget = FindPayloadTargetConflict(files, patches);
+
+        if (conflictingTarget is not null)
+        {
+            return new OperationFailed<ModManifestSelection>(new OperationError(
+                ManifestErrorCodes.PayloadConflict,
+                new Dictionary<string, object?>
+                {
+                    ["file_name"] = conflictingTarget,
+                }));
+        }
+
         var selected = new HashSet<string>(selectedNames, StringComparer.OrdinalIgnoreCase);
         string[] appliedNames =
         [
@@ -130,5 +137,16 @@ internal static class ModManifestOptionalSelector
                 let separatorIndex = normalized.LastIndexOf('/')
                 select separatorIndex < 0 ? normalized : normalized[(separatorIndex + 1)..])
             .FirstOrDefault(fileName => !seen.Add(fileName));
+    }
+
+    private static string? FindPayloadTargetConflict(IEnumerable<ModFile> files, IEnumerable<ModPatch> patches)
+    {
+        var targetNames = new HashSet<string>(
+            patches.Select(patch => patch.AssetsFileName),
+            StringComparer.OrdinalIgnoreCase);
+
+        return files.Select(file => file.Source.Replace('\\', '/'))
+            .Select(path => path[(path.LastIndexOf('/') + 1)..])
+            .FirstOrDefault(targetNames.Contains);
     }
 }

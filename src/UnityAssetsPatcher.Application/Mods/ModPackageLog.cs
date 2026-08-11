@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace UnityAssetsPatcher.Infrastructure.Mods;
+namespace UnityAssetsPatcher.Application.Mods;
 
 internal static partial class ModPackageLog
 {

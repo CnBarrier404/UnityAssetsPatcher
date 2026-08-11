@@ -22,29 +22,18 @@ public sealed class CheckManifestHandler : IRequestHandler<CheckManifestRequest,
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        try
+        var result = await _manifestReader
+            .ReadAsync(request.SourcePath, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result switch
         {
-            var result = await _manifestReader
-                .ReadAsync(request.SourcePath, cancellationToken)
-                .ConfigureAwait(false);
+            OperationSucceeded<ModManifest> succeeded =>
+                new OperationSucceeded<CheckManifestResult>(new CheckManifestResult(succeeded.Value)),
 
-            return result switch
-            {
-                OperationSucceeded<ModManifest> succeeded =>
-                    new OperationSucceeded<CheckManifestResult>(new CheckManifestResult(succeeded.Value)),
+            OperationFailed<ModManifest> failed => new OperationFailed<CheckManifestResult>(failed.Error),
 
-                OperationFailed<ModManifest> failed => new OperationFailed<CheckManifestResult>(failed.Error),
-
-                _ => throw new InvalidOperationException("The manifest parser returned an unknown result.")
-            };
-        }
-        catch (Exception exception)
-            when (ModOperationErrorMapper.TryMapManifestReadException(
-                      exception,
-                      request.SourcePath,
-                      out OperationError error))
-        {
-            return new OperationFailed<CheckManifestResult>(error);
-        }
+            _ => throw new InvalidOperationException("The manifest parser returned an unknown result."),
+        };
     }
 }

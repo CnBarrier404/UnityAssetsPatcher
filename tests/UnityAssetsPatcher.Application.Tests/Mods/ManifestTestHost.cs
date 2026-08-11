@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Mods;
@@ -35,7 +36,11 @@ internal sealed class ManifestTestHost
         ArgumentNullException.ThrowIfNull(openRead);
 
         var fileSystemOperations = new StubFileSystemOperations(openRead);
-        var packageReader = new StubModPackageReader(_ => throw new NotSupportedException());
+        var archiveReader = new StubModPackageReader(_ => throw new NotSupportedException());
+        var packageReader = new ModPackageReader(
+            archiveReader,
+            fileSystemOperations,
+            NullLoggerFactory.Instance);
 
         return new ManifestTestHost(
             new CheckManifestHandler(new ModManifestReader(fileSystemOperations, packageReader)));

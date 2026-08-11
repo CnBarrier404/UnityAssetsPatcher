@@ -10,7 +10,7 @@ public sealed class ModPackage : IDisposable
     public ModManifest SourceManifest { get; }
     public ModManifest EffectiveManifest { get; }
 
-    private readonly IModPackageSession _modPackageSession;
+    private readonly ModPackageSession _modPackageSession;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly string? _temporaryDirectory;
 
@@ -19,7 +19,7 @@ public sealed class ModPackage : IDisposable
         ModManifest effectiveManifest,
         IReadOnlyList<string> appliedOptionalGroups,
         IReadOnlyDictionary<string, string> patchSourcePaths,
-        IModPackageSession modPackageSession,
+        ModPackageSession modPackageSession,
         IFileSystemOperations fileSystemOperations,
         string? temporaryDirectory)
     {
@@ -35,7 +35,7 @@ public sealed class ModPackage : IDisposable
     public static async Task<OperationResult<ModPackage>> OpenAsync(
         string modPackagePath,
         IReadOnlyList<string> selectedOptionalGroups,
-        IModPackageReader modPackageReader,
+        ModPackageReader modPackageReader,
         IFileSystemOperations fileSystemOperations,
         StepTimer timings,
         CancellationToken cancellationToken = default)
@@ -48,13 +48,26 @@ public sealed class ModPackage : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         string modPackageFullPath = Path.GetFullPath(modPackagePath);
-        IModPackageSession modPackageSession = modPackageReader.Open(modPackageFullPath);
+        OperationResult<ModPackageSession> sessionResult = await modPackageReader
+            .OpenAsync(modPackageFullPath, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (sessionResult is OperationFailed<ModPackageSession> sessionFailure)
+        {
+            return new OperationFailed<ModPackage>(sessionFailure.Error);
+        }
+
+        ModPackageSession modPackageSession = ((OperationSucceeded<ModPackageSession>)sessionResult).Value;
 
         try
         {
             OperationResult<ModPackageContent> contentResult = await timings.MeasureAsync(
-                "read-package",
-                () => ReadContentAsync(modPackageSession, selectedOptionalGroups, cancellationToken))
+                    "read-package",
+                    () => ReadContentAsync(
+                        modPackageSession,
+                        modPackageFullPath,
+                        selectedOptionalGroups,
+                        cancellationToken))
                 .ConfigureAwait(false);
 
             if (contentResult is OperationFailed<ModPackageContent> contentFailure)
@@ -65,9 +78,14 @@ public sealed class ModPackage : IDisposable
             }
 
             ModPackageContent content = ((OperationSucceeded<ModPackageContent>)contentResult).Value;
-            OperationResult<PreparedSources> sourcesResult = timings.Measure(
-                "prepare-sources",
-                () => ExtractPatchSources(modPackageSession, fileSystemOperations, content.Selection.EffectiveManifest));
+            OperationResult<PreparedSources> sourcesResult = await timings.MeasureAsync(
+                    "prepare-sources",
+                    () => ExtractPatchSourcesAsync(
+                        modPackageSession,
+                        fileSystemOperations,
+                        content.Selection.EffectiveManifest,
+                        cancellationToken))
+                .ConfigureAwait(false);
 
             if (sourcesResult is OperationFailed<PreparedSources> sourcesFailure)
             {
@@ -96,9 +114,12 @@ public sealed class ModPackage : IDisposable
         }
     }
 
-    public long CopyPayloadFile(string source, string destinationPath)
+    public Task<OperationResult<long>> CopyPayloadFileAsync(
+        string source,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
     {
-        return _modPackageSession.CopyEntryToNewFile(source, destinationPath);
+        return _modPackageSession.CopyEntryToNewFileAsync(source, destinationPath, cancellationToken);
     }
 
     public void Dispose()
@@ -117,11 +138,20 @@ public sealed class ModPackage : IDisposable
     }
 
     private static async Task<OperationResult<ModPackageContent>> ReadContentAsync(
-        IModPackageSession modPackageSession,
+        ModPackageSession modPackageSession,
+        string packagePath,
         IReadOnlyList<string> selectedOptionalGroups,
         CancellationToken cancellationToken)
     {
-        byte[] manifestBytes = await modPackageSession.ReadManifestAsync(cancellationToken).ConfigureAwait(false);
+        OperationResult<byte[]> bytesResult = await modPackageSession.ReadManifestAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bytesResult is OperationFailed<byte[]> bytesFailure)
+        {
+            return new OperationFailed<ModPackageContent>(bytesFailure.Error);
+        }
+
+        byte[] manifestBytes = ((OperationSucceeded<byte[]>)bytesResult).Value;
         OperationResult<ModManifest> manifestResult = ModManifestParser.Parse(manifestBytes);
 
         if (manifestResult is OperationFailed<ModManifest> manifestFailure)
@@ -140,14 +170,28 @@ public sealed class ModPackage : IDisposable
         }
 
         ModManifestSelection selection = ((OperationSucceeded<ModManifestSelection>)selectionResult).Value;
+        ModFile? missingFile = selection.EffectiveManifest.Files.FirstOrDefault(file =>
+            !modPackageSession.ContainsEntry(file.Source));
+
+        if (missingFile is not null)
+        {
+            return new OperationFailed<ModPackageContent>(new OperationError(
+                ModPackageErrorCodes.MissingEntry,
+                new Dictionary<string, object?>
+                {
+                    ["package_path"] = packagePath,
+                    ["entry_path"] = missingFile.Source,
+                }));
+        }
 
         return new OperationSucceeded<ModPackageContent>(new ModPackageContent(manifest, selection));
     }
 
-    private static OperationResult<PreparedSources> ExtractPatchSources(
-        IModPackageSession modPackageSession,
+    private static async Task<OperationResult<PreparedSources>> ExtractPatchSourcesAsync(
+        ModPackageSession modPackageSession,
         IFileSystemOperations fileSystemOperations,
-        ModManifest manifest)
+        ModManifest manifest,
+        CancellationToken cancellationToken)
     {
         string[] replacementSources =
         [
@@ -176,7 +220,19 @@ public sealed class ModPackage : IDisposable
             foreach (string source in replacementSources)
             {
                 string destinationPath = ResolveUnderDirectory(fileSystemOperations, temporaryDirectory, source);
-                _ = modPackageSession.CopyEntryToNewFile(source, destinationPath);
+                OperationResult<long> copyResult = await modPackageSession
+                    .CopyEntryToNewFileAsync(source, destinationPath, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (copyResult is OperationFailed<long> copyFailure)
+                {
+                    if (Directory.Exists(temporaryDirectory))
+                    {
+                        fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
+                    }
+
+                    return new OperationFailed<PreparedSources>(copyFailure.Error);
+                }
 
                 paths[source] = destinationPath;
             }

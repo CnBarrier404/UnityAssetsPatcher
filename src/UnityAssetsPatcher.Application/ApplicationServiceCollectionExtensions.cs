@@ -30,6 +30,7 @@ public static class ApplicationServiceCollectionExtensions
             ArgumentNullException.ThrowIfNull(services);
 
             services.AddScoped<IRequestDispatcher, RequestDispatcher>();
+            services.AddSingleton<ModPackageReader>();
             services.AddScoped<ModManifestReader>();
             services.AddScoped<
                 IRequestHandler<CheckManifestRequest, OperationResult<CheckManifestResult>>,

@@ -34,8 +34,8 @@ public sealed class LayeredInstallTests
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
-        Assert.Equal(ModPackageErrorCodes.InvalidPackage, failed.Error.Code);
-        Assert.True(failed.Error.Parameters.ContainsKey("detail"));
+        Assert.Equal(ManifestErrorCodes.InvalidJson, failed.Error.Code);
+        Assert.DoesNotContain("detail", failed.Error.Parameters.Keys);
     }
 
     [Fact]
@@ -157,6 +157,24 @@ public sealed class LayeredInstallTests
     }
 
     [Fact]
+    public void Install_WhenPayloadEntryIsMissing_ReturnsStructuredFailure()
+    {
+        using LayeredInstallFixture fixture = new();
+        string packagePath = fixture.CreatePackage(
+            "missing-payload",
+            CreatePayloadManifest("payload/missing.bin"));
+
+        OperationResult<InstallModResult> result = fixture.InstallOperation(
+            new InstallRequest(packagePath, fixture.GameDirectory));
+
+        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+
+        Assert.Equal(ModPackageErrorCodes.MissingEntry, failed.Error.Code);
+        Assert.Equal("payload/missing.bin", failed.Error.Parameters["entry_path"]);
+        Assert.Empty(fixture.Repository.Layers.ListLayers());
+    }
+
+    [Fact]
     public void Install_WhenPayloadTargetMatchesAssetsTarget_RejectsPackageWithoutSideEffects()
     {
         using LayeredInstallFixture fixture = new();
@@ -170,8 +188,8 @@ public sealed class LayeredInstallTests
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
-        Assert.Equal(ModPackageErrorCodes.InvalidPackage, failed.Error.Code);
-        Assert.Contains(fixture.GameAssetsPath, failed.Error.Parameters["detail"]?.ToString());
+        Assert.Equal(ManifestErrorCodes.PayloadConflict, failed.Error.Code);
+        Assert.Equal("sharedassets0.assets", failed.Error.Parameters["file_name"]);
         Assert.Equal("Text", fixture.ReadName(fixture.GameAssetsPath));
         Assert.Empty(fixture.Repository.Layers.ListLayers());
         Assert.False(Directory.Exists(Path.Combine(fixture.Repository.RepositoryDirectory, "games")));
@@ -323,7 +341,8 @@ public sealed class LayeredInstallTests
 
         OperationFailed<UninstallPreviewResult> failed = Assert.IsType<OperationFailed<UninstallPreviewResult>>(result);
 
-        Assert.Contains("integrity", failed.Error.Parameters["detail"]?.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(ModOperationErrorCodes.FileIntegrityMismatch, failed.Error.Code);
+        Assert.Equal(storedPackagePath, failed.Error.Parameters["path"]);
         Assert.Equal("Corrupted", fixture.ReadName(fixture.GameAssetsPath));
         Assert.Single(fixture.Repository.Layers.ListLayers());
     }

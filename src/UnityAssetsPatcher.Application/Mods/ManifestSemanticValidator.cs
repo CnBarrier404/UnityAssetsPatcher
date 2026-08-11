@@ -70,7 +70,7 @@ internal static class ManifestSemanticValidator
 
     private static OperationError? ValidatePatch(ManifestPatchDto patch)
     {
-        OperationError? error = ValidateFieldValueMap(patch.Match, "Manifest patch match");
+        OperationError? error = ValidateFieldValueMap(patch.Match, "patch.match");
 
         if (error is not null)
         {
@@ -91,7 +91,7 @@ internal static class ManifestSemanticValidator
         {
             return ValidateFieldValueMap(
                 patch.CopyAsset.From.Match,
-                "Manifest patch copyAsset.from.match");
+                "patch.copy_asset.from.match");
         }
 
         return null;

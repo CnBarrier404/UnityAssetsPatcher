@@ -35,10 +35,13 @@ internal static class OperationErrorFormatter
             return FormatContext(strings.Error_FileSystemFailureFormat, context);
         }
 
-        if (error.Code == ManifestErrorCodes.InvalidManifest ||
-            error.Code == ManifestErrorCodes.InvalidJson ||
+        if (error.Code == ManifestErrorCodes.InvalidJson ||
             error.Code == ManifestErrorCodes.InvalidPropertyType ||
-            error.Code == ManifestErrorCodes.InvalidValue ||
+            error.Code == ManifestErrorCodes.BlankProperty ||
+            error.Code == ManifestErrorCodes.EmptyCollection ||
+            error.Code == ManifestErrorCodes.EmptyObject ||
+            error.Code == ManifestErrorCodes.InvalidComponentType ||
+            error.Code == ManifestErrorCodes.ConflictingProperties ||
             error.Code == ManifestErrorCodes.MissingProperty)
         {
             return strings.Error_InvalidManifest;

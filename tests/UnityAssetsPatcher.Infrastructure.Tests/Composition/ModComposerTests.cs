@@ -165,10 +165,10 @@ public sealed class ModComposerTests
             null,
             [new CompositionFileTarget(RepositoryFileKind.Assets, fixture.AssetsRelativePath)]);
 
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => fixture.ComposeAsync(request));
+        Exception exception = await Assert.ThrowsAnyAsync<Exception>(() => fixture.ComposeAsync(request));
 
-        Assert.Contains("integrity does not match", exception.Message);
+        Assert.Equal("LayerPackageIntegrityException", exception.GetType().Name);
+        Assert.Equal("Layer package integrity mismatch.", exception.Message);
     }
 
     private const string SchemaUri = "https://uap.cnbarrier.com/schema-v1.json";

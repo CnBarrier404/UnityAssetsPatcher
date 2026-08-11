@@ -12,7 +12,7 @@ internal static class ManifestSchemaErrorMapper
 
         if (failure is null)
         {
-            return InvalidValue(string.Empty, string.Empty, "schema");
+            throw new InvalidOperationException("Schema validation failed without an error detail.");
         }
 
         EvaluationResults failureResult = failure.Result;
@@ -33,11 +33,17 @@ internal static class ManifestSchemaErrorMapper
             "type" => InvalidType(schema, failureResult, propertyName, parameters),
             "const" when propertyName == "$schema" => UnsupportedSchema(instance, instancePath, parameters),
             _ when schemaPath.Contains("/propertyNames", StringComparison.Ordinal) => InvalidFieldPath(parameters),
+            _ when schemaPath.Contains("/properties/componentType", StringComparison.Ordinal) =>
+                InvalidComponentType(parameters),
             "pattern" when schemaPath.Contains("/$defs/patch/allOf", StringComparison.Ordinal) =>
                 InvalidComponentType(parameters),
             "not" when schemaPath.Contains("/$defs/patch/allOf", StringComparison.Ordinal) =>
                 ConflictingPatchProperties(parameters),
-            _ => InvalidValue(propertyName, parameters),
+            "minLength" or "pattern" => Failure(ManifestErrorCodes.BlankProperty, propertyName, parameters),
+            "minItems" => Failure(ManifestErrorCodes.EmptyCollection, propertyName, parameters),
+            "minProperties" => Failure(ManifestErrorCodes.EmptyObject, propertyName, parameters),
+            _ => throw new InvalidOperationException(
+                $"Unsupported manifest schema failure '{keyword}' at '{schemaPath}'."),
         };
     }
 
@@ -120,7 +126,7 @@ internal static class ManifestSchemaErrorMapper
         parameters["property"] = "componentType";
         parameters["required_asset_type"] = "GameObject";
 
-        return new OperationError(ManifestErrorCodes.InvalidValue, parameters);
+        return new OperationError(ManifestErrorCodes.InvalidComponentType, parameters);
     }
 
     private static OperationError ConflictingPatchProperties(Dictionary<string, object?> parameters)
@@ -128,30 +134,21 @@ internal static class ManifestSchemaErrorMapper
         parameters["property"] = "componentType";
         parameters["conflicts_with"] = "replaceAsset";
 
-        return new OperationError(ManifestErrorCodes.InvalidValue, parameters);
+        return new OperationError(ManifestErrorCodes.ConflictingProperties, parameters);
     }
 
-    private static OperationError InvalidValue(string? propertyName, Dictionary<string, object?> parameters)
+    private static OperationError Failure(
+        OperationErrorCode code,
+        string? propertyName,
+        Dictionary<string, object?> parameters)
     {
         parameters["property"] = propertyName;
 
         if (propertyName == "match")
         {
-            parameters["owner"] = "Manifest patch match";
+            parameters["owner"] = "patch.match";
         }
 
-        return new OperationError(ManifestErrorCodes.InvalidValue, parameters);
-    }
-
-    private static OperationError InvalidValue(string instancePath, string schemaPath, string keyword)
-    {
-        return new OperationError(
-            ManifestErrorCodes.InvalidValue,
-            new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                ["instance_path"] = instancePath,
-                ["schema_path"] = schemaPath,
-                ["keyword"] = keyword,
-            });
+        return new OperationError(code, parameters);
     }
 }

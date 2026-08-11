@@ -39,7 +39,7 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.TryAddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
             provider.GetRequiredService<ILoggerFactory>().CreateLogger<FileSystemOperations>()));
-        services.TryAddSingleton<IModPackageReader, ModPackageReader>();
+        services.TryAddSingleton<IModPackageReader, ZipModPackageReader>();
 
         services.TryAddSingleton<SteamInstallationOptions>(_ => SteamInstallationOptions.FromCurrentMachine());
         services.TryAddSingleton<IGameInstallationLocator, SteamGameInstallationLocator>();

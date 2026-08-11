@@ -159,7 +159,7 @@ public sealed class ModManifestParserTests
 
     [Theory]
     [InlineData("name", "null", "manifest.invalid_property_type")]
-    [InlineData("name", "\"\"", "manifest.invalid_value")]
+    [InlineData("name", "\"\"", "manifest.blank_property")]
     [InlineData("author", "42", "manifest.invalid_property_type")]
     [InlineData("version", "true", "manifest.invalid_property_type")]
     public void Parse_WhenRequiredMetadataIsInvalid_ReturnsExpectedFailure(
@@ -206,7 +206,7 @@ public sealed class ModManifestParserTests
                                                              }
                                                              """));
 
-        Assert.True(error.Code == ManifestErrorCodes.InvalidValue ||
+        Assert.True(error.Code == ManifestErrorCodes.BlankProperty ||
                     error.Code == ManifestErrorCodes.InvalidPropertyType);
         Assert.Equal("game", error.Parameters["property"]);
     }
@@ -239,7 +239,7 @@ public sealed class ModManifestParserTests
     }
 
     [Theory]
-    [InlineData("[]", "manifest.invalid_value")]
+    [InlineData("[]", "manifest.empty_collection")]
     [InlineData("{}", "manifest.invalid_property_type")]
     public void Parse_WhenTargetsAreInvalid_ReturnsExpectedFailure(string targets, string expectedCode)
     {
@@ -262,7 +262,7 @@ public sealed class ModManifestParserTests
             }
             """));
 
-        Assert.Equal(ManifestErrorCodes.InvalidValue, error.Code);
+        Assert.Equal(ManifestErrorCodes.EmptyCollection, error.Code);
         Assert.Equal("minItems", error.Parameters["keyword"]);
         Assert.Equal("/targets", error.Parameters["instance_path"]);
         Assert.Contains("/properties/targets", Assert.IsType<string>(error.Parameters["schema_path"]));
@@ -280,7 +280,7 @@ public sealed class ModManifestParserTests
             }
             """));
 
-        Assert.Equal(ManifestErrorCodes.InvalidValue, error.Code);
+        Assert.Equal(ManifestErrorCodes.EmptyCollection, error.Code);
         Assert.Equal("patches", error.Parameters["property"]);
     }
 
@@ -299,8 +299,8 @@ public sealed class ModManifestParserTests
             }
             """));
 
-        Assert.Equal(ManifestErrorCodes.InvalidValue, error.Code);
-        Assert.Equal("Manifest patch match", error.Parameters["owner"]);
+        Assert.Equal(ManifestErrorCodes.EmptyObject, error.Code);
+        Assert.Equal("patch.match", error.Parameters["owner"]);
     }
 
     [Fact]
@@ -328,7 +328,7 @@ public sealed class ModManifestParserTests
             """);
 
         Assert.Equal(ManifestErrorCodes.DuplicateProperty, error.Code);
-        Assert.Equal("Manifest patch match", error.Parameters["owner"]);
+        Assert.Equal("patch.match", error.Parameters["owner"]);
         Assert.Equal("m_Name", error.Parameters["property"]);
     }
 
@@ -458,7 +458,7 @@ public sealed class ModManifestParserTests
 
         OperationError error = ParseFailure(json);
 
-        Assert.Equal(ManifestErrorCodes.InvalidValue, error.Code);
+        Assert.Equal(ManifestErrorCodes.InvalidComponentType, error.Code);
         Assert.Equal("componentType", error.Parameters["property"]);
     }
 
@@ -484,7 +484,7 @@ public sealed class ModManifestParserTests
             }
             """));
 
-        Assert.Equal(ManifestErrorCodes.InvalidValue, error.Code);
+        Assert.Equal(ManifestErrorCodes.ConflictingProperties, error.Code);
         Assert.Equal("replaceAsset", error.Parameters["conflicts_with"]);
     }
 
@@ -566,8 +566,7 @@ public sealed class ModManifestParserTests
                                                              }
                                                              """));
 
-        Assert.True(error.Code == ManifestErrorCodes.InvalidValue ||
-                    error.Code == ManifestErrorCodes.MissingProperty);
+        Assert.Equal(ManifestErrorCodes.MissingProperty, error.Code);
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Assets;
@@ -120,14 +119,6 @@ public sealed class InspectAssetsHandler :
         catch (IOException exception)
         {
             return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
-        }
-        catch (JsonException exception)
-        {
-            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
-        }
-        catch (InvalidDataException exception)
-        {
-            return ExpectedFailure<TResult>(operationName, ModPackageErrorCodes.InvalidPackage, exception.Message);
         }
         catch (InvalidOperationException exception) when (operationName == nameof(Fields))
         {
