@@ -91,7 +91,7 @@ public sealed class CheckManifestHandlerTests
 
     private static CheckManifestHandler CreateHandler(IFileSystemOperations fileSystemOperations)
     {
-        var archiveReader = new StubModPackageReader(_ => throw new NotSupportedException());
+        var archiveReader = new StubModArchiveReader(_ => throw new NotSupportedException());
         var packageReader = new ModPackageReader(
             archiveReader,
             fileSystemOperations,

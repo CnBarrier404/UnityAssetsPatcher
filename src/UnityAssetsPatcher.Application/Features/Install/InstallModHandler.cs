@@ -85,11 +85,9 @@ public sealed class InstallModHandler :
     {
         _logger.LogInformation("Previewing mod install from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
-        OperationResult<ModPackage> packageResult = await ModPackage.OpenAsync(
+        OperationResult<ModPackage> packageResult = await _modPackageReader.OpenAsync(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
-            _modPackageReader,
-            _fileSystemOperations,
             timings,
             cancellationToken).ConfigureAwait(false);
 
@@ -128,11 +126,9 @@ public sealed class InstallModHandler :
         _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
 
-        OperationResult<ModPackage> packageResult = await ModPackage.OpenAsync(
+        OperationResult<ModPackage> packageResult = await _modPackageReader.OpenAsync(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
-            _modPackageReader,
-            _fileSystemOperations,
             timings,
             cancellationToken).ConfigureAwait(false);
 

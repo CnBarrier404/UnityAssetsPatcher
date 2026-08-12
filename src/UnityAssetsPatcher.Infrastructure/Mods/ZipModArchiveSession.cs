@@ -3,18 +3,18 @@ using UnityAssetsPatcher.Application.Mods;
 
 namespace UnityAssetsPatcher.Infrastructure.Mods;
 
-internal sealed class ZipModPackageSession : IModPackageSession
+internal sealed class ZipModArchiveSession : IModArchiveSession
 {
-    public IReadOnlyList<IModPackageEntry> Entries { get; }
+    public IReadOnlyList<IModArchiveEntry> Entries { get; }
 
     private readonly ZipArchive _archive;
 
-    public ZipModPackageSession(ZipArchive archive)
+    public ZipModArchiveSession(ZipArchive archive)
     {
         ArgumentNullException.ThrowIfNull(archive);
 
         _archive = archive;
-        Entries = [.. archive.Entries.Select(entry => new ZipModPackageEntry(entry))];
+        Entries = [.. archive.Entries.Select(entry => new ZipModArchiveEntry(entry))];
     }
 
     public void Dispose()

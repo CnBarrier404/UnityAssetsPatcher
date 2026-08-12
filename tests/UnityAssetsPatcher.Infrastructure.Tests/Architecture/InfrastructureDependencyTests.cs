@@ -10,7 +10,7 @@ public sealed class InfrastructureDependencyTests
     [Fact]
     public void InfrastructureAssembly_WhenInspected_DoesNotReferenceApplicationOperationOrModErrorTypes()
     {
-        string assemblyPath = typeof(ZipModPackageReader).Assembly.Location;
+        string assemblyPath = typeof(ZipModArchiveReader).Assembly.Location;
         using FileStream assemblyStream = File.OpenRead(assemblyPath);
         using var peReader = new PEReader(assemblyStream);
         MetadataReader metadata = peReader.GetMetadataReader();

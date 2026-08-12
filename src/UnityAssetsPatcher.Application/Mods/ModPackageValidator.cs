@@ -3,71 +3,32 @@ using UnityAssetsPatcher.Application.Operations;
 namespace UnityAssetsPatcher.Application.Mods;
 
 internal sealed record ModPackageIndex(
-    IModPackageEntry ManifestEntry,
-    IReadOnlyDictionary<string, IModPackageEntry> FileEntries);
+    IModArchiveEntry ManifestEntry,
+    IReadOnlyDictionary<string, IModArchiveEntry> FileEntries);
 
 internal static class ModPackageValidator
 {
-    public const long MaxPackageSize = 10L * 1024L * 1024L * 1024L;
+    private const long MaxPackageSize = 10L * 1024L * 1024L * 1024L;
 
     public static OperationResult<ModPackageIndex> Validate(
-        IModPackageSession package,
+        IModArchiveSession package,
         string packagePath,
         CancellationToken cancellationToken)
     {
-        var fileEntries = new Dictionary<string, IModPackageEntry>(StringComparer.OrdinalIgnoreCase);
-        var allEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var manifests = new List<IModPackageEntry>();
-        long packageSize = 0;
+        var state = new ValidationState();
 
-        foreach (IModPackageEntry entry in package.Entries)
+        foreach (IModArchiveEntry entry in package.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            bool isDirectory = string.IsNullOrEmpty(entry.Name);
+            var failure = ValidateEntry(entry, packagePath, state);
 
-            if (!TryNormalizePath(entry.FullName, isDirectory, out string normalizedPath))
+            if (failure is not null)
             {
-                return Failure(ModPackageErrorCodes.UnsafeEntryPath, packagePath, ("entry_path", entry.FullName));
-            }
-
-            if (!allEntries.Add(normalizedPath))
-            {
-                return Failure(ModPackageErrorCodes.DuplicateEntry, packagePath, ("entry_path", normalizedPath));
-            }
-
-            if (isDirectory)
-            {
-                continue;
-            }
-
-            if (entry.Length > MaxPackageSize - packageSize)
-            {
-                return Failure(
-                    ModPackageErrorCodes.PackageTooLarge,
-                    packagePath,
-                    ("maximum_bytes", MaxPackageSize));
-            }
-
-            packageSize += entry.Length;
-            fileEntries.Add(normalizedPath, entry);
-
-            if (string.Equals(GetFileName(normalizedPath), "manifest.json", StringComparison.OrdinalIgnoreCase))
-            {
-                manifests.Add(entry);
+                return failure;
             }
         }
 
-        if (manifests.Count == 0)
-        {
-            return Failure(ModPackageErrorCodes.MissingManifest, packagePath);
-        }
-
-        if (manifests.Count > 1)
-        {
-            return Failure(ModPackageErrorCodes.MultipleManifests, packagePath);
-        }
-
-        return new OperationSucceeded<ModPackageIndex>(new ModPackageIndex(manifests[0], fileEntries));
+        return CreateIndexResult(state, packagePath);
     }
 
     public static bool TryNormalizePath(string path, bool isDirectory, out string normalizedPath)
@@ -90,6 +51,58 @@ internal static class ModPackageValidator
         string[] segments = normalizedPath.Split('/');
 
         return segments.All(IsSafeSegment);
+    }
+
+    private static OperationFailed<ModPackageIndex>? ValidateEntry(
+        IModArchiveEntry entry,
+        string packagePath,
+        ValidationState state)
+    {
+        bool isDirectory = string.IsNullOrEmpty(entry.Name);
+
+        if (!TryNormalizePath(entry.FullName, isDirectory, out string normalizedPath))
+        {
+            return Failure(ModPackageErrorCodes.UnsafeEntryPath, packagePath, ("entry_path", entry.FullName));
+        }
+
+        if (!state.AllEntries.Add(normalizedPath))
+        {
+            return Failure(ModPackageErrorCodes.DuplicateEntry, packagePath, ("entry_path", normalizedPath));
+        }
+
+        if (isDirectory)
+        {
+            return null;
+        }
+
+        if (entry.Length > MaxPackageSize - state.PackageSize)
+        {
+            return Failure(
+                ModPackageErrorCodes.PackageTooLarge,
+                packagePath,
+                ("maximum_bytes", MaxPackageSize));
+        }
+
+        state.PackageSize += entry.Length;
+        state.FileEntries.Add(normalizedPath, entry);
+
+        if (string.Equals(GetFileName(normalizedPath), "manifest.json", StringComparison.OrdinalIgnoreCase))
+        {
+            state.Manifests.Add(entry);
+        }
+
+        return null;
+    }
+
+    private static OperationResult<ModPackageIndex> CreateIndexResult(ValidationState state, string packagePath)
+    {
+        return state.Manifests.Count switch
+        {
+            0 => Failure(ModPackageErrorCodes.MissingManifest, packagePath),
+            > 1 => Failure(ModPackageErrorCodes.MultipleManifests, packagePath),
+            _ => new OperationSucceeded<ModPackageIndex>(
+                new ModPackageIndex(state.Manifests[0], state.FileEntries))
+        };
     }
 
     private static OperationFailed<ModPackageIndex> Failure(
@@ -129,5 +142,13 @@ internal static class ModPackageValidator
                !segment.EndsWith(' ') &&
                !segment.EndsWith('.') &&
                segment.IndexOfAny(['\0', '<', '>', ':', '"', '|', '?', '*']) < 0;
+    }
+
+    private sealed class ValidationState
+    {
+        public Dictionary<string, IModArchiveEntry> FileEntries { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> AllEntries { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public List<IModArchiveEntry> Manifests { get; } = [];
+        public long PackageSize { get; set; }
     }
 }

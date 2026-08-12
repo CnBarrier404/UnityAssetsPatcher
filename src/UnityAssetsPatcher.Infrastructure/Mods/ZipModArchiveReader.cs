@@ -4,18 +4,18 @@ using UnityAssetsPatcher.Application.Mods;
 
 namespace UnityAssetsPatcher.Infrastructure.Mods;
 
-public sealed class ZipModPackageReader : IModPackageReader
+public sealed class ZipModArchiveReader : IModArchiveReader
 {
     private readonly IFileSystemOperations _fileSystemOperations;
 
-    public ZipModPackageReader(IFileSystemOperations fileSystemOperations)
+    public ZipModArchiveReader(IFileSystemOperations fileSystemOperations)
     {
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
         _fileSystemOperations = fileSystemOperations;
     }
 
-    public async Task<IModPackageSession> OpenAsync(string archivePath, CancellationToken cancellationToken = default)
+    public async Task<IModArchiveSession> OpenAsync(string archivePath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(archivePath);
         cancellationToken.ThrowIfCancellationRequested();
@@ -34,7 +34,7 @@ public sealed class ZipModPackageReader : IModPackageReader
                 cancellationToken).ConfigureAwait(false);
             stream = null;
 
-            var session = new ZipModPackageSession(archive);
+            var session = new ZipModArchiveSession(archive);
             archive = null;
 
             return session;

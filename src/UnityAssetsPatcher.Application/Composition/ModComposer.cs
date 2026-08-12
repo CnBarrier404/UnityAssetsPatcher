@@ -371,11 +371,9 @@ public sealed class ModComposer
             throw new LayerPackageIntegrityException(packagePath);
         }
 
-        OperationResult<ModPackage> result = await ModPackage.OpenAsync(
+        OperationResult<ModPackage> result = await _modPackageReader.OpenAsync(
             packagePath,
             layer.OptionalGroups ?? [],
-            _modPackageReader,
-            _fileSystemOperations,
             new StepTimer(),
             cancellationToken).ConfigureAwait(false);
 

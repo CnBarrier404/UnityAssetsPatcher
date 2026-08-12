@@ -264,7 +264,7 @@ public sealed class ModPackageReaderTests
         var fileSystem = new StubFileSystemOperations(expected);
         ModPackageReader reader = CreateReader(fileSystem);
 
-        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(fileSystem, reader));
+        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(reader));
 
         Assert.Same(expected, exception);
     }
@@ -274,7 +274,7 @@ public sealed class ModPackageReaderTests
         var fileSystem = new StubFileSystemOperations(archiveBytes);
         ModPackageReader reader = CreateReader(fileSystem);
 
-        OperationResult<ModPackage> result = OpenPackageResult(fileSystem, reader);
+        OperationResult<ModPackage> result = OpenPackageResult(reader);
 
         return Assert.IsType<OperationFailed<ModPackage>>(result).Error;
     }
@@ -285,27 +285,21 @@ public sealed class ModPackageReaderTests
     {
         ModPackageReader reader = CreateReader(fileSystemOperations, loggerFactory);
 
-        return OpenPackage(fileSystemOperations, reader);
+        return OpenPackage(reader);
     }
 
-    private static ModPackage OpenPackage(
-        IFileSystemOperations fileSystemOperations,
-        ModPackageReader reader)
+    private static ModPackage OpenPackage(ModPackageReader reader)
     {
-        OperationResult<ModPackage> result = OpenPackageResult(fileSystemOperations, reader);
+        OperationResult<ModPackage> result = OpenPackageResult(reader);
 
         return Assert.IsType<OperationSucceeded<ModPackage>>(result).Value;
     }
 
-    private static OperationResult<ModPackage> OpenPackageResult(
-        IFileSystemOperations fileSystemOperations,
-        ModPackageReader reader)
+    private static OperationResult<ModPackage> OpenPackageResult(ModPackageReader reader)
     {
-        return ModPackage.OpenAsync(
+        return reader.OpenAsync(
                 "mod.zip",
                 [],
-                reader,
-                fileSystemOperations,
                 new StepTimer(),
                 TestContext.Current.CancellationToken)
             .GetAwaiter()
@@ -316,7 +310,7 @@ public sealed class ModPackageReaderTests
         IFileSystemOperations fileSystemOperations,
         ILoggerFactory? loggerFactory = null)
     {
-        var archiveReader = new ZipModPackageReader(fileSystemOperations);
+        var archiveReader = new ZipModArchiveReader(fileSystemOperations);
 
         return new ModPackageReader(
             archiveReader,

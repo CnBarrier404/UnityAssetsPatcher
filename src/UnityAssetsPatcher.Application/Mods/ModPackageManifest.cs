@@ -9,14 +9,14 @@ internal static class ModPackageManifest
     private const int CopyBufferSize = 81920;
     private const long MaxManifestSize = 10L * 1024L * 1024L;
 
-    public static OperationResult<IModPackageEntry> FindEntry(
-        IModPackageSession package,
+    public static OperationResult<IModArchiveEntry> FindEntry(
+        IModArchiveSession package,
         string packagePath,
         CancellationToken cancellationToken)
     {
-        IModPackageEntry? manifestEntry = null;
+        IModArchiveEntry? manifestEntry = null;
 
-        foreach (IModPackageEntry entry in package.Entries)
+        foreach (IModArchiveEntry entry in package.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
             string normalizedPath = entry.FullName.Replace('\\', '/');
@@ -28,7 +28,7 @@ internal static class ModPackageManifest
 
             if (!ModPackageValidator.TryNormalizePath(entry.FullName, isDirectory: false, out _))
             {
-                return Failure<IModPackageEntry>(
+                return Failure<IModArchiveEntry>(
                     ModPackageErrorCodes.UnsafeEntryPath,
                     packagePath,
                     ("entry_path", entry.FullName));
@@ -36,19 +36,19 @@ internal static class ModPackageManifest
 
             if (manifestEntry is not null)
             {
-                return Failure<IModPackageEntry>(ModPackageErrorCodes.MultipleManifests, packagePath);
+                return Failure<IModArchiveEntry>(ModPackageErrorCodes.MultipleManifests, packagePath);
             }
 
             manifestEntry = entry;
         }
 
         return manifestEntry is null
-            ? Failure<IModPackageEntry>(ModPackageErrorCodes.MissingManifest, packagePath)
-            : new OperationSucceeded<IModPackageEntry>(manifestEntry);
+            ? Failure<IModArchiveEntry>(ModPackageErrorCodes.MissingManifest, packagePath)
+            : new OperationSucceeded<IModArchiveEntry>(manifestEntry);
     }
 
     public static async Task<OperationResult<byte[]>> ReadAsync(
-        IModPackageEntry manifestEntry,
+        IModArchiveEntry manifestEntry,
         string packagePath,
         ILogger logger,
         CancellationToken cancellationToken)

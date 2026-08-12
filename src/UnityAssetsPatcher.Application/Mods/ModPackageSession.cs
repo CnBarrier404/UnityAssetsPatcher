@@ -7,9 +7,9 @@ namespace UnityAssetsPatcher.Application.Mods;
 
 internal sealed class ModPackageSession : IDisposable
 {
-    private readonly IModPackageSession _package;
-    private readonly IModPackageEntry _manifestEntry;
-    private readonly IReadOnlyDictionary<string, IModPackageEntry> _fileEntries;
+    private readonly IModArchiveSession _package;
+    private readonly IModArchiveEntry _manifestEntry;
+    private readonly IReadOnlyDictionary<string, IModArchiveEntry> _fileEntries;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly ILogger<ModPackageSession> _logger;
     private readonly string _packagePath;
@@ -18,7 +18,7 @@ internal sealed class ModPackageSession : IDisposable
 
     public ModPackageSession(
         string packagePath,
-        IModPackageSession package,
+        IModArchiveSession package,
         ModPackageIndex index,
         IFileSystemOperations fileSystemOperations,
         ILogger<ModPackageSession> logger)
@@ -73,7 +73,7 @@ internal sealed class ModPackageSession : IDisposable
             return Failure<long>(ModPackageErrorCodes.UnsafeEntryPath, ("entry_path", source));
         }
 
-        if (!_fileEntries.TryGetValue(normalizedSource, out IModPackageEntry? entry))
+        if (!_fileEntries.TryGetValue(normalizedSource, out IModArchiveEntry? entry))
         {
             return Failure<long>(ModPackageErrorCodes.MissingEntry, ("entry_path", normalizedSource));
         }
@@ -84,9 +84,7 @@ internal sealed class ModPackageSession : IDisposable
 
         _fileSystemOperations.EnsureDirectory(destinationDirectory);
 
-        long copiedBytes = 0;
-        TimeSpan decompressionElapsed = TimeSpan.Zero;
-        bool entrySizeMismatch = false;
+        var copyState = new EntryCopyState();
 
         try
         {
@@ -94,58 +92,15 @@ internal sealed class ModPackageSession : IDisposable
                 .OpenReadAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            _fileSystemOperations.WriteFileAtomically(
-                fullDestinationPath,
-                FileDestinationMode.CreateNew,
-                output =>
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    byte[] buffer = new byte[CopyBufferSize];
-                    var stopwatch = Stopwatch.StartNew();
-
-                    try
-                    {
-                        int bytesRead;
-
-                        while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
-                        {
-                            cancellationToken.ThrowIfCancellationRequested();
-                            copiedBytes += bytesRead;
-
-                            if (copiedBytes > entry.Length)
-                            {
-                                entrySizeMismatch = true;
-
-                                throw new InvalidDataException();
-                            }
-
-                            output.Write(buffer, 0, bytesRead);
-                        }
-
-                        if (copiedBytes != entry.Length)
-                        {
-                            entrySizeMismatch = true;
-
-                            throw new InvalidDataException();
-                        }
-
-                        cancellationToken.ThrowIfCancellationRequested();
-                    }
-                    finally
-                    {
-                        stopwatch.Stop();
-                        decompressionElapsed = stopwatch.Elapsed;
-                    }
-                });
+            WriteEntryToNewFile(entry, input, fullDestinationPath, copyState, cancellationToken);
         }
-        catch (InvalidDataException) when (entrySizeMismatch)
+        catch (InvalidDataException) when (copyState.EntrySizeMismatch)
         {
             return Failure<long>(
                 ModPackageErrorCodes.EntrySizeMismatch,
                 ("entry_path", normalizedSource),
                 ("declared_bytes", entry.Length),
-                ("observed_bytes", copiedBytes));
+                ("observed_bytes", copyState.CopiedBytes));
         }
         catch (InvalidDataException)
         {
@@ -157,15 +112,75 @@ internal sealed class ModPackageSession : IDisposable
             entry.FullName,
             _packagePath,
             fullDestinationPath,
-            copiedBytes,
-            decompressionElapsed.TotalMilliseconds);
+            copyState.CopiedBytes,
+            copyState.DecompressionElapsed.TotalMilliseconds);
 
-        return new OperationSucceeded<long>(copiedBytes);
+        return new OperationSucceeded<long>(copyState.CopiedBytes);
     }
 
     public void Dispose()
     {
         _package.Dispose();
+    }
+
+    private void WriteEntryToNewFile(
+        IModArchiveEntry entry,
+        Stream input,
+        string destinationPath,
+        EntryCopyState state,
+        CancellationToken cancellationToken)
+    {
+        _fileSystemOperations.WriteFileAtomically(
+            destinationPath,
+            FileDestinationMode.CreateNew,
+            output => CopyEntry(entry, input, output, state, cancellationToken));
+    }
+
+    private static void CopyEntry(
+        IModArchiveEntry entry,
+        Stream input,
+        Stream output,
+        EntryCopyState state,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        byte[] buffer = new byte[CopyBufferSize];
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            int bytesRead;
+
+            while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                state.CopiedBytes += bytesRead;
+
+                if (state.CopiedBytes > entry.Length)
+                {
+                    state.EntrySizeMismatch = true;
+
+                    throw new InvalidDataException();
+                }
+
+                output.Write(buffer, 0, bytesRead);
+            }
+
+            if (state.CopiedBytes != entry.Length)
+            {
+                state.EntrySizeMismatch = true;
+
+                throw new InvalidDataException();
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        finally
+        {
+            stopwatch.Stop();
+            state.DecompressionElapsed = stopwatch.Elapsed;
+        }
     }
 
     private OperationFailed<T> Failure<T>(
@@ -183,5 +198,12 @@ internal sealed class ModPackageSession : IDisposable
         }
 
         return new OperationFailed<T>(new OperationError(code, parameters));
+    }
+
+    private sealed class EntryCopyState
+    {
+        public long CopiedBytes { get; set; }
+        public TimeSpan DecompressionElapsed { get; set; }
+        public bool EntrySizeMismatch { get; set; }
     }
 }

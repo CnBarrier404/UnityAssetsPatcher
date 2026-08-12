@@ -3,7 +3,7 @@ using UnityAssetsPatcher.Application.Mods;
 
 namespace UnityAssetsPatcher.Infrastructure.Mods;
 
-internal sealed class ZipModPackageEntry : IModPackageEntry
+internal sealed class ZipModArchiveEntry : IModArchiveEntry
 {
     public string FullName => _entry.FullName;
     public string Name => _entry.Name;
@@ -11,7 +11,7 @@ internal sealed class ZipModPackageEntry : IModPackageEntry
 
     private readonly ZipArchiveEntry _entry;
 
-    public ZipModPackageEntry(ZipArchiveEntry entry)
+    public ZipModArchiveEntry(ZipArchiveEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
 

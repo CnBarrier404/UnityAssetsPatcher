@@ -2,23 +2,23 @@ using UnityAssetsPatcher.Application.Mods;
 
 namespace UnityAssetsPatcher.Application.Tests.Mods;
 
-internal sealed class StubModPackageReader : IModPackageReader
+internal sealed class StubModArchiveReader : IModArchiveReader
 {
     public string? OpenedPath { get; private set; }
 
-    private readonly Func<string, CancellationToken, Task<IModPackageSession>> _openAsync;
+    private readonly Func<string, CancellationToken, Task<IModArchiveSession>> _openAsync;
 
-    public StubModPackageReader(IModPackageSession session)
+    public StubModArchiveReader(IModArchiveSession session)
         : this(_ => session) { }
 
-    public StubModPackageReader(Func<string, IModPackageSession> open)
+    public StubModArchiveReader(Func<string, IModArchiveSession> open)
     {
         ArgumentNullException.ThrowIfNull(open);
 
         _openAsync = (path, _) => Task.FromResult(open(path));
     }
 
-    public async Task<IModPackageSession> OpenAsync(
+    public async Task<IModArchiveSession> OpenAsync(
         string archivePath,
         CancellationToken cancellationToken = default)
     {
@@ -28,22 +28,22 @@ internal sealed class StubModPackageReader : IModPackageReader
     }
 }
 
-internal sealed class StubModPackageSession : IModPackageSession
+internal sealed class StubModArchiveSession : IModArchiveSession
 {
-    public IReadOnlyList<IModPackageEntry> Entries { get; }
+    public IReadOnlyList<IModArchiveEntry> Entries { get; }
     public bool IsDisposed { get; private set; }
 
-    public StubModPackageSession(byte[] manifestBytes, params (string Path, byte[] Contents)[] entries)
-        : this(new StubModPackageEntry("manifest.json", manifestBytes), entries) { }
+    public StubModArchiveSession(byte[] manifestBytes, params (string Path, byte[] Contents)[] entries)
+        : this(new StubModArchiveEntry("manifest.json", manifestBytes), entries) { }
 
-    public StubModPackageSession(
+    public StubModArchiveSession(
         byte[] manifestBytes,
         long declaredManifestLength,
         params (string Path, byte[] Contents)[] entries)
-        : this(new StubModPackageEntry("manifest.json", manifestBytes, declaredManifestLength), entries) { }
+        : this(new StubModArchiveEntry("manifest.json", manifestBytes, declaredManifestLength), entries) { }
 
-    private StubModPackageSession(
-        IModPackageEntry manifestEntry,
+    private StubModArchiveSession(
+        IModArchiveEntry manifestEntry,
         params (string Path, byte[] Contents)[] entries)
     {
         ArgumentNullException.ThrowIfNull(manifestEntry);
@@ -51,7 +51,7 @@ internal sealed class StubModPackageSession : IModPackageSession
         Entries =
         [
             manifestEntry,
-            .. entries.Select(entry => new StubModPackageEntry(entry.Path, entry.Contents)),
+            .. entries.Select(entry => new StubModArchiveEntry(entry.Path, entry.Contents)),
         ];
     }
 
@@ -61,7 +61,7 @@ internal sealed class StubModPackageSession : IModPackageSession
     }
 }
 
-internal sealed class StubModPackageEntry : IModPackageEntry
+internal sealed class StubModArchiveEntry : IModArchiveEntry
 {
     public string FullName { get; }
     public string Name => Path.GetFileName(FullName);
@@ -69,10 +69,10 @@ internal sealed class StubModPackageEntry : IModPackageEntry
 
     private readonly byte[] _contents;
 
-    public StubModPackageEntry(string fullName, byte[] contents)
+    public StubModArchiveEntry(string fullName, byte[] contents)
         : this(fullName, contents, contents.Length) { }
 
-    public StubModPackageEntry(string fullName, byte[] contents, long length)
+    public StubModArchiveEntry(string fullName, byte[] contents, long length)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
         ArgumentNullException.ThrowIfNull(contents);

@@ -36,7 +36,7 @@ internal sealed class ManifestTestHost
         ArgumentNullException.ThrowIfNull(openRead);
 
         var fileSystemOperations = new StubFileSystemOperations(openRead);
-        var archiveReader = new StubModPackageReader(_ => throw new NotSupportedException());
+        var archiveReader = new StubModArchiveReader(_ => throw new NotSupportedException());
         var packageReader = new ModPackageReader(
             archiveReader,
             fileSystemOperations,

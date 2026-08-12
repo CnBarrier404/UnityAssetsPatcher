@@ -132,22 +132,20 @@ public sealed class ModManifestOptionalSelectorTests
         string manifest,
         IReadOnlyList<string> selectedNames)
     {
-        var session = new StubModPackageSession(
+        var session = new StubModArchiveSession(
             Encoding.UTF8.GetBytes(manifest),
             ("base/base.resource", Array.Empty<byte>()),
             ("extra/payload.resource", Array.Empty<byte>()));
-        var archiveReader = new StubModPackageReader(session);
+        var archiveReader = new StubModArchiveReader(session);
         var fileSystemOperations = new StubFileSystemOperations();
         var packageReader = new ModPackageReader(
             archiveReader,
             fileSystemOperations,
             NullLoggerFactory.Instance);
 
-        return ModPackage.OpenAsync(
+        return packageReader.OpenAsync(
             "mod.zip",
             selectedNames,
-            packageReader,
-            fileSystemOperations,
             new StepTimer(),
             TestContext.Current.CancellationToken);
     }

@@ -204,7 +204,7 @@ public sealed class CLIApplicationTests : IDisposable
         services.AddLogging();
         services.AddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileSystemOperations>>()));
-        services.AddSingleton<IModPackageReader, ZipModPackageReader>();
+        services.AddSingleton<IModArchiveReader, ZipModArchiveReader>();
         services.AddUnityAssetsPatcherApplication();
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
         {

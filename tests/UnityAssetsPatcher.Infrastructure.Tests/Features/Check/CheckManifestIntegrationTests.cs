@@ -143,7 +143,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
     private static CheckManifestHandler CreateHandler()
     {
         var fileSystemOperations = new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
-        var archiveReader = new ZipModPackageReader(fileSystemOperations);
+        var archiveReader = new ZipModArchiveReader(fileSystemOperations);
         var packageReader = new ModPackageReader(
             archiveReader,
             fileSystemOperations,
