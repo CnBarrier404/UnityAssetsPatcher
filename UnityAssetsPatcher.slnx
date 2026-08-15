@@ -14,7 +14,7 @@
         <Project Path="tests/UnityAssetsPatcher.Domain.Tests/UnityAssetsPatcher.Domain.Tests.csproj"/>
         <Project Path="tests/UnityAssetsPatcher.Infrastructure.Tests/UnityAssetsPatcher.Infrastructure.Tests.csproj"/>
         <Project
-                Path="tests/UnityAssetsPatcher.LocalizationGenerator.Tests/UnityAssetsPatcher.LocalizationGenerator.Tests.csproj"/>
+            Path="tests/UnityAssetsPatcher.LocalizationGenerator.Tests/UnityAssetsPatcher.LocalizationGenerator.Tests.csproj"/>
         <Project Path="tests/UnityAssetsPatcher.TUI.Tests/UnityAssetsPatcher.TUI.Tests.csproj"/>
     </Folder>
 </Solution>

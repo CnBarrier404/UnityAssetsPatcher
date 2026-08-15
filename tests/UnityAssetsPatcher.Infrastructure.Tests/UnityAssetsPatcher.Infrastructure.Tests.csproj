@@ -30,9 +30,6 @@
     <ItemGroup>
         <None Update="Fixtures\resources.tpk" CopyToOutputDirectory="PreserveNewest"/>
         <None Update="Fixtures\sharedassets0.assets" CopyToOutputDirectory="PreserveNewest"/>
-        <None Include="..\UnityAssetsPatcher.Application.Tests\Compatibility\Fixtures\*.json"
-              Link="Compatibility\Fixtures\%(Filename)%(Extension)"
-              CopyToOutputDirectory="PreserveNewest"/>
     </ItemGroup>
 
     <ItemGroup>

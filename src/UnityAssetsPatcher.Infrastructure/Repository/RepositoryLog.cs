@@ -21,10 +21,4 @@ internal static partial class RepositoryLog
         ILogger logger,
         string repositoryDirectory,
         string repositoryId);
-
-    [LoggerMessage(
-        EventId = 5002,
-        Level = LogLevel.Debug,
-        Message = "Loaded {InstallCount} install records from backup repository {RepositoryId}")]
-    public static partial void InstallRecordsLoaded(ILogger logger, int installCount, string repositoryId);
 }

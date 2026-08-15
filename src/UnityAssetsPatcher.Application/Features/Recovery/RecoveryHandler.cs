@@ -91,13 +91,6 @@ public sealed class RecoveryHandler :
         {
             return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
         }
-        catch (LegacyRepositoryWriteException exception)
-        {
-            return ExpectedFailure<TResult>(
-                operationName,
-                RepositoryErrorCodes.UnsupportedVersion,
-                exception.Message);
-        }
         catch (NotSupportedException exception)
         {
             return ExpectedFailure<TResult>(

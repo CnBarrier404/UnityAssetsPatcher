@@ -80,17 +80,17 @@ public sealed class LayeredInstallTests
     }
 
     [Fact]
-    public void Install_WhenRepositoryUsesVersionOne_ReturnsUnsupportedRepositoryVersion()
+    public void Install_WhenRepositoryUsesUnsupportedVersion_ReturnsUnsupportedRepositoryVersion()
     {
         using LayeredInstallFixture fixture = new(repositoryVersion: 1);
-        string packagePath = fixture.CreatePackage("legacy", CreateFieldManifest("Text", "Legacy"));
+        string packagePath = fixture.CreatePackage("unsupported-version", CreateFieldManifest("Text", "Unsupported"));
         OperationResult<InstallModResult> result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
         OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
         Assert.Equal(RepositoryErrorCodes.UnsupportedVersion, failed.Error.Code);
-        Assert.Contains("legacy format", failed.Error.Parameters["detail"]?.ToString());
+        Assert.Equal("Unsupported backup repository format: 1.", failed.Error.Parameters["detail"]?.ToString());
     }
 
     [Fact]

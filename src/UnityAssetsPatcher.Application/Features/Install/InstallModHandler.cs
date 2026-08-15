@@ -248,7 +248,7 @@ public sealed class InstallModHandler :
         {
             return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
         }
-        catch (LegacyRepositoryWriteException exception)
+        catch (NotSupportedException exception)
         {
             return ExpectedFailure<TResult>(
                 operationName,

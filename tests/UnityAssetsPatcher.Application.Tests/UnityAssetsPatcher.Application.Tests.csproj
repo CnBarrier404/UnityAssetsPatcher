@@ -26,10 +26,4 @@
         <ProjectReference Include="..\..\src\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <None Update="Compatibility\Fixtures\*.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
-
 </Project>

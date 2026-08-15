@@ -108,7 +108,6 @@ internal sealed class RepositoryRecovery
         try
         {
             RepositoryMetadata metadata = _repository.LoadMetadata();
-            _ = _repository.ListLegacyRecords();
             ValidateTransaction(transaction, metadata.RepositoryId);
             string trustedRoot = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
             return Apply(transaction, trustedRoot);
@@ -157,41 +156,9 @@ internal sealed class RepositoryRecovery
             throw new InvalidOperationException("The selected game directory does not match the pending transaction.");
         }
 
-        RepositoryMetadata metadata = _repository.LoadMetadata();
-        string installDirectory = _repository.GetLegacyInstallDirectory(transaction.InstallId);
+        _ = _repository.LoadMetadata();
         string removedDirectory = GetRemovedLayerDirectory();
-        string layerDirectory = _compositionRepository.Layers.GetLayerDirectory(transaction.InstallId);
-        bool compositionRepository = metadata.FormatVersion == RepositoryService.CurrentRepositoryFormatVersion;
-        LayerLocation layerLocation = compositionRepository
-            ? InspectLayerLocation(transaction.InstallId, removedDirectory)
-            : LayerLocation.Missing;
-        bool committed = false;
-
-        if (!compositionRepository)
-        {
-            committed = transaction.Kind == RepositoryOperationKind.Install
-                ? Directory.Exists(installDirectory) || Directory.Exists(layerDirectory)
-                : !Directory.Exists(installDirectory) && Directory.Exists(removedDirectory);
-        }
-
-        if (!compositionRepository && transaction.Kind == RepositoryOperationKind.Uninstall &&
-            !Directory.Exists(installDirectory) &&
-            !Directory.Exists(removedDirectory) &&
-            !Directory.Exists(layerDirectory))
-        {
-            throw new InvalidOperationException("Interrupted uninstall has neither an active nor committed record.");
-        }
-
-        if (committed && transaction.Kind == RepositoryOperationKind.Install && Directory.Exists(installDirectory))
-        {
-            LegacyInstallRecord record = _repository.ReadLegacyRecord(transaction.InstallId).Record;
-            if (!string.Equals(record.Id, transaction.InstallId, StringComparison.Ordinal) ||
-                !string.Equals(record.GameInstanceFingerprint, transaction.GameInstanceFingerprint,
-                    StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException("Committed install record does not match the transaction.");
-            }
-        }
+        LayerLocation layerLocation = InspectLayerLocation(transaction.InstallId, removedDirectory);
 
         var states = new List<(RepositoryTransactionFile File, FileState State)>();
         foreach (RepositoryTransactionFile file in transaction.Files)
@@ -201,10 +168,7 @@ internal sealed class RepositoryRecovery
             states.Add((file, state));
         }
 
-        if (compositionRepository)
-        {
-            committed = DetermineCompositionCommitState(transaction, layerLocation, states.Select(item => item.State));
-        }
+        bool committed = DetermineCompositionCommitState(transaction, layerLocation, states.Select(item => item.State));
 
         var files = new List<RecoveryFile>();
         foreach ((RepositoryTransactionFile file, FileState state) in states)
@@ -240,8 +204,7 @@ internal sealed class RepositoryRecovery
         RepositoryRecoveryPlanAction action = committed
             ? RepositoryRecoveryPlanAction.CompleteCleanup
             : RepositoryRecoveryPlanAction.RollBack;
-        LayerRecoveryAction layerAction = compositionRepository &&
-                                          transaction.Kind == RepositoryOperationKind.Uninstall &&
+        LayerRecoveryAction layerAction = transaction.Kind == RepositoryOperationKind.Uninstall &&
                                           layerLocation == LayerLocation.Removed &&
                                           action == RepositoryRecoveryPlanAction.RollBack
             ? LayerRecoveryAction.RestoreRemoved
@@ -363,7 +326,6 @@ internal sealed class RepositoryRecovery
     private RepositoryTransaction? LoadTransaction()
     {
         RepositoryMetadata metadata = _repository.LoadMetadata();
-        _ = _repository.ListLegacyRecords();
         if (!Directory.Exists(_repository.TransactionDirectory)) return null;
 
         EnsureRealDirectory(_repository.TransactionDirectory, "Transaction directory");

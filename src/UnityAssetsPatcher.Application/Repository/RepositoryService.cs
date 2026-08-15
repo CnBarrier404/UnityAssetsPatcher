@@ -8,7 +8,6 @@ namespace UnityAssetsPatcher.Application.Repository;
 public sealed class RepositoryService
 {
     public const int CurrentRepositoryFormatVersion = 2;
-    public const int LegacyRepositoryFormatVersion = 1;
     public const string RepositoryFileName = "repository.json";
     public const string TransactionDirectoryName = ".temp";
     public const string LockFileName = ".lock";
@@ -52,11 +51,6 @@ public sealed class RepositoryService
     {
         RepositoryMetadata metadata = LoadMetadata();
 
-        if (metadata.FormatVersion == LegacyRepositoryFormatVersion)
-        {
-            throw new LegacyRepositoryWriteException();
-        }
-
         if (metadata.FormatVersion != CurrentRepositoryFormatVersion)
         {
             throw new NotSupportedException($"Unsupported backup repository format: {metadata.FormatVersion}.");
@@ -71,28 +65,6 @@ public sealed class RepositoryService
             throw new InvalidOperationException("The backup repository contains an unfinished transaction.");
         _fileSystemOperations.CreateDirectory(TransactionDirectory);
         return TransactionDirectory;
-    }
-
-    public IReadOnlyList<InstallRecordSummary> ListLegacyInstalled() => _repository.ListLegacyRecords()
-        .Select(item => item.Record)
-        .OrderByDescending(record => record.InstallSequence)
-        .Select(record => new InstallRecordSummary(record.Id, record.ModName, record.ModVersion,
-            record.GameName, record.InstalledAt))
-        .ToArray();
-
-    public string GetLegacyInstallDirectory(string installId)
-    {
-        return _repository.GetLegacyInstallDirectory(installId);
-    }
-
-    public LegacyInstallRecordEntry ReadLegacyRecord(string installId)
-    {
-        return _repository.ReadLegacyRecord(installId);
-    }
-
-    public IReadOnlyList<LegacyInstallRecordEntry> ListLegacyRecords()
-    {
-        return _repository.ListLegacyRecords();
     }
 
     public RepositoryRecoveryPreview PreviewPendingTransaction(string gameDirectory)
@@ -130,10 +102,7 @@ public sealed class RepositoryService
 
     public IReadOnlyList<InstallRecordSummary> ListInstalledMods()
     {
-        if (LoadMetadata().FormatVersion == LegacyRepositoryFormatVersion)
-        {
-            return ListLegacyInstalled();
-        }
+        _ = LoadMetadata();
 
         return _compositionRepository.Layers
             .ListLayers()
@@ -145,13 +114,4 @@ public sealed class RepositoryService
                 entry.Record.InstalledAt))
             .ToArray();
     }
-}
-
-public sealed class LegacyRepositoryWriteException : NotSupportedException
-{
-    public LegacyRepositoryWriteException()
-        : base(
-            "This backup repository uses the legacy format. Uninstall all mods with the previous version and " +
-            "try again, or verify that the game files have been restored manually before deleting the repository " +
-            "and creating a new one.") { }
 }

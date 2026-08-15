@@ -39,19 +39,4 @@ internal sealed class FileRepository : IRepositoryStorage, ICompositionRepositor
     {
         return _catalogStore.LoadOrCreateMetadata();
     }
-
-    public string GetLegacyInstallDirectory(string installId)
-    {
-        return _catalogStore.GetLegacyInstallDirectory(installId);
-    }
-
-    public LegacyInstallRecordEntry ReadLegacyRecord(string installId)
-    {
-        return _catalogStore.ReadLegacyRecord(installId);
-    }
-
-    public IReadOnlyList<LegacyInstallRecordEntry> ListLegacyRecords()
-    {
-        return _catalogStore.ListLegacyRecords();
-    }
 }

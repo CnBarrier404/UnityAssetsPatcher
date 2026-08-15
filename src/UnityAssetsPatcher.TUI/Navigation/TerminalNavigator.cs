@@ -182,14 +182,6 @@ public sealed class TerminalNavigator
 
             return new OperationFailed<RepositoryRecoveryReport>(error);
         }
-        catch (LegacyRepositoryWriteException exception)
-        {
-            var error = new OperationError(
-                RepositoryErrorCodes.UnsupportedVersion,
-                new Dictionary<string, object?> { ["detail"] = exception.Message });
-
-            return new OperationFailed<RepositoryRecoveryReport>(error);
-        }
         catch (NotSupportedException exception)
         {
             var error = new OperationError(
