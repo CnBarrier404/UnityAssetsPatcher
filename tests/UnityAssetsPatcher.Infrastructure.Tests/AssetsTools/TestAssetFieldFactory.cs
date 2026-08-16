@@ -12,7 +12,7 @@ internal static class TestAssetFieldFactory
             Type = type,
             ValueType = value.ValueType,
             HasValue = true,
-            Children = [],
+            Children = []
         };
         var field = new AssetTypeValueField();
         field.Read(value, template, []);
@@ -31,7 +31,7 @@ internal static class TestAssetFieldFactory
             Type = type,
             ValueType = AssetValueType.None,
             HasValue = false,
-            Children = [.. children.Select(child => child.TemplateField)],
+            Children = [.. children.Select(child => child.TemplateField)]
         };
         var field = new AssetTypeValueField();
         field.Read(new AssetTypeValue(AssetValueType.None, null!), template, [.. children]);
@@ -52,7 +52,7 @@ internal static class TestAssetFieldFactory
             ValueType = AssetValueType.Array,
             IsArray = true,
             HasValue = true,
-            Children = [elementTemplate],
+            Children = [elementTemplate]
         };
         var field = new AssetTypeValueField();
         field.Read(
@@ -71,7 +71,7 @@ internal static class TestAssetFieldFactory
             Type = type,
             ValueType = valueType,
             HasValue = true,
-            Children = [],
+            Children = []
         };
     }
 }

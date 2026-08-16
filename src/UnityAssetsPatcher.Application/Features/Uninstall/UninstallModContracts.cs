@@ -32,7 +32,7 @@ public enum UninstallChangedFileAction
 {
     Rebuild,
     RestoreBase,
-    Delete,
+    Delete
 }
 
 public sealed record UninstallPreviewResult(
@@ -56,5 +56,5 @@ public enum FileIntegrityStatus
     Matches,
     Missing,
     Modified,
-    Unreadable,
+    Unreadable
 }

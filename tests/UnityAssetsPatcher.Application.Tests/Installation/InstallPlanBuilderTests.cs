@@ -42,10 +42,10 @@ public sealed class InstallPlanBuilderTests
             "sharedassets0.assets"));
         TargetAssetSet targets = new(
         [
-            new TargetAsset("sharedassets0.assets", assetsPath, manifest.Patches),
+            new TargetAsset("sharedassets0.assets", assetsPath, manifest.Patches)
         ]);
 
-        InvalidDataException exception =
+        var exception =
             Assert.Throws<InvalidDataException>(() => InstallPlanBuilder.PlanPayloadFiles(manifest, targets));
 
         Assert.Contains(assetsPath, exception.Message);

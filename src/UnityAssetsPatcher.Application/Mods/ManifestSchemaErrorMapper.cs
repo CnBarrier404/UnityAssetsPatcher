@@ -43,7 +43,7 @@ internal static class ManifestSchemaErrorMapper
             "minItems" => Failure(ManifestErrorCodes.EmptyCollection, context),
             "minProperties" => Failure(ManifestErrorCodes.EmptyObject, context),
             _ => throw new InvalidOperationException(
-                $"Unsupported manifest schema failure '{context.Keyword}' at '{context.SchemaPath}'."),
+                $"Unsupported manifest schema failure '{context.Keyword}' at '{context.SchemaPath}'.")
         };
     }
 
@@ -104,7 +104,7 @@ internal static class ManifestSchemaErrorMapper
                 JsonValueKind.Array => string.Join(
                     ", ",
                     type.EnumerateArray().Select(element => element.GetString())),
-                _ => null,
+                _ => null
             }
             : null;
 
@@ -170,7 +170,7 @@ internal static class ManifestSchemaErrorMapper
         {
             ["instance_path"] = context.InstancePath,
             ["schema_path"] = context.SchemaPath,
-            ["keyword"] = context.Keyword,
+            ["keyword"] = context.Keyword
         };
     }
 

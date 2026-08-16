@@ -49,7 +49,7 @@ public enum PatchDiagnosticCode
     PathIdReferenceNotFound,
     PathIdReferenceAmbiguous,
     ReplacementSourceNotFound,
-    ReplacementMatchInvalid,
+    ReplacementMatchInvalid
 }
 
 public sealed class PatchPlanningException : InvalidOperationException

@@ -27,7 +27,7 @@ public sealed class ReplacementPlanner
         IReadOnlyList<ModPatch> targets,
         IReadOnlyDictionary<string, string> sourceAssetsPaths)
     {
-        AssetReplacementMatch[] matches = FindReplacementMatches(
+        var matches = FindReplacementMatches(
             assetsFilePath, targets, sourceAssetsPaths).ToArray();
         var replacements = matches
             .Select(match => new AssetReplacement(

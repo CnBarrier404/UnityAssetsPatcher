@@ -11,7 +11,7 @@ public sealed class CompositionRepositoryModelTests
     {
         FileIntegrity integrity = CreateIntegrity();
 
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new BaseCatalog(
+        var exception = Assert.Throws<ArgumentNullException>(() => new BaseCatalog(
             "game-fingerprint",
             DateTimeOffset.UnixEpoch,
             null!,
@@ -23,7 +23,7 @@ public sealed class CompositionRepositoryModelTests
     [Fact]
     public void BaseCatalog_WhenCollectionContainsNull_ThrowsArgumentException()
     {
-        ArgumentException exception = Assert.Throws<ArgumentException>(() => new BaseCatalog(
+        var exception = Assert.Throws<ArgumentException>(() => new BaseCatalog(
             "game-fingerprint",
             DateTimeOffset.UnixEpoch,
             [null!],
@@ -51,7 +51,7 @@ public sealed class CompositionRepositoryModelTests
     [InlineData("\\\\server\\share\\outside.assets")]
     public void BaseFileEntry_WhenRelativePathIsUnsafe_ThrowsArgumentException(string relativePath)
     {
-        ArgumentException exception = Assert.Throws<ArgumentException>(() => new BaseFileEntry(
+        var exception = Assert.Throws<ArgumentException>(() => new BaseFileEntry(
             relativePath,
             CreateIntegrity()));
 
@@ -61,12 +61,12 @@ public sealed class CompositionRepositoryModelTests
     [Fact]
     public void BaseCatalog_WhenAssetsPathsContainDuplicates_ThrowsArgumentException()
     {
-        ArgumentException exception = Assert.Throws<ArgumentException>(() => new BaseCatalog(
+        var exception = Assert.Throws<ArgumentException>(() => new BaseCatalog(
             "game-fingerprint",
             DateTimeOffset.UnixEpoch,
             [
                 new BaseFileEntry("Game_Data/sharedassets0.assets", CreateIntegrity()),
-                new BaseFileEntry("Game_Data/sharedassets0.assets", CreateIntegrity()),
+                new BaseFileEntry("Game_Data/sharedassets0.assets", CreateIntegrity())
             ],
             []));
 
@@ -76,7 +76,7 @@ public sealed class CompositionRepositoryModelTests
     [Fact]
     public void PayloadBaseEntry_WhenPresentWithoutIntegrity_ThrowsArgumentNullException()
     {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PayloadBaseEntry(
+        var exception = Assert.Throws<ArgumentNullException>(() => new PayloadBaseEntry(
             "Data/config.txt",
             PayloadBaseState.Present));
 
@@ -86,7 +86,7 @@ public sealed class CompositionRepositoryModelTests
     [Fact]
     public void PayloadBaseEntry_WhenAbsentWithIntegrity_ThrowsArgumentException()
     {
-        ArgumentException exception = Assert.Throws<ArgumentException>(() => new PayloadBaseEntry(
+        var exception = Assert.Throws<ArgumentException>(() => new PayloadBaseEntry(
             "Data/config.txt",
             PayloadBaseState.Absent,
             CreateIntegrity()));
@@ -97,7 +97,7 @@ public sealed class CompositionRepositoryModelTests
     [Fact]
     public void LayerRecord_WhenInstallSequenceIsNotPositive_ThrowsArgumentOutOfRangeException()
     {
-        ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(() => new LayerRecord(
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => new LayerRecord(
             "repository",
             "game-fingerprint",
             0,
@@ -119,7 +119,7 @@ public sealed class CompositionRepositoryModelTests
     [Fact]
     public void LayerRecord_WhenAssetsAndPayloadTargetsOverlap_ThrowsArgumentException()
     {
-        ArgumentException exception = Assert.Throws<ArgumentException>(() => new LayerRecord(
+        var exception = Assert.Throws<ArgumentException>(() => new LayerRecord(
             "repository",
             "game-fingerprint",
             1,
@@ -141,7 +141,7 @@ public sealed class CompositionRepositoryModelTests
     [Fact]
     public void LayerPackageInfo_WhenFileNameContainsDirectory_ThrowsArgumentException()
     {
-        ArgumentException exception = Assert.Throws<ArgumentException>(() => new LayerPackageInfo(
+        var exception = Assert.Throws<ArgumentException>(() => new LayerPackageInfo(
             "packages/package.zip",
             CreateIntegrity()));
 

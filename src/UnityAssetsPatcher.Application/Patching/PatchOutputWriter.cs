@@ -32,7 +32,7 @@ public sealed class PatchOutputWriter
             FieldPatchPlan fieldPlan => WriteFieldPatch(assetsFilePath, outputPath, fieldPlan.Assets),
             FieldPatchAndCopyPlan copyPlan =>
                 WriteFieldPatchesAndCopies(assetsFilePath, outputPath, copyPlan),
-            _ => throw new ArgumentOutOfRangeException(nameof(plan)),
+            _ => throw new ArgumentOutOfRangeException(nameof(plan))
         };
     }
 

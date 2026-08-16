@@ -29,7 +29,7 @@ internal sealed class SerilogLoggingLevelSwitch : ILoggingLevelSwitch
         {
             LoggingLevel.Information => LogEventLevel.Information,
             LoggingLevel.Debug => LogEventLevel.Debug,
-            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unsupported logging level."),
+            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unsupported logging level.")
         };
     }
 

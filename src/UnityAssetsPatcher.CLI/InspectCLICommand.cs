@@ -34,11 +34,11 @@ public sealed class InspectCLICommand : ICLICommand
         var assetsFile = AssetsFileArgument();
         var all = new Option<bool>("--all")
         {
-            Description = "Print every asset summary row.",
+            Description = "Print every asset summary row."
         };
         var limit = new Option<int?>("--limit")
         {
-            Description = "Maximum number of asset summary rows to print.",
+            Description = "Maximum number of asset summary rows to print."
         };
         var command = new Command("list", "Print asset summary rows.");
         command.Arguments.Add(assetsFile);
@@ -72,7 +72,7 @@ public sealed class InspectCLICommand : ICLICommand
         var assetsFile = AssetsFileArgument();
         var pathId = new Argument<long>("path-id")
         {
-            Description = "Asset Path ID to inspect.",
+            Description = "Asset Path ID to inspect."
         };
         var command = new Command("fields", "Print the field tree for one asset.");
         command.Arguments.Add(assetsFile);
@@ -96,8 +96,8 @@ public sealed class InspectCLICommand : ICLICommand
         {
             string fullPath = Path.GetFullPath(assetsFilePath);
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<InspectListResult> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
                     new InspectListRequest(fullPath, limit),
                     cancellationToken)
@@ -127,8 +127,8 @@ public sealed class InspectCLICommand : ICLICommand
         {
             string fullPath = Path.GetFullPath(assetsFilePath);
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<AssetField> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
                     new InspectFieldsRequest(fullPath, pathId),
                     cancellationToken)
@@ -148,8 +148,11 @@ public sealed class InspectCLICommand : ICLICommand
         }
     }
 
-    private static Argument<string> AssetsFileArgument() => new("assets-file")
+    private static Argument<string> AssetsFileArgument()
     {
-        Description = "Path to the Unity assets file.",
-    };
+        return new Argument<string>("assets-file")
+        {
+            Description = "Path to the Unity assets file."
+        };
+    }
 }

@@ -38,7 +38,7 @@ public sealed class CLIApplication
         _invocationConfiguration = new InvocationConfiguration
         {
             Output = output,
-            Error = error,
+            Error = error
         };
     }
 
@@ -80,7 +80,7 @@ public sealed class CLIApplication
         var errorConfiguration = new InvocationConfiguration
         {
             Output = _error,
-            Error = _error,
+            Error = _error
         };
 
         await parseResult.InvokeAsync(errorConfiguration, cancellationToken).ConfigureAwait(false);
@@ -92,7 +92,7 @@ public sealed class CLIApplication
     {
         var names = new List<string>();
 
-        for (var current = parseResult.CommandResult;
+        for (CommandResult current = parseResult.CommandResult;
              !ReferenceEquals(current, parseResult.RootCommandResult);
              current = (CommandResult)current.Parent!)
         {

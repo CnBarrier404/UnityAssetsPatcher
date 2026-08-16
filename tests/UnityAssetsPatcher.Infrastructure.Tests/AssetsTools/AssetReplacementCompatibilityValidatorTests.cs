@@ -16,7 +16,7 @@ public sealed class AssetReplacementCompatibilityValidatorTests
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
         sourceSession.AssetsFile.Metadata.UnityVersion = "2019.4.40f1";
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
                 targetSession,
                 new AssetPathId(4),
@@ -34,7 +34,7 @@ public sealed class AssetReplacementCompatibilityValidatorTests
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
         sourceSession.AssetsFile.Header.Version++;
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
                 targetSession,
                 new AssetPathId(4),
@@ -52,7 +52,7 @@ public sealed class AssetReplacementCompatibilityValidatorTests
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
         sourceSession.AssetsFile.Metadata.TypeTreeEnabled = !targetSession.AssetsFile.Metadata.TypeTreeEnabled;
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
                 targetSession,
                 new AssetPathId(4),
@@ -69,7 +69,7 @@ public sealed class AssetReplacementCompatibilityValidatorTests
         using AssetsFileSession targetSession = OpenSession(classPackageCache);
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
                 targetSession,
                 new AssetPathId(4),
@@ -86,7 +86,7 @@ public sealed class AssetReplacementCompatibilityValidatorTests
         using AssetsFileSession targetSession = OpenSession(classPackageCache);
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             AssetReplacementCompatibilityValidator.ValidateFields(
                 targetSession,
                 new AssetPathId(4),
@@ -104,9 +104,9 @@ public sealed class AssetReplacementCompatibilityValidatorTests
         ClassPackageCache classPackageCache = CreateClassPackageCache();
         using AssetsFileSession targetSession = OpenSession(classPackageCache);
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
-        AssetTypeValueField sourceField = CreateRootWithPointer(fileId: 1, pathId: 0);
+        AssetTypeValueField sourceField = CreateRootWithPointer(1, 0);
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             AssetReplacementCompatibilityValidator.ValidateFields(
                 targetSession,
                 new AssetPathId(4),
@@ -124,9 +124,9 @@ public sealed class AssetReplacementCompatibilityValidatorTests
         ClassPackageCache classPackageCache = CreateClassPackageCache();
         using AssetsFileSession targetSession = OpenSession(classPackageCache);
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
-        AssetTypeValueField sourceField = CreateRootWithPointer(fileId: 0, pathId: long.MaxValue);
+        AssetTypeValueField sourceField = CreateRootWithPointer(0, long.MaxValue);
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             AssetReplacementCompatibilityValidator.ValidateFields(
                 targetSession,
                 new AssetPathId(4),

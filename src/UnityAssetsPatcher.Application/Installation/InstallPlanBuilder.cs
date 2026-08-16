@@ -105,7 +105,7 @@ public sealed class InstallPlanBuilder
             into entryPath
             let fileName = Path.GetFileName(entryPath.Replace('/', Path.DirectorySeparatorChar))
             select new InstallPayloadFilePlan(entryPath, Path.Combine(payloadDirectory, fileName))).ToList();
-        HashSet<string> assetsPaths = targets.AssetsFilePaths.ToHashSet(TrustedPath.PathComparer);
+        var assetsPaths = targets.AssetsFilePaths.ToHashSet(TrustedPath.PathComparer);
 
         foreach (InstallPayloadFilePlan payloadFile in payloadFiles)
         {

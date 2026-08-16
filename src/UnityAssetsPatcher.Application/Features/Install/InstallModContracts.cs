@@ -44,7 +44,7 @@ public sealed record InstallPreviewResult(
 public enum InstallChangeKind
 {
     Patch,
-    Payload,
+    Payload
 }
 
 public sealed record InstallChange(

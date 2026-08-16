@@ -35,7 +35,7 @@ public sealed class ModComposerTests
 
         CompositionOutcome outcome = await fixture.ComposeAsync(request);
 
-        CompositionSucceeded succeeded = Assert.IsType<CompositionSucceeded>(outcome);
+        var succeeded = Assert.IsType<CompositionSucceeded>(outcome);
         CompositionFileResult result = Assert.Single(succeeded.Result.Files);
 
         Assert.False(result.DeletesFile);
@@ -70,7 +70,7 @@ public sealed class ModComposerTests
 
         CompositionOutcome outcome = await fixture.ComposeAsync(request);
 
-        CompositionSucceeded succeeded = Assert.IsType<CompositionSucceeded>(outcome);
+        var succeeded = Assert.IsType<CompositionSucceeded>(outcome);
         string preparedPath = Assert.Single(succeeded.Result.Files).PreparedPath!;
 
         Assert.Equal("Layer One", fixture.ReadName(preparedPath));
@@ -102,7 +102,7 @@ public sealed class ModComposerTests
 
         CompositionOutcome outcome = await fixture.ComposeAsync(request);
 
-        CompositionFailed failed = Assert.IsType<CompositionFailed>(outcome);
+        var failed = Assert.IsType<CompositionFailed>(outcome);
         PatchDiagnostic diagnostic = Assert.Single(failed.Failure.Diagnostics);
 
         Assert.Equal("layer-two", failed.Failure.LayerId);
@@ -134,12 +134,12 @@ public sealed class ModComposerTests
             [
                 new CompositionFileTarget(RepositoryFileKind.Payload, fixture.PayloadRelativePath),
                 new CompositionFileTarget(RepositoryFileKind.Payload, fixture.BasePayloadRelativePath),
-                new CompositionFileTarget(RepositoryFileKind.Payload, fixture.AbsentPayloadRelativePath),
+                new CompositionFileTarget(RepositoryFileKind.Payload, fixture.AbsentPayloadRelativePath)
             ]);
 
         CompositionOutcome outcome = await fixture.ComposeAsync(request);
 
-        CompositionSucceeded succeeded = Assert.IsType<CompositionSucceeded>(outcome);
+        var succeeded = Assert.IsType<CompositionSucceeded>(outcome);
         CompositionFileResult[] results = [.. succeeded.Result.Files];
 
         Assert.Equal("fallback", File.ReadAllText(results[0].PreparedPath!));
@@ -165,7 +165,7 @@ public sealed class ModComposerTests
             null,
             [new CompositionFileTarget(RepositoryFileKind.Assets, fixture.AssetsRelativePath)]);
 
-        Exception exception = await Assert.ThrowsAnyAsync<Exception>(() => fixture.ComposeAsync(request));
+        var exception = await Assert.ThrowsAnyAsync<Exception>(() => fixture.ComposeAsync(request));
 
         Assert.Equal("LayerPackageIntegrityException", exception.GetType().Name);
         Assert.Equal("Layer package integrity mismatch.", exception.Message);
@@ -181,8 +181,8 @@ public sealed class ModComposerTests
             ["m_Name"] = new JsonObject
             {
                 ["from"] = from,
-                ["to"] = to,
-            },
+                ["to"] = to
+            }
         };
 
         return CreateManifest(patch);
@@ -194,7 +194,7 @@ public sealed class ModComposerTests
         patch["replaceAsset"] = new JsonObject
         {
             ["fromFile"] = source,
-            ["matchField"] = "m_Name",
+            ["matchField"] = "m_Name"
         };
 
         return CreateManifest(patch);
@@ -207,8 +207,8 @@ public sealed class ModComposerTests
         {
             new JsonObject
             {
-                ["source"] = source,
-            },
+                ["source"] = source
+            }
         };
         root["targets"] = new JsonArray
         {
@@ -217,9 +217,9 @@ public sealed class ModComposerTests
                 ["file"] = "sharedassets0.assets",
                 ["patches"] = new JsonArray
                 {
-                    CreateTargetPatch(),
-                },
-            },
+                    CreateTargetPatch()
+                }
+            }
         };
 
         return Encoding.UTF8.GetBytes(root.ToJsonString());
@@ -233,8 +233,8 @@ public sealed class ModComposerTests
             new JsonObject
             {
                 ["file"] = "sharedassets0.assets",
-                ["patches"] = new JsonArray { patch },
-            },
+                ["patches"] = new JsonArray { patch }
+            }
         };
 
         return Encoding.UTF8.GetBytes(root.ToJsonString());
@@ -247,7 +247,7 @@ public sealed class ModComposerTests
             ["$schema"] = SchemaUri,
             ["name"] = "Composition Test Mod",
             ["author"] = "Composition Tests",
-            ["version"] = "1.0.0",
+            ["version"] = "1.0.0"
         };
     }
 
@@ -258,8 +258,8 @@ public sealed class ModComposerTests
             ["type"] = "TextAsset",
             ["match"] = new JsonObject
             {
-                ["m_Name"] = name,
-            },
+                ["m_Name"] = name
+            }
         };
     }
 
@@ -299,8 +299,8 @@ public sealed class ModComposerTests
             Provider = _serviceProvider;
             Repository = _serviceProvider.GetRequiredService<ICompositionRepository>();
 
-            IFileSystemOperations fileSystem = _serviceProvider.GetRequiredService<IFileSystemOperations>();
-            BaseSnapshotCapturer capturer = _serviceProvider.GetRequiredService<BaseSnapshotCapturer>();
+            var fileSystem = _serviceProvider.GetRequiredService<IFileSystemOperations>();
+            var capturer = _serviceProvider.GetRequiredService<BaseSnapshotCapturer>();
             using RepositoryOperationLock operationLock = RepositoryOperationLock.Acquire(
                 Path.Combine(repositoryDirectory, RepositoryService.LockFileName));
             _ = capturer.Capture(operationLock, GameDirectory, AssetsRelativePath, RepositoryFileKind.Assets);
@@ -322,7 +322,7 @@ public sealed class ModComposerTests
         public async Task<CompositionOutcome> ComposeAsync(CompositionRequest request)
         {
             using IServiceScope scope = _serviceProvider.CreateScope();
-            ModComposer composer = scope.ServiceProvider.GetRequiredService<ModComposer>();
+            var composer = scope.ServiceProvider.GetRequiredService<ModComposer>();
 
             return await composer.ComposeAsync(request, TestContext.Current.CancellationToken);
         }
@@ -337,7 +337,7 @@ public sealed class ModComposerTests
         {
             string packageSourcePath = _directory.GetPath("packages", $"{id}.zip");
             CreatePackage(packageSourcePath, manifest, entries);
-            IFileSystemOperations fileSystem = _serviceProvider.GetRequiredService<IFileSystemOperations>();
+            var fileSystem = _serviceProvider.GetRequiredService<IFileSystemOperations>();
             FileIntegrity packageIntegrity = fileSystem.ComputeFileIntegrity(packageSourcePath);
             string fingerprint = GameInstanceIdentity.CreateFingerprint(fileSystem, GameDirectory);
             LayerRecord record = new(
@@ -366,7 +366,7 @@ public sealed class ModComposerTests
         public string CreateReplacementAssets(string name, string replacementValue)
         {
             string path = _directory.GetPath("replacement", "replacement.assets");
-            IAssetFileSessionFactory factory = _serviceProvider.GetRequiredService<IAssetFileSessionFactory>();
+            var factory = _serviceProvider.GetRequiredService<IAssetFileSessionFactory>();
             using IAssetFileSession session = factory.Open(GetFixtureAssetsPath());
             session.Write(path, new AssetMutationPlan(
             [
@@ -378,8 +378,8 @@ public sealed class ModComposerTests
                             new AssetScalarWriteValue(new AssetScalarValue.String(name))),
                         new SetAssetField(
                             new AssetFieldPath(ReplacementFieldPath),
-                            new AssetScalarWriteValue(new AssetScalarValue.String(replacementValue))),
-                    ]),
+                            new AssetScalarWriteValue(new AssetScalarValue.String(replacementValue)))
+                    ])
             ]));
 
             return path;
@@ -392,12 +392,12 @@ public sealed class ModComposerTests
 
         public string ReadStringField(string path, string fieldPath)
         {
-            IAssetFileSessionFactory factory = _serviceProvider.GetRequiredService<IAssetFileSessionFactory>();
+            var factory = _serviceProvider.GetRequiredService<IAssetFileSessionFactory>();
             using IAssetFileSession session = factory.Open(path);
             AssetField root = session.ReadField(new AssetPathId(4));
             AssetField field = FindField(root, fieldPath);
-            AssetScalarField scalar = Assert.IsType<AssetScalarField>(field);
-            AssetScalarValue.String value = Assert.IsType<AssetScalarValue.String>(scalar.Value);
+            var scalar = Assert.IsType<AssetScalarField>(field);
+            var value = Assert.IsType<AssetScalarValue.String>(scalar.Value);
 
             return value.Value;
         }
@@ -410,7 +410,7 @@ public sealed class ModComposerTests
 
         private string FindReplacementFieldPath()
         {
-            IAssetFileSessionFactory factory = _serviceProvider.GetRequiredService<IAssetFileSessionFactory>();
+            var factory = _serviceProvider.GetRequiredService<IAssetFileSessionFactory>();
             using IAssetFileSession session = factory.Open(GetFixtureAssetsPath());
             AssetField root = session.ReadField(new AssetPathId(4));
             string path = FindStringFieldPath(root);

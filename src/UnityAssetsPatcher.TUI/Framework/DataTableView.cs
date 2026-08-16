@@ -20,7 +20,7 @@ public class DataTableView : TableView
             ShowVerticalCellLineForFirstColumn = false,
             ShowVerticalCellLineForLastColumn = false,
             ShowVerticalHeaderLines = false,
-            ExpandLastColumn = showHeaders,
+            ExpandLastColumn = showHeaders
         };
 
         SetScheme(TerminalTheme.Interactive);

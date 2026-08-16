@@ -25,7 +25,7 @@ public sealed class TerminalDependencyInjectionTests
         using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
-            ValidateScopes = true,
+            ValidateScopes = true
         });
 
         var terminalApp = provider.GetRequiredService<TerminalApp>();

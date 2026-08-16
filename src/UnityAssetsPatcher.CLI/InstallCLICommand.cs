@@ -77,8 +77,8 @@ public sealed class InstallCLICommand : ICLICommand
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<InstallPreviewResult> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
                     new PreviewInstallRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
                     cancellationToken)
@@ -108,8 +108,8 @@ public sealed class InstallCLICommand : ICLICommand
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<InstallModResult> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
                     new InstallModRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
                     cancellationToken)
@@ -136,33 +136,45 @@ public sealed class InstallCLICommand : ICLICommand
     {
         return new InstallRequest(Path.GetFullPath(packagePath), FullPathOrNull(gameDirectory))
         {
-            SelectedOptionalGroups = optionalGroups,
+            SelectedOptionalGroups = optionalGroups
         };
     }
 
-    private static Option<string> PackageOption() => new("--package", "-p")
+    private static Option<string> PackageOption()
     {
-        Description = "Mod ZIP package path.",
-        Required = true,
-    };
+        return new Option<string>("--package", "-p")
+        {
+            Description = "Mod ZIP package path.",
+            Required = true
+        };
+    }
 
-    private static Option<string?> GameDirectoryOption() => new("--game-directory", "-g")
+    private static Option<string?> GameDirectoryOption()
     {
-        Description = "Game installation directory; omit to resolve it from Steam.",
-    };
+        return new Option<string?>("--game-directory", "-g")
+        {
+            Description = "Game installation directory; omit to resolve it from Steam."
+        };
+    }
 
-    private static Option<string[]> OptionalGroupsOption() => new("--optional-group", "-o")
+    private static Option<string[]> OptionalGroupsOption()
     {
-        Description = "Optional content group to include; repeat for multiple groups.",
-        Arity = ArgumentArity.OneOrMore,
-        AllowMultipleArgumentsPerToken = false,
-        DefaultValueFactory = _ => [],
-    };
+        return new Option<string[]>("--optional-group", "-o")
+        {
+            Description = "Optional content group to include; repeat for multiple groups.",
+            Arity = ArgumentArity.OneOrMore,
+            AllowMultipleArgumentsPerToken = false,
+            DefaultValueFactory = _ => []
+        };
+    }
 
-    private static Option<bool> YesOption() => new("--yes", "-y")
+    private static Option<bool> YesOption()
     {
-        Description = "Confirm the mutating operation.",
-    };
+        return new Option<bool>("--yes", "-y")
+        {
+            Description = "Confirm the mutating operation."
+        };
+    }
 
     private static void RequireConfirmation(Command command, Option<bool> yes)
     {

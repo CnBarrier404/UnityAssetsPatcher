@@ -33,7 +33,7 @@ public enum RepositoryRecoveryStatus
     Clean,
     RecoveryRequired,
     Recovered,
-    Locked,
+    Locked
 }
 
 public sealed record RepositoryRecoveryOperation(string Kind, string InstallId, string Action);
@@ -41,14 +41,14 @@ public sealed record RepositoryRecoveryOperation(string Kind, string InstallId, 
 public enum RepositoryRecoveryPlanAction
 {
     RollBack,
-    CompleteCleanup,
+    CompleteCleanup
 }
 
 public enum RepositoryRecoveryFileAction
 {
     NoChange,
     Restore,
-    Delete,
+    Delete
 }
 
 public sealed record RepositoryRecoveryFileChange(string RelativePath, RepositoryRecoveryFileAction Action);
@@ -68,7 +68,7 @@ public enum RepositoryRecoveryIssueCode
     RepositoryUnsafe,
     RecoveryUnsafe,
     OperationFailed,
-    UnexpectedFailure,
+    UnexpectedFailure
 }
 
 public sealed record RepositoryRecoveryIssue(RepositoryRecoveryIssueCode Code, string Path)

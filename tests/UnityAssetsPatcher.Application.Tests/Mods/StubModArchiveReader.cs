@@ -51,7 +51,7 @@ internal sealed class StubModArchiveSession : IModArchiveSession
         Entries =
         [
             manifestEntry,
-            .. entries.Select(entry => new StubModArchiveEntry(entry.Path, entry.Contents)),
+            .. entries.Select(entry => new StubModArchiveEntry(entry.Path, entry.Contents))
         ];
     }
 
@@ -86,7 +86,7 @@ internal sealed class StubModArchiveEntry : IModArchiveEntry
     public Task<Stream> OpenReadAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Stream stream = new MemoryStream(_contents, writable: false);
+        Stream stream = new MemoryStream(_contents, false);
 
         return Task.FromResult(stream);
     }

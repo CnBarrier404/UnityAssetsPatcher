@@ -44,7 +44,7 @@ internal static class AssetFieldMapper
             AssetValueType.Float => new AssetScalarValue.Float(field.AsFloat),
             AssetValueType.Double => new AssetScalarValue.Double(field.AsDouble),
             AssetValueType.String => new AssetScalarValue.String(field.AsString),
-            _ => null,
+            _ => null
         };
     }
 

@@ -8,13 +8,13 @@ namespace UnityAssetsPatcher.Application.Repository;
 public enum RepositoryOperationKind
 {
     Install,
-    Uninstall,
+    Uninstall
 }
 
 public enum RepositoryFileKind
 {
     Assets,
-    Payload,
+    Payload
 }
 
 public sealed record RepositoryTransactionFile(
@@ -94,7 +94,7 @@ public sealed class RepositoryOperationLock : IDisposable
                 Mode = FileMode.CreateNew,
                 Access = FileAccess.ReadWrite,
                 Share = FileShare.None,
-                Options = FileOptions.DeleteOnClose,
+                Options = FileOptions.DeleteOnClose
             }), normalizedRepositoryFile);
         }
         catch (IOException exception)

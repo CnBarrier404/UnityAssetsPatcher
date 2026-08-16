@@ -35,21 +35,21 @@ public sealed class SettingsView : View
         var heading = new StyledLabel(strings.MainMenu_Settings_Title, TextRole.Title)
         {
             X = 0,
-            Y = 0,
+            Y = 0
         };
         var description = new StyledLabel(
             strings.MainMenu_Settings_Description, TextRole.Muted)
         {
             X = 0,
             Y = 1,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
         _verboseOutput = new ToggleItem(
             strings.SettingsPage_VerboseLoggingName,
             strings.SettingsPage_VerboseLoggingDescription)
         {
             X = 0,
-            Y = 3,
+            Y = 3
         };
         _verboseOutput.IsSelected = _settings.VerboseOutput;
         _verboseOutput.IsSelectedChanged += (_, _) =>

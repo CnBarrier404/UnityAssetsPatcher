@@ -67,6 +67,6 @@ internal static class Descriptors
             messageFormat,
             "Localization",
             DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
+            true);
     }
 }

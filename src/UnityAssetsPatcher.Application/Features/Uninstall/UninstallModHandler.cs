@@ -42,7 +42,7 @@ public sealed class UninstallModHandler :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<UninstallPreviewResult> result = await InvokeAsync(
+        var result = await InvokeAsync(
             () => PreviewAsync(request, cancellationToken),
             DirectoryError(request.GameDirectory),
             nameof(PreviewAsync)).ConfigureAwait(false);
@@ -57,7 +57,7 @@ public sealed class UninstallModHandler :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<IReadOnlyList<InstallRecordSummary>> result = await InvokeAsync(
+        var result = await InvokeAsync(
             () => Task.FromResult(ListInstalledMods()),
             null,
             nameof(ListInstalledMods)).ConfigureAwait(false);
@@ -72,7 +72,7 @@ public sealed class UninstallModHandler :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<UninstallModResult> result = await InvokeAsync(
+        var result = await InvokeAsync(
             () => UninstallAsync(request, cancellationToken),
             DirectoryError(request.GameDirectory),
             nameof(UninstallAsync)).ConfigureAwait(false);
@@ -140,7 +140,7 @@ public sealed class UninstallModHandler :
                 new Dictionary<string, object?>
                 {
                     ["diagnosticCode"] = exception.Diagnostic.Code.ToString(),
-                    ["path"] = exception.Diagnostic.AssetsFilePath,
+                    ["path"] = exception.Diagnostic.AssetsFilePath
                 });
 
             return new OperationFailed<TResult>(error);

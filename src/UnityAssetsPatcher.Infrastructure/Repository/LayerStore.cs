@@ -72,7 +72,7 @@ internal sealed class LayerStore : ILayerStore
         [
             .. layers
                 .OrderByDescending(entry => entry.Record.InstallSequence)
-                .ThenBy(entry => entry.Record.Id, StringComparer.Ordinal),
+                .ThenBy(entry => entry.Record.Id, StringComparer.Ordinal)
         ];
 
         return ordered;

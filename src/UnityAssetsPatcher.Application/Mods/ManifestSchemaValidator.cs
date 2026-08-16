@@ -22,7 +22,7 @@ internal static class ManifestSchemaValidator
         ManifestSchemaDefinition definition = Definition.Value;
         var options = new EvaluationOptions
         {
-            OutputFormat = OutputFormat.Hierarchical,
+            OutputFormat = OutputFormat.Hierarchical
         };
         EvaluationResults results = definition.Schema.Evaluate(instance, options);
 
@@ -41,7 +41,7 @@ internal static class ManifestSchemaValidator
         JsonElement source = document.RootElement.Clone();
         var schema = JsonSchema.Build(source, new BuildOptions
         {
-            Dialect = Dialect.Draft202012,
+            Dialect = Dialect.Draft202012
         });
 
         return new ManifestSchemaDefinition(schema, source);

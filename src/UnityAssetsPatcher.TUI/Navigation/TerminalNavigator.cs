@@ -72,7 +72,7 @@ public sealed class TerminalNavigator
 
     public void ShowMainMenu()
     {
-        TerminalMenuItem[] items = CreateMenuItems();
+        var items = CreateMenuItems();
         TerminalUpdateNotice? updateNotice = _availableUpdate is null
             ? null
             : CreateUpdateNotice(_availableUpdate);
@@ -118,7 +118,7 @@ public sealed class TerminalNavigator
                     _strings.MainMenu_InspectAssets_Description),
                 CreateEmptyPageMenuItem(
                     _strings.MainMenu_Settings_Title,
-                    _strings.MainMenu_Settings_Description),
+                    _strings.MainMenu_Settings_Description)
             ];
         }
 
@@ -156,7 +156,7 @@ public sealed class TerminalNavigator
                     _strings,
                     _settings,
                     returnToMainMenu,
-                    _loggingLevelSwitch)),
+                    _loggingLevelSwitch))
         ];
     }
 
@@ -258,7 +258,7 @@ public sealed class TerminalNavigator
                 {
                     OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
                     OperationFailed<RepositoryRecoveryReport> failed => failed.Error.Recovery ?? FailedRecovery(),
-                    _ => throw new ArgumentOutOfRangeException(nameof(result)),
+                    _ => throw new ArgumentOutOfRangeException(nameof(result))
                 };
 
                 ShowRecoveryResult();
@@ -306,7 +306,7 @@ public sealed class TerminalNavigator
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory!.CreateScope();
-        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
         return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }

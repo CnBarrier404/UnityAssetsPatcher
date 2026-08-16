@@ -170,7 +170,7 @@ internal static class AssetFieldWriter
             AssetScalarKind.Float => AssetValueType.Float,
             AssetScalarKind.Double => AssetValueType.Double,
             AssetScalarKind.String => AssetValueType.String,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported scalar kind."),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported scalar kind.")
         };
     }
 }

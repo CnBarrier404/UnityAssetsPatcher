@@ -26,7 +26,7 @@ public sealed class OperationResultTests
     [Fact]
     public void OperationFailed_WhenErrorIsNull_ThrowsArgumentNullException()
     {
-        ArgumentNullException exception =
+        var exception =
             Assert.Throws<ArgumentNullException>(() => new OperationFailed<string>(null!));
 
         Assert.Equal("error", exception.ParamName);

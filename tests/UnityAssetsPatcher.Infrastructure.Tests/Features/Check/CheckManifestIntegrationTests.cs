@@ -46,7 +46,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
         await File.WriteAllTextAsync(sourcePath, ValidManifest, cancellationToken);
 
         CheckManifestHandler handler = CreateHandler();
-        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest(sourcePath),
             cancellationToken);
 
@@ -69,7 +69,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
         }
 
         CheckManifestHandler handler = CreateHandler();
-        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest(sourcePath),
             cancellationToken);
 
@@ -89,7 +89,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
             cancellationToken);
 
         CheckManifestHandler handler = CreateHandler();
-        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest(sourcePath),
             cancellationToken);
 
@@ -111,7 +111,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
         }
 
         CheckManifestHandler handler = CreateHandler();
-        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest(sourcePath),
             cancellationToken);
 
@@ -126,7 +126,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
         string sourcePath = Path.Combine(_temporaryDirectory, "missing.json");
         CheckManifestHandler handler = CreateHandler();
 
-        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest(sourcePath),
             TestContext.Current.CancellationToken);
 
@@ -137,7 +137,7 @@ public sealed class CheckManifestIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        Directory.Delete(_temporaryDirectory, recursive: true);
+        Directory.Delete(_temporaryDirectory, true);
     }
 
     private static CheckManifestHandler CreateHandler()

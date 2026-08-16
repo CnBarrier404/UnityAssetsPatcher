@@ -89,11 +89,11 @@ public sealed class ModManifestParserTests
         Assert.Equal("field of view", Assert.Single(fieldPatch.SetOperations).FieldPath);
         Assert.Equal("m_ValidKeywords.Array", Assert.Single(fieldPatch.AddOperations).FieldPath);
 
-        ModReplaceAsset replacement = Assert.IsType<ModReplaceAsset>(manifest.Patches[1].ReplaceAsset);
+        var replacement = Assert.IsType<ModReplaceAsset>(manifest.Patches[1].ReplaceAsset);
         Assert.Equal("resources/mod.assets", replacement.SourceAssetsFile);
         Assert.Equal("m_Name", replacement.MatchFieldPath);
 
-        ModCopyAsset copy = Assert.IsType<ModCopyAsset>(manifest.Patches[2].CopyAsset);
+        var copy = Assert.IsType<ModCopyAsset>(manifest.Patches[2].CopyAsset);
         Assert.Equal("Material", copy.AssetTypeName);
         Assert.Equal("Source", copy.Match["m_Name"].GetString());
         Assert.Equal("Transform", manifest.Patches[3].ComponentTypeName);
@@ -680,12 +680,12 @@ public sealed class ModManifestParserTests
                             ["type"] = "Camera",
                             ["match"] = new JsonObject
                             {
-                                ["m_Name"] = "Main",
-                            },
-                        },
-                    },
-                },
-            },
+                                ["m_Name"] = "Main"
+                            }
+                        }
+                    }
+                }
+            }
         };
 
         foreach ((string propertyName, JsonNode? value) in overrides)

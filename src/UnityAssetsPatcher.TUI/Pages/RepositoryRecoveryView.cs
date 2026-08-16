@@ -28,13 +28,13 @@ public sealed class RepositoryRecoveryView : View
         {
             X = 0,
             Y = 0,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         });
         Add(new StyledLabel(strings.RepositoryRecovery_DamagedDescription, TextRole.Preview)
         {
             X = 0,
             Y = 2,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         });
         Add(new StyledLabel(details, TextRole.Error) { X = 0, Y = 4, Width = Dim.Fill() });
 
@@ -50,7 +50,10 @@ public sealed class RepositoryRecoveryView : View
             previewChoice.Button.Accepted += (_, _) =>
             {
                 string path = TerminalPathNormalizer.Normalize(input.Text);
-                if (!string.IsNullOrWhiteSpace(path)) preview(path);
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    preview(path);
+                }
             };
             input.Accepted += (_, _) => previewChoice.Button.SetFocus();
             Initialized += (_, _) => input.SetFocus();
@@ -97,7 +100,7 @@ public sealed class RepositoryRecoveryPreviewView : View
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
-            Height = Dim.Fill(),
+            Height = Dim.Fill()
         };
         string summary = $"{preview.Kind} {preview.InstallId} — {preview.Action}";
         body.Add(new StyledLabel(strings.RepositoryRecovery_PreviewTitle, TextRole.Preview)

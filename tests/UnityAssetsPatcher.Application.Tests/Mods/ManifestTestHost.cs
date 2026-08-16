@@ -28,7 +28,7 @@ internal sealed class ManifestTestHost
     {
         ArgumentNullException.ThrowIfNull(bytes);
 
-        return Create(_ => new MemoryStream(bytes, writable: false));
+        return Create(_ => new MemoryStream(bytes, false));
     }
 
     public static ManifestTestHost Create(Func<string, Stream> openRead)
@@ -48,7 +48,7 @@ internal sealed class ManifestTestHost
 
     public ModManifest Read(string sourcePath = "manifest.json")
     {
-        OperationResult<CheckManifestResult> result = ReadResult(sourcePath);
+        var result = ReadResult(sourcePath);
         var success = Assert.IsType<OperationSucceeded<CheckManifestResult>>(result);
 
         return success.Value.Manifest;
@@ -56,7 +56,7 @@ internal sealed class ManifestTestHost
 
     public OperationError ReadFailure(string sourcePath = "manifest.json")
     {
-        OperationResult<CheckManifestResult> result = ReadResult(sourcePath);
+        var result = ReadResult(sourcePath);
         var failure = Assert.IsType<OperationFailed<CheckManifestResult>>(result);
 
         return failure.Error;

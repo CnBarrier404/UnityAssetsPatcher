@@ -90,7 +90,7 @@ public sealed class PatchPlanner
             FieldPatchPlan fieldPlan => fieldPlan.Assets.Count > 0,
             AssetReplacementPlan replacementPlan => replacementPlan.Replacements.Count > 0,
             FieldPatchAndCopyPlan copyPlan => copyPlan.Copies.Count > 0,
-            _ => throw new ArgumentOutOfRangeException(nameof(plan)),
+            _ => throw new ArgumentOutOfRangeException(nameof(plan))
         };
     }
 

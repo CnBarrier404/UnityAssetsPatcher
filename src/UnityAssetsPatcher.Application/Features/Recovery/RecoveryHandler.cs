@@ -34,7 +34,7 @@ public sealed class RecoveryHandler :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<RepositoryRecoveryPreview> result = Invoke(
+        var result = Invoke(
             () => _repository.PreviewPendingTransaction(request.GameDirectory),
             nameof(PreviewRecoveryRequest));
 
@@ -48,7 +48,7 @@ public sealed class RecoveryHandler :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<RepositoryRecoveryReport> result = Invoke(
+        var result = Invoke(
             () => _repository.RecoverPendingTransactions(request.GameDirectory),
             nameof(RecoverRecoveryRequest));
 

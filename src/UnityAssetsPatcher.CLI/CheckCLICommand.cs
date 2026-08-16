@@ -29,7 +29,7 @@ public sealed class CheckCLICommand : ICLICommand
         _error = error;
         _configOption = new Option<string?>("--config", "-c")
         {
-            Description = "Manifest JSON or mod ZIP path (default: ./manifest.json).",
+            Description = "Manifest JSON or mod ZIP path (default: ./manifest.json)."
         };
 
         Command = new Command("check", "Validate a mod manifest.");
@@ -48,7 +48,7 @@ public sealed class CheckCLICommand : ICLICommand
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
             var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<CheckManifestResult> result = await dispatcher
+            var result = await dispatcher
                 .DispatchAsync<CheckManifestRequest, OperationResult<CheckManifestResult>>(
                     new CheckManifestRequest(sourcePath), cancellationToken)
                 .ConfigureAwait(false);
@@ -57,7 +57,7 @@ public sealed class CheckCLICommand : ICLICommand
             {
                 OperationSucceeded<CheckManifestResult> => CLIExitCodes.Success,
                 OperationFailed<CheckManifestResult> failed => WriteFailure(failed.Error),
-                _ => throw new InvalidOperationException("The check operation returned an unknown result."),
+                _ => throw new InvalidOperationException("The check operation returned an unknown result.")
             };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

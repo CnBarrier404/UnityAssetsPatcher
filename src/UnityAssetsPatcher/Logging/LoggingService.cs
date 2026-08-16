@@ -50,7 +50,7 @@ public static class LoggingService
         {
             LoggingLevel.Information => LogEventLevel.Information,
             LoggingLevel.Debug => LogEventLevel.Debug,
-            _ => throw new ArgumentOutOfRangeException(nameof(level), level, "Unsupported logging level."),
+            _ => throw new ArgumentOutOfRangeException(nameof(level), level, "Unsupported logging level.")
         };
     }
 

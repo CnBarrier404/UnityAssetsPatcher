@@ -133,7 +133,7 @@ public sealed class FieldPatchPlanner
                 $"No field patch operation handler is registered for '{operation.GetType().Name}'."),
             _ => throw new PatchPlanningException(
                 PatchDiagnosticCode.InvalidPatchConfiguration,
-                $"Multiple field patch operation handlers are registered for '{operation.GetType().Name}'."),
+                $"Multiple field patch operation handlers are registered for '{operation.GetType().Name}'.")
         };
     }
 

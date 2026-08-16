@@ -10,7 +10,7 @@ public enum PayloadBaseState
     Present,
 
     [JsonStringEnumMemberName("absent")]
-    Absent,
+    Absent
 }
 
 public sealed record BaseFileEntry

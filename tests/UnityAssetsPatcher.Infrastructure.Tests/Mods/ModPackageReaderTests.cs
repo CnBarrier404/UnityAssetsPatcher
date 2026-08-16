@@ -138,7 +138,7 @@ public sealed class ModPackageReaderTests
         var fileSystem = new StubFileSystemOperations(archiveBytes);
         ModPackageReader reader = CreateReader(fileSystem);
 
-        OperationResult<byte[]> result = await reader.ReadManifestAsync(
+        var result = await reader.ReadManifestAsync(
             "mod.zip",
             TestContext.Current.CancellationToken);
         byte[] manifestBytes = Assert.IsType<OperationSucceeded<byte[]>>(result).Value;
@@ -155,7 +155,7 @@ public sealed class ModPackageReaderTests
         var fileSystem = new StubFileSystemOperations(archiveBytes);
         ModPackageReader reader = CreateReader(fileSystem);
 
-        OperationResult<byte[]> result = await reader.ReadManifestAsync(
+        var result = await reader.ReadManifestAsync(
             "mod.zip",
             TestContext.Current.CancellationToken);
         var failure = Assert.IsType<OperationFailed<byte[]>>(result);
@@ -171,7 +171,7 @@ public sealed class ModPackageReaderTests
         var fileSystem = new StubFileSystemOperations(archiveBytes);
         ModPackageReader reader = CreateReader(fileSystem);
 
-        OperationResult<byte[]> result = await reader.ReadManifestAsync(
+        var result = await reader.ReadManifestAsync(
             "mod.zip",
             TestContext.Current.CancellationToken);
         var failure = Assert.IsType<OperationFailed<byte[]>>(result);
@@ -222,7 +222,7 @@ public sealed class ModPackageReaderTests
         var loggerFactory = new RecordingLoggerFactory();
         using ModPackage package = OpenPackage(fileSystem, loggerFactory);
 
-        OperationResult<long> result = await package.CopyPayloadFileAsync(
+        var result = await package.CopyPayloadFileAsync(
             "PAYLOAD.BIN",
             "payload.output",
             TestContext.Current.CancellationToken);
@@ -246,7 +246,7 @@ public sealed class ModPackageReaderTests
         var fileSystem = new StubFileSystemOperations(archiveBytes);
         using ModPackage package = OpenPackage(fileSystem);
 
-        OperationResult<long> result = await package.CopyPayloadFileAsync(
+        var result = await package.CopyPayloadFileAsync(
             "missing.bin",
             "payload.output",
             TestContext.Current.CancellationToken);
@@ -264,7 +264,7 @@ public sealed class ModPackageReaderTests
         var fileSystem = new StubFileSystemOperations(expected);
         ModPackageReader reader = CreateReader(fileSystem);
 
-        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(reader));
+        var exception = Assert.Throws<FileNotFoundException>(() => OpenPackage(reader));
 
         Assert.Same(expected, exception);
     }
@@ -274,7 +274,7 @@ public sealed class ModPackageReaderTests
         var fileSystem = new StubFileSystemOperations(archiveBytes);
         ModPackageReader reader = CreateReader(fileSystem);
 
-        OperationResult<ModPackage> result = OpenPackageResult(reader);
+        var result = OpenPackageResult(reader);
 
         return Assert.IsType<OperationFailed<ModPackage>>(result).Error;
     }
@@ -290,7 +290,7 @@ public sealed class ModPackageReaderTests
 
     private static ModPackage OpenPackage(ModPackageReader reader)
     {
-        OperationResult<ModPackage> result = OpenPackageResult(reader);
+        var result = OpenPackageResult(reader);
 
         return Assert.IsType<OperationSucceeded<ModPackage>>(result).Value;
     }
@@ -322,7 +322,7 @@ public sealed class ModPackageReaderTests
     {
         using var output = new MemoryStream();
 
-        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, true))
         {
             foreach ((string path, byte[] contents) in entries)
             {
@@ -342,7 +342,7 @@ public sealed class ModPackageReaderTests
 
         for (int offset = 0; offset <= archiveBytes.Length - 46; offset++)
         {
-            Span<byte> header = archiveBytes.AsSpan(offset);
+            var header = archiveBytes.AsSpan(offset);
 
             if (!header.StartsWith(centralDirectorySignature))
             {
@@ -444,7 +444,7 @@ public sealed class ModPackageReaderTests
                 throw _openException;
             }
 
-            return new MemoryStream(_archiveBytes!, writable: false);
+            return new MemoryStream(_archiveBytes!, false);
         }
 
         public FileIntegrity ComputeFileIntegrity(string path)

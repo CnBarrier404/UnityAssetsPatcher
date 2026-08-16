@@ -35,7 +35,7 @@ internal static class CLIOutput
                 ["schemaVersion"] = 1,
                 ["success"] = true,
                 ["command"] = command,
-                ["data"] = data,
+                ["data"] = data
             });
         }
         else
@@ -63,7 +63,7 @@ internal static class CLIOutput
                 createJson(succeeded.Value),
                 output => writeText(output, succeeded.Value)),
             OperationFailed<T> failed => WriteFailure(parseResult, options, command, failed.Error),
-            _ => throw new ArgumentOutOfRangeException(nameof(result)),
+            _ => throw new ArgumentOutOfRangeException(nameof(result))
         };
     }
 
@@ -92,7 +92,7 @@ internal static class CLIOutput
         }
         else
         {
-            OperationErrorText.WriteTextFailure(output, error, includeParameters: false);
+            OperationErrorText.WriteTextFailure(output, error, false);
         }
 
         return 1;
@@ -103,7 +103,7 @@ internal static class CLIOutput
         ArgumentNullException.ThrowIfNull(error);
         ArgumentNullException.ThrowIfNull(operationError);
 
-        OperationErrorText.WriteTextFailure(error, operationError, includeParameters: true);
+        OperationErrorText.WriteTextFailure(error, operationError, true);
     }
 
     public static void WriteUnexpectedFailure(TextWriter error, Exception exception)
@@ -127,14 +127,22 @@ internal static class CLIOutput
             JsonObject envelope = ErrorEnvelope(command, "command_failed", exception.Message, Flatten(exception));
             RepositoryRecoveryException? recovery = EnumerateExceptions(exception).OfType<RepositoryRecoveryException>()
                 .FirstOrDefault();
-            if (recovery is not null) envelope["recovery"] = Recovery(recovery.Recovery);
+            if (recovery is not null)
+            {
+                envelope["recovery"] = Recovery(recovery.Recovery);
+            }
+
             WriteJson(error, envelope);
         }
         else
         {
             RepositoryRecoveryException? recovery = EnumerateExceptions(exception).OfType<RepositoryRecoveryException>()
                 .FirstOrDefault();
-            if (recovery is not null) WriteRecoveryText(error, recovery.Recovery);
+            if (recovery is not null)
+            {
+                WriteRecoveryText(error, recovery.Recovery);
+            }
+
             WriteException(error, exception);
         }
 
@@ -154,8 +162,8 @@ internal static class CLIOutput
                 ["code"] = "usage_error",
                 ["message"] = details.FirstOrDefault() ?? "Invalid command-line arguments.",
                 ["causes"] =
-                    new JsonArray(details.Skip(1).Select(value => JsonValue.Create(value)).ToArray<JsonNode?>()),
-            },
+                    new JsonArray(details.Skip(1).Select(value => JsonValue.Create(value)).ToArray<JsonNode?>())
+            }
         });
     }
 
@@ -170,8 +178,8 @@ internal static class CLIOutput
             {
                 ["pathId"] = asset.PathId,
                 ["typeName"] = asset.TypeName,
-                ["name"] = asset.Name,
-            }).ToArray<JsonNode?>()),
+                ["name"] = asset.Name
+            }).ToArray<JsonNode?>())
         };
     }
 
@@ -181,7 +189,7 @@ internal static class CLIOutput
         {
             ["assetsFilePath"] = path,
             ["pathId"] = pathId,
-            ["fieldTree"] = InspectField(fieldTree),
+            ["fieldTree"] = InspectField(fieldTree)
         };
     }
 
@@ -191,7 +199,7 @@ internal static class CLIOutput
         foreach (InspectAssetSummary asset in result.Assets)
         {
             output.WriteLine(
-                $"{asset.PathId.ToString(System.Globalization.CultureInfo.InvariantCulture)}\t{asset.TypeName}\t{asset.Name}");
+                $"{asset.PathId.ToString(CultureInfo.InvariantCulture)}\t{asset.TypeName}\t{asset.Name}");
         }
 
         if (result.Assets.Count < result.TotalCount)
@@ -213,7 +221,7 @@ internal static class CLIOutput
             ["name"] = field.Name,
             ["typeName"] = field.TypeName,
             ["value"] = field.Value?.ToInvariantString(),
-            ["children"] = new JsonArray(field.Children.Select(InspectField).ToArray<JsonNode?>()),
+            ["children"] = new JsonArray(field.Children.Select(InspectField).ToArray<JsonNode?>())
         };
     }
 
@@ -237,9 +245,9 @@ internal static class CLIOutput
             ["optionalGroups"] = new JsonArray(result.OptionalGroups.Select(group => new JsonObject
             {
                 ["name"] = group.Name,
-                ["description"] = group.Description,
+                ["description"] = group.Description
             }).ToArray<JsonNode?>()),
-            ["timing"] = Timing(result.Timing),
+            ["timing"] = Timing(result.Timing)
         };
     }
 
@@ -253,7 +261,7 @@ internal static class CLIOutput
             ["optionalGroups"] =
                 new JsonArray(result.OptionalGroups.Select(value => JsonValue.Create(value)).ToArray<JsonNode?>()),
             ["timing"] = Timing(result.Timing),
-            ["recovery"] = Recovery(result.Recovery),
+            ["recovery"] = Recovery(result.Recovery)
         };
     }
 
@@ -267,8 +275,8 @@ internal static class CLIOutput
                 ["name"] = record.ModName,
                 ["version"] = record.ModVersion,
                 ["game"] = record.GameName,
-                ["installedAt"] = record.InstalledAt.ToString("O"),
-            }).ToArray<JsonNode?>()),
+                ["installedAt"] = record.InstalledAt.ToString("O")
+            }).ToArray<JsonNode?>())
         };
     }
 
@@ -294,15 +302,15 @@ internal static class CLIOutput
                     ["fieldPath"] = failure.Diagnostic.FieldPath,
                     ["expected"] = failure.Diagnostic.Expected,
                     ["actual"] = failure.Diagnostic.Actual,
-                    ["detail"] = failure.Diagnostic.Detail,
-                },
+                    ["detail"] = failure.Diagnostic.Detail
+                }
             }).ToArray<JsonNode?>()),
             ["changedFiles"] = new JsonArray(result.ChangedFiles.Select(file => new JsonObject
             {
                 ["relativePath"] = file.RelativePath,
                 ["action"] = EnumName(file.Action),
-                ["status"] = EnumName(file.Status),
-            }).ToArray<JsonNode?>()),
+                ["status"] = EnumName(file.Status)
+            }).ToArray<JsonNode?>())
         };
     }
 
@@ -316,16 +324,16 @@ internal static class CLIOutput
             {
                 ["relativePath"] = file.RelativePath,
                 ["action"] = EnumName(file.Action),
-                ["status"] = EnumName(file.Status),
+                ["status"] = EnumName(file.Status)
             }).ToArray<JsonNode?>()),
-            ["recovery"] = Recovery(result.Recovery),
+            ["recovery"] = Recovery(result.Recovery)
         };
     }
 
     public static void WriteInstallPreviewText(TextWriter output, InstallPreviewResult result)
     {
         output.WriteLine($"Preview: {result.ModName} {result.ModVersion} by {result.ModAuthor}");
-        WriteChanges(output, result.Changes, preview: true);
+        WriteChanges(output, result.Changes, true);
 
         if (result.OptionalGroups.Count > 0)
         {
@@ -342,7 +350,7 @@ internal static class CLIOutput
         WriteRecoveryText(output, result.Recovery);
         output.WriteLine($"Installed: {result.ModName} {result.ModVersion}");
         output.WriteLine($"Install ID: {result.InstallId}");
-        WriteChanges(output, result.Changes, preview: false);
+        WriteChanges(output, result.Changes, false);
     }
 
     public static void WriteInstalledModsText(TextWriter output, IReadOnlyList<InstallRecordSummary> installed)
@@ -465,7 +473,7 @@ internal static class CLIOutput
             double number => JsonValue.Create(number),
             decimal number => JsonValue.Create(number),
             char character => JsonValue.Create(character.ToString()),
-            _ => JsonValue.Create(value.ToString()),
+            _ => JsonValue.Create(value.ToString())
         };
 
         return node;
@@ -486,8 +494,8 @@ internal static class CLIOutput
             {
                 ["code"] = code,
                 ["message"] = message,
-                ["causes"] = new JsonArray(causes.ToArray()),
-            },
+                ["causes"] = new JsonArray(causes.ToArray())
+            }
         };
     }
 
@@ -498,7 +506,7 @@ internal static class CLIOutput
             yield return new JsonObject
             {
                 ["type"] = current.GetType().Name,
-                ["message"] = current.Message,
+                ["message"] = current.Message
             };
         }
     }
@@ -552,7 +560,7 @@ internal static class CLIOutput
         var result = new JsonObject
         {
             ["name"] = name,
-            ["version"] = version,
+            ["version"] = version
         };
 
         if (author is not null)
@@ -574,7 +582,7 @@ internal static class CLIOutput
                 ["path"] = change.Path,
                 ["backupPath"] = change.BackupPath,
                 ["assetCount"] = change.AssetCount,
-                ["operationCount"] = change.OperationCount,
+                ["operationCount"] = change.OperationCount
             };
 
             if (change.Preview is not null)
@@ -589,7 +597,7 @@ internal static class CLIOutput
                         ["fieldPath"] = diagnostic.FieldPath,
                         ["expected"] = diagnostic.Expected,
                         ["actual"] = diagnostic.Actual,
-                        ["detail"] = diagnostic.Detail,
+                        ["detail"] = diagnostic.Detail
                     };
                 }
 
@@ -603,8 +611,8 @@ internal static class CLIOutput
                         ["oldValue"] = operation.OldValue,
                         ["from"] = operation.FromText,
                         ["to"] = operation.ToText,
-                        ["willChange"] = operation.WillChange,
-                    }).ToArray<JsonNode?>()),
+                        ["willChange"] = operation.WillChange
+                    }).ToArray<JsonNode?>())
                 }).ToArray<JsonNode?>());
             }
 
@@ -620,8 +628,8 @@ internal static class CLIOutput
             ["steps"] = new JsonArray(timing.Steps.Select(step => new JsonObject
             {
                 ["name"] = step.Name,
-                ["elapsedMilliseconds"] = step.Elapsed.TotalMilliseconds,
-            }).ToArray<JsonNode?>()),
+                ["elapsedMilliseconds"] = step.Elapsed.TotalMilliseconds
+            }).ToArray<JsonNode?>())
         };
     }
 
@@ -638,28 +646,50 @@ internal static class CLIOutput
             ["files"] = new JsonArray(preview.Files.Select(file => new JsonObject
             {
                 ["relativePath"] = file.RelativePath,
-                ["action"] = EnumName(file.Action),
+                ["action"] = EnumName(file.Action)
             }).ToArray<JsonNode?>()),
-            ["issues"] = RecoveryIssues(preview.Issues),
+            ["issues"] = RecoveryIssues(preview.Issues)
         };
     }
 
-    public static JsonObject RecoveryReport(RepositoryRecoveryReport recovery) => Recovery(recovery);
+    public static JsonObject RecoveryReport(RepositoryRecoveryReport recovery)
+    {
+        return Recovery(recovery);
+    }
 
     public static void WriteRecoveryPreviewText(TextWriter output, RepositoryRecoveryPreview preview)
     {
         output.WriteLine($"Recovery preview: {EnumName(preview.Status)}");
-        if (preview.GameDirectory is not null) output.WriteLine($"Game directory: {preview.GameDirectory}");
-        if (preview.Kind is not null) output.WriteLine($"Transaction: {preview.Kind} {preview.InstallId}");
-        if (preview.Action is not null) output.WriteLine($"Action: {EnumName(preview.Action.Value)}");
+        if (preview.GameDirectory is not null)
+        {
+            output.WriteLine($"Game directory: {preview.GameDirectory}");
+        }
+
+        if (preview.Kind is not null)
+        {
+            output.WriteLine($"Transaction: {preview.Kind} {preview.InstallId}");
+        }
+
+        if (preview.Action is not null)
+        {
+            output.WriteLine($"Action: {EnumName(preview.Action.Value)}");
+        }
+
         foreach (RepositoryRecoveryFileChange file in preview.Files)
+        {
             output.WriteLine($"- {EnumName(file.Action)}: {file.RelativePath}");
+        }
+
         foreach (RepositoryRecoveryIssue issue in preview.Issues)
+        {
             output.WriteLine($"- {RecoveryIssueCode(issue.Code)}: {RecoveryIssueText(issue)} ({issue.Path})");
+        }
     }
 
-    public static void WriteRecoveryReportText(TextWriter output, RepositoryRecoveryReport recovery) =>
+    public static void WriteRecoveryReportText(TextWriter output, RepositoryRecoveryReport recovery)
+    {
         WriteRecoveryText(output, recovery);
+    }
 
     private static JsonObject Recovery(RepositoryRecoveryReport recovery)
     {
@@ -670,30 +700,41 @@ internal static class CLIOutput
             {
                 ["kind"] = operation.Kind,
                 ["installId"] = operation.InstallId,
-                ["action"] = operation.Action,
+                ["action"] = operation.Action
             }).ToArray<JsonNode?>()),
-            ["issues"] = RecoveryIssues(recovery.Issues),
+            ["issues"] = RecoveryIssues(recovery.Issues)
         };
     }
 
-    private static JsonArray RecoveryIssues(IEnumerable<RepositoryRecoveryIssue> issues) =>
-        new(issues.Select(issue => new JsonObject
+    private static JsonArray RecoveryIssues(IEnumerable<RepositoryRecoveryIssue> issues)
+    {
+        return new JsonArray(issues.Select(issue => new JsonObject
         {
             ["code"] = RecoveryIssueCode(issue.Code),
             ["message"] = RecoveryIssueText(issue),
             ["path"] = issue.Path,
             ["parameters"] = new JsonObject(issue.Parameters.Select(parameter =>
-                KeyValuePair.Create<string, JsonNode?>(parameter.Key, parameter.Value))),
+                KeyValuePair.Create<string, JsonNode?>(parameter.Key, parameter.Value)))
         }).ToArray<JsonNode?>());
+    }
 
     internal static void WriteRecoveryText(TextWriter output, RepositoryRecoveryReport recovery)
     {
-        if (recovery.Status == RepositoryRecoveryStatus.Clean) return;
+        if (recovery.Status == RepositoryRecoveryStatus.Clean)
+        {
+            return;
+        }
+
         output.WriteLine($"Backup recovery: {EnumName(recovery.Status)}");
         foreach (RepositoryRecoveryOperation operation in recovery.Operations)
+        {
             output.WriteLine($"- {operation.Kind} {operation.InstallId}: {operation.Action}");
+        }
+
         foreach (RepositoryRecoveryIssue issue in recovery.Issues)
+        {
             output.WriteLine($"- {RecoveryIssueCode(issue.Code)}: {RecoveryIssueText(issue)} ({issue.Path})");
+        }
     }
 
     private static void WriteChanges(TextWriter output, IReadOnlyList<InstallChange> changes, bool preview)
@@ -737,7 +778,7 @@ internal static class CLIOutput
             RepositoryRecoveryIssueCode.RecoveryUnsafe => "recovery_unsafe",
             RepositoryRecoveryIssueCode.OperationFailed => "operation_failed",
             RepositoryRecoveryIssueCode.UnexpectedFailure => "unexpected_failure",
-            _ => throw new ArgumentOutOfRangeException(nameof(code), code, null),
+            _ => throw new ArgumentOutOfRangeException(nameof(code), code, null)
         };
     }
 
@@ -754,7 +795,7 @@ internal static class CLIOutput
             RepositoryRecoveryIssueCode.RecoveryUnsafe => "Recovery cannot continue safely.",
             RepositoryRecoveryIssueCode.OperationFailed => "The recovery operation failed.",
             RepositoryRecoveryIssueCode.UnexpectedFailure => "An unexpected recovery failure occurred.",
-            _ => "Recovery failed.",
+            _ => "Recovery failed."
         };
     }
 }
@@ -837,7 +878,7 @@ internal static class OperationErrorText
                 "The backup repository is damaged or unsafe.",
             _ when error.Code == RepositoryErrorCodes.UnsupportedVersion =>
                 "The backup repository version is not supported.",
-            _ => "The operation failed.",
+            _ => "The operation failed."
         };
     }
 
@@ -865,7 +906,7 @@ internal static class OperationErrorText
             string text => text,
             IEnumerable values => string.Join(", ", values.Cast<object?>().Select(FormatValue)),
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString() ?? string.Empty,
+            _ => value.ToString() ?? string.Empty
         };
     }
 

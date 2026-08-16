@@ -15,7 +15,7 @@ public enum AssetScalarKind
     UInt64,
     Float,
     Double,
-    String,
+    String
 }
 
 public abstract record AssetScalarValue

@@ -15,7 +15,7 @@ public sealed class AssetFieldMapperTests
 
         AssetField result = AssetFieldMapper.Map(source);
 
-        AssetScalarField scalar = Assert.IsType<AssetScalarField>(result);
+        var scalar = Assert.IsType<AssetScalarField>(result);
         Assert.Equal("value", scalar.Name);
         Assert.Equal("int", scalar.TypeName);
         Assert.Equal(new AssetScalarValue.Int32(42), scalar.Value);
@@ -29,8 +29,8 @@ public sealed class AssetFieldMapperTests
 
         AssetField result = AssetFieldMapper.Map(source);
 
-        AssetObjectField objectField = Assert.IsType<AssetObjectField>(result);
-        AssetScalarField mappedChild = Assert.IsType<AssetScalarField>(Assert.Single(objectField.Children));
+        var objectField = Assert.IsType<AssetObjectField>(result);
+        var mappedChild = Assert.IsType<AssetScalarField>(Assert.Single(objectField.Children));
         Assert.Equal(new AssetScalarValue.Boolean(true), mappedChild.Value);
     }
 
@@ -45,7 +45,7 @@ public sealed class AssetFieldMapperTests
 
         AssetField result = AssetFieldMapper.Map(source);
 
-        AssetArrayField array = Assert.IsType<AssetArrayField>(result);
+        var array = Assert.IsType<AssetArrayField>(result);
         var schema = Assert.IsType<AssetScalarFieldSchema>(array.ElementSchema);
         Assert.Equal(AssetScalarKind.Int32, schema.Kind);
         Assert.Equal(

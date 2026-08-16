@@ -25,11 +25,11 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
             .BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateOnBuild = true,
-                ValidateScopes = true,
+                ValidateScopes = true
             });
 
-        IAssetFileSessionFactory first = provider.GetRequiredService<IAssetFileSessionFactory>();
-        IAssetFileSessionFactory second = provider.GetRequiredService<IAssetFileSessionFactory>();
+        var first = provider.GetRequiredService<IAssetFileSessionFactory>();
+        var second = provider.GetRequiredService<IAssetFileSessionFactory>();
 
         Assert.IsType<AssetsToolsAssetFileSessionFactory>(first);
         Assert.Same(first, second);
@@ -39,7 +39,7 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
     public void ReadAssetsAndField_WhenFactoryIsReused_ReturnsMappedDataAndReusesClassPackage()
     {
         int classPackageOpenCount = 0;
-        var factory = CreateFactory(() =>
+        AssetsToolsAssetFileSessionFactory factory = CreateFactory(() =>
         {
             classPackageOpenCount++;
 
@@ -47,13 +47,13 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
         });
 
         using IAssetFileSession firstSession = factory.Open(GetAssetsFilePath());
-        IReadOnlyList<AssetInfo> assets = firstSession.ReadAssets();
+        var assets = firstSession.ReadAssets();
         AssetField textAsset = firstSession.ReadField(new AssetPathId(4));
         using IAssetFileSession secondSession = factory.Open(GetAssetsFilePath());
         _ = secondSession.ReadField(new AssetPathId(1));
 
         Assert.Contains(new AssetInfo(new AssetPathId(4), "TextAsset"), assets);
-        AssetScalarField name = Assert.IsType<AssetScalarField>(FindDescendant(textAsset, "m_Name"));
+        var name = Assert.IsType<AssetScalarField>(FindDescendant(textAsset, "m_Name"));
         Assert.Equal(new AssetScalarValue.String("Text"), name.Value);
         Assert.Equal(1, classPackageOpenCount);
     }
@@ -61,10 +61,10 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
     [Fact]
     public void ReadField_WhenPathIdDoesNotExist_ThrowsInvalidOperationException()
     {
-        var factory = CreateFactory();
+        AssetsToolsAssetFileSessionFactory factory = CreateFactory();
         using IAssetFileSession session = factory.Open(GetAssetsFilePath());
 
-        InvalidOperationException exception =
+        var exception =
             Assert.Throws<InvalidOperationException>(() => session.ReadField(new AssetPathId(long.MaxValue)));
 
         Assert.Equal($"Asset not found or cannot be read: {long.MaxValue}", exception.Message);
@@ -75,7 +75,7 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
     {
         string outputRoot = CreateTemporaryDirectoryPath();
         string outputPath = Path.Combine(outputRoot, "patched.assets");
-        var factory = CreateFactory();
+        AssetsToolsAssetFileSessionFactory factory = CreateFactory();
 
         try
         {
@@ -102,7 +102,7 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
         string outputRoot = CreateTemporaryDirectoryPath();
         string sourcePath = Path.Combine(outputRoot, "source.assets");
         string outputPath = Path.Combine(outputRoot, "replaced.assets");
-        var factory = CreateFactory();
+        AssetsToolsAssetFileSessionFactory factory = CreateFactory();
 
         try
         {
@@ -115,7 +115,7 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
             {
                 replacementSession.Write(outputPath, new AssetMutationPlan(
                 [
-                    new ReplaceAsset(new AssetSource(sourcePath, new AssetPathId(4)), new AssetPathId(4)),
+                    new ReplaceAsset(new AssetSource(sourcePath, new AssetPathId(4)), new AssetPathId(4))
                 ]));
             }
 
@@ -146,10 +146,10 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
             CreateAssetsFileVariant(sourcePath, file => file.Metadata.TargetPlatform++);
 
             using IAssetFileSession replacementSession = factory.Open(GetAssetsFilePath());
-            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            var exception = Assert.Throws<InvalidOperationException>(() =>
                 replacementSession.Write(outputPath, new AssetMutationPlan(
                 [
-                    new ReplaceAsset(new AssetSource(sourcePath, new AssetPathId(4)), new AssetPathId(4)),
+                    new ReplaceAsset(new AssetSource(sourcePath, new AssetPathId(4)), new AssetPathId(4))
                 ])));
 
             Assert.Contains("target platform", exception.Message, StringComparison.Ordinal);
@@ -179,16 +179,16 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
             [
                 new SetAssetField(
                     new AssetFieldPath("m_Name"),
-                    new AssetScalarWriteValue(new AssetScalarValue.String(value))),
-            ]),
+                    new AssetScalarWriteValue(new AssetScalarValue.String(value)))
+            ])
         ]);
     }
 
     private static string ReadName(IAssetFileSession session)
     {
         AssetField root = session.ReadField(new AssetPathId(4));
-        AssetScalarField field = Assert.IsType<AssetScalarField>(FindDescendant(root, "m_Name"));
-        AssetScalarValue.String value = Assert.IsType<AssetScalarValue.String>(field.Value);
+        var field = Assert.IsType<AssetScalarField>(FindDescendant(root, "m_Name"));
+        var value = Assert.IsType<AssetScalarValue.String>(field.Value);
 
         return value.Value;
     }
@@ -244,7 +244,7 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
 
         try
         {
-            AssetsFileInstance instance = manager.LoadAssetsFile(GetAssetsFilePath(), loadDeps: false);
+            AssetsFileInstance instance = manager.LoadAssetsFile(GetAssetsFilePath(), false);
             mutate(instance.file);
 
             using FileStream stream = File.Create(outputPath);
@@ -253,7 +253,7 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
         }
         finally
         {
-            manager.UnloadAll(unloadClassData: true);
+            manager.UnloadAll(true);
         }
     }
 
@@ -271,7 +271,7 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
     {
         if (Directory.Exists(path))
         {
-            Directory.Delete(path, recursive: true);
+            Directory.Delete(path, true);
         }
     }
 

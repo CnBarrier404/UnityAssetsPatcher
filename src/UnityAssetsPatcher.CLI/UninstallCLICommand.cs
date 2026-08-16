@@ -75,8 +75,8 @@ public sealed class UninstallCLICommand : ICLICommand
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<IReadOnlyList<InstallRecordSummary>> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<ListInstalledModsRequest, OperationResult<IReadOnlyList<InstallRecordSummary>>>(
                     new ListInstalledModsRequest(),
                     cancellationToken)
@@ -105,8 +105,8 @@ public sealed class UninstallCLICommand : ICLICommand
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<UninstallPreviewResult> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>(
                     new UninstallPreviewRequest(installId, FullPathOrNull(gameDirectory)),
                     cancellationToken)
@@ -135,8 +135,8 @@ public sealed class UninstallCLICommand : ICLICommand
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<UninstallModResult> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<UninstallModRequest, OperationResult<UninstallModResult>>(
                     new UninstallModRequest(installId, FullPathOrNull(gameDirectory)),
                     cancellationToken)
@@ -155,21 +155,30 @@ public sealed class UninstallCLICommand : ICLICommand
         }
     }
 
-    private static Option<string> IdOption() => new("--id")
+    private static Option<string> IdOption()
     {
-        Description = "Stable layer ID from 'uninstall list'.",
-        Required = true,
-    };
+        return new Option<string>("--id")
+        {
+            Description = "Stable layer ID from 'uninstall list'.",
+            Required = true
+        };
+    }
 
-    private static Option<string?> GameDirectoryOption() => new("--game-directory", "-g")
+    private static Option<string?> GameDirectoryOption()
     {
-        Description = "Game installation directory; omit to resolve it from Steam.",
-    };
+        return new Option<string?>("--game-directory", "-g")
+        {
+            Description = "Game installation directory; omit to resolve it from Steam."
+        };
+    }
 
-    private static Option<bool> YesOption() => new("--yes", "-y")
+    private static Option<bool> YesOption()
     {
-        Description = "Confirm the mutating operation.",
-    };
+        return new Option<bool>("--yes", "-y")
+        {
+            Description = "Confirm the mutating operation."
+        };
+    }
 
     private static void RequireConfirmation(Command command, Option<bool> yes)
     {

@@ -29,7 +29,7 @@ public sealed class ConfirmationBar : View
         {
             X = 0,
             Y = 0,
-            Width = Dim.Auto(),
+            Width = Dim.Auto()
         };
 
         ConfirmButton.Accepted += (_, _) => confirmAction();
@@ -38,7 +38,7 @@ public sealed class ConfirmationBar : View
         {
             X = Pos.Right(ConfirmButton) + GapBetweenButtons,
             Y = 0,
-            Width = Dim.Auto(),
+            Width = Dim.Auto()
         };
         CancelButton.Accepted += (_, _) => cancelAction();
 

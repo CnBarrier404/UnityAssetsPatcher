@@ -21,10 +21,10 @@ public sealed class UpdateDependencyInjectionTests
         using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
-            ValidateScopes = true,
+            ValidateScopes = true
         });
 
-        IUpdateChecker checker = provider.GetRequiredService<IUpdateChecker>();
+        var checker = provider.GetRequiredService<IUpdateChecker>();
 
         Assert.NotNull(checker);
     }

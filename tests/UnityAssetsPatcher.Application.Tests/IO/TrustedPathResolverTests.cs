@@ -23,7 +23,7 @@ public sealed class TrustedPathResolverTests
         string path = TrustedPath.NormalizeAbsolutePath(Path.Combine(Path.GetTempPath(), "missing"));
         TrustedPathResolver resolver = CreateResolver();
 
-        DirectoryNotFoundException exception =
+        var exception =
             Assert.Throws<DirectoryNotFoundException>(() => resolver.ResolveExistingDirectory(path));
 
         Assert.Equal($"The directory does not exist: '{path}'.", exception.Message);

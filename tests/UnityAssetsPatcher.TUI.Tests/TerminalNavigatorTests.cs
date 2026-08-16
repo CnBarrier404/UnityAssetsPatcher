@@ -91,7 +91,7 @@ public sealed class TerminalNavigatorTests
         emptyPage.BackButton.InvokeCommand(Command.Accept);
 
         MainMenuView updatedMainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
-        StyledLabel[] updateLabels = updatedMainMenu.SubViews
+        var updateLabels = updatedMainMenu.SubViews
             .SelectMany(view => view.SubViews.Append(view))
             .OfType<StyledLabel>()
             .Where(label => label.Text?.ToString().Contains("v1.3.0", StringComparison.Ordinal) == true)

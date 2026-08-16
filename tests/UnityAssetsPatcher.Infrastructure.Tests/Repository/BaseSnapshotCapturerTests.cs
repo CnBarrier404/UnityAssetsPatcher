@@ -144,7 +144,7 @@ public sealed class BaseSnapshotCapturerTests
         string fingerprint = GameInstanceIdentity.CreateFingerprint(fileSystem, gameDirectory);
 
         using RepositoryOperationLock operationLock = AcquireLock(repositoryPath);
-        IOException exception = Assert.Throws<IOException>(() => capturer.Capture(
+        var exception = Assert.Throws<IOException>(() => capturer.Capture(
             operationLock,
             gameDirectory,
             relativePath,
@@ -171,7 +171,7 @@ public sealed class BaseSnapshotCapturerTests
         FileRepository repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
 
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => capturer.Capture(
+        var exception = Assert.Throws<ArgumentNullException>(() => capturer.Capture(
             null!,
             gameDirectory,
             relativePath,
@@ -194,7 +194,7 @@ public sealed class BaseSnapshotCapturerTests
         RepositoryOperationLock operationLock = AcquireLock(repositoryPath);
         operationLock.Dispose();
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => capturer.Capture(
+        var exception = Assert.Throws<InvalidOperationException>(() => capturer.Capture(
             operationLock,
             gameDirectory,
             relativePath,

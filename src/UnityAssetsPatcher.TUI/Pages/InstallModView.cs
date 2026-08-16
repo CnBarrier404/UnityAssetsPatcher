@@ -73,7 +73,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         {
             X = 0,
             Y = 1,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
 
         _form = new ScrollableContentView
@@ -82,7 +82,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             Y = 3,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-            CanFocus = true,
+            CanFocus = true
         };
         _form.SetContentHeightForRows(3);
         string pathPrompt = $"{_strings.InstallPage_ModZipPathPrompt}";
@@ -91,7 +91,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         {
             X = pathPrompt.GetColumns(),
             Y = 0,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
         _modPath.Accepted += (_, _) => Preview();
         _message = new WorkingIndicator
@@ -99,7 +99,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             X = 0,
             Y = Pos.Bottom(_modPath) + 2,
             Width = Dim.Fill(),
-            Visible = false,
+            Visible = false
         };
         _form.Add(pathLabel, _modPath, _message);
         Add(heading, description, _form);
@@ -159,7 +159,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         var request = new InstallRequest(modPath, gameDirectory)
         {
             SelectedOptionalGroups = selectedGroups,
-            IncludePatchPreviewDetails = false,
+            IncludePatchPreviewDetails = false
         };
         bool started = _taskRunner.TryRun(
             () => DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
@@ -227,7 +227,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             {
                 X = prompt.GetColumns(),
                 Y = gameDirectoryRow,
-                Width = Dim.Fill(),
+                Width = Dim.Fill()
             };
             _gameDirectory.Accepted += (_, _) => Preview();
             _message.Y = Pos.Bottom(_gameDirectory) + 1;
@@ -248,8 +248,8 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             X = 0,
             Y = optionalGroupsRow,
             Width = Dim.Fill(),
-            Height = (groups.Count * 2) + 4,
-            CanFocus = true,
+            Height = groups.Count * 2 + 4,
+            CanFocus = true
         };
         var heading = new StyledLabel(
             _strings.InstallPage_OptionalGroupsHeader, TextRole.Preview) { X = 0, Y = 0 };
@@ -258,13 +258,13 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         for (int index = 0; index < groups.Count; index++)
         {
             (string name, string? description) = groups[index];
-            int choiceRow = 2 + (index * 2);
+            int choiceRow = 2 + index * 2;
             var choice = new ToggleItem(name, description) { X = 0, Y = choiceRow };
             _optionalGroups.Add(choice);
             _optionalGroupArea.Add(choice);
         }
 
-        int actionsRow = 3 + (groups.Count * 2);
+        int actionsRow = 3 + groups.Count * 2;
         var actions = new ConfirmationBar(
             _strings.InstallPage_SubmitAction,
             Preview,
@@ -272,7 +272,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             _returnToMainMenu)
         {
             X = 0,
-            Y = actionsRow,
+            Y = actionsRow
         };
         _optionalGroupArea.Add(actions);
 
@@ -306,7 +306,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             {
                 X = 0,
                 Y = summaryRows.Length + 3,
-                Width = Dim.Fill(),
+                Width = Dim.Fill()
             };
             Button back = CreateActionButton(
                 _strings.InstallPage_BackAction, 0, summaryRows.Length + 5);
@@ -333,7 +333,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 X = 0,
                 Y = nextRow,
                 Width = Dim.Fill(),
-                Height = detailsHeight,
+                Height = detailsHeight
             };
             _form.Add(output);
             nextRow += detailsHeight + 1;
@@ -346,7 +346,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             _returnToMainMenu)
         {
             X = 0,
-            Y = nextRow + 1,
+            Y = nextRow + 1
         };
         _form.Add(actions);
         _form.SetContentHeightForRows(nextRow + 3);
@@ -363,7 +363,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         var request = new InstallRequest(modPath, gameDirectory)
         {
             SelectedOptionalGroups = selectedGroups,
-            PreparedInstall = _preparedInstall,
+            PreparedInstall = _preparedInstall
         };
         bool started = _taskRunner.TryRun(
             () => DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
@@ -381,13 +381,13 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                         OperationErrorFormatter.Format(
                             _strings,
                             ((OperationFailed<InstallModResult>)result).Error),
-                        isError: true);
+                        true);
                 }
             },
             exception =>
             {
                 _isWorking = false;
-                ShowResult(OperationErrorFormatter.FormatUnexpected(_strings), isError: true);
+                ShowResult(OperationErrorFormatter.FormatUnexpected(_strings), true);
             });
 
         if (!started)
@@ -413,7 +413,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
         return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }
@@ -439,7 +439,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 X = 0,
                 Y = detailsRow,
                 Width = Dim.Fill(),
-                Height = detailsHeight,
+                Height = detailsHeight
             });
         }
 
@@ -458,7 +458,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
-            Height = outputHeight,
+            Height = outputHeight
         };
         Button back = CreateActionButton(_strings.InstallPage_ReturnAction, 0, outputHeight + 1);
         back.Accepted += (_, _) => _returnToMainMenu();
@@ -512,7 +512,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         [
             (_strings.Summary_Mod, result.ModName),
             (_strings.Summary_Version, result.ModVersion),
-            (_strings.Summary_Author, result.ModAuthor),
+            (_strings.Summary_Author, result.ModAuthor)
         ];
     }
 
@@ -531,7 +531,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             {
                 X = name.GetColumns() + 1,
                 Y = row,
-                Width = Dim.Fill(),
+                Width = Dim.Fill()
             };
             _form.Add(nameLabel, pathLabel);
             row++;
@@ -558,7 +558,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         [
             (_strings.Summary_Mod, result.ModName),
             (_strings.Summary_Version, result.ModVersion),
-            (_strings.Summary_Elapsed, FormatElapsed(result.Timing.Elapsed)),
+            (_strings.Summary_Elapsed, FormatElapsed(result.Timing.Elapsed))
         ];
     }
 

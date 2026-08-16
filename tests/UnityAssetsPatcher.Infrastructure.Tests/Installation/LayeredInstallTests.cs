@@ -29,10 +29,10 @@ public sealed class LayeredInstallTests
         using LayeredInstallFixture fixture = new();
         string packagePath = fixture.CreatePackage("invalid-manifest", Encoding.UTF8.GetBytes("{"));
 
-        OperationResult<InstallModResult> result = fixture.InstallOperation(
+        var result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
-        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+        var failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
         Assert.Equal(ManifestErrorCodes.InvalidJson, failed.Error.Code);
         Assert.DoesNotContain("detail", failed.Error.Parameters.Keys);
@@ -82,12 +82,12 @@ public sealed class LayeredInstallTests
     [Fact]
     public void Install_WhenRepositoryUsesUnsupportedVersion_ReturnsUnsupportedRepositoryVersion()
     {
-        using LayeredInstallFixture fixture = new(repositoryVersion: 1);
+        using LayeredInstallFixture fixture = new(1);
         string packagePath = fixture.CreatePackage("unsupported-version", CreateFieldManifest("Text", "Unsupported"));
-        OperationResult<InstallModResult> result = fixture.InstallOperation(
+        var result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
-        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+        var failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
         Assert.Equal(RepositoryErrorCodes.UnsupportedVersion, failed.Error.Code);
         Assert.Equal("Unsupported backup repository format: 1.", failed.Error.Parameters["detail"]?.ToString());
@@ -112,9 +112,9 @@ public sealed class LayeredInstallTests
             RepositoryOperationKind.Install,
             fixture.BaseAssetsPath,
             fixture.GameAssetsPath,
-            applyAfter: false);
+            false);
 
-        RepositoryRecoveryException exception = Assert.Throws<RepositoryRecoveryException>(
+        var exception = Assert.Throws<RepositoryRecoveryException>(
             fixture.InitializeRepository);
 
         Assert.Equal(RepositoryRecoveryStatus.RecoveryRequired, exception.Recovery.Status);
@@ -128,7 +128,7 @@ public sealed class LayeredInstallTests
         InstallPreviewResult preview = fixture.Preview(new InstallRequest(packagePath, fixture.GameDirectory));
         InstallRequest installRequest = new(packagePath, fixture.GameDirectory)
         {
-            PreparedInstall = preview.PreparedInstall,
+            PreparedInstall = preview.PreparedInstall
         };
 
         InstallModResult result = Assert.IsType<OperationSucceeded<InstallModResult>>(
@@ -144,10 +144,10 @@ public sealed class LayeredInstallTests
         using LayeredInstallFixture fixture = new();
         string packagePath = fixture.CreatePackage("planning-failure", CreateFieldManifest("Missing", "Never Applied"));
 
-        OperationResult<InstallModResult> result = fixture.InstallOperation(
+        var result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
-        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+        var failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
         Assert.Equal(PatchErrorCodes.PlanningFailed, failed.Error.Code);
         Assert.Equal("Text", fixture.ReadName(fixture.GameAssetsPath));
@@ -167,8 +167,8 @@ public sealed class LayeredInstallTests
             CreateFieldManifestWithJsonValue("Text", to));
 
         InstallPreviewResult preview = fixture.Preview(new InstallRequest(packagePath, fixture.GameDirectory));
-        PatchPreviewResult patchPreview = Assert.IsType<PatchPreviewResult>(Assert.Single(preview.Changes).Preview);
-        PatchDiagnostic diagnostic = Assert.IsType<PatchDiagnostic>(patchPreview.Diagnostic);
+        var patchPreview = Assert.IsType<PatchPreviewResult>(Assert.Single(preview.Changes).Preview);
+        var diagnostic = Assert.IsType<PatchDiagnostic>(patchPreview.Diagnostic);
 
         Assert.False(patchPreview.CanApply);
         Assert.Equal(PatchDiagnosticCode.InvalidPatchConfiguration, diagnostic.Code);
@@ -184,10 +184,10 @@ public sealed class LayeredInstallTests
             "missing-payload",
             CreatePayloadManifest("payload/missing.bin"));
 
-        OperationResult<InstallModResult> result = fixture.InstallOperation(
+        var result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
-        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+        var failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
         Assert.Equal(ModPackageErrorCodes.MissingEntry, failed.Error.Code);
         Assert.Equal("payload/missing.bin", failed.Error.Parameters["entry_path"]);
@@ -203,10 +203,10 @@ public sealed class LayeredInstallTests
             CreatePayloadManifest("payload/sharedassets0.assets"),
             ("payload/sharedassets0.assets", "Payload Content"u8.ToArray()));
 
-        OperationResult<InstallModResult> result = fixture.InstallOperation(
+        var result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
-        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+        var failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
         Assert.Equal(ManifestErrorCodes.PayloadConflict, failed.Error.Code);
         Assert.Equal("sharedassets0.assets", failed.Error.Parameters["file_name"]);
@@ -290,10 +290,10 @@ public sealed class LayeredInstallTests
         Assert.Equal(second.InstallId, fixture.Repository.Layers.ListLayers()[0].Record.Id);
         Assert.Equal(PatchDiagnosticCode.ValueMismatch, failure.Diagnostic.Code);
 
-        OperationResult<UninstallModResult> result = fixture.UninstallOperation(
+        var result = fixture.UninstallOperation(
             new UninstallModRequest(first.InstallId, fixture.GameDirectory));
 
-        OperationFailed<UninstallModResult> failed = Assert.IsType<OperationFailed<UninstallModResult>>(result);
+        var failed = Assert.IsType<OperationFailed<UninstallModResult>>(result);
         Assert.Equal(ModOperationErrorCodes.FileIntegrityMismatch, failed.Error.Code);
         Assert.Equal("Layer Two", fixture.ReadName(fixture.GameAssetsPath));
     }
@@ -339,10 +339,10 @@ public sealed class LayeredInstallTests
         Assert.False(preview.CanUninstall);
         Assert.Equal(FileIntegrityStatus.Modified, Assert.Single(preview.ChangedFiles).Status);
 
-        OperationResult<UninstallModResult> result = fixture.UninstallOperation(
+        var result = fixture.UninstallOperation(
             new UninstallModRequest(installed.InstallId, fixture.GameDirectory));
 
-        OperationFailed<UninstallModResult> failed = Assert.IsType<OperationFailed<UninstallModResult>>(result);
+        var failed = Assert.IsType<OperationFailed<UninstallModResult>>(result);
         Assert.Equal(ModOperationErrorCodes.FileIntegrityMismatch, failed.Error.Code);
         Assert.Single(fixture.Repository.Layers.ListLayers());
     }
@@ -356,10 +356,10 @@ public sealed class LayeredInstallTests
         string storedPackagePath = fixture.Repository.Layers.ResolvePackagePath(installed.InstallId);
         File.AppendAllText(storedPackagePath, "corrupted");
 
-        OperationResult<UninstallPreviewResult> result = fixture.PreviewUninstallOperation(
+        var result = fixture.PreviewUninstallOperation(
             new UninstallPreviewRequest(installed.InstallId, fixture.GameDirectory));
 
-        OperationFailed<UninstallPreviewResult> failed = Assert.IsType<OperationFailed<UninstallPreviewResult>>(result);
+        var failed = Assert.IsType<OperationFailed<UninstallPreviewResult>>(result);
 
         Assert.Equal(ModOperationErrorCodes.FileIntegrityMismatch, failed.Error.Code);
         Assert.Equal(storedPackagePath, failed.Error.Parameters["path"]);
@@ -374,10 +374,10 @@ public sealed class LayeredInstallTests
         string packagePath = fixture.CreatePackage("duplicate", CreateFieldManifest("Text", "Duplicate"));
         InstallModResult first = fixture.Install(packagePath);
 
-        OperationResult<InstallModResult> result = fixture.InstallOperation(
+        var result = fixture.InstallOperation(
             new InstallRequest(packagePath, fixture.GameDirectory));
 
-        OperationFailed<InstallModResult> failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
+        var failed = Assert.IsType<OperationFailed<InstallModResult>>(result);
 
         Assert.Equal(PatchErrorCodes.PlanningFailed, failed.Error.Code);
         Assert.Equal("Duplicate", fixture.ReadName(fixture.GameAssetsPath));
@@ -399,7 +399,7 @@ public sealed class LayeredInstallTests
             RepositoryOperationKind.Install,
             basePath,
             fixture.GameAssetsPath,
-            applyAfter: false);
+            false);
 
         RepositoryRecoveryPreview preview = fixture.PreviewRecovery();
         RepositoryRecoveryReport report = fixture.Recover();
@@ -430,7 +430,7 @@ public sealed class LayeredInstallTests
             RepositoryOperationKind.Install,
             fixture.BaseAssetsPath,
             fixture.GameAssetsPath,
-            applyAfter: false);
+            false);
 
         RepositoryRecoveryPreview preview = fixture.PreviewRecovery();
         RepositoryRecoveryReport report = fixture.Recover();
@@ -454,7 +454,7 @@ public sealed class LayeredInstallTests
             RepositoryOperationKind.Uninstall,
             fixture.GameAssetsPath,
             fixture.BaseAssetsPath,
-            applyAfter: true);
+            true);
 
         RepositoryRecoveryPreview preview = fixture.PreviewRecovery();
         RepositoryRecoveryReport report = fixture.Recover();
@@ -478,8 +478,8 @@ public sealed class LayeredInstallTests
             RepositoryOperationKind.Uninstall,
             fixture.GameAssetsPath,
             fixture.BaseAssetsPath,
-            applyAfter: true,
-            moveLayerToRemoved: true);
+            true,
+            true);
 
         RepositoryRecoveryPreview preview = fixture.PreviewRecovery();
         RepositoryRecoveryReport report = fixture.Recover();
@@ -503,8 +503,8 @@ public sealed class LayeredInstallTests
             RepositoryOperationKind.Uninstall,
             fixture.GameAssetsPath,
             fixture.BaseAssetsPath,
-            applyAfter: false,
-            moveLayerToRemoved: true);
+            false,
+            true);
 
         RepositoryRecoveryPreview preview = fixture.PreviewRecovery();
         RepositoryRecoveryReport report = fixture.Recover();
@@ -560,13 +560,13 @@ public sealed class LayeredInstallTests
                                 ["m_Name"] = new JsonObject
                                 {
                                     ["from"] = from,
-                                    ["to"] = to,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+                                    ["to"] = to
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         };
 
         return Encoding.UTF8.GetBytes(root.ToJsonString());
@@ -596,13 +596,13 @@ public sealed class LayeredInstallTests
                                 ["m_Name"] = new JsonObject
                                 {
                                     ["from"] = from,
-                                    ["to"] = to,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+                                    ["to"] = to
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         };
 
         return Encoding.UTF8.GetBytes(root.ToJsonString());
@@ -618,7 +618,7 @@ public sealed class LayeredInstallTests
             ["version"] = "1.0.0",
             ["copyFiles"] = new JsonArray
             {
-                new JsonObject { ["source"] = source },
+                new JsonObject { ["source"] = source }
             },
             ["targets"] = new JsonArray
             {
@@ -633,12 +633,12 @@ public sealed class LayeredInstallTests
                             ["match"] = new JsonObject { ["m_Name"] = "Text" },
                             ["set"] = new JsonObject
                             {
-                                ["m_Name"] = new JsonObject { ["from"] = "Text", ["to"] = "Text" },
-                            },
-                        },
-                    },
-                },
-            },
+                                ["m_Name"] = new JsonObject { ["from"] = "Text", ["to"] = "Text" }
+                            }
+                        }
+                    }
+                }
+            }
         };
 
         return Encoding.UTF8.GetBytes(root.ToJsonString());
@@ -694,7 +694,7 @@ public sealed class LayeredInstallTests
 
         public InstallModResult Install(string packagePath)
         {
-            OperationResult<InstallModResult> result = InstallOperation(
+            var result = InstallOperation(
                 new InstallRequest(packagePath, GameDirectory));
 
             return Assert.IsType<OperationSucceeded<InstallModResult>>(result).Value;
@@ -703,8 +703,8 @@ public sealed class LayeredInstallTests
         public InstallPreviewResult Preview(InstallRequest request)
         {
             using IServiceScope scope = CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<InstallPreviewResult> result = dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = dispatcher
                 .DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
                     new PreviewInstallRequest(request))
                 .GetAwaiter()
@@ -716,7 +716,7 @@ public sealed class LayeredInstallTests
         public OperationResult<InstallModResult> InstallOperation(InstallRequest request)
         {
             using IServiceScope scope = CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
             return dispatcher
                 .DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
@@ -735,7 +735,7 @@ public sealed class LayeredInstallTests
             UninstallPreviewRequest request)
         {
             using IServiceScope scope = CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
             return dispatcher
                 .DispatchAsync<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>(request)
@@ -752,7 +752,7 @@ public sealed class LayeredInstallTests
         public OperationResult<UninstallModResult> UninstallOperation(UninstallModRequest request)
         {
             using IServiceScope scope = CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
             return dispatcher
                 .DispatchAsync<UninstallModRequest, OperationResult<UninstallModResult>>(request)
@@ -773,8 +773,8 @@ public sealed class LayeredInstallTests
         public RepositoryRecoveryPreview PreviewRecovery()
         {
             using IServiceScope scope = CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<RepositoryRecoveryPreview> result = dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = dispatcher
                 .DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
                     new PreviewRecoveryRequest(GameDirectory))
                 .GetAwaiter()
@@ -786,8 +786,8 @@ public sealed class LayeredInstallTests
         public RepositoryRecoveryReport Recover()
         {
             using IServiceScope scope = CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<RepositoryRecoveryReport> result = dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = dispatcher
                 .DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
                     new RecoverRecoveryRequest(GameDirectory))
                 .GetAwaiter()
@@ -836,7 +836,7 @@ public sealed class LayeredInstallTests
 
             if (applyAfter)
             {
-                File.Copy(afterSource, GameAssetsPath, overwrite: true);
+                File.Copy(afterSource, GameAssetsPath, true);
             }
 
             if (moveLayerToRemoved)
@@ -880,12 +880,12 @@ public sealed class LayeredInstallTests
 
         public string ReadName(string path)
         {
-            IAssetFileSessionFactory factory = _serviceProvider.GetRequiredService<IAssetFileSessionFactory>();
+            var factory = _serviceProvider.GetRequiredService<IAssetFileSessionFactory>();
             using IAssetFileSession session = factory.Open(path);
             AssetField root = session.ReadField(new AssetPathId(4));
             AssetField name = FindField(root, "m_Name");
-            AssetScalarField scalar = Assert.IsType<AssetScalarField>(name);
-            AssetScalarValue.String value = Assert.IsType<AssetScalarValue.String>(scalar.Value);
+            var scalar = Assert.IsType<AssetScalarField>(name);
+            var value = Assert.IsType<AssetScalarValue.String>(scalar.Value);
 
             return value.Value;
         }

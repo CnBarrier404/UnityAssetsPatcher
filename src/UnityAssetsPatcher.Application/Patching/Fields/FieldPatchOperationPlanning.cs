@@ -305,7 +305,7 @@ public enum PatchWriteValueValidation
 {
     None,
     Scalar,
-    Array,
+    Array
 }
 
 public static class FieldPatchWriteOperationMapper

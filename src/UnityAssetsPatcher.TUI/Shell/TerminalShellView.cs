@@ -38,7 +38,7 @@ public sealed class TerminalShellView : Window
             Y = 6,
             Width = Dim.Fill(),
             Height = Dim.Fill(2),
-            CanFocus = true,
+            CanFocus = true
         };
 
         var footer = new TerminalFooterView(footerText);
@@ -51,7 +51,7 @@ public sealed class TerminalShellView : Window
             {
                 X = 0,
                 Y = Pos.AnchorEnd(2),
-                Width = Dim.Fill(),
+                Width = Dim.Fill()
             });
         }
     }

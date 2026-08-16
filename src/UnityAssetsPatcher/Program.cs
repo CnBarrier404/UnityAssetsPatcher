@@ -19,9 +19,9 @@ public sealed class Program
         string logDirectory = Path.Combine(appDataDirectory, "logs");
         string repositoryDirectory = Path.Combine(appDataDirectory, "backup");
         AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
-        Func<Stream> openClassPackage = () => typeof(Program).Assembly.GetManifestResourceStream("resources.tpk") ??
-                                              throw new InvalidOperationException(
-                                                  "The bundled AssetsTools class package is missing.");
+        var openClassPackage = () => typeof(Program).Assembly.GetManifestResourceStream("resources.tpk") ??
+                                     throw new InvalidOperationException(
+                                         "The bundled AssetsTools class package is missing.");
 
         using ServiceProvider serviceProvider = new ServiceCollection()
             .AddSingleton(appInfo)
@@ -37,7 +37,7 @@ public sealed class Program
             .BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateOnBuild = true,
-                ValidateScopes = true,
+                ValidateScopes = true
             });
 
         var logger = serviceProvider.GetRequiredService<ILogger<Program>>();

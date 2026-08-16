@@ -66,7 +66,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         {
             X = 0,
             Y = 1,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
 
         _body = new ScrollableContentView
@@ -129,7 +129,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             {
                 X = 0,
                 Y = 0,
-                Width = Dim.Fill(),
+                Width = Dim.Fill()
             };
             Button back = CreateActionButton(_strings.UninstallPage_ReturnAction, 0, 2);
             back.Accepted += (_, _) => _returnToMainMenu();
@@ -262,7 +262,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             (_strings.Summary_Version, preview.ModVersion),
             (_strings.UninstallSummary_GameDirectory, preview.GameDirectory),
             (_strings.UninstallSummary_Installed,
-                FormatInstalledAt(preview.InstalledAt)),
+                FormatInstalledAt(preview.InstalledAt))
         };
         var summary = new SummaryTableView(rows) { X = 0, Y = 2 };
         string availability = preview.CanUninstall
@@ -274,7 +274,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         {
             X = 0,
             Y = rows.Length + 3,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
         _body.Add(status, summary, availabilityLabel);
 
@@ -292,7 +292,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             {
                 X = 0,
                 Y = row + 1,
-                Width = Dim.Fill(),
+                Width = Dim.Fill()
             };
             Button back = CreateActionButton(_strings.UninstallPage_BackAction, 0, row + 3);
             back.Accepted += (_, _) => ShowInstalledMods();
@@ -310,7 +310,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             ActionKind.Dangerous)
         {
             X = 0,
-            Y = row + 1,
+            Y = row + 1
         };
         _body.Add(actions);
         _body.SetContentHeightForRows(row + 3);
@@ -319,14 +319,18 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private int AddChangedPreviewFiles(IReadOnlyList<UninstallChangedFileResult> files, int row)
     {
-        if (files.Count == 0) return row;
+        if (files.Count == 0)
+        {
+            return row;
+        }
+
         foreach (UninstallChangedFileResult file in files)
         {
             var details = new StyledLabel($"- {file.RelativePath}", TextRole.Muted)
             {
                 X = 0,
                 Y = row,
-                Width = Dim.Fill(),
+                Width = Dim.Fill()
             };
             _body.Add(details);
             row++;
@@ -337,7 +341,11 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private int AddDependencyFailures(IReadOnlyList<UninstallDependencyFailureResult> failures, int row)
     {
-        if (failures.Count == 0) return row;
+        if (failures.Count == 0)
+        {
+            return row;
+        }
+
         row = AddSectionHeader(_strings.UninstallPreview_Dependencies, row);
         foreach (UninstallDependencyFailureResult failure in failures)
         {
@@ -352,7 +360,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             {
                 X = 0,
                 Y = row++,
-                Width = Dim.Fill(),
+                Width = Dim.Fill()
             });
         }
 
@@ -369,7 +377,11 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private void Uninstall(UninstallPreviewResult preview)
     {
-        if (_isWorking) return;
+        if (_isWorking)
+        {
+            return;
+        }
+
         bool started = _taskRunner.TryRun(
             () => DispatchAsync<UninstallModRequest, OperationResult<UninstallModResult>>(
                 new UninstallModRequest(preview.InstallId, preview.GameDirectory)),
@@ -406,7 +418,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
         return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }
@@ -421,7 +433,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             (_strings.Summary_Mod, result.ModName),
             (_strings.Summary_Version, result.ModVersion),
             (_strings.UninstallSummary_ChangedFiles,
-                result.ChangedFiles.Count.ToString(CultureInfo.InvariantCulture)),
+                result.ChangedFiles.Count.ToString(CultureInfo.InvariantCulture))
         };
         var summary = new SummaryTableView(rows) { X = 0, Y = 2 };
         _body.Add(status, summary);
@@ -459,22 +471,28 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         back.SetFocus();
     }
 
-    private string FormatIntegrityStatus(FileIntegrityStatus status) => status switch
+    private string FormatIntegrityStatus(FileIntegrityStatus status)
     {
-        FileIntegrityStatus.Matches => _strings.UninstallPreview_Ready,
-        FileIntegrityStatus.Missing => _strings.UninstallPreview_AlreadyMissing,
-        FileIntegrityStatus.Modified => _strings.UninstallPreview_Modified,
-        FileIntegrityStatus.Unreadable => _strings.UninstallPreview_Unreadable,
-        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
-    };
+        return status switch
+        {
+            FileIntegrityStatus.Matches => _strings.UninstallPreview_Ready,
+            FileIntegrityStatus.Missing => _strings.UninstallPreview_AlreadyMissing,
+            FileIntegrityStatus.Modified => _strings.UninstallPreview_Modified,
+            FileIntegrityStatus.Unreadable => _strings.UninstallPreview_Unreadable,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
 
-    private string FormatChangedFileAction(UninstallChangedFileAction action) => action switch
+    private string FormatChangedFileAction(UninstallChangedFileAction action)
     {
-        UninstallChangedFileAction.Rebuild => _strings.UninstallAction_Rebuild,
-        UninstallChangedFileAction.RestoreBase => _strings.UninstallAction_RestoreBase,
-        UninstallChangedFileAction.Delete => _strings.UninstallAction_Delete,
-        _ => throw new ArgumentOutOfRangeException(nameof(action), action, null),
-    };
+        return action switch
+        {
+            UninstallChangedFileAction.Rebuild => _strings.UninstallAction_Rebuild,
+            UninstallChangedFileAction.RestoreBase => _strings.UninstallAction_RestoreBase,
+            UninstallChangedFileAction.Delete => _strings.UninstallAction_Delete,
+            _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
+        };
+    }
 
     private static string FormatInstalledAt(DateTimeOffset installedAt)
     {

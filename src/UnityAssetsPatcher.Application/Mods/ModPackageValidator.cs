@@ -112,7 +112,7 @@ internal static class ModPackageValidator
     {
         var parameters = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["package_path"] = packagePath,
+            ["package_path"] = packagePath
         };
 
         foreach ((string key, object? value) in additionalParameters)

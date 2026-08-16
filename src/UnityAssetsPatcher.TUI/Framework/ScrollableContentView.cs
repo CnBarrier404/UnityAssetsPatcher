@@ -96,7 +96,7 @@ public sealed class ScrollableContentView : View
         {
             var flags when flags.HasFlag(MouseFlags.WheeledUp) => -MouseWheelRows,
             var flags when flags.HasFlag(MouseFlags.WheeledDown) => MouseWheelRows,
-            _ => 0,
+            _ => 0
         };
 
         if (rows != 0 && ScrollVertical(rows) == true)

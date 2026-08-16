@@ -69,7 +69,7 @@ public sealed class ModManifestOptionalSelectorTests
     [Fact]
     public async Task OpenAsync_WhenUnknownGroupIsSelected_ReturnsStructuredFailure()
     {
-        OperationResult<ModPackage> result = await OpenPackageResultAsync(ManifestJson, ["Missing"]);
+        var result = await OpenPackageResultAsync(ManifestJson, ["Missing"]);
 
         var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
         Assert.Equal(ManifestErrorCodes.UnknownOptionalGroup, failure.Error.Code);
@@ -102,7 +102,7 @@ public sealed class ModManifestOptionalSelectorTests
             }
             """;
 
-        OperationResult<ModPackage> result = await OpenPackageResultAsync(manifest, ["Payload"]);
+        var result = await OpenPackageResultAsync(manifest, ["Payload"]);
 
         var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
         Assert.Equal(ManifestErrorCodes.PayloadConflict, failure.Error.Code);
@@ -122,7 +122,7 @@ public sealed class ModManifestOptionalSelectorTests
         string manifest,
         IReadOnlyList<string> selectedNames)
     {
-        OperationResult<ModPackage> result = await OpenPackageResultAsync(manifest, selectedNames);
+        var result = await OpenPackageResultAsync(manifest, selectedNames);
         var success = Assert.IsType<OperationSucceeded<ModPackage>>(result);
 
         return success.Value;

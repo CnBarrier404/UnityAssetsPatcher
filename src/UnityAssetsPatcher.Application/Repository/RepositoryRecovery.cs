@@ -92,7 +92,10 @@ internal sealed class RepositoryRecovery
         try
         {
             RepositoryTransaction? transaction = LoadTransaction();
-            if (transaction is null) return RepositoryRecoveryReport.Clean;
+            if (transaction is null)
+            {
+                return RepositoryRecoveryReport.Clean;
+            }
 
             string trustedRoot = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
             return Apply(transaction, trustedRoot);
@@ -127,7 +130,11 @@ internal sealed class RepositoryRecovery
 
             foreach (RecoveryFile file in plan.Files.Reverse())
             {
-                if (file.Action == RepositoryRecoveryFileAction.NoChange) continue;
+                if (file.Action == RepositoryRecoveryFileAction.NoChange)
+                {
+                    continue;
+                }
+
                 string target = _fileSystemOperations.ResolveWithinDirectory(trustedRoot, file.File.RelativePath);
                 if (file.Action == RepositoryRecoveryFileAction.Delete)
                 {
@@ -176,8 +183,11 @@ internal sealed class RepositoryRecovery
             if (committed)
             {
                 if (state != FileState.After)
+                {
                     throw new InvalidOperationException(
                         $"Committed transaction target has an unknown state: {file.RelativePath}");
+                }
+
                 files.Add(new RecoveryFile(file, RepositoryRecoveryFileAction.NoChange));
                 continue;
             }
@@ -235,7 +245,7 @@ internal sealed class RepositoryRecovery
             RepositoryOperationKind.Uninstall when layerLocation == LayerLocation.Removed && allAfter => true,
             RepositoryOperationKind.Uninstall when layerLocation == LayerLocation.Active => false,
             RepositoryOperationKind.Uninstall when layerLocation == LayerLocation.Removed && hasBefore => false,
-            _ => throw new InvalidOperationException("Layer state does not match the interrupted transaction."),
+            _ => throw new InvalidOperationException("Layer state does not match the interrupted transaction.")
         };
     }
 
@@ -326,7 +336,10 @@ internal sealed class RepositoryRecovery
     private RepositoryTransaction? LoadTransaction()
     {
         RepositoryMetadata metadata = _repository.LoadMetadata();
-        if (!Directory.Exists(_repository.TransactionDirectory)) return null;
+        if (!Directory.Exists(_repository.TransactionDirectory))
+        {
+            return null;
+        }
 
         EnsureRealDirectory(_repository.TransactionDirectory, "Transaction directory");
         RepositoryTransaction transaction = RepositoryTransactionStore.Load(_repository.TransactionDirectory);
@@ -337,14 +350,22 @@ internal sealed class RepositoryRecovery
     private static void ValidateTransaction(RepositoryTransaction transaction, string repositoryId)
     {
         if (!string.Equals(transaction.RepositoryId, repositoryId, StringComparison.Ordinal))
+        {
             throw new InvalidOperationException("Transaction does not belong to this repository.");
+        }
+
         if (string.IsNullOrWhiteSpace(transaction.InstallId))
+        {
             throw new InvalidOperationException("Transaction install ID is missing.");
+        }
+
         if (string.IsNullOrWhiteSpace(transaction.GameInstanceFingerprint) ||
             transaction.GameInstanceFingerprint.Length != 64 ||
             transaction.GameInstanceFingerprint.Any(character =>
                 character is not (>= '0' and <= '9') and not (>= 'a' and <= 'f')))
+        {
             throw new InvalidOperationException("Transaction game fingerprint is invalid.");
+        }
 
         var targets = new HashSet<string>(PathComparer);
         var rollbacks = new HashSet<string>(PathComparer);
@@ -353,7 +374,10 @@ internal sealed class RepositoryRecovery
         {
             ValidateRelativePath(file.RelativePath, "target");
             if (!targets.Add(Normalize(file.RelativePath)))
+            {
                 throw new InvalidOperationException("Transaction contains duplicate target paths.");
+            }
+
             ValidateIntegrity(file.Before);
             ValidateIntegrity(file.After);
 
@@ -372,15 +396,20 @@ internal sealed class RepositoryRecovery
                     (file.After is null
                         ? file.PreparedRelativePath is null
                         : true),
-                _ => false,
+                _ => false
             };
-            if (!valid) throw new InvalidOperationException($"Transaction file shape is invalid: {file.RelativePath}");
+            if (!valid)
+            {
+                throw new InvalidOperationException($"Transaction file shape is invalid: {file.RelativePath}");
+            }
 
             if (file.RollbackRelativePath is not null)
             {
                 ValidateRelativePath(file.RollbackRelativePath, "rollback");
                 if (!rollbacks.Add(Normalize(file.RollbackRelativePath)))
+                {
                     throw new InvalidOperationException("Transaction contains duplicate rollback paths.");
+                }
             }
 
             if (file.PreparedRelativePath is not null)
@@ -400,7 +429,9 @@ internal sealed class RepositoryRecovery
         string rollback = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
         if (!_fileSystemOperations.MatchesFile(rollback, file.Before!))
+        {
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
+        }
     }
 
     private void RestoreOriginalFile(RepositoryTransactionFile file, string target)
@@ -408,10 +439,15 @@ internal sealed class RepositoryRecovery
         string rollback = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
         if (!_fileSystemOperations.MatchesFile(rollback, file.Before!))
+        {
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
+        }
+
         _fileSystemOperations.CopyFile(rollback, target);
         if (!_fileSystemOperations.MatchesFile(target, file.Before!))
+        {
             throw new InvalidOperationException($"Transaction rollback verification failed: {target}");
+        }
     }
 
     private void DeleteTransaction()
@@ -424,28 +460,48 @@ internal sealed class RepositoryRecovery
     {
         var info = new DirectoryInfo(path);
         if (!info.Exists || info.LinkTarget is not null || info.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
             throw new InvalidOperationException($"{description} is not trusted: {path}");
+        }
     }
 
     private FileState Inspect(string path, FileIntegrity? before, FileIntegrity? after)
     {
         if (!File.Exists(path))
         {
-            if (before is null) return FileState.Before;
+            if (before is null)
+            {
+                return FileState.Before;
+            }
+
             return after is null ? FileState.After : FileState.Unknown;
         }
 
-        if (before is not null && _fileSystemOperations.MatchesFile(path, before)) return FileState.Before;
-        if (after is not null && _fileSystemOperations.MatchesFile(path, after)) return FileState.After;
+        if (before is not null && _fileSystemOperations.MatchesFile(path, before))
+        {
+            return FileState.Before;
+        }
+
+        if (after is not null && _fileSystemOperations.MatchesFile(path, after))
+        {
+            return FileState.After;
+        }
+
         return FileState.Unknown;
     }
 
     private static void ValidateIntegrity(FileIntegrity? integrity)
     {
-        if (integrity is null) return;
+        if (integrity is null)
+        {
+            return;
+        }
+
         if (integrity.Length < 0 || integrity.Sha256.Length != 64 ||
             integrity.Sha256.Any(character => character is not (>= '0' and <= '9') and not (>= 'a' and <= 'f')))
+        {
             throw new InvalidOperationException("Transaction file integrity is invalid.");
+        }
     }
 
     private static void ValidateRelativePath(string path, string description)
@@ -453,16 +509,23 @@ internal sealed class RepositoryRecovery
         if (string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path) ||
             path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                 StringSplitOptions.RemoveEmptyEntries).Any(segment => segment is "." or ".."))
+        {
             throw new InvalidOperationException($"Transaction {description} path is not trusted: {path}");
+        }
     }
 
-    private RepositoryRecoveryReport LockedReport(Exception exception) =>
-        new(RepositoryRecoveryStatus.Locked, [],
+    private RepositoryRecoveryReport LockedReport(Exception exception)
+    {
+        return new RepositoryRecoveryReport(RepositoryRecoveryStatus.Locked, [],
             [Issue(RepositoryRecoveryIssueCode.RepositoryUnsafe, exception, RecoveryIssuePath())]);
+    }
 
-    private string RecoveryIssuePath() => Directory.Exists(_repository.TransactionDirectory)
-        ? _repository.TransactionDirectory
-        : _repository.RepositoryDirectory;
+    private string RecoveryIssuePath()
+    {
+        return Directory.Exists(_repository.TransactionDirectory)
+            ? _repository.TransactionDirectory
+            : _repository.RepositoryDirectory;
+    }
 
     private static RepositoryRecoveryIssue Issue(
         RepositoryRecoveryIssueCode code,
@@ -471,15 +534,19 @@ internal sealed class RepositoryRecovery
     {
         return new RepositoryRecoveryIssue(code, path)
         {
-            Parameters = new Dictionary<string, string> { ["detail"] = exception.Message },
+            Parameters = new Dictionary<string, string> { ["detail"] = exception.Message }
         };
     }
 
-    private static string KindName(RepositoryOperationKind kind) =>
-        kind == RepositoryOperationKind.Install ? "install" : "uninstall";
+    private static string KindName(RepositoryOperationKind kind)
+    {
+        return kind == RepositoryOperationKind.Install ? "install" : "uninstall";
+    }
 
-    private static string Normalize(string path) =>
-        path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+    private static string Normalize(string path)
+    {
+        return path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+    }
 
     private static StringComparer PathComparer =>
         OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
@@ -495,19 +562,19 @@ internal sealed class RepositoryRecovery
     {
         Before,
         After,
-        Unknown,
+        Unknown
     }
 
     private enum LayerLocation
     {
         Missing,
         Active,
-        Removed,
+        Removed
     }
 
     private enum LayerRecoveryAction
     {
         None,
-        RestoreRemoved,
+        RestoreRemoved
     }
 }

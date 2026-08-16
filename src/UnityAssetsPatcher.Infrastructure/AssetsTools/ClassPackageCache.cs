@@ -39,7 +39,7 @@ internal sealed class ClassPackageCache
 
         byte[] databaseBytes = database.Value;
 
-        using MemoryStream databaseStream = new(databaseBytes, writable: false);
+        using MemoryStream databaseStream = new(databaseBytes, false);
         manager.LoadClassDatabase(databaseStream);
     }
 

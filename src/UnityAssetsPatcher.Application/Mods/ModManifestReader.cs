@@ -44,7 +44,7 @@ public sealed class ModManifestReader
                 return ModManifestParser.Parse(source.ManifestBytes!);
             }
 
-            OperationResult<byte[]> manifestResult = await _modPackageReader
+            var manifestResult = await _modPackageReader
                 .ReadManifestAsync(fullSourcePath, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -52,7 +52,7 @@ public sealed class ModManifestReader
             {
                 OperationSucceeded<byte[]> succeeded => ModManifestParser.Parse(succeeded.Value),
                 OperationFailed<byte[]> failed => new OperationFailed<ModManifest>(failed.Error),
-                _ => throw new InvalidOperationException("The package reader returned an unknown result."),
+                _ => throw new InvalidOperationException("The package reader returned an unknown result.")
             };
         }
         catch (FileNotFoundException)
@@ -121,7 +121,7 @@ public sealed class ModManifestReader
             code,
             new Dictionary<string, object?>
             {
-                ["path"] = path,
+                ["path"] = path
             }));
     }
 }

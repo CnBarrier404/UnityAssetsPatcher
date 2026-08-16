@@ -95,7 +95,7 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
 
         var cleanupExceptions = ResourceCleanup.RunAll(
         [
-            DisposeSessions,
+            DisposeSessions
         ]);
 
         if (cleanupExceptions.Count > 0)
@@ -121,7 +121,7 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
 
         var cleanupExceptions = ResourceCleanup.RunAll(
         [
-            DisposeSessions,
+            DisposeSessions
         ]);
 
         if (_lastOperationException is not null)
@@ -181,7 +181,7 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
                     source.Value.Dispose();
                     _pendingSourceSessions.Remove(source.Key);
                     AssetsToolsLog.AssetsFileClosed(_logger, source.Key);
-                })),
+                }))
         ]);
 
         ResourceCleanup.ThrowOrAttach(null, cleanupExceptions);

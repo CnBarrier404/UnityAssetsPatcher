@@ -55,7 +55,7 @@ public sealed class InstallModHandler :
         ArgumentNullException.ThrowIfNull(request.Request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<InstallPreviewResult> result = await InvokeAsync(
+        var result = await InvokeAsync(
             () => PreviewAsync(request.Request, cancellationToken),
             DirectoryError(request.Request.GameDirectory),
             nameof(PreviewAsync)).ConfigureAwait(false);
@@ -71,7 +71,7 @@ public sealed class InstallModHandler :
         ArgumentNullException.ThrowIfNull(request.Request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<InstallModResult> result = await InvokeAsync(
+        var result = await InvokeAsync(
             () => InstallAsync(request.Request, cancellationToken),
             DirectoryError(request.Request.GameDirectory),
             nameof(InstallAsync)).ConfigureAwait(false);
@@ -85,7 +85,7 @@ public sealed class InstallModHandler :
     {
         _logger.LogInformation("Previewing mod install from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
-        OperationResult<ModPackage> packageResult = await _modPackageReader.OpenAsync(
+        var packageResult = await _modPackageReader.OpenAsync(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             timings,
@@ -113,7 +113,7 @@ public sealed class InstallModHandler :
                 analysis,
                 timings.BuildSnapshot()) with
             {
-                PreparedInstall = preparedInstall,
+                PreparedInstall = preparedInstall
             };
 
         return new OperationSucceeded<InstallPreviewResult>(result);
@@ -126,7 +126,7 @@ public sealed class InstallModHandler :
         _logger.LogInformation("Installing mod from {ZipFilePath}", request.ZipFilePath);
         var timings = new StepTimer();
 
-        OperationResult<ModPackage> packageResult = await _modPackageReader.OpenAsync(
+        var packageResult = await _modPackageReader.OpenAsync(
             request.ZipFilePath,
             request.SelectedOptionalGroups,
             timings,
@@ -177,7 +177,7 @@ public sealed class InstallModHandler :
                 execution.BaseSnapshotCount,
                 timings.BuildSnapshot()) with
             {
-                Recovery = repositoryResult.Recovery,
+                Recovery = repositoryResult.Recovery
             };
 
         return new OperationSucceeded<InstallModResult>(result);
@@ -210,7 +210,7 @@ public sealed class InstallModHandler :
                 new Dictionary<string, object?>
                 {
                     ["diagnosticCode"] = exception.Diagnostic.Code.ToString(),
-                    ["path"] = exception.Diagnostic.AssetsFilePath,
+                    ["path"] = exception.Diagnostic.AssetsFilePath
                 });
 
             return new OperationFailed<TResult>(error);

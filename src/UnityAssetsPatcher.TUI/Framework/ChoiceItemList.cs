@@ -20,14 +20,14 @@ public sealed class ChoiceItemList : View
         {
             X = 0,
             Y = 0,
-            Width = Dim.Auto(),
+            Width = Dim.Auto()
         };
 
         Description = new StyledLabel(description, TextRole.Muted)
         {
             X = Pos.Right(Button) + DescriptionGap,
             Y = 0,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
 
         Button.HasFocusChanged += (_, _) =>

@@ -14,7 +14,7 @@ internal static class InstallResultMapper
                 InstallChangeKind.Patch,
                 file.Target,
                 file.AssetsFilePath,
-                Preview: file.PlanningResult.Preview))
+                file.PlanningResult.Preview))
             .Concat(analysis.PayloadFiles.Select(file => new InstallChange(
                 InstallChangeKind.Payload,
                 file.Source,
@@ -59,7 +59,7 @@ internal static class InstallResultMapper
                 analysis.AppliedOptionalGroups,
                 timing) with
             {
-                BaseSnapshotCount = baseSnapshotCount,
+                BaseSnapshotCount = baseSnapshotCount
             };
     }
 }

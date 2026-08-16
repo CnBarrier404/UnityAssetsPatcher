@@ -132,7 +132,7 @@ internal static class AssetReplacementCompatibilityValidator
         TypeTreeType? targetTypeTree = FindTypeTree(targetFile, targetInfo);
         TypeTreeType? sourceTypeTree = FindTypeTree(sourceFile, sourceInfo);
 
-        if ((targetTypeTree is null) != (sourceTypeTree is null))
+        if (targetTypeTree is null != sourceTypeTree is null)
         {
             throw new InvalidOperationException(
                 $"Asset replacement is incompatible for {context}: source and target TypeTree definitions " +

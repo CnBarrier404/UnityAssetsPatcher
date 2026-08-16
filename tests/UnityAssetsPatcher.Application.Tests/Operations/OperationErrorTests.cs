@@ -22,7 +22,7 @@ public sealed class OperationErrorTests
             errorCode,
             new Dictionary<string, object?>
             {
-                ["packagePath"] = @"D:\Mods\example.zip",
+                ["packagePath"] = @"D:\Mods\example.zip"
             });
 
         Assert.Equal(errorCode, error.Code);
@@ -34,7 +34,7 @@ public sealed class OperationErrorTests
     {
         var parameters = new Dictionary<string, object?>
         {
-            ["packagePath"] = "original.zip",
+            ["packagePath"] = "original.zip"
         };
         var error = new OperationError(
             new OperationErrorCode("mod_package.invalid_archive"),
@@ -52,7 +52,7 @@ public sealed class OperationErrorTests
             new OperationErrorCode("file.not_found"),
             new Dictionary<string, object?>
             {
-                ["path"] = "manifest.json",
+                ["path"] = "manifest.json"
             });
         var parameters = Assert.IsType<ReadOnlyDictionary<string, object?>>(error.Parameters);
         IDictionary<string, object?> mutableView = parameters;
@@ -65,10 +65,10 @@ public sealed class OperationErrorTests
     {
         var parameters = new Dictionary<string, object?>
         {
-            [" "] = "value",
+            [" "] = "value"
         };
 
-        ArgumentException exception = Assert.Throws<ArgumentException>(() =>
+        var exception = Assert.Throws<ArgumentException>(() =>
             new OperationError(new OperationErrorCode("manifest.invalid"), parameters));
 
         Assert.Equal("parameters", exception.ParamName);

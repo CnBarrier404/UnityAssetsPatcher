@@ -29,7 +29,7 @@ public sealed class FileSystemOperationsTests
         string sourcePath = directory.GetPath("missing.txt");
         FileSystemOperations operations = CreateOperations();
 
-        FileNotFoundException exception = Assert.Throws<FileNotFoundException>(() => operations.OpenRead(sourcePath));
+        var exception = Assert.Throws<FileNotFoundException>(() => operations.OpenRead(sourcePath));
 
         Assert.Equal(sourcePath, exception.FileName);
     }
@@ -56,7 +56,7 @@ public sealed class FileSystemOperationsTests
         string sourcePath = directory.GetPath("missing.txt");
         FileSystemOperations operations = CreateOperations();
 
-        FileNotFoundException exception =
+        var exception =
             Assert.Throws<FileNotFoundException>(() => operations.ComputeFileIntegrity(sourcePath));
 
         Assert.Equal(sourcePath, exception.FileName);
@@ -325,8 +325,8 @@ public sealed class FileSystemOperationsTests
                 "mklink",
                 "/J",
                 linkPath,
-                targetPath,
-            },
+                targetPath
+            }
         }) ?? throw new InvalidOperationException("Failed to start the junction creation process.");
 
         process.WaitForExit();
@@ -386,7 +386,7 @@ public sealed class FileSystemOperationsTests
             {
                 DeleteLinks(Path);
 
-                Directory.Delete(Path, recursive: true);
+                Directory.Delete(Path, true);
             }
         }
 

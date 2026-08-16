@@ -45,11 +45,15 @@ public sealed class ToggleItem : View
         {
             X = 6,
             Y = 1,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
         Button.KeyDown += (_, key) =>
         {
-            if (key != Key.Space) return;
+            if (key != Key.Space)
+            {
+                return;
+            }
+
             key.Handled = true;
             IsSelected = !IsSelected;
         };

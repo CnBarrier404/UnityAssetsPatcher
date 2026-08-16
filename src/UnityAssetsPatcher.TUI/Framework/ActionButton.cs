@@ -9,7 +9,7 @@ public enum ActionKind
     Default,
     Primary,
     Secondary,
-    Dangerous,
+    Dangerous
 }
 
 public sealed class ActionButton : Button
@@ -35,7 +35,7 @@ public sealed class ActionButton : Button
             ActionKind.Primary => TerminalTheme.PrimaryAction,
             ActionKind.Secondary => TerminalTheme.SecondaryAction,
             ActionKind.Dangerous => TerminalTheme.DangerousAction,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         });
 
         HasFocusChanged += (_, _) => UpdateText();

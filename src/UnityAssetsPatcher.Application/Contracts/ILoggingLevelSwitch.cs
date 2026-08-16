@@ -3,7 +3,7 @@ namespace UnityAssetsPatcher.Application.Contracts;
 public enum LoggingLevel
 {
     Information,
-    Debug,
+    Debug
 }
 
 public interface ILoggingLevelSwitch

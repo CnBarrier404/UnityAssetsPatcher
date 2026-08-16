@@ -18,7 +18,7 @@ public sealed class GitHubUpdateCheckerTests
         using HttpClient httpClient = new(handler);
         GitHubUpdateChecker checker = CreateChecker(httpClient, "v1.2.3");
 
-        UpdateAvailable result = Assert.IsType<UpdateAvailable>(await Check(checker));
+        var result = Assert.IsType<UpdateAvailable>(await Check(checker));
 
         Assert.Equal("v1.3.0", result.Update.Version);
         Assert.Equal("https://example.com/releases/v1.3.0", result.Update.ReleaseUrl.AbsoluteUri);
@@ -60,7 +60,7 @@ public sealed class GitHubUpdateCheckerTests
             new StubHttpMessageHandler(_ => CreateJsonResponse(Manifest(latestVersion))));
         GitHubUpdateChecker checker = CreateChecker(httpClient, currentVersion);
 
-        UpdateAvailable result = Assert.IsType<UpdateAvailable>(await Check(checker));
+        var result = Assert.IsType<UpdateAvailable>(await Check(checker));
 
         Assert.Equal(latestVersion, result.Update.Version);
     }
@@ -72,7 +72,7 @@ public sealed class GitHubUpdateCheckerTests
             CreateJsonResponse(Manifest("v1.3.0", Sha256.ToUpperInvariant()))));
         GitHubUpdateChecker checker = CreateChecker(httpClient, "v1.2.3");
 
-        UpdateAvailable result = Assert.IsType<UpdateAvailable>(await Check(checker));
+        var result = Assert.IsType<UpdateAvailable>(await Check(checker));
 
         Assert.Equal(Sha256, result.Update.Sha256);
     }
@@ -239,7 +239,7 @@ public sealed class GitHubUpdateCheckerTests
     {
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent(json),
+            Content = new StringContent(json)
         };
     }
 

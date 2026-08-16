@@ -21,7 +21,7 @@ public sealed class ChoiceItem : View
         {
             X = Pos.Right(Button) + DescriptionGap,
             Y = 0,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
 
         Button.HasFocusChanged += (_, _) =>

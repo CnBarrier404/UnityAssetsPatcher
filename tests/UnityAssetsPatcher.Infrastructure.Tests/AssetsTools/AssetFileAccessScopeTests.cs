@@ -68,13 +68,13 @@ public sealed class AssetFileAccessScopeTests
                     4,
                     [
                         new FieldPatchOperation("first", JsonValue("2")),
-                        new FieldPatchOperation("second", JsonValue("3")),
-                    ]),
+                        new FieldPatchOperation("second", JsonValue("3"))
+                    ])
             ]);
 
         Assert.Equal(1, factory.OpenCount);
         Assert.Equal(1, session.ReadFieldCount);
-        PatchAssetFields patch = Assert.IsType<PatchAssetFields>(Assert.Single(session.Plan!.Mutations));
+        var patch = Assert.IsType<PatchAssetFields>(Assert.Single(session.Plan!.Mutations));
         Assert.Collection(
             patch.Assignments,
             first => Assert.Equal("first", first.Path.ToString()),
@@ -94,7 +94,7 @@ public sealed class AssetFileAccessScopeTests
             [
                 new AssetFieldPatch(4, [new FieldPatchOperation("first", JsonValue("2"))]),
                 new AssetFieldPatch(5, [new FieldPatchOperation("first", JsonValue("3"))]),
-                new AssetFieldPatch(4, [new FieldPatchOperation("second", JsonValue("4"))]),
+                new AssetFieldPatch(4, [new FieldPatchOperation("second", JsonValue("4"))])
             ]);
 
         Assert.Equal(3, session.ReadFieldCount);
@@ -113,7 +113,7 @@ public sealed class AssetFileAccessScopeTests
             [
                 new AssetFieldPatch(
                     4,
-                    [new FieldPatchOperation("name", JsonValue("null"))]),
+                    [new FieldPatchOperation("name", JsonValue("null"))])
             ]));
 
         Assert.Null(session.Plan);
@@ -135,7 +135,7 @@ public sealed class AssetFileAccessScopeTests
         _ = scope.Reader.ReadAssets("first.assets");
         _ = scope.Reader.ReadAssets("second.assets");
 
-        AggregateException exception = Assert.Throws<AggregateException>(() => scope.Dispose());
+        var exception = Assert.Throws<AggregateException>(() => scope.Dispose());
 
         Assert.Equal(2, exception.InnerExceptions.Count);
         Assert.Equal(1, firstSession.DisposeCount);
@@ -152,18 +152,18 @@ public sealed class AssetFileAccessScopeTests
     {
         var session = new RecordingAssetFileSession(CreateAssetField())
         {
-            WriteException = new InvalidOperationException("write failure"),
+            WriteException = new InvalidOperationException("write failure")
         };
         var cleanupException = new InvalidOperationException("cleanup failure");
         session.DisposeFailures.Enqueue(cleanupException);
         IAssetsAccessScope scope = new AssetFileAccessScopeFactory(
             new RecordingAssetFileSessionFactory(session)).CreateScope();
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             scope.Writer.WriteFieldPatches("input.assets", "output.assets", CreateFieldPatch()));
 
         Assert.Same(session.WriteException, exception);
-        AggregateException attachedCleanup = Assert.IsType<AggregateException>(
+        var attachedCleanup = Assert.IsType<AggregateException>(
             exception.Data[ResourceCleanup.CleanupExceptionsDataKey]);
         Assert.Contains(cleanupException, attachedCleanup.InnerExceptions);
         Assert.Equal(1, session.DisposeCount);
@@ -180,7 +180,7 @@ public sealed class AssetFileAccessScopeTests
             "Root",
             [
                 new AssetScalarField("first", "int", new AssetScalarValue.Int32(1)),
-                new AssetScalarField("second", "int", new AssetScalarValue.Int32(1)),
+                new AssetScalarField("second", "int", new AssetScalarValue.Int32(1))
             ]);
     }
 
@@ -198,7 +198,7 @@ public sealed class AssetFileAccessScopeTests
         [
             new AssetFieldPatch(
                 4,
-                [new FieldPatchOperation("first", JsonValue("2"))]),
+                [new FieldPatchOperation("first", JsonValue("2"))])
         ];
     }
 

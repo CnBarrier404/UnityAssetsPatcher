@@ -1,6 +1,6 @@
 namespace UnityAssetsPatcher.Application.IO;
 
-using UnityAssetsPatcher.Domain.Integrity;
+using Domain.Integrity;
 
 public static class FileSystemOperationsCompatibilityExtensions
 {

@@ -62,7 +62,10 @@ public sealed class RepositoryService
     public string CreateTransactionDirectory()
     {
         if (Directory.Exists(TransactionDirectory))
+        {
             throw new InvalidOperationException("The backup repository contains an unfinished transaction.");
+        }
+
         _fileSystemOperations.CreateDirectory(TransactionDirectory);
         return TransactionDirectory;
     }
@@ -84,8 +87,10 @@ public sealed class RepositoryService
         return report;
     }
 
-    public RepositoryRecoveryReport CheckPendingTransactionsUnderLock() =>
-        new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations).Check();
+    public RepositoryRecoveryReport CheckPendingTransactionsUnderLock()
+    {
+        return new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations).Check();
+    }
 
     public RepositoryRecoveryReport RecoverTrustedUnderLock(RepositoryTransaction transaction, string gameDirectory)
     {

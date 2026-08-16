@@ -254,7 +254,7 @@ public sealed class ModPackageReader
                 new Dictionary<string, object?>
                 {
                     ["package_path"] = packagePath,
-                    ["entry_path"] = missingFile.Source,
+                    ["entry_path"] = missingFile.Source
                 }));
         }
 
@@ -349,7 +349,7 @@ public sealed class ModPackageReader
             ModPackageErrorCodes.InvalidArchive,
             new Dictionary<string, object?>
             {
-                ["package_path"] = packagePath,
+                ["package_path"] = packagePath
             }));
     }
 

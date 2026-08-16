@@ -25,7 +25,7 @@ public sealed class BrotliCompression : ICompressionCodec
 
         long startTimestamp = Stopwatch.GetTimestamp();
 
-        using (BrotliStream brotli = new(destination, CompressionLevel.Fastest, leaveOpen: true))
+        using (BrotliStream brotli = new(destination, CompressionLevel.Fastest, true))
         {
             source.CopyTo(brotli);
         }
@@ -44,7 +44,7 @@ public sealed class BrotliCompression : ICompressionCodec
 
         long startTimestamp = Stopwatch.GetTimestamp();
 
-        using (BrotliStream brotli = new(source, CompressionMode.Decompress, leaveOpen: true))
+        using (BrotliStream brotli = new(source, CompressionMode.Decompress, true))
         {
             brotli.CopyTo(destination);
         }

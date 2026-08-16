@@ -33,7 +33,7 @@ public sealed class InspectAssetsHandler :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<InspectListResult> result = Invoke(
+        var result = Invoke(
             () => List(request),
             nameof(List));
 
@@ -47,7 +47,7 @@ public sealed class InspectAssetsHandler :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        OperationResult<AssetField> result = Invoke(
+        var result = Invoke(
             () => Fields(request),
             nameof(Fields));
 
@@ -56,11 +56,11 @@ public sealed class InspectAssetsHandler :
 
     private InspectListResult List(InspectListRequest request)
     {
-        IReadOnlyList<AssetInfo> assets = _assetsReader.ReadAssets(request.AssetsFilePath);
-        IEnumerable<AssetInfo> listedAssets = request.Limit is null
+        var assets = _assetsReader.ReadAssets(request.AssetsFilePath);
+        var listedAssets = request.Limit is null
             ? assets
             : assets.Take(request.Limit.Value);
-        InspectAssetSummary[] summaries = listedAssets
+        var summaries = listedAssets
             .Select(asset => new InspectAssetSummary(
                 asset.PathId,
                 asset.TypeName,

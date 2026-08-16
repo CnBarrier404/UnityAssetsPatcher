@@ -15,9 +15,9 @@ public sealed class InspectAssetsHandlerTests
         const string assetsFilePath = "sharedassets0.assets";
         AssetInfo[] assets =
         [
-            new AssetInfo(new AssetPathId(1), "Type One"),
-            new AssetInfo(new AssetPathId(2), "Type Two"),
-            new AssetInfo(new AssetPathId(3), "Type Three"),
+            new(new AssetPathId(1), "Type One"),
+            new(new AssetPathId(2), "Type Two"),
+            new(new AssetPathId(3), "Type Three")
         ];
         AssetField firstField = new AssetObjectField(
             "Root",
@@ -30,7 +30,7 @@ public sealed class InspectAssetsHandlerTests
                 : throw new InvalidOperationException("Name is unavailable."));
         var handler = new InspectAssetsHandler(reader);
 
-        OperationResult<InspectListResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new InspectListRequest(assetsFilePath, 2),
             TestContext.Current.CancellationToken);
 
@@ -64,7 +64,7 @@ public sealed class InspectAssetsHandlerTests
             (_, _) => expected);
         var handler = new InspectAssetsHandler(reader);
 
-        OperationResult<AssetField> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new InspectFieldsRequest("sharedassets0.assets", 1),
             TestContext.Current.CancellationToken);
 
@@ -79,11 +79,11 @@ public sealed class InspectAssetsHandlerTests
             (_, _) => throw new InvalidOperationException("Asset was not found."));
         var handler = new InspectAssetsHandler(reader);
 
-        OperationResult<AssetField> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new InspectFieldsRequest("sharedassets0.assets", 1),
             TestContext.Current.CancellationToken);
 
-        OperationFailed<AssetField> failure = Assert.IsType<OperationFailed<AssetField>>(result);
+        var failure = Assert.IsType<OperationFailed<AssetField>>(result);
         Assert.Equal(AssetErrorCodes.NotFound, failure.Error.Code);
     }
 
@@ -96,11 +96,11 @@ public sealed class InspectAssetsHandlerTests
             (_, _) => throw new NotSupportedException());
         var handler = new InspectAssetsHandler(reader);
 
-        OperationResult<InspectListResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new InspectListRequest(assetsFilePath, null),
             TestContext.Current.CancellationToken);
 
-        OperationFailed<InspectListResult> failure = Assert.IsType<OperationFailed<InspectListResult>>(result);
+        var failure = Assert.IsType<OperationFailed<InspectListResult>>(result);
         Assert.Equal(FileErrorCodes.NotFound, failure.Error.Code);
         Assert.Equal(assetsFilePath, failure.Error.Parameters["path"]);
     }

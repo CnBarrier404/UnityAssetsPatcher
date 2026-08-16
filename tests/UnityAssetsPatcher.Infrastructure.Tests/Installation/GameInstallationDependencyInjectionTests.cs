@@ -35,10 +35,10 @@ public sealed class GameInstallationDependencyInjectionTests : IDisposable
         using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
-            ValidateScopes = true,
+            ValidateScopes = true
         });
 
-        GameDirectoryResolver resolver = provider.GetRequiredService<GameDirectoryResolver>();
+        var resolver = provider.GetRequiredService<GameDirectoryResolver>();
 
         string? result = resolver.Resolve("Phasmophobia");
 
@@ -50,7 +50,7 @@ public sealed class GameInstallationDependencyInjectionTests : IDisposable
     {
         if (Directory.Exists(_temporaryDirectory))
         {
-            Directory.Delete(_temporaryDirectory, recursive: true);
+            Directory.Delete(_temporaryDirectory, true);
         }
     }
 

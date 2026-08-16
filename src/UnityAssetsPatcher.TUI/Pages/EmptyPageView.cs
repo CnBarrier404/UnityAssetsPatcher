@@ -29,13 +29,13 @@ public sealed class EmptyPageView : View
         var heading = new StyledLabel(title, TextRole.Title)
         {
             X = 0,
-            Y = 0,
+            Y = 0
         };
 
         BackButton = new ActionButton(backText, ActionKind.Secondary)
         {
             X = 0,
-            Y = 2,
+            Y = 2
         };
         BackButton.Accepted += (_, _) => returnToMainMenu();
 

@@ -69,7 +69,7 @@ public static class TerminalTheme
             TextRole.Preview => Preview,
             TextRole.Error => Error,
             TextRole.Success => Success,
-            _ => throw new ArgumentOutOfRangeException(nameof(role), role, null),
+            _ => throw new ArgumentOutOfRangeException(nameof(role), role, null)
         };
     }
 
@@ -86,7 +86,7 @@ public static class TerminalTheme
             Active = selected,
             Editable = normal,
             ReadOnly = normal,
-            Disabled = normal,
+            Disabled = normal
         };
     }
 
@@ -103,7 +103,7 @@ public static class TerminalTheme
             Active = attribute,
             Editable = attribute,
             ReadOnly = attribute,
-            Disabled = attribute,
+            Disabled = attribute
         };
     }
 }

@@ -89,7 +89,7 @@ public sealed class FileSystemOperations : IFileSystemOperations
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         using Stream source = OpenRead(path);
-        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         byte[] buffer = new byte[FileIntegrityBufferSize];
         long length = 0;
         int bytesRead;
@@ -288,7 +288,7 @@ public sealed class FileSystemOperations : IFileSystemOperations
             {
                 writer(stream);
 
-                stream.Flush(flushToDisk: true);
+                stream.Flush(true);
             }
 
             CommitFile(temporaryPath, destinationPath, mode);
@@ -335,7 +335,7 @@ public sealed class FileSystemOperations : IFileSystemOperations
                     destinationPath);
             }
 
-            File.Move(stagedPath, destinationPath, overwrite: false);
+            File.Move(stagedPath, destinationPath, false);
 
             return;
         }
@@ -353,7 +353,7 @@ public sealed class FileSystemOperations : IFileSystemOperations
 
         string recoveryPath = CreateSiblingPath(destinationPath, "recovery");
 
-        File.Replace(stagedPath, destinationPath, recoveryPath, ignoreMetadataErrors: false);
+        File.Replace(stagedPath, destinationPath, recoveryPath, false);
 
         TryDeleteRecoveryFile(recoveryPath);
     }

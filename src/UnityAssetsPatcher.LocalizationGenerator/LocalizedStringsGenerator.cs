@@ -292,7 +292,7 @@ public sealed class LocalizedStringsGenerator : IIncrementalGenerator
     {
         foreach (LocalizedEntry entry in primaryLocale.Entries)
         {
-            string keyLiteral = SymbolDisplay.FormatLiteral(entry.Key, quote: true);
+            string keyLiteral = SymbolDisplay.FormatLiteral(entry.Key, true);
 
             if (entry.Placeholders.IsEmpty)
             {
@@ -403,7 +403,7 @@ public sealed class LocalizedStringsGenerator : IIncrementalGenerator
         LocaleDefinition primaryLocale,
         LocaleDefinition locale)
     {
-        string cultureLiteral = SymbolDisplay.FormatLiteral(locale.CultureName, quote: true);
+        string cultureLiteral = SymbolDisplay.FormatLiteral(locale.CultureName, true);
         var entries = locale.Entries.ToDictionary(
             entry => entry.Key,
             StringComparer.Ordinal);
@@ -415,9 +415,9 @@ public sealed class LocalizedStringsGenerator : IIncrementalGenerator
         foreach (LocalizedEntry primaryEntry in primaryLocale.Entries)
         {
             LocalizedEntry entry = entries[primaryEntry.Key];
-            string keyLiteral = SymbolDisplay.FormatLiteral(entry.Key, quote: true);
+            string keyLiteral = SymbolDisplay.FormatLiteral(entry.Key, true);
             string value = CreateGeneratedValue(primaryEntry, entry);
-            string valueLiteral = SymbolDisplay.FormatLiteral(value, quote: true);
+            string valueLiteral = SymbolDisplay.FormatLiteral(value, true);
 
             builder.AppendLine($"                {keyLiteral} => {valueLiteral},");
         }

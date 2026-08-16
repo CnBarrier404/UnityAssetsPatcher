@@ -65,7 +65,7 @@ public sealed class CompositionStoreTests
             Path.Combine(repositoryPath, "games", "game-fingerprint", "base", "catalog.json"),
             "{not-json");
 
-        InvalidDataException exception =
+        var exception =
             Assert.Throws<InvalidDataException>(() => store.ReadCatalog("game-fingerprint"));
 
         Assert.Contains("contains invalid", exception.Message);
@@ -84,7 +84,7 @@ public sealed class CompositionStoreTests
 
         File.WriteAllText(storedPath, "modified");
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => store.VerifyFile(
+        var exception = Assert.Throws<InvalidDataException>(() => store.VerifyFile(
             "game-fingerprint",
             "base.assets",
             integrity));
@@ -104,7 +104,7 @@ public sealed class CompositionStoreTests
         FileIntegrity first = store.StoreVerifiedCopy("game-fingerprint", "base.assets", sourcePath);
         File.WriteAllText(sourcePath, "changed");
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => store.StoreVerifiedCopy(
+        var exception = Assert.Throws<InvalidDataException>(() => store.StoreVerifiedCopy(
             "game-fingerprint",
             "base.assets",
             sourcePath));
@@ -124,7 +124,7 @@ public sealed class CompositionStoreTests
         BaseSnapshotStore store = new(directory.GetPath("backup"), CreateFileSystem());
         string sourcePath = directory.WriteFile("source.bin", "source");
 
-        IOException exception = Assert.Throws<IOException>(() => store.StoreVerifiedCopy(
+        var exception = Assert.Throws<IOException>(() => store.StoreVerifiedCopy(
             "game-fingerprint",
             relativePath,
             sourcePath));
@@ -152,13 +152,13 @@ public sealed class CompositionStoreTests
         store.CommitLayer(preparedDirectory, record.Id);
 
         LayerRecordEntry loaded = store.ReadLayer(record.Id);
-        IReadOnlyList<LayerRecordEntry> layers = store.ListLayers();
+        var layers = store.ListLayers();
         FileIntegrity verified = store.VerifyPackage(record.Id);
         string packagePath = store.ResolvePackagePath(record.Id);
 
         Assert.Equal(integrity, stored);
-        Assert.Equivalent(record, loaded.Record, strict: true);
-        Assert.Equivalent(loaded.Record, Assert.Single(layers).Record, strict: true);
+        Assert.Equivalent(record, loaded.Record, true);
+        Assert.Equivalent(loaded.Record, Assert.Single(layers).Record, true);
         Assert.Equal(integrity, verified);
         Assert.Equal("package-content", File.ReadAllText(packagePath));
         Assert.True(File.Exists(Path.Combine(repositoryPath, "layers", record.Id, "layer.json")));
@@ -174,7 +174,7 @@ public sealed class CompositionStoreTests
         File.WriteAllText(Path.Combine(layerDirectory, "layer.json"), "{not-json");
         LayerStore store = new(repositoryPath, CreateFileSystem());
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => store.ReadLayer("layer-1"));
+        var exception = Assert.Throws<InvalidDataException>(() => store.ReadLayer("layer-1"));
 
         Assert.Contains("contains invalid", exception.Message);
     }
@@ -195,7 +195,7 @@ public sealed class CompositionStoreTests
         store.CommitLayer(preparedDirectory, record.Id);
         File.WriteAllText(store.ResolvePackagePath(record.Id), "modified");
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => store.VerifyPackage(record.Id));
+        var exception = Assert.Throws<InvalidDataException>(() => store.VerifyPackage(record.Id));
 
         Assert.Contains("integrity does not match", exception.Message);
     }
@@ -232,7 +232,7 @@ public sealed class CompositionStoreTests
         LayerStore store = new(repositoryPath, CreateFileSystem());
         LayerRecord record = CreateLayerRecord(FileIntegrity.Create("package-content"u8));
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => store.StoreVerifiedPackage(
+        var exception = Assert.Throws<InvalidOperationException>(() => store.StoreVerifiedPackage(
             sourcePath,
             outsideDirectory,
             record.Package));
@@ -274,7 +274,7 @@ public sealed class CompositionStoreTests
             """);
         LayerStore store = new(repositoryPath, CreateFileSystem());
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => store.ReadLayer("layer-1"));
+        var exception = Assert.Throws<InvalidDataException>(() => store.ReadLayer("layer-1"));
 
         Assert.Contains("invalid data", exception.Message);
     }
@@ -283,14 +283,14 @@ public sealed class CompositionStoreTests
     public void AddRepository_WhenCompositionRepositoryIsResolved_UsesRepositoryInstance()
     {
         using RepositoryTestDirectory directory = new();
-        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        var services = new ServiceCollection();
 
         services.AddLogging();
         services.AddUnityAssetsPatcherRepository(directory.GetPath("backup"));
 
-        using Microsoft.Extensions.DependencyInjection.ServiceProvider provider = services.BuildServiceProvider();
-        IRepositoryStorage repositoryStorage = provider.GetRequiredService<IRepositoryStorage>();
-        ICompositionRepository compositionRepository = provider.GetRequiredService<ICompositionRepository>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        var repositoryStorage = provider.GetRequiredService<IRepositoryStorage>();
+        var compositionRepository = provider.GetRequiredService<ICompositionRepository>();
 
         Assert.Same(repositoryStorage, compositionRepository);
         Assert.NotNull(compositionRepository.BaseSnapshots);

@@ -25,7 +25,7 @@ public sealed class OperationCodeTests
     [InlineData("mod_package..empty")]
     public void OperationErrorCode_WhenValueHasInvalidFormat_ThrowsArgumentException(string value)
     {
-        ArgumentException exception = Assert.Throws<ArgumentException>(() => new OperationErrorCode(value));
+        var exception = Assert.Throws<ArgumentException>(() => new OperationErrorCode(value));
 
         Assert.Equal("value", exception.ParamName);
     }
@@ -33,7 +33,7 @@ public sealed class OperationCodeTests
     [Fact]
     public void OperationError_WhenCodeIsNull_ThrowsArgumentNullException()
     {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new OperationError(null!));
+        var exception = Assert.Throws<ArgumentNullException>(() => new OperationError(null!));
 
         Assert.Equal("code", exception.ParamName);
     }

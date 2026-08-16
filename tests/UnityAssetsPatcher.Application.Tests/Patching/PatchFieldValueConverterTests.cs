@@ -18,7 +18,7 @@ public sealed class PatchFieldValueConverterTests
             "string",
             new AssetScalarValue.String("Text"));
 
-        PatchPlanningException exception = Assert.Throws<PatchPlanningException>(() =>
+        var exception = Assert.Throws<PatchPlanningException>(() =>
             PatchFieldValueConverter.EnsureCompatiblePatchValue(
                 target,
                 JsonValue(value),
@@ -38,7 +38,7 @@ public sealed class PatchFieldValueConverterTests
             new AssetScalarFieldSchema("int", AssetScalarKind.Int32),
             []);
 
-        PatchPlanningException exception = Assert.Throws<PatchPlanningException>(() =>
+        var exception = Assert.Throws<PatchPlanningException>(() =>
             PatchFieldValueConverter.EnsureCompatiblePatchValue(
                 target,
                 JsonValue("[1, \"two\"]"),

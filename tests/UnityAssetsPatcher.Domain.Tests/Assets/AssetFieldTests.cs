@@ -21,7 +21,7 @@ public sealed class AssetFieldTests
             new AssetScalarValue.UInt64(64),
             new AssetScalarValue.Float(1.5f),
             new AssetScalarValue.Double(2.5d),
-            new AssetScalarValue.String("text"),
+            new AssetScalarValue.String("text")
         ];
 
         foreach (AssetScalarValue expected in values)

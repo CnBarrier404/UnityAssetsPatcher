@@ -267,7 +267,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(3),
-            Table = new AssetsTableSource(_strings, result.Assets),
+            Table = new AssetsTableSource(_strings, result.Assets)
         };
         string infoText = result.Assets.Count < result.TotalCount
             ? _strings.InspectPage_ShowingAssetsFormat(result.Assets.Count, result.TotalCount)
@@ -373,7 +373,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         _body.RemoveAll();
         var output = new TextViewer(FormatFieldTree(fieldTree))
         {
-            X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(2),
+            X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(2)
         };
         Button back = CreateActionButton(_strings.InspectPage_ReturnAction, 0, Pos.AnchorEnd(1));
         back.Accepted += (_, _) => ShowActionMenu();
@@ -405,7 +405,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
         return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }
@@ -426,9 +426,16 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     private static void AppendField(StringBuilder text, AssetField field, int depth)
     {
         text.Append(' ', depth * 2).Append(field.Name).Append(" (").Append(field.TypeName).Append(')');
-        if (field.Value is not null) text.Append(": ").Append(field.Value.ToInvariantString());
+        if (field.Value is not null)
+        {
+            text.Append(": ").Append(field.Value.ToInvariantString());
+        }
+
         text.AppendLine();
-        foreach (AssetField child in field.Children) AppendField(text, child, depth + 1);
+        foreach (AssetField child in field.Children)
+        {
+            AppendField(text, child, depth + 1);
+        }
     }
 
     private static ActionButton CreateActionButton(string text, Pos x, Pos y)
@@ -469,7 +476,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
             0 => _assets[row].PathId.ToString(CultureInfo.InvariantCulture),
             1 => _assets[row].TypeName,
             2 => _assets[row].Name ?? string.Empty,
-            _ => throw new ArgumentOutOfRangeException(nameof(col)),
+            _ => throw new ArgumentOutOfRangeException(nameof(col))
         };
     }
 }

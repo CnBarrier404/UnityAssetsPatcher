@@ -28,13 +28,13 @@ public sealed class MainMenuView : View
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
-            Height = Dim.Auto(),
+            Height = Dim.Auto()
         };
 
         var heading = new StyledLabel(title, TextRole.Title)
         {
             X = 0,
-            Y = Pos.Bottom(_updateArea),
+            Y = Pos.Bottom(_updateArea)
         };
 
         Add(_updateArea, heading);
@@ -53,7 +53,7 @@ public sealed class MainMenuView : View
             var choice = new ChoiceItemList(item.Title, item.Description)
             {
                 X = 0,
-                Y = Pos.Bottom(previous) + 1,
+                Y = Pos.Bottom(previous) + 1
             };
 
             choice.Button.Accepted += (_, _) => ItemSelected?.Invoke(this, item);
@@ -89,14 +89,14 @@ public sealed class MainMenuView : View
         {
             X = 0,
             Y = 0,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
 
         var download = new StyledLabel(updateNotice.DownloadText, TextRole.Muted)
         {
             X = 0,
             Y = 1,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
 
         var spacer = new View
@@ -104,7 +104,7 @@ public sealed class MainMenuView : View
             X = 0,
             Y = 2,
             Width = 1,
-            Height = 1,
+            Height = 1
         };
 
         _updateArea.Add(available, download, spacer);

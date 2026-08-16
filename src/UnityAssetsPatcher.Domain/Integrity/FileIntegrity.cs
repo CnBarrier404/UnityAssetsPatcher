@@ -54,6 +54,6 @@ public sealed record FileIntegrity
     private static bool IsValidSha256(string sha256)
     {
         return sha256.Length == Sha256HexLength &&
-               sha256.All(character => character is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
+               sha256.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
     }
 }

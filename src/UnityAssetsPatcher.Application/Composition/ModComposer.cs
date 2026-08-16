@@ -119,7 +119,7 @@ public sealed class ModComposer
                     fileIndex,
                     request.LayerPackagePaths,
                     cancellationToken).ConfigureAwait(false),
-                _ => throw new ArgumentOutOfRangeException(nameof(file.Kind), file.Kind, "Unsupported file kind."),
+                _ => throw new ArgumentOutOfRangeException(nameof(file.Kind), file.Kind, "Unsupported file kind.")
             };
 
             if (attempt.Failure is not null)
@@ -241,7 +241,7 @@ public sealed class ModComposer
                 fileIndex,
                 0,
                 file.RelativePath);
-            OperationResult<long> copyResult = await package
+            var copyResult = await package
                 .CopyPayloadFileAsync(provider.Source, providerOutputPath, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -371,7 +371,7 @@ public sealed class ModComposer
             throw new LayerPackageIntegrityException(packagePath);
         }
 
-        OperationResult<ModPackage> result = await _modPackageReader.OpenAsync(
+        var result = await _modPackageReader.OpenAsync(
             packagePath,
             layer.OptionalGroups ?? [],
             new StepTimer(),
@@ -456,7 +456,7 @@ public sealed class ModComposer
         {
             RepositoryFileKind.Assets => "assets",
             RepositoryFileKind.Payload => "payload",
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported file kind."),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported file kind.")
         };
         string stageDirectory = Path.Combine(
             compositionDirectory,
@@ -526,7 +526,7 @@ public sealed class ModComposer
         {
             OperationSucceeded<TResult> succeeded => succeeded.Value,
             OperationFailed<TResult> failed => throw PackageFailure(failed.Error),
-            _ => throw new ArgumentOutOfRangeException(nameof(result)),
+            _ => throw new ArgumentOutOfRangeException(nameof(result))
         };
     }
 

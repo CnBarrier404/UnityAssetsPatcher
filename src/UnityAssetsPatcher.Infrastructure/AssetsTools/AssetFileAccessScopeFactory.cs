@@ -87,7 +87,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
             [
                 .. plan.Select(replacement => new ReplaceAsset(
                     new AssetSource(replacement.SourceAssetsFilePath, replacement.SourcePathId),
-                    replacement.TargetPathId)),
+                    replacement.TargetPathId))
             ]);
     }
 
@@ -106,7 +106,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
             session =>
             [
                 .. MapFieldPatches(session, fieldPatches),
-                .. copies.Select(copy => new CopyAsset(copy.SourcePathId, copy.TargetPathId)),
+                .. copies.Select(copy => new CopyAsset(copy.SourcePathId, copy.TargetPathId))
             ]);
     }
 
@@ -179,7 +179,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
 
         var cleanupExceptions = ResourceCleanup.RunAll(
         [
-            session.Dispose,
+            session.Dispose
         ]);
 
         if (cleanupExceptions.Count > 0)
@@ -214,7 +214,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
     {
         return
         [
-            .. fieldPatches.Select(patch => MapFieldPatch(session, patch)),
+            .. fieldPatches.Select(patch => MapFieldPatch(session, patch))
         ];
     }
 
@@ -258,7 +258,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
                     element.Kind,
                     value.EnumerateArray().Select(item => ConvertScalarValue(element.Kind, item))),
             _ => throw new InvalidOperationException(
-                $"Field '{target.Name}' of type '{target.TypeName}' cannot be written as a scalar or scalar array."),
+                $"Field '{target.Name}' of type '{target.TypeName}' cannot be written as a scalar or scalar array.")
         };
     }
 
@@ -281,7 +281,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
                 ? new AssetScalarValue.String(value.GetString()!)
                 : throw new InvalidOperationException(
                     $"Cannot write JSON value of kind '{value.ValueKind}' to an asset string field."),
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported asset scalar kind."),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported asset scalar kind.")
         };
     }
 

@@ -164,7 +164,7 @@ public static class PatchFieldValueConverter
             AssetScalarKind.Float => value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out _),
             AssetScalarKind.Double => value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out _),
             AssetScalarKind.String => value.ValueKind == JsonValueKind.String,
-            _ => false,
+            _ => false
         };
 
         if (!compatible)
@@ -377,10 +377,10 @@ public static class PatchFieldValueConverter
 
         private bool ContainsNumber(JsonElement value)
         {
-            return value.TryGetInt64(out long signedInteger) && _signedIntegers.Contains(signedInteger) ||
-                   value.TryGetUInt64(out ulong unsignedInteger) && _unsignedIntegers.Contains(unsignedInteger) ||
-                   value.TryGetSingle(out float single) && ContainsFloat(single) ||
-                   value.TryGetDouble(out double number) && _doubles.Contains(number);
+            return (value.TryGetInt64(out long signedInteger) && _signedIntegers.Contains(signedInteger)) ||
+                   (value.TryGetUInt64(out ulong unsignedInteger) && _unsignedIntegers.Contains(unsignedInteger)) ||
+                   (value.TryGetSingle(out float single) && ContainsFloat(single)) ||
+                   (value.TryGetDouble(out double number) && _doubles.Contains(number));
         }
 
         private bool ContainsFloat(float expected)

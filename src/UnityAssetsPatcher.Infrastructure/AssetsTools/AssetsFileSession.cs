@@ -41,7 +41,7 @@ internal sealed class AssetsFileSession : IDisposable
 
         try
         {
-            AssetsFileInstance instance = manager.LoadAssetsFile(Path.GetFullPath(assetsFilePath), loadDeps: false);
+            AssetsFileInstance instance = manager.LoadAssetsFile(Path.GetFullPath(assetsFilePath), false);
 
             return new AssetsFileSession(classPackageCache, manager, instance);
         }
@@ -49,7 +49,7 @@ internal sealed class AssetsFileSession : IDisposable
         {
             var cleanupExceptions = ResourceCleanup.RunAll(
             [
-                () => manager.UnloadAll(unloadClassData: true),
+                () => manager.UnloadAll(true)
             ]);
             ResourceCleanup.ThrowOrAttach(exception, cleanupExceptions);
 
@@ -102,7 +102,7 @@ internal sealed class AssetsFileSession : IDisposable
             return;
         }
 
-        _manager.UnloadAll(unloadClassData: true);
+        _manager.UnloadAll(true);
         _disposed = true;
     }
 

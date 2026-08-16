@@ -48,7 +48,7 @@ public sealed class UninstallCLIOutputTests
                 new UninstallChangedFileResult(
                     "Game_Data/old.dll",
                     UninstallChangedFileAction.Delete,
-                    FileIntegrityStatus.Matches),
+                    FileIntegrityStatus.Matches)
             ]);
         TestApplication test = CreateApplication(preview);
         using (test.Services)
@@ -168,12 +168,12 @@ public sealed class UninstallCLIOutputTests
         {
             IReadOnlyList<InstallRecordSummary> installed =
             [
-                new InstallRecordSummary(
+                new(
                     "layer-1",
                     "Test Mod",
                     "1.0.0",
                     "Test Game",
-                    DateTimeOffset.UnixEpoch),
+                    DateTimeOffset.UnixEpoch)
             ];
 
             return Task.FromResult<OperationResult<IReadOnlyList<InstallRecordSummary>>>(

@@ -12,7 +12,7 @@ public enum TextRole
     SectionHeader,
     Preview,
     Error,
-    Success,
+    Success
 }
 
 public sealed class StyledLabel : Label

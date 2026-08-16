@@ -36,7 +36,7 @@ public sealed class FileCatalogStoreTests
             "{\"formatVersion\":1,\"repositoryId\":\"repository\"}");
         FileCatalogStore store = CreateCatalog(repositoryPath);
 
-        NotSupportedException exception = Assert.Throws<NotSupportedException>(store.LoadOrCreateMetadata);
+        var exception = Assert.Throws<NotSupportedException>(store.LoadOrCreateMetadata);
 
         Assert.Equal("Unsupported backup repository format: 1.", exception.Message);
     }
@@ -49,7 +49,7 @@ public sealed class FileCatalogStoreTests
         directory.WriteFile("backup/repository.json", "{\"formatVersion\":3,\"repositoryId\":\"repository\"}");
         FileCatalogStore store = CreateCatalog(repositoryPath);
 
-        NotSupportedException exception = Assert.Throws<NotSupportedException>(store.LoadOrCreateMetadata);
+        var exception = Assert.Throws<NotSupportedException>(store.LoadOrCreateMetadata);
 
         Assert.Equal("Unsupported backup repository format: 3.", exception.Message);
     }

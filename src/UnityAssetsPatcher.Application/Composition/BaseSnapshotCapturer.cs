@@ -82,8 +82,8 @@ public sealed class BaseSnapshotCapturer
         }
 
         DateTimeOffset capturedAt = existingCatalog?.CapturedAt ?? DateTimeOffset.UtcNow;
-        List<BaseFileEntry> assetsFiles = existingCatalog?.AssetsFiles.ToList() ?? [];
-        List<PayloadBaseEntry> payloadTargets = existingCatalog?.PayloadTargets.ToList() ?? [];
+        var assetsFiles = existingCatalog?.AssetsFiles.ToList() ?? [];
+        var payloadTargets = existingCatalog?.PayloadTargets.ToList() ?? [];
 
         if (assetsEntry is not null)
         {

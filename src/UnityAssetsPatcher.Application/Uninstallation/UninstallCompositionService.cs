@@ -82,8 +82,8 @@ public sealed class UninstallCompositionService
         }
 
         string normalizedWorkingDirectory = _pathResolver.ResolveExistingDirectory(workingDirectory);
-        LayerRecord[] activeLayers = GetActiveLayers(fingerprint, targetLayer.Id);
-        CompositionFileTarget[] files = CreateFileTargets(targetLayer);
+        var activeLayers = GetActiveLayers(fingerprint, targetLayer.Id);
+        var files = CreateFileTargets(targetLayer);
         CompositionResult current = await ComposeAsync(
             normalizedGameDirectory,
             normalizedWorkingDirectory,
@@ -117,7 +117,7 @@ public sealed class UninstallCompositionService
                 .Select(entry => entry.Record)
                 .Where(layer => TrustedPath.PathComparer.Equals(layer.GameInstanceFingerprint, fingerprint))
                 .OrderBy(layer => layer.InstallSequence)
-                .ThenBy(layer => layer.Id, StringComparer.Ordinal),
+                .ThenBy(layer => layer.Id, StringComparer.Ordinal)
         ];
 
         if (!layers.Any(layer => TrustedPath.PathComparer.Equals(layer.Id, targetLayerId)))
@@ -133,7 +133,7 @@ public sealed class UninstallCompositionService
         CompositionFileTarget[] targets =
         [
             .. targetLayer.AssetsTargets.Select(path => new CompositionFileTarget(RepositoryFileKind.Assets, path)),
-            .. targetLayer.PayloadTargets.Select(path => new CompositionFileTarget(RepositoryFileKind.Payload, path)),
+            .. targetLayer.PayloadTargets.Select(path => new CompositionFileTarget(RepositoryFileKind.Payload, path))
         ];
 
         var seenPaths = new HashSet<string>(TrustedPath.PathComparer);
@@ -169,7 +169,7 @@ public sealed class UninstallCompositionService
         {
             CompositionSucceeded succeeded => succeeded.Result,
             CompositionFailed failed => throw CreateFailure(activeLayers, failed.Failure),
-            _ => throw new ArgumentOutOfRangeException(nameof(outcome)),
+            _ => throw new ArgumentOutOfRangeException(nameof(outcome))
         };
     }
 
@@ -184,7 +184,7 @@ public sealed class UninstallCompositionService
 
         return new UninstallCompositionException(
         [
-            new UninstallCompositionFailure(layer, failure.RelativePath, failure.Diagnostics[0]),
+            new UninstallCompositionFailure(layer, failure.RelativePath, failure.Diagnostics[0])
         ]);
     }
 }

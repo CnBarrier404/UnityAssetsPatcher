@@ -80,9 +80,9 @@ public sealed class ModPackageTests
     public async Task OpenAsync_WhenPackageReaderRejectsPackage_ReturnsFailure()
     {
         var archiveReader = new StubModArchiveReader(_ => throw new InvalidDataException());
-        var packageReader = CreatePackageReader(archiveReader, new StubFileSystemOperations());
+        ModPackageReader packageReader = CreatePackageReader(archiveReader, new StubFileSystemOperations());
 
-        OperationResult<ModPackage> result = await OpenPackageAsync(packageReader);
+        var result = await OpenPackageAsync(packageReader);
         var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
 
         Assert.Equal(ModPackageErrorCodes.InvalidArchive, failure.Error.Code);
@@ -93,9 +93,9 @@ public sealed class ModPackageTests
     {
         var expected = new FileNotFoundException("missing", "missing.zip");
         var archiveReader = new StubModArchiveReader(_ => throw expected);
-        var packageReader = CreatePackageReader(archiveReader, new StubFileSystemOperations());
+        ModPackageReader packageReader = CreatePackageReader(archiveReader, new StubFileSystemOperations());
 
-        FileNotFoundException exception =
+        var exception =
             await Assert.ThrowsAsync<FileNotFoundException>(() => OpenPackageAsync(packageReader));
 
         Assert.Same(expected, exception);
@@ -106,9 +106,9 @@ public sealed class ModPackageTests
     {
         var session = new StubModArchiveSession(Encoding.UTF8.GetBytes("{"));
         var archiveReader = new StubModArchiveReader(session);
-        var packageReader = CreatePackageReader(archiveReader, new StubFileSystemOperations());
+        ModPackageReader packageReader = CreatePackageReader(archiveReader, new StubFileSystemOperations());
 
-        OperationResult<ModPackage> result = await OpenPackageAsync(packageReader);
+        var result = await OpenPackageAsync(packageReader);
 
         Assert.IsType<OperationFailed<ModPackage>>(result);
         Assert.True(session.IsDisposed);
@@ -124,7 +124,7 @@ public sealed class ModPackageTests
         var fileSystemOperations = new StubFileSystemOperations();
         ModPackageReader packageReader = CreatePackageReader(archiveReader, fileSystemOperations);
 
-        OperationResult<ModPackage> result = await OpenPackageAsync(packageReader);
+        var result = await OpenPackageAsync(packageReader);
         var failure = Assert.IsType<OperationFailed<ModPackage>>(result);
         string deletedDirectory = Assert.Single(fileSystemOperations.DeletedDirectories);
 
@@ -142,7 +142,7 @@ public sealed class ModPackageTests
         var archiveReader = new StubModArchiveReader(session);
         var fileSystemOperations = new StubFileSystemOperations();
         ModPackageReader packageReader = CreatePackageReader(archiveReader, fileSystemOperations);
-        OperationResult<ModPackage> result = await OpenPackageAsync(packageReader);
+        var result = await OpenPackageAsync(packageReader);
         string temporaryDirectory;
 
         using (ModPackage package = Assert.IsType<OperationSucceeded<ModPackage>>(result).Value)
@@ -167,10 +167,10 @@ public sealed class ModPackageTests
         var archiveReader = new StubModArchiveReader(session);
         var fileSystemOperations = new StubFileSystemOperations();
         ModPackageReader packageReader = CreatePackageReader(archiveReader, fileSystemOperations);
-        OperationResult<ModPackage> result = await OpenPackageAsync(packageReader);
+        var result = await OpenPackageAsync(packageReader);
         using ModPackage package = Assert.IsType<OperationSucceeded<ModPackage>>(result).Value;
 
-        OperationResult<long> copyResult = await package.CopyPayloadFileAsync(
+        var copyResult = await package.CopyPayloadFileAsync(
             "payload.bin",
             "payload.output",
             TestContext.Current.CancellationToken);
@@ -189,7 +189,7 @@ public sealed class ModPackageTests
         ModPackageReader packageReader = CreatePackageReader(archiveReader, fileSystemOperations);
         var reader = new ModManifestReader(fileSystemOperations, packageReader);
 
-        OperationResult<ModManifest> result = await reader.ReadAsync(
+        var result = await reader.ReadAsync(
             "mod.zip",
             TestContext.Current.CancellationToken);
         var failure = Assert.IsType<OperationFailed<ModManifest>>(result);
@@ -219,7 +219,7 @@ public sealed class ModPackageTests
         ModPackageReader packageReader = CreatePackageReader(archiveReader, fileSystemOperations);
         var reader = new ModManifestReader(fileSystemOperations, packageReader);
 
-        OperationResult<ModManifest> result = await reader.ReadAsync(
+        var result = await reader.ReadAsync(
             "manifest.json",
             TestContext.Current.CancellationToken);
         var failure = Assert.IsType<OperationFailed<ModManifest>>(result);
@@ -237,7 +237,7 @@ public sealed class ModPackageTests
         var fileSystemOperations = new StubFileSystemOperations();
         ModPackageReader packageReader = CreatePackageReader(archiveReader, fileSystemOperations);
 
-        OperationResult<byte[]> result = await packageReader.ReadManifestAsync(
+        var result = await packageReader.ReadManifestAsync(
             "mod.zip",
             TestContext.Current.CancellationToken);
         var failure = Assert.IsType<OperationFailed<byte[]>>(result);
@@ -280,7 +280,7 @@ public sealed class ModPackageTests
 
         public Stream OpenRead(string path)
         {
-            return new MemoryStream(_sourceBytes, writable: false);
+            return new MemoryStream(_sourceBytes, false);
         }
 
         public FileIntegrity ComputeFileIntegrity(string path)
@@ -333,7 +333,7 @@ public sealed class ModPackageTests
                 throw new InvalidOperationException($"Unexpected temporary directory: {fullPath}");
             }
 
-            Directory.Delete(fullPath, recursive: true);
+            Directory.Delete(fullPath, true);
             DeletedDirectories.Add(fullPath);
         }
     }

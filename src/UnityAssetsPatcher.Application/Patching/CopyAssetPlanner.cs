@@ -94,7 +94,7 @@ public sealed class CopyAssetPlanner
                 $"Copy asset {role} did not match an asset."),
             _ => throw new PatchPlanningException(
                 PatchDiagnosticCode.InvalidPatchConfiguration,
-                $"Copy asset {role} matched multiple assets."),
+                $"Copy asset {role} matched multiple assets.")
         };
     }
 }

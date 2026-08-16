@@ -44,7 +44,7 @@ internal static class ModManifestOptionalSelector
                     ManifestErrorCodes.DuplicateOptionalGroup,
                     new Dictionary<string, object?>
                     {
-                        ["name"] = group.Name,
+                        ["name"] = group.Name
                     }));
             }
         }
@@ -60,7 +60,7 @@ internal static class ModManifestOptionalSelector
                     ManifestErrorCodes.UnknownOptionalGroup,
                     new Dictionary<string, object?>
                     {
-                        ["name"] = name,
+                        ["name"] = name
                     }));
             }
 
@@ -76,7 +76,7 @@ internal static class ModManifestOptionalSelector
                 ManifestErrorCodes.PayloadConflict,
                 new Dictionary<string, object?>
                 {
-                    ["file_name"] = duplicatePayload,
+                    ["file_name"] = duplicatePayload
                 }));
         }
 
@@ -89,7 +89,7 @@ internal static class ModManifestOptionalSelector
                 ManifestErrorCodes.PayloadConflict,
                 new Dictionary<string, object?>
                 {
-                    ["file_name"] = conflictingTarget,
+                    ["file_name"] = conflictingTarget
                 }));
         }
 

@@ -81,7 +81,7 @@ public sealed class LocalizedStringsGeneratorTests
             ("en-US.json", "{ \"First\": \"First\" }"),
             ("zh-CN.json", "{ \"Second\": \"第二\" }"));
 
-        ImmutableArray<Diagnostic> diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
+        var diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
 
         Assert.Equal(["LOC004", "LOC005"], diagnostics.Select(diagnostic => diagnostic.Id).Order().ToArray());
 
@@ -93,7 +93,7 @@ public sealed class LocalizedStringsGeneratorTests
     {
         GeneratorTestResult result = Run(("en-US.json", "{ \"Greeting\": \"One\", \"Greeting\": \"Two\" }"));
 
-        ImmutableArray<Diagnostic> diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
+        var diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
 
         Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "LOC006");
     }
@@ -115,7 +115,7 @@ public sealed class LocalizedStringsGeneratorTests
     {
         GeneratorTestResult result = Run(("en-US.json", "{ \"Welcome\": \"Welcome, {name!\" }"));
 
-        ImmutableArray<Diagnostic> diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
+        var diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
 
         Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "LOC009");
     }
@@ -137,7 +137,7 @@ public sealed class LocalizedStringsGeneratorTests
             ("en-US.json", "{ \"Greeting\": \"Hello\" }"),
             ("en-us.json", "{ \"Greeting\": \"Hello again\" }"));
 
-        ImmutableArray<Diagnostic> diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
+        var diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
 
         Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "LOC010");
     }
@@ -179,7 +179,7 @@ public sealed class LocalizedStringsGeneratorTests
             ("en-US.json", "{ \"Greeting\": \"Hello\" }"),
             ("not_a_culture.json", "{ \"Greeting\": \"Value\" }"));
 
-        ImmutableArray<Diagnostic> diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
+        var diagnostics = Assert.Single(result.RunResult.Results).Diagnostics;
 
         Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "LOC014");
     }
@@ -228,7 +228,7 @@ public sealed class LocalizedStringsGeneratorTests
 
     private static GeneratorTestResult Run(params (string Path, string Content)[] files)
     {
-        ImmutableArray<AdditionalText> additionalTexts = files
+        var additionalTexts = files
             .Select(file => (AdditionalText)new InMemoryAdditionalText(
                 $"C:/Localization/{file.Path}",
                 file.Content))
@@ -239,20 +239,20 @@ public sealed class LocalizedStringsGeneratorTests
 
     private static GeneratorTestResult Run(ImmutableArray<AdditionalText> additionalTexts)
     {
-        CSharpCompilation compilation = CSharpCompilation.Create(
+        var compilation = CSharpCompilation.Create(
             $"GeneratorTests_{Guid.NewGuid():N}",
             references: GetFrameworkReferences(),
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            generators: [new LocalizedStringsGenerator().AsSourceGenerator()],
-            additionalTexts: additionalTexts,
-            parseOptions: CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp14));
+            [new LocalizedStringsGenerator().AsSourceGenerator()],
+            additionalTexts,
+            CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp14));
 
         driver = driver.RunGeneratorsAndUpdateCompilation(
             compilation,
             out Compilation outputCompilation,
-            out ImmutableArray<Diagnostic> _);
+            out _);
 
         GeneratorDriverRunResult runResult = driver.GetRunResult();
 
@@ -276,9 +276,9 @@ public sealed class LocalizedStringsGeneratorTests
         object? instance = Activator.CreateInstance(
             type,
             BindingFlags.Instance | BindingFlags.NonPublic,
-            binder: null,
-            args: [CultureInfo.GetCultureInfo(cultureName)],
-            culture: null);
+            null,
+            [CultureInfo.GetCultureInfo(cultureName)],
+            null);
 
         return instance ?? throw new InvalidOperationException("Could not create generated LocalizedStrings instance.");
     }

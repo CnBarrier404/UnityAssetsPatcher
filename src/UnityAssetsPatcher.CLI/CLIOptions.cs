@@ -5,7 +5,7 @@ namespace UnityAssetsPatcher.CLI;
 public enum CLIOutputFormat
 {
     Text,
-    Json,
+    Json
 }
 
 public sealed class CLIOptions
@@ -14,6 +14,6 @@ public sealed class CLIOptions
     {
         Description = "Output format.",
         DefaultValueFactory = _ => CLIOutputFormat.Text,
-        Recursive = true,
+        Recursive = true
     };
 }

@@ -46,7 +46,7 @@ internal sealed class RepositoryTestDirectory : IDisposable
     {
         if (Directory.Exists(Path))
         {
-            Directory.Delete(Path, recursive: true);
+            Directory.Delete(Path, true);
         }
     }
 }

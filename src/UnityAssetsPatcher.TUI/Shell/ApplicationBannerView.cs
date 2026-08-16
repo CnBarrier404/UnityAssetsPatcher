@@ -35,7 +35,7 @@ public sealed class ApplicationBannerView : View
         var label = new StyledLabel(text)
         {
             X = x,
-            Y = y,
+            Y = y
         };
 
         label.SetScheme(scheme);

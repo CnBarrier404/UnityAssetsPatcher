@@ -5,7 +5,7 @@ namespace UnityAssetsPatcher.TUI.Framework;
 
 public sealed class SummaryTableView : DataTableView
 {
-    public SummaryTableView(IReadOnlyList<(string Label, string Value)> rows) : base(showHeaders: false)
+    public SummaryTableView(IReadOnlyList<(string Label, string Value)> rows) : base(false)
     {
         ArgumentNullException.ThrowIfNull(rows);
 
@@ -22,7 +22,7 @@ public sealed class SummaryTableView : DataTableView
         {
             MinWidth = labelWidth,
             MaxWidth = labelWidth,
-            ColorGetter = _ => TerminalTheme.Muted,
+            ColorGetter = _ => TerminalTheme.Muted
         };
 
         Style.ColumnStyles[1] = new ColumnStyle

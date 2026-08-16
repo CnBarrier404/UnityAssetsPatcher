@@ -62,7 +62,7 @@ public static class AssetFieldMatcher
             AssetScalarValue.Double value =>
                 expectedValue.ValueKind == JsonValueKind.Number &&
                 expectedValue.TryGetDouble(out double expected) && value.Value.Equals(expected),
-            _ => false,
+            _ => false
         };
     }
 

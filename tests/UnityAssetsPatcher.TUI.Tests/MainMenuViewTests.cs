@@ -13,7 +13,7 @@ public sealed class MainMenuViewTests
         TerminalMenuItem[] items =
         [
             new("First", "First description", _ => new View()),
-            new("Second", "Second description", _ => new View()),
+            new("Second", "Second description", _ => new View())
         ];
 
         using MainMenuView menu = new("Main menu", items);
@@ -36,7 +36,7 @@ public sealed class MainMenuViewTests
         TerminalMenuItem[] items =
         [
             new("First", "First description", _ => new View()),
-            new("Second", "Second description", _ => new View()),
+            new("Second", "Second description", _ => new View())
         ];
         var notice = new TerminalUpdateNotice(
             "A new version is available: v1.3.0",
@@ -54,7 +54,7 @@ public sealed class MainMenuViewTests
 
         menu.ShowAvailableUpdate(notice);
 
-        StyledLabel[] updateLabels = menu.SubViews
+        var updateLabels = menu.SubViews
             .SelectMany(view => view.SubViews.Append(view))
             .OfType<StyledLabel>()
             .Where(label => label.Text?.ToString().Contains("v1.3.0", StringComparison.Ordinal) == true)

@@ -74,7 +74,7 @@ public sealed class Repository : IRepository
 
         return result with
         {
-            Recovery = recovery,
+            Recovery = recovery
         };
     }
 

@@ -32,9 +32,9 @@ public sealed class CheckManifestHandlerTests
     public async Task HandleAsync_WhenManifestIsValid_ReturnsCheckResult()
     {
         var fileSystem = new StubFileSystemOperations(_ => OpenText(ValidManifest));
-        var handler = CreateHandler(fileSystem);
+        CheckManifestHandler handler = CreateHandler(fileSystem);
 
-        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
             TestContext.Current.CancellationToken);
 
@@ -46,7 +46,7 @@ public sealed class CheckManifestHandlerTests
     public async Task HandleAsync_WhenCalled_OpensNormalizedSourcePath()
     {
         var fileSystem = new StubFileSystemOperations(_ => OpenText(ValidManifest));
-        var handler = CreateHandler(fileSystem);
+        CheckManifestHandler handler = CreateHandler(fileSystem);
 
         _ = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
@@ -59,9 +59,9 @@ public sealed class CheckManifestHandlerTests
     public async Task HandleAsync_WhenManifestIsInvalid_ReturnsManifestFailure()
     {
         var fileSystem = new StubFileSystemOperations(_ => OpenText("{}"));
-        var handler = CreateHandler(fileSystem);
+        CheckManifestHandler handler = CreateHandler(fileSystem);
 
-        OperationResult<CheckManifestResult> result = await handler.HandleAsync(
+        var result = await handler.HandleAsync(
             new CheckManifestRequest("manifest.json"),
             TestContext.Current.CancellationToken);
 
@@ -74,9 +74,9 @@ public sealed class CheckManifestHandlerTests
     {
         var expected = new InvalidOperationException("Test fault.");
         var fileSystem = new StubFileSystemOperations(_ => throw expected);
-        var handler = CreateHandler(fileSystem);
+        CheckManifestHandler handler = CreateHandler(fileSystem);
 
-        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.HandleAsync(
                 new CheckManifestRequest("manifest.json"),
                 TestContext.Current.CancellationToken));
@@ -86,7 +86,7 @@ public sealed class CheckManifestHandlerTests
 
     private static MemoryStream OpenText(string text)
     {
-        return new MemoryStream(Encoding.UTF8.GetBytes(text), writable: false);
+        return new MemoryStream(Encoding.UTF8.GetBytes(text), false);
     }
 
     private static CheckManifestHandler CreateHandler(IFileSystemOperations fileSystemOperations)

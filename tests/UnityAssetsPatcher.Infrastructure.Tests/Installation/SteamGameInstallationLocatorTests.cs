@@ -16,7 +16,7 @@ public sealed class SteamGameInstallationLocatorTests : IDisposable
         string gameDirectory = CreateInstalledGame(steamRoot, "739630", "Phasmophobia", "Phasmophobia");
         var locator = new SteamGameInstallationLocator(new SteamInstallationOptions([steamRoot]));
 
-        IReadOnlyList<string> result = locator.FindGameDirectories("Phasmophobia");
+        var result = locator.FindGameDirectories("Phasmophobia");
 
         Assert.Equal([Path.GetFullPath(gameDirectory)], result);
     }
@@ -42,7 +42,7 @@ public sealed class SteamGameInstallationLocatorTests : IDisposable
         string gameDirectory = CreateInstalledGame(libraryRoot, "739630", "Phasmophobia", "Phasmophobia");
         var locator = new SteamGameInstallationLocator(new SteamInstallationOptions([steamRoot]));
 
-        IReadOnlyList<string> result = locator.FindGameDirectories("Phasmophobia");
+        var result = locator.FindGameDirectories("Phasmophobia");
 
         Assert.Equal([Path.GetFullPath(gameDirectory)], result);
     }
@@ -54,7 +54,7 @@ public sealed class SteamGameInstallationLocatorTests : IDisposable
         _ = CreateInstalledGame(steamRoot, "739630", "Phasmophobia", "Phasmophobia");
         var locator = new SteamGameInstallationLocator(new SteamInstallationOptions([steamRoot]));
 
-        IReadOnlyList<string> result = locator.FindGameDirectories("Another Game");
+        var result = locator.FindGameDirectories("Another Game");
 
         Assert.Empty(result);
     }
@@ -63,7 +63,7 @@ public sealed class SteamGameInstallationLocatorTests : IDisposable
     {
         if (Directory.Exists(_temporaryDirectory))
         {
-            Directory.Delete(_temporaryDirectory, recursive: true);
+            Directory.Delete(_temporaryDirectory, true);
         }
     }
 

@@ -79,7 +79,7 @@ public sealed class UninstallPlanner
                     []);
             }
 
-            UninstallChangedFileResult[] changedFiles = CreateChangedFiles(analysis);
+            var changedFiles = CreateChangedFiles(analysis);
             bool canUninstall = changedFiles.All(file => IsCurrentStateSafe(analysis, file));
 
             return new UninstallPreviewResult(
@@ -127,7 +127,7 @@ public sealed class UninstallPlanner
                 throw CreateDependencyException(layer, exception.Failures);
             }
 
-            UninstallChangedFileResult[] changedFiles = CreateChangedFiles(analysis);
+            var changedFiles = CreateChangedFiles(analysis);
 
             if (changedFiles.Any(file => !IsCurrentStateSafe(analysis, file)))
             {
@@ -154,7 +154,7 @@ public sealed class UninstallPlanner
 
         return
         [
-            .. analysis.Files.Select(file => CreateChangedFile(analysis, file)),
+            .. analysis.Files.Select(file => CreateChangedFile(analysis, file))
         ];
     }
 
@@ -239,7 +239,7 @@ public sealed class UninstallPlanner
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(layerId);
 
-        LayerRecordEntry[] matches = _compositionRepository.Layers
+        var matches = _compositionRepository.Layers
             .ListLayers()
             .Where(entry => TrustedPath.PathComparer.Equals(entry.Record.Id, layerId))
             .ToArray();
@@ -323,7 +323,7 @@ public sealed class UninstallPlanner
                 failure.Layer.ModName,
                 failure.Layer.ModVersion,
                 failure.RelativePath,
-                failure.Diagnostic)),
+                failure.Diagnostic))
         ];
     }
 

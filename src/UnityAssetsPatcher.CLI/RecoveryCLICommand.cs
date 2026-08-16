@@ -28,7 +28,7 @@ public sealed class RecoveryCLICommand : ICLICommand
 
     private Command CreatePreviewCommand()
     {
-        Option<string> gameDirectory = GameDirectoryOption();
+        var gameDirectory = GameDirectoryOption();
         var command = new Command("preview", "Show every recovery action without changing files.");
         command.Options.Add(gameDirectory);
         command.SetAction((parseResult, cancellationToken) => ExecutePreview(
@@ -40,7 +40,7 @@ public sealed class RecoveryCLICommand : ICLICommand
 
     private Command CreateApplyCommand()
     {
-        Option<string> gameDirectory = GameDirectoryOption();
+        var gameDirectory = GameDirectoryOption();
         var yes = new Option<bool>("--yes", "-y") { Description = "Confirm the mutating operation." };
         var command = new Command("apply", "Recover an interrupted operation.");
         command.Options.Add(gameDirectory);
@@ -49,7 +49,9 @@ public sealed class RecoveryCLICommand : ICLICommand
         {
             if (result.GetResult(yes) is not { Implicit: false } optionResult ||
                 !optionResult.GetValueOrDefault<bool>())
+            {
                 result.AddError("Required option '--yes' was not provided.");
+            }
         });
         command.SetAction((parseResult, cancellationToken) => ExecuteApply(
             parseResult,
@@ -66,8 +68,8 @@ public sealed class RecoveryCLICommand : ICLICommand
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<RepositoryRecoveryPreview> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
                     new PreviewRecoveryRequest(Path.GetFullPath(gameDirectory)),
                     cancellationToken)
@@ -90,8 +92,8 @@ public sealed class RecoveryCLICommand : ICLICommand
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            OperationResult<RepositoryRecoveryReport> result = await dispatcher
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+            var result = await dispatcher
                 .DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
                     new RecoverRecoveryRequest(Path.GetFullPath(gameDirectory)),
                     cancellationToken)
@@ -106,9 +108,12 @@ public sealed class RecoveryCLICommand : ICLICommand
         }
     }
 
-    private static Option<string> GameDirectoryOption() => new("--game-directory", "-g")
+    private static Option<string> GameDirectoryOption()
     {
-        Description = "User-confirmed game installation directory.",
-        Required = true,
-    };
+        return new Option<string>("--game-directory", "-g")
+        {
+            Description = "User-confirmed game installation directory.",
+            Required = true
+        };
+    }
 }

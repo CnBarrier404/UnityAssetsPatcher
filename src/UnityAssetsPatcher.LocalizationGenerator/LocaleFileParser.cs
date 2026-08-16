@@ -41,7 +41,7 @@ internal static class LocaleFileParser
         try
         {
             string requestedCultureName = Path.GetFileNameWithoutExtension(source.Path);
-            CultureInfo culture = CultureInfo.GetCultureInfo(requestedCultureName);
+            var culture = CultureInfo.GetCultureInfo(requestedCultureName);
             cultureName = culture.Name;
         }
         catch (CultureNotFoundException)
@@ -62,7 +62,7 @@ internal static class LocaleFileParser
     {
         string content = source.Content?.ToString() ?? string.Empty;
         MatchCollection matches = EntryPattern.Matches(content);
-        var entries = ImmutableArray.CreateBuilder<LocalizedEntry>();
+        ImmutableArray<LocalizedEntry>.Builder entries = ImmutableArray.CreateBuilder<LocalizedEntry>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
         bool isValid = true;
 
@@ -89,7 +89,7 @@ internal static class LocaleFileParser
             string value = DecodeJsonString(match.Groups["value"].Value);
             bool isFormatValid = LocalizationFormatParser.TryGetPlaceholders(
                 value,
-                out ImmutableArray<string> placeholders,
+                out var placeholders,
                 out string? error);
 
             if (!isFormatValid)

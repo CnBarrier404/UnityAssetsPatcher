@@ -29,8 +29,8 @@ public sealed class ZipModArchiveReader : IModArchiveReader
             archive = await ZipArchive.CreateAsync(
                 stream,
                 ZipArchiveMode.Read,
-                leaveOpen: false,
-                entryNameEncoding: null,
+                false,
+                null,
                 cancellationToken).ConfigureAwait(false);
             stream = null;
 

@@ -79,7 +79,7 @@ internal static class OperationErrorFormatter
                 strings.Error_RepositoryUnsafe,
             _ when error.Code == RepositoryErrorCodes.UnsupportedVersion =>
                 strings.Error_UnsupportedRepositoryVersion,
-            _ => strings.Error_OperationFailed,
+            _ => strings.Error_OperationFailed
         };
     }
 
@@ -111,7 +111,7 @@ internal static class OperationErrorFormatter
             PatchDiagnosticCode.ReplacementSourceNotFound =>
                 strings.PatchError_ReplacementSourceNotFound,
             PatchDiagnosticCode.ReplacementMatchInvalid => strings.PatchError_ReplacementMatchInvalid,
-            _ => strings.Error_OperationFailed,
+            _ => strings.Error_OperationFailed
         };
     }
 
@@ -123,7 +123,7 @@ internal static class OperationErrorFormatter
             RepositoryRecoveryIssueCode.RecoveryUnsafe => strings.RepositoryRecovery_RecoveryUnsafe,
             RepositoryRecoveryIssueCode.OperationFailed => strings.RepositoryRecovery_OperationFailed,
             RepositoryRecoveryIssueCode.UnexpectedFailure => FormatUnexpected(strings),
-            _ => strings.Error_OperationFailed,
+            _ => strings.Error_OperationFailed
         };
     }
 

@@ -195,7 +195,7 @@ public sealed class CLIApplicationTests : IDisposable
     public void Dispose()
     {
         _serviceProvider?.Dispose();
-        Directory.Delete(_temporaryDirectory, recursive: true);
+        Directory.Delete(_temporaryDirectory, true);
     }
 
     private (CLIApplication Application, StringWriter Output, StringWriter Error) CreateApplication()
@@ -208,7 +208,7 @@ public sealed class CLIApplicationTests : IDisposable
         services.AddUnityAssetsPatcherApplication();
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
         {
-            ValidateScopes = true,
+            ValidateScopes = true
         });
         var output = new StringWriter();
         var error = new StringWriter();

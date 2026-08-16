@@ -33,7 +33,7 @@ public sealed class CheckManifestHandler : IRequestHandler<CheckManifestRequest,
 
             OperationFailed<ModManifest> failed => new OperationFailed<CheckManifestResult>(failed.Error),
 
-            _ => throw new InvalidOperationException("The manifest parser returned an unknown result."),
+            _ => throw new InvalidOperationException("The manifest parser returned an unknown result.")
         };
     }
 }

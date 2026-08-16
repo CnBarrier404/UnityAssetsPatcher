@@ -18,7 +18,7 @@ public sealed class TerminalFooterView : View
         {
             X = 0,
             Y = 0,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
 
         Add(label);

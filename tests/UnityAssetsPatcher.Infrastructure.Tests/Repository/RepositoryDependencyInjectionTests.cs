@@ -19,10 +19,10 @@ public sealed class RepositoryDependencyInjectionTests
         using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
-            ValidateScopes = true,
+            ValidateScopes = true
         });
 
-        IRepositoryStorage repository = provider.GetRequiredService<IRepositoryStorage>();
+        var repository = provider.GetRequiredService<IRepositoryStorage>();
 
         Assert.NotNull(repository);
     }

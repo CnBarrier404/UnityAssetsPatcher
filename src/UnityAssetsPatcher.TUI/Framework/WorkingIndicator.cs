@@ -20,14 +20,14 @@ public sealed class WorkingIndicator : View
             X = 0,
             Y = 0,
             Style = new SpinnerStyle.Dots(),
-            Visible = false,
+            Visible = false
         };
 
         _label = new Label
         {
             X = 0,
             Y = 0,
-            Width = Dim.Fill(),
+            Width = Dim.Fill()
         };
 
         Add(_spinner, _label);

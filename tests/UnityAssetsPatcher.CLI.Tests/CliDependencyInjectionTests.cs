@@ -28,7 +28,7 @@ public sealed class CliDependencyInjectionTests
         using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
-            ValidateScopes = true,
+            ValidateScopes = true
         });
 
         var application = provider.GetRequiredService<CLIApplication>();

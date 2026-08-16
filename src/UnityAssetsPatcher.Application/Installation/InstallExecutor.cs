@@ -172,7 +172,7 @@ public sealed class InstallExecutor
                 .Select(entry => entry.Record)
                 .Where(layer => TrustedPath.PathComparer.Equals(layer.GameInstanceFingerprint, fingerprint))
                 .OrderBy(layer => layer.InstallSequence)
-                .ThenBy(layer => layer.Id, StringComparer.Ordinal),
+                .ThenBy(layer => layer.Id, StringComparer.Ordinal)
         ];
 
         return layers;
@@ -290,7 +290,7 @@ public sealed class InstallExecutor
                 ToGameRelativePath(gameDirectory, target.AssetsFilePath))),
             .. analysis.PayloadFiles.Select(payload => new CompositionFileTarget(
                 RepositoryFileKind.Payload,
-                ToGameRelativePath(gameDirectory, payload.DestinationPath))),
+                ToGameRelativePath(gameDirectory, payload.DestinationPath)))
         ];
         LayerRecord[] layers = [.. activeLayers, newLayer];
         string packagePath = _pathResolver.ResolveWithinDirectory(
@@ -298,7 +298,7 @@ public sealed class InstallExecutor
             newLayer.Package.FileName);
         Dictionary<string, string> layerPackagePaths = new(TrustedPath.PathComparer)
         {
-            [newLayer.Id] = packagePath,
+            [newLayer.Id] = packagePath
         };
         CompositionRequest request = new(
             gameDirectory,
@@ -315,7 +315,7 @@ public sealed class InstallExecutor
         {
             CompositionSucceeded succeeded => succeeded.Result,
             CompositionFailed failed => throw new PatchPlanningException(failed.Failure.Diagnostics[0]),
-            _ => throw new ArgumentOutOfRangeException(nameof(outcome)),
+            _ => throw new ArgumentOutOfRangeException(nameof(outcome))
         };
     }
 
@@ -422,7 +422,7 @@ public sealed class InstallExecutor
                     .Distinct()
                     .Count(),
                 copyPlan.FieldPatches.Sum(asset => asset.Operations.Count) + copyPlan.Copies.Count),
-            _ => throw new ArgumentOutOfRangeException(nameof(plan)),
+            _ => throw new ArgumentOutOfRangeException(nameof(plan))
         };
     }
 

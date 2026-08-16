@@ -57,7 +57,7 @@ internal sealed class ModPackageSession : IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(source);
 
-        return ModPackageValidator.TryNormalizePath(source, isDirectory: false, out string normalizedSource) &&
+        return ModPackageValidator.TryNormalizePath(source, false, out string normalizedSource) &&
                _fileEntries.ContainsKey(normalizedSource);
     }
 
@@ -68,7 +68,7 @@ internal sealed class ModPackageSession : IDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!ModPackageValidator.TryNormalizePath(source, isDirectory: false, out string normalizedSource))
+        if (!ModPackageValidator.TryNormalizePath(source, false, out string normalizedSource))
         {
             return Failure<long>(ModPackageErrorCodes.UnsafeEntryPath, ("entry_path", source));
         }
@@ -189,7 +189,7 @@ internal sealed class ModPackageSession : IDisposable
     {
         var parameters = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["package_path"] = _packagePath,
+            ["package_path"] = _packagePath
         };
 
         foreach ((string key, object? value) in additionalParameters)

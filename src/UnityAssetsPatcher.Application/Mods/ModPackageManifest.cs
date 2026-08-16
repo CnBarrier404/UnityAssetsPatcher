@@ -26,7 +26,7 @@ internal static class ModPackageManifest
                 continue;
             }
 
-            if (!ModPackageValidator.TryNormalizePath(entry.FullName, isDirectory: false, out _))
+            if (!ModPackageValidator.TryNormalizePath(entry.FullName, false, out _))
             {
                 return Failure<IModArchiveEntry>(
                     ModPackageErrorCodes.UnsafeEntryPath,
@@ -124,7 +124,7 @@ internal static class ModPackageManifest
     {
         var parameters = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["package_path"] = packagePath,
+            ["package_path"] = packagePath
         };
 
         foreach ((string key, object? value) in additionalParameters)
