@@ -348,6 +348,20 @@ public sealed class ModManifestParserTests
     }
 
     [Fact]
+    public void Parse_WhenSetValueIsNull_ReturnsInvalidPropertyType()
+    {
+        OperationError error = ParseFailure(ManifestWithPatchProperty(
+            """
+            "set": {
+              "field": { "from": "old", "to": null }
+            }
+            """));
+
+        Assert.Equal(ManifestErrorCodes.InvalidPropertyType, error.Code);
+        Assert.Equal("to", error.Parameters["property"]);
+    }
+
+    [Fact]
     public void Parse_WhenAddOperationIsNotArray_ReturnsFailure()
     {
         OperationError error = ParseFailure(ManifestWithPatchProperty(

@@ -66,6 +66,25 @@ public sealed class AssetFileAccessScopeTests
             second => Assert.Equal("second", second.Path.ToString()));
     }
 
+    [Fact]
+    public void WriteFieldPatches_WhenNullIsWrittenToStringField_ThrowsInsteadOfWritingEmptyString()
+    {
+        var session = new RecordingAssetFileSession(CreateStringAssetField());
+        using IAssetsAccessScope scope = new AssetFileAccessScopeFactory(
+            new RecordingAssetFileSessionFactory(session)).CreateScope();
+
+        Assert.Throws<InvalidOperationException>(() => scope.Writer.WriteFieldPatches(
+            "input.assets",
+            "output.assets",
+            [
+                new AssetFieldPatch(
+                    4,
+                    [new FieldPatchOperation("name", JsonValue("null"))]),
+            ]));
+
+        Assert.Null(session.Plan);
+    }
+
     private static AssetField CreateAssetField()
     {
         return new AssetObjectField(
@@ -75,6 +94,14 @@ public sealed class AssetFileAccessScopeTests
                 new AssetScalarField("first", "int", new AssetScalarValue.Int32(1)),
                 new AssetScalarField("second", "int", new AssetScalarValue.Int32(1)),
             ]);
+    }
+
+    private static AssetField CreateStringAssetField()
+    {
+        return new AssetObjectField(
+            "Root",
+            "Root",
+            [new AssetScalarField("name", "string", new AssetScalarValue.String("Text"))]);
     }
 
     private static IReadOnlyList<AssetFieldPatch> CreateFieldPatch()

@@ -100,6 +100,16 @@
         }
       }
     },
+    "patchValue": {
+      "description": "A scalar, array, or object patch value. Compatibility with the target asset field is validated during planning.",
+      "type": [
+        "array",
+        "boolean",
+        "number",
+        "object",
+        "string"
+      ]
+    },
     "setOperation": {
       "type": "object",
       "additionalProperties": true,
@@ -109,10 +119,12 @@
       ],
       "properties": {
         "from": {
-          "description": "The value expected before the patch is applied."
+          "description": "The value expected before the patch is applied.",
+          "$ref": "#/$defs/patchValue"
         },
         "to": {
-          "description": "The value written by the patch. A $pathId reference may be used where supported."
+          "description": "The value written by the patch. A $pathId reference may be used where supported.",
+          "$ref": "#/$defs/patchValue"
         }
       }
     },

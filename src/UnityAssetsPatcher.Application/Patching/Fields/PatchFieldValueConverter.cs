@@ -110,6 +110,28 @@ public static class PatchFieldValueConverter
             $"Patch operation for field '{path}' uses an unsupported value type: {value.ValueKind}.");
     }
 
+    public static void EnsureCompatiblePatchValue(AssetField target, JsonElement value, string path)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        switch (target)
+        {
+            case AssetScalarField scalar:
+                EnsureCompatibleScalarPatchValue(scalar.Value.Kind, value, path);
+                break;
+            case AssetArrayField { ElementSchema: AssetScalarFieldSchema element }:
+                EnsureCompatibleScalarArrayPatchValue(element.Kind, value, path);
+                break;
+            case AssetArrayField:
+                throw CreateIncompatiblePatchValueException(path, "an array of scalar values", value);
+            default:
+                throw new PatchPlanningException(
+                    PatchDiagnosticCode.InvalidPatchConfiguration,
+                    $"Patch operation for field '{path}' targets a non-scalar field.");
+        }
+    }
+
     public static void EnsureSupportedPatchArrayValue(JsonElement value, string path)
     {
         int index = 0;
@@ -119,6 +141,74 @@ public static class PatchFieldValueConverter
             EnsureSupportedPatchValue(element, $"{path}[{index}]");
             index++;
         }
+    }
+
+    private static void EnsureCompatibleScalarPatchValue(
+        AssetScalarKind targetKind,
+        JsonElement value,
+        string path)
+    {
+        EnsureSupportedPatchValue(value, path);
+
+        bool compatible = targetKind switch
+        {
+            AssetScalarKind.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+            AssetScalarKind.Int8 => value.ValueKind == JsonValueKind.Number && value.TryGetSByte(out _),
+            AssetScalarKind.UInt8 => value.ValueKind == JsonValueKind.Number && value.TryGetByte(out _),
+            AssetScalarKind.Int16 => value.ValueKind == JsonValueKind.Number && value.TryGetInt16(out _),
+            AssetScalarKind.UInt16 => value.ValueKind == JsonValueKind.Number && value.TryGetUInt16(out _),
+            AssetScalarKind.Int32 => value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _),
+            AssetScalarKind.UInt32 => value.ValueKind == JsonValueKind.Number && value.TryGetUInt32(out _),
+            AssetScalarKind.Int64 => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _),
+            AssetScalarKind.UInt64 => value.ValueKind == JsonValueKind.Number && value.TryGetUInt64(out _),
+            AssetScalarKind.Float => value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out _),
+            AssetScalarKind.Double => value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out _),
+            AssetScalarKind.String => value.ValueKind == JsonValueKind.String,
+            _ => false,
+        };
+
+        if (!compatible)
+        {
+            throw CreateIncompatiblePatchValueException(path, $"asset scalar kind '{targetKind}'", value);
+        }
+    }
+
+    private static void EnsureCompatibleScalarArrayPatchValue(
+        AssetScalarKind elementKind,
+        JsonElement value,
+        string path)
+    {
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            throw CreateIncompatiblePatchValueException(path, "an array of scalar values", value);
+        }
+
+        int index = 0;
+
+        foreach (JsonElement element in value.EnumerateArray())
+        {
+            EnsureCompatibleScalarPatchValue(elementKind, element, $"{path}[{index}]");
+            index++;
+        }
+    }
+
+    private static PatchPlanningException CreateIncompatiblePatchValueException(
+        string path,
+        string expected,
+        JsonElement value)
+    {
+        string actual = value.ValueKind == JsonValueKind.Undefined
+            ? value.ValueKind.ToString()
+            : JsonUtils.FormatElementValue(value);
+        var diagnostic = new PatchDiagnostic(
+            PatchDiagnosticCode.InvalidPatchConfiguration,
+            "",
+            FieldPath: path,
+            Expected: expected,
+            Actual: actual,
+            Detail: $"Patch operation for field '{path}' uses value {actual}, which is incompatible with {expected}.");
+
+        return new PatchPlanningException(diagnostic);
     }
 
     private static string FormatArrayElementValue(AssetField element)

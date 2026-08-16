@@ -48,7 +48,7 @@ public sealed class FieldPatchOperationPlanner
             ];
         }
 
-        PatchFieldValueConverter.EnsureSupportedPatchArrayValue(operation.Value, operation.FieldPath);
+        PatchFieldValueConverter.EnsureCompatiblePatchValue(arrayField, operation.Value, path);
         JsonElement to = PatchFieldValueConverter.CreateAddArrayValue(arrayField, operation.Value, out bool willChange);
 
         return
@@ -72,6 +72,20 @@ public sealed class FieldPatchOperationPlanner
         ModSetOperation operation)
     {
         FieldValueSnapshot value = FieldValueSnapshot.ForSetOperation(field, operation);
+
+        if (field is not null)
+        {
+            AssetField? writeTarget = value.IsArrayPatch ? value.ArrayField : field;
+
+            if (writeTarget is not null)
+            {
+                PatchFieldValueConverter.EnsureCompatiblePatchValue(
+                    writeTarget,
+                    operation.To,
+                    operation.FieldPath);
+            }
+        }
+
         bool matches = field is not null && AssetFieldMatcher.MatchesValue(field, operation.From);
         PatchDiagnostic? failure = field is null || !matches || value is { IsArrayPatch: true, ArrayField: null }
             ? CreateSetMismatchFailure(pathId, operation.FieldPath, value.OldValue, operation.From)
@@ -152,6 +166,7 @@ public sealed class FieldPatchOperationPlanner
             childPath,
             child,
             from,
+            property.Value,
             isArrayPatch,
             parentFailure);
 
@@ -172,6 +187,7 @@ public sealed class FieldPatchOperationPlanner
         string childPath,
         AssetField? child,
         JsonElement from,
+        JsonElement to,
         bool isArrayPatch,
         PatchDiagnostic? parentFailure)
     {
@@ -186,6 +202,8 @@ public sealed class FieldPatchOperationPlanner
                 PatchDiagnosticCode.FieldNotFound,
                 $"Field not found for Path ID {pathId}: {childPath}"));
         }
+
+        PatchFieldValueConverter.EnsureCompatiblePatchValue(child, to, childPath);
 
         if (isArrayPatch)
         {

@@ -98,7 +98,14 @@ internal static class ManifestSchemaErrorMapper
         parameters["property"] = context.PropertyName;
         parameters["expected"] = schemaNode is { ValueKind: JsonValueKind.Object } &&
                                  schemaNode.Value.TryGetProperty("type", out JsonElement type)
-            ? type.GetString()
+            ? type.ValueKind switch
+            {
+                JsonValueKind.String => type.GetString(),
+                JsonValueKind.Array => string.Join(
+                    ", ",
+                    type.EnumerateArray().Select(element => element.GetString())),
+                _ => null,
+            }
             : null;
 
         return new OperationError(ManifestErrorCodes.InvalidPropertyType, parameters);

@@ -233,7 +233,10 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
             AssetScalarKind.UInt64 => new AssetScalarValue.UInt64(value.GetUInt64()),
             AssetScalarKind.Float => new AssetScalarValue.Float(value.GetSingle()),
             AssetScalarKind.Double => new AssetScalarValue.Double(value.GetDouble()),
-            AssetScalarKind.String => new AssetScalarValue.String(value.GetString() ?? string.Empty),
+            AssetScalarKind.String => value.ValueKind == JsonValueKind.String
+                ? new AssetScalarValue.String(value.GetString()!)
+                : throw new InvalidOperationException(
+                    $"Cannot write JSON value of kind '{value.ValueKind}' to an asset string field."),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported asset scalar kind."),
         };
     }

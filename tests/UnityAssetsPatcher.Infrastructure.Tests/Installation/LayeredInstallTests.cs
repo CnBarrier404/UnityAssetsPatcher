@@ -156,6 +156,26 @@ public sealed class LayeredInstallTests
         Assert.False(Directory.Exists(fixture.Repository.TransactionDirectory));
     }
 
+    [Theory]
+    [InlineData("123")]
+    [InlineData("true")]
+    public void Preview_WhenSetValueTypeDoesNotMatchTargetField_DisablesApply(string to)
+    {
+        using LayeredInstallFixture fixture = new();
+        string packagePath = fixture.CreatePackage(
+            "incompatible-value",
+            CreateFieldManifestWithJsonValue("Text", to));
+
+        InstallPreviewResult preview = fixture.Preview(new InstallRequest(packagePath, fixture.GameDirectory));
+        PatchPreviewResult patchPreview = Assert.IsType<PatchPreviewResult>(Assert.Single(preview.Changes).Preview);
+        PatchDiagnostic diagnostic = Assert.IsType<PatchDiagnostic>(patchPreview.Diagnostic);
+
+        Assert.False(patchPreview.CanApply);
+        Assert.Equal(PatchDiagnosticCode.InvalidPatchConfiguration, diagnostic.Code);
+        Assert.Equal("m_Name", diagnostic.FieldPath);
+        Assert.Contains("String", diagnostic.Expected);
+    }
+
     [Fact]
     public void Install_WhenPayloadEntryIsMissing_ReturnsStructuredFailure()
     {
@@ -501,10 +521,22 @@ public sealed class LayeredInstallTests
 
     private static byte[] CreateFieldManifest(string from, string to)
     {
+        return CreateFieldManifestForFile("sharedassets0.assets", from, JsonValue.Create(to)!);
+    }
+
+    private static byte[] CreateFieldManifestWithJsonValue(string from, string toJson)
+    {
+        JsonNode to = JsonNode.Parse(toJson) ?? throw new InvalidOperationException("Invalid test JSON value.");
+
         return CreateFieldManifestForFile("sharedassets0.assets", from, to);
     }
 
     private static byte[] CreateFieldManifestForFile(string fileName, string from, string to)
+    {
+        return CreateFieldManifestForFile(fileName, from, JsonValue.Create(to)!);
+    }
+
+    private static byte[] CreateFieldManifestForFile(string fileName, string from, JsonNode to)
     {
         JsonObject root = new()
         {
