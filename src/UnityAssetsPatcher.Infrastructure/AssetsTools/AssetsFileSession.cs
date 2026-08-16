@@ -35,14 +35,7 @@ internal sealed class AssetsFileSession : IDisposable
             throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
         }
 
-        try
-        {
-            classPackageCache.EnsureLoaded();
-        }
-        catch (Exception exception) when (exception is not IOException and not UnauthorizedAccessException)
-        {
-            throw new InvalidDataException("The AssetsTools class package could not be read.", exception);
-        }
+        classPackageCache.EnsureLoaded();
 
         var manager = new AssetsManager();
 
@@ -52,16 +45,10 @@ internal sealed class AssetsFileSession : IDisposable
 
             return new AssetsFileSession(classPackageCache, manager, instance);
         }
-        catch (Exception exception)
+        catch
         {
             manager.UnloadAll(unloadClassData: true);
-
-            if (exception is IOException or UnauthorizedAccessException)
-            {
-                throw;
-            }
-
-            throw new InvalidDataException($"Assets file could not be read: {assetsFilePath}", exception);
+            throw;
         }
     }
 
@@ -70,14 +57,7 @@ internal sealed class AssetsFileSession : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         EnsureClassDatabaseLoaded();
 
-        try
-        {
-            return _manager.GetBaseField(_instance, pathId.Value);
-        }
-        catch (Exception exception) when (exception is not IOException and not UnauthorizedAccessException)
-        {
-            throw new InvalidDataException($"Asset field could not be read: {pathId}", exception);
-        }
+        return _manager.GetBaseField(_instance, pathId.Value);
     }
 
     public bool ContainsAsset(AssetPathId pathId)
@@ -106,15 +86,8 @@ internal sealed class AssetsFileSession : IDisposable
     public void WriteTo(Stream outputStream)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        try
-        {
-            var writer = new AssetsFileWriter(outputStream);
-            AssetsFile.Write(writer);
-        }
-        catch (Exception exception) when (exception is not IOException and not UnauthorizedAccessException)
-        {
-            throw new InvalidDataException("The assets file could not be written.", exception);
-        }
+        var writer = new AssetsFileWriter(outputStream);
+        AssetsFile.Write(writer);
     }
 
     public void Dispose()
@@ -137,16 +110,7 @@ internal sealed class AssetsFileSession : IDisposable
             return;
         }
 
-        try
-        {
-            _classPackageCache.LoadClassDatabase(_manager, unityVersion);
-        }
-        catch (Exception exception) when (exception is not IOException and not UnauthorizedAccessException)
-        {
-            throw new InvalidDataException(
-                $"The AssetsTools class database for Unity version '{unityVersion}' could not be loaded.",
-                exception);
-        }
+        _classPackageCache.LoadClassDatabase(_manager, unityVersion);
 
         _loadedClassDatabaseVersion = unityVersion;
     }
