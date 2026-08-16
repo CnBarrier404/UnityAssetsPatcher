@@ -29,10 +29,10 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
 
     private readonly Dictionary<string, IAssetFileSession> _readSessions = new(TrustedPathComparer.Instance);
 
-    private readonly Dictionary<string, Dictionary<AssetPathId, AssetField>> _readFieldCaches =
-        new(TrustedPathComparer.Instance);
-
     private readonly IAssetFileSessionFactory _sessionFactory;
+    private AssetField? _cachedReadField;
+    private string? _cachedReadFieldPath;
+    private AssetPathId _cachedReadFieldPathId;
     private bool _disposed;
 
     public AssetFileAccessScope(IAssetFileSessionFactory sessionFactory)
@@ -53,19 +53,17 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
         IAssetFileSession session = GetReadSession(fullPath);
         AssetPathId assetPathId = new(pathId);
 
-        if (!_readFieldCaches.TryGetValue(fullPath, out Dictionary<AssetPathId, AssetField>? fieldCache))
+        if (_cachedReadField is not null &&
+            _cachedReadFieldPathId == assetPathId &&
+            TrustedPathComparer.Instance.Equals(_cachedReadFieldPath, fullPath))
         {
-            fieldCache = [];
-            _readFieldCaches.Add(fullPath, fieldCache);
+            return _cachedReadField;
         }
 
-        if (fieldCache.TryGetValue(assetPathId, out AssetField? fieldTree))
-        {
-            return fieldTree;
-        }
-
-        fieldTree = session.ReadField(assetPathId);
-        fieldCache.Add(assetPathId, fieldTree);
+        AssetField fieldTree = session.ReadField(assetPathId);
+        _cachedReadField = fieldTree;
+        _cachedReadFieldPath = fullPath;
+        _cachedReadFieldPathId = assetPathId;
 
         return fieldTree;
     }
@@ -156,33 +154,21 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
         IAssetFileSession session,
         IReadOnlyList<AssetFieldPatch> fieldPatches)
     {
-        var fieldTrees = new Dictionary<AssetPathId, AssetField>();
-
         return
         [
-            .. fieldPatches.Select(patch => new PatchAssetFields(
-                patch.PathId,
-                patch.Operations.Select(operation => MapFieldAssignment(
-                    GetFieldTree(session, fieldTrees, patch.PathId),
-                    patch.PathId,
-                    operation)))),
+            .. fieldPatches.Select(patch => MapFieldPatch(session, patch)),
         ];
     }
 
-    private static AssetField GetFieldTree(
+    private static PatchAssetFields MapFieldPatch(
         IAssetFileSession session,
-        IDictionary<AssetPathId, AssetField> fieldTrees,
-        AssetPathId pathId)
+        AssetFieldPatch patch)
     {
-        if (fieldTrees.TryGetValue(pathId, out AssetField? fieldTree))
-        {
-            return fieldTree;
-        }
+        AssetField fieldTree = session.ReadField(patch.PathId);
 
-        fieldTree = session.ReadField(pathId);
-        fieldTrees.Add(pathId, fieldTree);
-
-        return fieldTree;
+        return new PatchAssetFields(
+            patch.PathId,
+            patch.Operations.Select(operation => MapFieldAssignment(fieldTree, patch.PathId, operation)));
     }
 
     private static SetAssetField MapFieldAssignment(
@@ -249,7 +235,9 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
         }
 
         _readSessions.Clear();
-        _readFieldCaches.Clear();
+        _cachedReadField = null;
+        _cachedReadFieldPath = null;
+        _cachedReadFieldPathId = default;
     }
 
     private string GetFullPath(string assetsFilePath)

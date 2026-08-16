@@ -24,6 +24,21 @@ public sealed class AssetFileAccessScopeTests
     }
 
     [Fact]
+    public void ReadField_WhenAnotherAssetIsRead_EvictsPreviousFieldTree()
+    {
+        var session = new RecordingAssetFileSession(CreateAssetField());
+        var factory = new RecordingAssetFileSessionFactory(session);
+        using IAssetsAccessScope scope = new AssetFileAccessScopeFactory(factory).CreateScope();
+
+        _ = scope.Reader.ReadField("input.assets", 4);
+        _ = scope.Reader.ReadField("input.assets", 5);
+        _ = scope.Reader.ReadField("input.assets", 4);
+
+        Assert.Equal(1, factory.OpenCount);
+        Assert.Equal(3, session.ReadFieldCount);
+    }
+
+    [Fact]
     public void WriteFieldPatches_WhenWriteStarts_ClearsReadFieldCache()
     {
         var session = new RecordingAssetFileSession(CreateAssetField());
@@ -64,6 +79,25 @@ public sealed class AssetFileAccessScopeTests
             patch.Assignments,
             first => Assert.Equal("first", first.Path.ToString()),
             second => Assert.Equal("second", second.Path.ToString()));
+    }
+
+    [Fact]
+    public void WriteFieldPatches_WhenAssetsRepeatNonConsecutively_ReadsEachPatchFieldTree()
+    {
+        var session = new RecordingAssetFileSession(CreateAssetField());
+        var factory = new RecordingAssetFileSessionFactory(session);
+        using IAssetsAccessScope scope = new AssetFileAccessScopeFactory(factory).CreateScope();
+
+        scope.Writer.WriteFieldPatches(
+            "input.assets",
+            "output.assets",
+            [
+                new AssetFieldPatch(4, [new FieldPatchOperation("first", JsonValue("2"))]),
+                new AssetFieldPatch(5, [new FieldPatchOperation("first", JsonValue("3"))]),
+                new AssetFieldPatch(4, [new FieldPatchOperation("second", JsonValue("4"))]),
+            ]);
+
+        Assert.Equal(3, session.ReadFieldCount);
     }
 
     [Fact]
