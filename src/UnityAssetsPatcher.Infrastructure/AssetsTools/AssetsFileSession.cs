@@ -45,9 +45,14 @@ internal sealed class AssetsFileSession : IDisposable
 
             return new AssetsFileSession(classPackageCache, manager, instance);
         }
-        catch
+        catch (Exception exception)
         {
-            manager.UnloadAll(unloadClassData: true);
+            var cleanupExceptions = ResourceCleanup.RunAll(
+            [
+                () => manager.UnloadAll(unloadClassData: true),
+            ]);
+            ResourceCleanup.ThrowOrAttach(exception, cleanupExceptions);
+
             throw;
         }
     }
@@ -97,8 +102,8 @@ internal sealed class AssetsFileSession : IDisposable
             return;
         }
 
-        _disposed = true;
         _manager.UnloadAll(unloadClassData: true);
+        _disposed = true;
     }
 
     private void EnsureClassDatabaseLoaded()

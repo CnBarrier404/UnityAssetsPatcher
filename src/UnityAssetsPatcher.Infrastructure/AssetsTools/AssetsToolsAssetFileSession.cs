@@ -19,8 +19,14 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
     private readonly string _inputPath;
     private readonly ILogger<AssetsToolsAssetFileSession> _logger;
     private readonly AssetsFileSession _session;
+
+    private readonly Dictionary<string, AssetsFileSession> _pendingSourceSessions =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private IReadOnlyList<AssetInfo>? _assets;
+    private Exception? _lastOperationException;
     private bool _disposed;
+    private bool _sessionDisposed;
 
     public AssetsToolsAssetFileSession(
         string inputPath,
@@ -65,14 +71,16 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
 
         _disposed = true;
         _assets = null;
-        AssetsToolsLog.WritingAssetsFile(
-            _logger,
-            plan.Mutations.Count,
-            _inputPath,
-            outputPath);
+
+        Exception? primaryException = null;
 
         try
         {
+            AssetsToolsLog.WritingAssetsFile(
+                _logger,
+                plan.Mutations.Count,
+                _inputPath,
+                outputPath);
             ValidateReplacementSources(plan.Mutations);
             WriteOutput(outputPath, plan.Mutations);
             AssetsToolsLog.AssetsFileWritten(
@@ -80,24 +88,49 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
                 plan.Mutations.Count,
                 outputPath);
         }
-        finally
+        catch (Exception exception)
         {
-            _session.Dispose();
-            AssetsToolsLog.AssetsFileClosed(_logger, _inputPath);
+            primaryException = exception;
+        }
+
+        var cleanupExceptions = ResourceCleanup.RunAll(
+        [
+            DisposeSessions,
+        ]);
+
+        if (cleanupExceptions.Count > 0)
+        {
+            _lastOperationException = primaryException;
+        }
+
+        try
+        {
+            ResourceCleanup.ThrowOrAttach(primaryException, cleanupExceptions);
+        }
+        catch (Exception exception)
+        {
+            _lastOperationException ??= exception;
+            throw;
         }
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        _disposed = true;
+        _assets = null;
+
+        var cleanupExceptions = ResourceCleanup.RunAll(
+        [
+            DisposeSessions,
+        ]);
+
+        if (_lastOperationException is not null)
         {
+            ResourceCleanup.Attach(_lastOperationException, cleanupExceptions);
             return;
         }
 
-        _disposed = true;
-        _assets = null;
-        _session.Dispose();
-        AssetsToolsLog.AssetsFileClosed(_logger, _inputPath);
+        ResourceCleanup.ThrowOrAttach(null, cleanupExceptions);
     }
 
     private IReadOnlyList<AssetInfo> ReadSessionAssets()
@@ -136,6 +169,36 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
             });
     }
 
+    private void DisposeSessions()
+    {
+        var cleanupExceptions = ResourceCleanup.RunAll(
+        [
+            DisposeTargetSession,
+            .. _pendingSourceSessions
+                .ToArray()
+                .Select(source => (Action)(() =>
+                {
+                    source.Value.Dispose();
+                    _pendingSourceSessions.Remove(source.Key);
+                    AssetsToolsLog.AssetsFileClosed(_logger, source.Key);
+                })),
+        ]);
+
+        ResourceCleanup.ThrowOrAttach(null, cleanupExceptions);
+    }
+
+    private void DisposeTargetSession()
+    {
+        if (_sessionDisposed)
+        {
+            return;
+        }
+
+        _session.Dispose();
+        _sessionDisposed = true;
+        AssetsToolsLog.AssetsFileClosed(_logger, _inputPath);
+    }
+
     private static void ValidateReplacementSources(IReadOnlyList<AssetMutation> mutations)
     {
         foreach (string sourcePath in mutations
@@ -155,6 +218,7 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
         var mutableFields = new Dictionary<AssetPathId, AssetTypeValueField>();
         var fieldLocators = new Dictionary<AssetPathId, AssetFieldLocator>();
         var sourceSessions = new Dictionary<string, AssetsFileSession>(StringComparer.OrdinalIgnoreCase);
+        Exception? primaryException = null;
 
         try
         {
@@ -182,14 +246,27 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
                 _session.SetData(pathId, field);
             }
         }
-        finally
+        catch (Exception exception)
         {
-            foreach ((string sourcePath, AssetsFileSession sourceSession) in sourceSessions)
-            {
-                sourceSession.Dispose();
-                AssetsToolsLog.AssetsFileClosed(_logger, sourcePath);
-            }
+            primaryException = exception;
         }
+
+        var cleanupExceptions = ResourceCleanup.RunAll(
+            sourceSessions
+                .ToArray()
+                .Select(source => (Action)(() =>
+                {
+                    source.Value.Dispose();
+                    sourceSessions.Remove(source.Key);
+                    AssetsToolsLog.AssetsFileClosed(_logger, source.Key);
+                })));
+
+        foreach ((string sourcePath, AssetsFileSession sourceSession) in sourceSessions)
+        {
+            _pendingSourceSessions[sourcePath] = sourceSession;
+        }
+
+        ResourceCleanup.ThrowOrAttach(primaryException, cleanupExceptions);
     }
 
     private void ApplyFieldPatch(

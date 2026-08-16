@@ -119,6 +119,60 @@ public sealed class AssetFileAccessScopeTests
         Assert.Null(session.Plan);
     }
 
+    [Fact]
+    public void Dispose_WhenMultipleSessionsFail_ContinuesDisposingAndCanRetry()
+    {
+        var firstSession = new RecordingAssetFileSession(CreateAssetField());
+        firstSession.DisposeFailures.Enqueue(new InvalidOperationException("first cleanup failure"));
+        var secondSession = new RecordingAssetFileSession(CreateAssetField());
+        secondSession.DisposeFailures.Enqueue(new InvalidOperationException("second cleanup failure"));
+        var factory = new RecordingAssetFileSessionFactory(path =>
+            path.EndsWith("first.assets", StringComparison.OrdinalIgnoreCase)
+                ? firstSession
+                : secondSession);
+        IAssetsAccessScope scope = new AssetFileAccessScopeFactory(factory).CreateScope();
+
+        _ = scope.Reader.ReadAssets("first.assets");
+        _ = scope.Reader.ReadAssets("second.assets");
+
+        AggregateException exception = Assert.Throws<AggregateException>(() => scope.Dispose());
+
+        Assert.Equal(2, exception.InnerExceptions.Count);
+        Assert.Equal(1, firstSession.DisposeCount);
+        Assert.Equal(1, secondSession.DisposeCount);
+
+        scope.Dispose();
+
+        Assert.Equal(2, firstSession.DisposeCount);
+        Assert.Equal(2, secondSession.DisposeCount);
+    }
+
+    [Fact]
+    public void WriteFieldPatches_WhenWriteAndDisposeFail_PreservesWriteExceptionAndRetriesCleanup()
+    {
+        var session = new RecordingAssetFileSession(CreateAssetField())
+        {
+            WriteException = new InvalidOperationException("write failure"),
+        };
+        var cleanupException = new InvalidOperationException("cleanup failure");
+        session.DisposeFailures.Enqueue(cleanupException);
+        IAssetsAccessScope scope = new AssetFileAccessScopeFactory(
+            new RecordingAssetFileSessionFactory(session)).CreateScope();
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            scope.Writer.WriteFieldPatches("input.assets", "output.assets", CreateFieldPatch()));
+
+        Assert.Same(session.WriteException, exception);
+        AggregateException attachedCleanup = Assert.IsType<AggregateException>(
+            exception.Data[ResourceCleanup.CleanupExceptionsDataKey]);
+        Assert.Contains(cleanupException, attachedCleanup.InnerExceptions);
+        Assert.Equal(1, session.DisposeCount);
+
+        scope.Dispose();
+
+        Assert.Equal(2, session.DisposeCount);
+    }
+
     private static AssetField CreateAssetField()
     {
         return new AssetObjectField(
@@ -157,20 +211,25 @@ public sealed class AssetFileAccessScopeTests
 
     private sealed class RecordingAssetFileSessionFactory : IAssetFileSessionFactory
     {
-        private readonly IAssetFileSession _session;
+        private readonly Func<string, IAssetFileSession> _open;
 
         public int OpenCount { get; private set; }
 
         public RecordingAssetFileSessionFactory(IAssetFileSession session)
         {
-            _session = session;
+            _open = _ => session;
+        }
+
+        public RecordingAssetFileSessionFactory(Func<string, IAssetFileSession> open)
+        {
+            _open = open;
         }
 
         public IAssetFileSession Open(string inputPath)
         {
             OpenCount++;
 
-            return _session;
+            return _open(inputPath);
         }
     }
 
@@ -180,6 +239,9 @@ public sealed class AssetFileAccessScopeTests
 
         public int ReadFieldCount { get; private set; }
         public AssetMutationPlan? Plan { get; private set; }
+        public int DisposeCount { get; private set; }
+        public Queue<Exception> DisposeFailures { get; } = [];
+        public Exception? WriteException { get; init; }
 
         public RecordingAssetFileSession(AssetField field)
         {
@@ -201,8 +263,21 @@ public sealed class AssetFileAccessScopeTests
         public void Write(string outputPath, AssetMutationPlan plan)
         {
             Plan = plan;
+
+            if (WriteException is { } exception)
+            {
+                throw exception;
+            }
         }
 
-        public void Dispose() { }
+        public void Dispose()
+        {
+            DisposeCount++;
+
+            if (DisposeFailures.Count > 0)
+            {
+                throw DisposeFailures.Dequeue();
+            }
+        }
     }
 }

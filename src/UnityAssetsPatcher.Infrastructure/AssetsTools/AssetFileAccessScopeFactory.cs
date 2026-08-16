@@ -33,6 +33,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
     private AssetField? _cachedReadField;
     private string? _cachedReadFieldPath;
     private AssetPathId _cachedReadFieldPathId;
+    private Exception? _lastOperationException;
     private bool _disposed;
 
     public AssetFileAccessScope(IAssetFileSessionFactory sessionFactory)
@@ -111,13 +112,22 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
 
     public void Dispose()
     {
-        if (_disposed)
+        if (_disposed && _readSessions.Count == 0)
         {
             return;
         }
 
         _disposed = true;
-        CloseReadSessions();
+        var cleanupExceptions = CloseReadSessions();
+
+        if (_lastOperationException is not null)
+        {
+            ResourceCleanup.Attach(_lastOperationException, cleanupExceptions);
+
+            return;
+        }
+
+        ResourceCleanup.ThrowOrAttach(null, cleanupExceptions);
     }
 
     private IAssetFileSession GetReadSession(string assetsFilePath)
@@ -142,12 +152,60 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         ArgumentNullException.ThrowIfNull(createMutations);
 
-        CloseReadSessions();
+        try
+        {
+            ResourceCleanup.ThrowOrAttach(null, CloseReadSessions());
+        }
+        catch (Exception exception)
+        {
+            _lastOperationException = exception;
+            _disposed = true;
 
-        using IAssetFileSession session = _sessionFactory.Open(inputPath);
-        AssetMutation[] mutations = createMutations(session);
+            throw;
+        }
 
-        session.Write(outputPath, new AssetMutationPlan(mutations));
+        IAssetFileSession session = _sessionFactory.Open(inputPath);
+        Exception? primaryException = null;
+
+        try
+        {
+            var mutations = createMutations(session);
+            session.Write(outputPath, new AssetMutationPlan(mutations));
+        }
+        catch (Exception exception)
+        {
+            primaryException = exception;
+        }
+
+        var cleanupExceptions = ResourceCleanup.RunAll(
+        [
+            session.Dispose,
+        ]);
+
+        if (cleanupExceptions.Count > 0)
+        {
+            _readSessions[Path.GetFullPath(inputPath)] = session;
+            _disposed = true;
+        }
+
+        if (primaryException is not null && cleanupExceptions.Count > 0)
+        {
+            _lastOperationException = primaryException;
+        }
+
+        try
+        {
+            ResourceCleanup.ThrowOrAttach(primaryException, cleanupExceptions);
+        }
+        catch (Exception exception)
+        {
+            if (cleanupExceptions.Count > 0)
+            {
+                _lastOperationException ??= exception;
+            }
+
+            throw;
+        }
     }
 
     private static AssetMutation[] MapFieldPatches(
@@ -227,17 +285,22 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
         };
     }
 
-    private void CloseReadSessions()
+    private IReadOnlyList<Exception> CloseReadSessions()
     {
-        foreach (IAssetFileSession session in _readSessions.Values)
-        {
-            session.Dispose();
-        }
+        var cleanupExceptions = ResourceCleanup.RunAll(
+            _readSessions
+                .ToArray()
+                .Select(entry => (Action)(() =>
+                {
+                    entry.Value.Dispose();
+                    _readSessions.Remove(entry.Key);
+                })));
 
-        _readSessions.Clear();
         _cachedReadField = null;
         _cachedReadFieldPath = null;
         _cachedReadFieldPathId = default;
+
+        return cleanupExceptions;
     }
 
     private string GetFullPath(string assetsFilePath)
