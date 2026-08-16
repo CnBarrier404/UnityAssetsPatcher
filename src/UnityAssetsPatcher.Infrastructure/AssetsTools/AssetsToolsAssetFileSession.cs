@@ -235,9 +235,23 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
         ReplaceAsset replacement)
     {
         AssetsFileSession sourceSession = GetSourceSession(sourceSessions, replacement.Source.AssetsFilePath);
-        AssetTypeValueField sourceField = GetRequiredField(sourceSession, replacement.Source.Asset);
+        AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
+            _session,
+            replacement.Target,
+            sourceSession,
+            replacement.Source.Asset);
 
-        _ = GetMutableField(mutableFields, replacement.Target);
+        AssetTypeValueField sourceField = GetRequiredField(sourceSession, replacement.Source.Asset);
+        AssetTypeValueField targetField = GetMutableField(mutableFields, replacement.Target);
+
+        AssetReplacementCompatibilityValidator.ValidateFields(
+            _session,
+            replacement.Target,
+            targetField,
+            sourceSession,
+            replacement.Source.Asset,
+            sourceField);
+
         mutableFields[replacement.Target] = sourceField.Clone();
         fieldLocators.Remove(replacement.Target);
     }

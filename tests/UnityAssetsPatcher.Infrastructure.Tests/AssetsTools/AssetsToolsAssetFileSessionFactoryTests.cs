@@ -1,3 +1,5 @@
+using AssetsTools.NET;
+using AssetsTools.NET.Extra;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -6,6 +8,7 @@ using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.Domain.Integrity;
 using UnityAssetsPatcher.Infrastructure.AssetsTools;
+using UnityAssetsPatcher.Infrastructure.IO;
 using Xunit;
 
 namespace UnityAssetsPatcher.Infrastructure.Tests.AssetsTools;
@@ -126,6 +129,38 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
         }
     }
 
+    [Fact]
+    public void Write_WhenReplacementMetadataIsIncompatible_RejectsBeforeCreatingOutput()
+    {
+        string outputRoot = CreateTemporaryDirectoryPath();
+        string sourcePath = Path.Combine(outputRoot, "source.assets");
+        string outputPath = Path.Combine(outputRoot, "replaced.assets");
+        var factory = new AssetsToolsAssetFileSessionFactory(
+            OpenClassPackage,
+            new FileSystemOperations(NullLogger<FileSystemOperations>.Instance),
+            NullLoggerFactory.Instance);
+
+        try
+        {
+            Directory.CreateDirectory(outputRoot);
+            CreateAssetsFileVariant(sourcePath, file => file.Metadata.TargetPlatform++);
+
+            using IAssetFileSession replacementSession = factory.Open(GetAssetsFilePath());
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+                replacementSession.Write(outputPath, new AssetMutationPlan(
+                [
+                    new ReplaceAsset(new AssetSource(sourcePath, new AssetPathId(4)), new AssetPathId(4)),
+                ])));
+
+            Assert.Contains("target platform", exception.Message, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            DeleteTemporaryDirectory(outputRoot);
+        }
+    }
+
     private static AssetsToolsAssetFileSessionFactory CreateFactory(
         Func<Stream>? openClassPackage = null,
         ILoggerFactory? loggerFactory = null)
@@ -201,6 +236,25 @@ public sealed class AssetsToolsAssetFileSessionFactoryTests
     private static string GetAssetsFilePath()
     {
         return Path.Combine(AppContext.BaseDirectory, "Fixtures", "sharedassets0.assets");
+    }
+
+    private static void CreateAssetsFileVariant(string outputPath, Action<AssetsFile> mutate)
+    {
+        var manager = new AssetsManager();
+
+        try
+        {
+            AssetsFileInstance instance = manager.LoadAssetsFile(GetAssetsFilePath(), loadDeps: false);
+            mutate(instance.file);
+
+            using FileStream stream = File.Create(outputPath);
+            using var writer = new AssetsFileWriter(stream);
+            instance.file.Write(writer);
+        }
+        finally
+        {
+            manager.UnloadAll(unloadClassData: true);
+        }
     }
 
     private static Stream OpenClassPackage()

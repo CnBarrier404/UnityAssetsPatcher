@@ -87,6 +87,15 @@ internal sealed class AssetsFileSession : IDisposable
         return _assetPathIds.Contains(pathId.Value);
     }
 
+    public AssetFileInfo GetAssetInfo(AssetPathId pathId)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        return !ContainsAsset(pathId)
+            ? throw new InvalidOperationException($"Asset not found or cannot be read: {pathId}")
+            : AssetsFile.GetAssetInfo(pathId.Value);
+    }
+
     public void SetData(AssetPathId pathId, AssetTypeValueField field)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -99,7 +108,7 @@ internal sealed class AssetsFileSession : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         try
         {
-            var writer = new global::AssetsTools.NET.AssetsFileWriter(outputStream);
+            var writer = new AssetsFileWriter(outputStream);
             AssetsFile.Write(writer);
         }
         catch (Exception exception) when (exception is not IOException and not UnauthorizedAccessException)
