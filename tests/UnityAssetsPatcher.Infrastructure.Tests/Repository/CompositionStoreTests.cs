@@ -17,7 +17,7 @@ public sealed class CompositionStoreTests
         string repositoryPath = directory.GetPath("backup");
         string sourcePath = directory.WriteFile(@"game\Game_Data\sharedassets0.assets", "base-assets");
         FileSystemOperations fileSystem = CreateFileSystem();
-        BaseSnapshotStore store = new(new FileRepositoryLayout(repositoryPath), fileSystem);
+        BaseSnapshotStore store = CreateBaseSnapshotStore(repositoryPath, fileSystem);
         FileIntegrity integrity = fileSystem.ComputeFileIntegrity(sourcePath);
 
         FileIntegrity stored = store.StoreVerifiedCopy(
@@ -57,7 +57,7 @@ public sealed class CompositionStoreTests
     {
         using RepositoryTestDirectory directory = new();
         string repositoryPath = directory.GetPath("backup");
-        BaseSnapshotStore store = new(new FileRepositoryLayout(repositoryPath), CreateFileSystem());
+        BaseSnapshotStore store = CreateBaseSnapshotStore(repositoryPath, CreateFileSystem());
 
         _ = store.GetBaseDirectory("game-fingerprint");
         Directory.CreateDirectory(Path.Combine(repositoryPath, "games", "game-fingerprint", "base"));
@@ -78,7 +78,7 @@ public sealed class CompositionStoreTests
         string repositoryPath = directory.GetPath("backup");
         string sourcePath = directory.WriteFile(@"game\base.assets", "original");
         FileSystemOperations fileSystem = CreateFileSystem();
-        BaseSnapshotStore store = new(new FileRepositoryLayout(repositoryPath), fileSystem);
+        BaseSnapshotStore store = CreateBaseSnapshotStore(repositoryPath, fileSystem);
         FileIntegrity integrity = store.StoreVerifiedCopy("game-fingerprint", "base.assets", sourcePath);
         string storedPath = store.ResolveFilePath("game-fingerprint", "base.assets");
 
@@ -99,7 +99,7 @@ public sealed class CompositionStoreTests
         string repositoryPath = directory.GetPath("backup");
         string sourcePath = directory.WriteFile("source.bin", "original");
         FileSystemOperations fileSystem = CreateFileSystem();
-        BaseSnapshotStore store = new(new FileRepositoryLayout(repositoryPath), fileSystem);
+        BaseSnapshotStore store = CreateBaseSnapshotStore(repositoryPath, fileSystem);
 
         FileIntegrity first = store.StoreVerifiedCopy("game-fingerprint", "base.assets", sourcePath);
         File.WriteAllText(sourcePath, "changed");
@@ -121,7 +121,7 @@ public sealed class CompositionStoreTests
     public void BaseSnapshotStore_WhenRelativePathIsUnsafe_RejectsPath(string relativePath)
     {
         using RepositoryTestDirectory directory = new();
-        BaseSnapshotStore store = new(new FileRepositoryLayout(directory.GetPath("backup")), CreateFileSystem());
+        BaseSnapshotStore store = CreateBaseSnapshotStore(directory.GetPath("backup"), CreateFileSystem());
         string sourcePath = directory.WriteFile("source.bin", "source");
 
         var exception = Assert.Throws<IOException>(() => store.StoreVerifiedCopy(
@@ -140,7 +140,7 @@ public sealed class CompositionStoreTests
         string sourcePath = directory.WriteFile("source.zip", "package-content");
         string preparedDirectory = directory.CreateDirectory("backup", ".temp", "layer-1");
         FileSystemOperations fileSystem = CreateFileSystem();
-        LayerStore store = new(new FileRepositoryLayout(repositoryPath), fileSystem);
+        LayerStore store = CreateLayerStore(repositoryPath, fileSystem);
         FileIntegrity integrity = fileSystem.ComputeFileIntegrity(sourcePath);
         LayerRecord record = CreateLayerRecord(integrity);
 
@@ -172,7 +172,7 @@ public sealed class CompositionStoreTests
         string repositoryPath = directory.GetPath("backup");
         string layerDirectory = directory.CreateDirectory("backup", "layers", "layer-1");
         File.WriteAllText(Path.Combine(layerDirectory, "layer.json"), "{not-json");
-        LayerStore store = new(new FileRepositoryLayout(repositoryPath), CreateFileSystem());
+        LayerStore store = CreateLayerStore(repositoryPath, CreateFileSystem());
 
         var exception = Assert.Throws<InvalidDataException>(() => store.ReadLayer("layer-1"));
 
@@ -187,7 +187,7 @@ public sealed class CompositionStoreTests
         string sourcePath = directory.WriteFile("source.zip", "package-content");
         string preparedDirectory = directory.CreateDirectory("backup", ".temp", "layer-1");
         FileSystemOperations fileSystem = CreateFileSystem();
-        LayerStore store = new(new FileRepositoryLayout(repositoryPath), fileSystem);
+        LayerStore store = CreateLayerStore(repositoryPath, fileSystem);
         LayerRecord record = CreateLayerRecord(fileSystem.ComputeFileIntegrity(sourcePath));
 
         store.StoreVerifiedPackage(sourcePath, preparedDirectory, record.Package);
@@ -208,7 +208,7 @@ public sealed class CompositionStoreTests
         string sourcePath = directory.WriteFile("source.zip", "package-content");
         string preparedDirectory = directory.CreateDirectory("backup", ".temp", "layer-1");
         FileSystemOperations fileSystem = CreateFileSystem();
-        LayerStore store = new(new FileRepositoryLayout(repositoryPath), fileSystem);
+        LayerStore store = CreateLayerStore(repositoryPath, fileSystem);
         LayerRecord record = CreateLayerRecord(fileSystem.ComputeFileIntegrity(sourcePath));
 
         store.StoreVerifiedPackage(sourcePath, preparedDirectory, record.Package);
@@ -229,7 +229,7 @@ public sealed class CompositionStoreTests
         string sourcePath = directory.WriteFile("source.zip", "package-content");
         string outsideDirectory = directory.CreateDirectory("outside");
         directory.CreateDirectory("backup", ".temp");
-        LayerStore store = new(new FileRepositoryLayout(repositoryPath), CreateFileSystem());
+        LayerStore store = CreateLayerStore(repositoryPath, CreateFileSystem());
         LayerRecord record = CreateLayerRecord(FileIntegrity.Create("package-content"u8));
 
         var exception = Assert.Throws<InvalidOperationException>(() => store.StoreVerifiedPackage(
@@ -272,7 +272,7 @@ public sealed class CompositionStoreTests
               "payloadTargets": []
             }
             """);
-        LayerStore store = new(new FileRepositoryLayout(repositoryPath), CreateFileSystem());
+        LayerStore store = CreateLayerStore(repositoryPath, CreateFileSystem());
 
         var exception = Assert.Throws<InvalidDataException>(() => store.ReadLayer("layer-1"));
 
@@ -319,5 +319,27 @@ public sealed class CompositionStoreTests
     private static FileSystemOperations CreateFileSystem()
     {
         return new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
+    }
+
+    private static BaseSnapshotStore CreateBaseSnapshotStore(
+        string repositoryPath,
+        FileSystemOperations fileSystem)
+    {
+        return new BaseSnapshotStore(
+            new FileRepositoryLayout(repositoryPath),
+            fileSystem,
+            new RepositoryFileSystem(fileSystem),
+            new RepositoryJsonPersistence(fileSystem));
+    }
+
+    private static LayerStore CreateLayerStore(
+        string repositoryPath,
+        FileSystemOperations fileSystem)
+    {
+        return new LayerStore(
+            new FileRepositoryLayout(repositoryPath),
+            fileSystem,
+            new RepositoryFileSystem(fileSystem),
+            new RepositoryJsonPersistence(fileSystem));
     }
 }

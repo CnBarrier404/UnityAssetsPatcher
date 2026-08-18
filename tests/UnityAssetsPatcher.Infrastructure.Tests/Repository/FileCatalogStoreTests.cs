@@ -73,9 +73,13 @@ public sealed class FileCatalogStoreTests
         FileRepositoryLayout layout,
         FileSystemOperations? fileSystem = null)
     {
+        FileSystemOperations operations = fileSystem ?? CreateFileSystem();
+
         return new FileCatalogStore(
             layout,
-            fileSystem ?? CreateFileSystem(),
+            operations,
+            new RepositoryFileSystem(operations),
+            new RepositoryJsonPersistence(operations),
             NullLogger<FileCatalogStore>.Instance);
     }
 

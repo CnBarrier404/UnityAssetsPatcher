@@ -10,16 +10,24 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
 
     private readonly FileRepositoryLayout _layout;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly TrustedPathResolver _pathResolver;
+    private readonly RepositoryFileSystem _repositoryFileSystem;
+    private readonly RepositoryJsonPersistence _jsonPersistence;
 
-    public BaseSnapshotStore(FileRepositoryLayout layout, IFileSystemOperations fileSystemOperations)
+    public BaseSnapshotStore(
+        FileRepositoryLayout layout,
+        IFileSystemOperations fileSystemOperations,
+        RepositoryFileSystem repositoryFileSystem,
+        RepositoryJsonPersistence jsonPersistence)
     {
         ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(repositoryFileSystem);
+        ArgumentNullException.ThrowIfNull(jsonPersistence);
 
         _layout = layout;
         _fileSystemOperations = fileSystemOperations;
-        _pathResolver = new TrustedPathResolver(fileSystemOperations);
+        _repositoryFileSystem = repositoryFileSystem;
+        _jsonPersistence = jsonPersistence;
     }
 
     public BaseCatalog? TryReadCatalog(string gameInstanceFingerprint)
@@ -36,29 +44,26 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
 
     public BaseCatalog ReadCatalog(string gameInstanceFingerprint)
     {
-        string normalizedFingerprint = FileCompositionStoreSupport.NormalizeIdentifier(
-            gameInstanceFingerprint,
-            nameof(gameInstanceFingerprint));
+        string normalizedFingerprint =
+            RepositoryFileSystem.NormalizeIdentifier(gameInstanceFingerprint, nameof(gameInstanceFingerprint));
+
         string catalogPath = ResolveExistingCatalogPath(normalizedFingerprint);
-        BaseCatalog catalog = FileCompositionStoreSupport.ReadJson(
-            _fileSystemOperations,
+
+        BaseCatalog catalog = _jsonPersistence.Read(
             catalogPath,
             RepositoryJsonContext.Default.BaseCatalog,
             "Base catalog");
 
-        if (!TrustedPath.PathComparer.Equals(catalog.GameInstanceFingerprint, normalizedFingerprint))
-        {
-            throw new InvalidDataException("Base catalog game instance fingerprint does not match its directory.");
-        }
-
-        return catalog;
+        return !TrustedPath.PathComparer.Equals(catalog.GameInstanceFingerprint, normalizedFingerprint)
+            ? throw new InvalidDataException("Base catalog game instance fingerprint does not match its directory.")
+            : catalog;
     }
 
     public void WriteCatalog(BaseCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
-        string normalizedFingerprint = FileCompositionStoreSupport.NormalizeIdentifier(
+        string normalizedFingerprint = RepositoryFileSystem.NormalizeIdentifier(
             catalog.GameInstanceFingerprint,
             nameof(catalog.GameInstanceFingerprint));
         string baseDirectory = EnsureBaseDirectory(normalizedFingerprint);
@@ -66,8 +71,7 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
             baseDirectory,
             _layout.GetBaseCatalogPath(normalizedFingerprint));
 
-        FileCompositionStoreSupport.WriteJson(
-            _fileSystemOperations,
+        _jsonPersistence.Write(
             catalogPath,
             catalog,
             RepositoryJsonContext.Default.BaseCatalog,
@@ -76,7 +80,7 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
 
     public string GetBaseDirectory(string gameInstanceFingerprint)
     {
-        string normalizedFingerprint = FileCompositionStoreSupport.NormalizeIdentifier(
+        string normalizedFingerprint = RepositoryFileSystem.NormalizeIdentifier(
             gameInstanceFingerprint,
             nameof(gameInstanceFingerprint));
         string gameDirectory = _layout.GetGameDirectory(normalizedFingerprint);
@@ -92,11 +96,12 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
 
     public string ResolveFilePath(string gameInstanceFingerprint, string relativePath)
     {
-        string baseDirectory = _pathResolver.ResolveExistingDirectory(GetBaseDirectory(gameInstanceFingerprint));
+        string baseDirectory =
+            _repositoryFileSystem.ResolveExistingDirectory(GetBaseDirectory(gameInstanceFingerprint));
         string normalizedRelativePath = NormalizeRelativePath(relativePath);
         string filesPath = Path.Combine(
             _layout.GetBaseFilesDirectory(
-                FileCompositionStoreSupport.NormalizeIdentifier(
+                RepositoryFileSystem.NormalizeIdentifier(
                     gameInstanceFingerprint,
                     nameof(gameInstanceFingerprint))),
             normalizedRelativePath);
@@ -109,17 +114,17 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
         string relativePath,
         string sourcePath)
     {
-        string normalizedFingerprint = FileCompositionStoreSupport.NormalizeIdentifier(
+        string normalizedFingerprint = RepositoryFileSystem.NormalizeIdentifier(
             gameInstanceFingerprint,
             nameof(gameInstanceFingerprint));
         string source = TrustedPath.NormalizeAbsolutePath(sourcePath);
-        FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, source, "Base snapshot source");
+        _repositoryFileSystem.EnsureRegularFile(source, "Base snapshot source");
         string baseDirectory = EnsureBaseDirectory(normalizedFingerprint);
         string filesDirectory = ResolveWithinBaseDirectory(
             baseDirectory,
             _layout.GetBaseFilesDirectory(normalizedFingerprint));
         _fileSystemOperations.EnsureDirectory(filesDirectory);
-        FileCompositionStoreSupport.EnsureRealDirectory(_fileSystemOperations, filesDirectory, "Base files directory");
+        _repositoryFileSystem.EnsureRealDirectory(filesDirectory, "Base files directory");
 
         string destination = ResolveWithinBaseDirectory(
             baseDirectory,
@@ -129,10 +134,7 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
         string destinationDirectory = Path.GetDirectoryName(destination) ??
                                       throw new IOException($"Cannot resolve base snapshot directory: {destination}");
         _fileSystemOperations.EnsureDirectory(destinationDirectory);
-        FileCompositionStoreSupport.EnsureRealDirectory(
-            _fileSystemOperations,
-            destinationDirectory,
-            "Base snapshot file directory");
+        _repositoryFileSystem.EnsureRealDirectory(destinationDirectory, "Base snapshot file directory");
 
         if (TrustedPath.PathsEqual(source, destination))
         {
@@ -141,9 +143,9 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
 
         FileIntegrity expected = _fileSystemOperations.ComputeFileIntegrity(source);
 
-        if (FileCompositionStoreSupport.TryGetAttributes(_fileSystemOperations, destination, out _))
+        if (_repositoryFileSystem.TryGetAttributes(destination, out _))
         {
-            FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, destination, "Base snapshot file");
+            _repositoryFileSystem.EnsureRegularFile(destination, "Base snapshot file");
             FileIntegrity existing = _fileSystemOperations.ComputeFileIntegrity(destination);
 
             if (expected.Matches(existing))
@@ -191,64 +193,54 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
         ArgumentNullException.ThrowIfNull(expected);
 
         string path = ResolveFilePath(gameInstanceFingerprint, relativePath);
-        FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, path, "Base snapshot file");
+        _repositoryFileSystem.EnsureRegularFile(path, "Base snapshot file");
         FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(path);
 
-        if (!expected.Matches(actual))
-        {
-            throw new InvalidDataException($"Base snapshot file integrity does not match: {path}");
-        }
-
-        return actual;
+        return !expected.Matches(actual)
+            ? throw new InvalidDataException($"Base snapshot file integrity does not match: {path}")
+            : actual;
     }
 
     private string EnsureBaseDirectory(string gameInstanceFingerprint)
     {
         _fileSystemOperations.EnsureDirectory(_layout.GamesDirectory);
-        FileCompositionStoreSupport.EnsureRealDirectory(
-            _fileSystemOperations,
-            _layout.GamesDirectory,
-            "Games directory");
+        _repositoryFileSystem.EnsureRealDirectory(_layout.GamesDirectory, "Games directory");
 
         string gameDirectory = _layout.GetGameDirectory(gameInstanceFingerprint);
         _fileSystemOperations.EnsureDirectory(gameDirectory);
-        FileCompositionStoreSupport.EnsureRealDirectory(_fileSystemOperations, gameDirectory,
-            "Game snapshot directory");
+        _repositoryFileSystem.EnsureRealDirectory(gameDirectory, "Game snapshot directory");
 
         string baseDirectory = GetBaseDirectory(gameInstanceFingerprint);
         _fileSystemOperations.EnsureDirectory(baseDirectory);
-        FileCompositionStoreSupport.EnsureRealDirectory(_fileSystemOperations, baseDirectory,
-            "Base snapshot directory");
+        _repositoryFileSystem.EnsureRealDirectory(baseDirectory, "Base snapshot directory");
 
         return baseDirectory;
     }
 
     private string ResolveExistingCatalogPath(string gameInstanceFingerprint)
     {
-        string baseDirectory = _pathResolver.ResolveExistingDirectory(GetBaseDirectory(gameInstanceFingerprint));
+        string baseDirectory =
+            _repositoryFileSystem.ResolveExistingDirectory(GetBaseDirectory(gameInstanceFingerprint));
         string catalogPath = ResolveWithinBaseDirectory(
             baseDirectory,
             _layout.GetBaseCatalogPath(gameInstanceFingerprint));
-        FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, catalogPath, "Base catalog");
+        _repositoryFileSystem.EnsureRegularFile(catalogPath, "Base catalog");
 
         return catalogPath;
     }
 
     private string ResolveWithinBaseDirectory(string baseDirectory, string path)
     {
-        return _pathResolver.ResolveWithinDirectory(
+        return _repositoryFileSystem.ResolveWithinDirectory(
             baseDirectory,
             Path.GetRelativePath(baseDirectory, path));
     }
 
     private static string NormalizeRelativePath(string relativePath)
     {
-        if (!TrustedPath.TryNormalizeRelativePath(relativePath, out string normalizedPath))
-        {
-            throw new IOException($"The relative path is not trusted: '{relativePath}'.");
-        }
-
-        return normalizedPath;
+        return !TrustedPath.TryNormalizeRelativePath(relativePath, out string normalizedPath)
+            ? throw new IOException($"The relative path is not trusted: '{relativePath}'.")
+            : normalizedPath;
     }
 
     private void TryDeleteSnapshot(string path)

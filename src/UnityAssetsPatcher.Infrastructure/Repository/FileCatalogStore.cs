@@ -1,5 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.IO;
@@ -12,19 +10,27 @@ internal sealed class FileCatalogStore
 
     private readonly FileRepositoryLayout _layout;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly RepositoryFileSystem _repositoryFileSystem;
+    private readonly RepositoryJsonPersistence _jsonPersistence;
     private readonly ILogger<FileCatalogStore> _logger;
 
     public FileCatalogStore(
         FileRepositoryLayout layout,
         IFileSystemOperations fileSystemOperations,
+        RepositoryFileSystem repositoryFileSystem,
+        RepositoryJsonPersistence jsonPersistence,
         ILogger<FileCatalogStore> logger)
     {
         ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(repositoryFileSystem);
+        ArgumentNullException.ThrowIfNull(jsonPersistence);
         ArgumentNullException.ThrowIfNull(logger);
 
         _layout = layout;
         _fileSystemOperations = fileSystemOperations;
+        _repositoryFileSystem = repositoryFileSystem;
+        _jsonPersistence = jsonPersistence;
         _logger = logger;
     }
 
@@ -34,7 +40,7 @@ internal sealed class FileCatalogStore
 
         bool created = EnsureMetadataExists();
 
-        EnsureRegularFile(_layout.MetadataPath, "Backup repository metadata");
+        _repositoryFileSystem.EnsureRegularFile(_layout.MetadataPath, "Backup repository metadata");
 
         RepositoryMetadata metadata = ReadMetadataCore();
 
@@ -54,7 +60,7 @@ internal sealed class FileCatalogStore
 
     private bool EnsureMetadataExists()
     {
-        if (TryGetAttributes(_layout.MetadataPath, out _))
+        if (_repositoryFileSystem.TryGetAttributes(_layout.MetadataPath, out _))
         {
             return false;
         }
@@ -65,7 +71,7 @@ internal sealed class FileCatalogStore
 
         try
         {
-            WriteJson(
+            _jsonPersistence.Write(
                 _layout.MetadataPath,
                 RepositoryJsonMapper.Map(metadata),
                 RepositoryCatalogJsonContext.Default.RepositoryDocument,
@@ -73,7 +79,7 @@ internal sealed class FileCatalogStore
 
             return true;
         }
-        catch (IOException) when (TryGetAttributes(_layout.MetadataPath, out _))
+        catch (IOException) when (_repositoryFileSystem.TryGetAttributes(_layout.MetadataPath, out _))
         {
             return false;
         }
@@ -81,7 +87,7 @@ internal sealed class FileCatalogStore
 
     private RepositoryMetadata ReadMetadataCore()
     {
-        RepositoryDocument document = ReadJson(
+        RepositoryDocument document = _jsonPersistence.Read(
             _layout.MetadataPath,
             RepositoryCatalogJsonContext.Default.RepositoryDocument,
             "Backup repository metadata");
@@ -89,7 +95,7 @@ internal sealed class FileCatalogStore
         return RepositoryJsonMapper.Map(document);
     }
 
-    private void ValidateMetadata(RepositoryMetadata metadata)
+    private static void ValidateMetadata(RepositoryMetadata metadata)
     {
         if (metadata.FormatVersion != CurrentRepositoryFormatVersion)
         {
@@ -100,60 +106,5 @@ internal sealed class FileCatalogStore
         {
             throw new InvalidDataException("Backup repository ID must not be empty.");
         }
-    }
-
-    private void EnsureRegularFile(string path, string description)
-    {
-        FileAttributes attributes = _fileSystemOperations.GetAttributes(path);
-
-        if (attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
-        {
-            throw new InvalidDataException($"{description} must be a regular file: {path}");
-        }
-    }
-
-    private bool TryGetAttributes(string path, out FileAttributes attributes)
-    {
-        try
-        {
-            attributes = _fileSystemOperations.GetAttributes(path);
-
-            return true;
-        }
-        catch (FileNotFoundException)
-        {
-            attributes = default;
-
-            return false;
-        }
-        catch (DirectoryNotFoundException)
-        {
-            attributes = default;
-
-            return false;
-        }
-    }
-
-    private T ReadJson<T>(string path, JsonTypeInfo<T> typeInfo, string description)
-    {
-        try
-        {
-            using Stream stream = _fileSystemOperations.OpenRead(path);
-
-            return JsonSerializer.Deserialize(stream, typeInfo) ??
-                   throw new InvalidDataException($"{description} could not be read: {path}");
-        }
-        catch (JsonException exception)
-        {
-            throw new InvalidDataException($"{description} contains invalid JSON: {path}", exception);
-        }
-    }
-
-    private void WriteJson<T>(string path, T value, JsonTypeInfo<T> typeInfo, FileDestinationMode mode)
-    {
-        _fileSystemOperations.WriteFileAtomically(
-            path,
-            mode,
-            stream => JsonSerializer.Serialize(stream, value, typeInfo));
     }
 }

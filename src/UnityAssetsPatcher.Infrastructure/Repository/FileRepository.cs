@@ -26,12 +26,24 @@ internal sealed class FileRepository : IRepositoryStorage, ICompositionRepositor
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
         _layout = new FileRepositoryLayout(repositoryDirectory);
+        RepositoryFileSystem repositoryFileSystem = new(fileSystemOperations);
+        RepositoryJsonPersistence jsonPersistence = new(fileSystemOperations);
         _catalogStore = new FileCatalogStore(
             _layout,
             fileSystemOperations,
+            repositoryFileSystem,
+            jsonPersistence,
             loggerFactory.CreateLogger<FileCatalogStore>());
-        _baseSnapshotStore = new BaseSnapshotStore(_layout, fileSystemOperations);
-        _layerStore = new LayerStore(_layout, fileSystemOperations);
+        _baseSnapshotStore = new BaseSnapshotStore(
+            _layout,
+            fileSystemOperations,
+            repositoryFileSystem,
+            jsonPersistence);
+        _layerStore = new LayerStore(
+            _layout,
+            fileSystemOperations,
+            repositoryFileSystem,
+            jsonPersistence);
     }
 
     public RepositoryMetadata LoadOrCreateMetadata()

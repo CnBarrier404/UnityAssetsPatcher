@@ -10,22 +10,30 @@ internal sealed class LayerStore : ILayerStore
 
     private readonly FileRepositoryLayout _layout;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly TrustedPathResolver _pathResolver;
+    private readonly RepositoryFileSystem _repositoryFileSystem;
+    private readonly RepositoryJsonPersistence _jsonPersistence;
 
-    public LayerStore(FileRepositoryLayout layout, IFileSystemOperations fileSystemOperations)
+    public LayerStore(
+        FileRepositoryLayout layout,
+        IFileSystemOperations fileSystemOperations,
+        RepositoryFileSystem repositoryFileSystem,
+        RepositoryJsonPersistence jsonPersistence)
     {
         ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(repositoryFileSystem);
+        ArgumentNullException.ThrowIfNull(jsonPersistence);
 
         _layout = layout;
         _fileSystemOperations = fileSystemOperations;
-        _pathResolver = new TrustedPathResolver(fileSystemOperations);
+        _repositoryFileSystem = repositoryFileSystem;
+        _jsonPersistence = jsonPersistence;
     }
 
     public LayerRecordEntry ReadLayer(string layerId)
     {
-        string normalizedLayerId = FileCompositionStoreSupport.NormalizeIdentifier(layerId, nameof(layerId));
-        string layerDirectory = _pathResolver.ResolveExistingDirectory(GetLayerDirectory(normalizedLayerId));
+        string normalizedLayerId = RepositoryFileSystem.NormalizeIdentifier(layerId, nameof(layerId));
+        string layerDirectory = _repositoryFileSystem.ResolveExistingDirectory(GetLayerDirectory(normalizedLayerId));
         LayerRecord record = ReadLayerCore(layerDirectory, normalizedLayerId);
 
         return !TrustedPath.PathComparer.Equals(record.Id, normalizedLayerId)
@@ -35,26 +43,19 @@ internal sealed class LayerStore : ILayerStore
 
     public IReadOnlyList<LayerRecordEntry> ListLayers()
     {
-        if (!FileCompositionStoreSupport.TryGetAttributes(_fileSystemOperations, LayersDirectory,
-                out FileAttributes attributes))
+        if (!_repositoryFileSystem.TryGetAttributes(LayersDirectory, out _))
         {
             return [];
         }
 
-        if (!attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
-        {
-            throw new InvalidDataException($"Layers directory must be a real directory: {LayersDirectory}");
-        }
+        _repositoryFileSystem.EnsureRealDirectory(LayersDirectory, "Layers directory");
 
         var layers = new List<LayerRecordEntry>();
 
         foreach (string directory in Directory.EnumerateDirectories(LayersDirectory))
         {
             string layerDirectory = TrustedPath.NormalizeAbsolutePath(directory);
-            FileCompositionStoreSupport.EnsureRealDirectory(
-                _fileSystemOperations,
-                layerDirectory,
-                "Layer directory");
+            _repositoryFileSystem.EnsureRealDirectory(layerDirectory, "Layer directory");
             string layerId = Path.GetFileName(Path.TrimEndingDirectorySeparator(layerDirectory));
             layers.Add(ReadLayer(layerId));
         }
@@ -71,7 +72,7 @@ internal sealed class LayerStore : ILayerStore
 
     public string GetLayerDirectory(string layerId)
     {
-        string normalizedLayerId = FileCompositionStoreSupport.NormalizeIdentifier(layerId, nameof(layerId));
+        string normalizedLayerId = RepositoryFileSystem.NormalizeIdentifier(layerId, nameof(layerId));
         string layerDirectory = _layout.GetLayerDirectory(normalizedLayerId);
 
         if (!TrustedPath.IsWithinRoot(layerDirectory, _layout.LayersDirectory) ||
@@ -86,10 +87,10 @@ internal sealed class LayerStore : ILayerStore
     public string ResolvePackagePath(string layerId)
     {
         LayerRecordEntry entry = ReadLayer(layerId);
-        string packagePath = _pathResolver.ResolveWithinDirectory(
+        string packagePath = _repositoryFileSystem.ResolveWithinDirectory(
             entry.LayerDirectory,
             entry.Record.Package.FileName);
-        FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, packagePath, "Layer package");
+        _repositoryFileSystem.EnsureRegularFile(packagePath, "Layer package");
 
         return packagePath;
     }
@@ -97,10 +98,10 @@ internal sealed class LayerStore : ILayerStore
     public FileIntegrity VerifyPackage(string layerId)
     {
         LayerRecordEntry entry = ReadLayer(layerId);
-        string packagePath = _pathResolver.ResolveWithinDirectory(
+        string packagePath = _repositoryFileSystem.ResolveWithinDirectory(
             entry.LayerDirectory,
             entry.Record.Package.FileName);
-        FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, packagePath, "Layer package");
+        _repositoryFileSystem.EnsureRegularFile(packagePath, "Layer package");
         FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(packagePath);
 
         if (!entry.Record.Package.Integrity.Matches(actual))
@@ -120,7 +121,7 @@ internal sealed class LayerStore : ILayerStore
         ArgumentNullException.ThrowIfNull(package);
 
         string source = TrustedPath.NormalizeAbsolutePath(sourcePath);
-        FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, source, "Layer package source");
+        _repositoryFileSystem.EnsureRegularFile(source, "Layer package source");
         FileIntegrity expected = _fileSystemOperations.ComputeFileIntegrity(source);
 
         if (!package.Integrity.Matches(expected))
@@ -128,18 +129,13 @@ internal sealed class LayerStore : ILayerStore
             throw new InvalidDataException($"Layer package source integrity does not match: {source}");
         }
 
-        string preparedDirectory = FileCompositionStoreSupport.ResolvePreparedTransactionChild(
-            _fileSystemOperations,
-            _pathResolver,
+        string preparedDirectory = _repositoryFileSystem.ResolvePreparedTransactionChild(
             _layout.TransactionDirectory,
             preparedLayerDirectory,
             "Prepared layer");
         _fileSystemOperations.EnsureDirectory(preparedDirectory);
-        FileCompositionStoreSupport.EnsureRealDirectory(
-            _fileSystemOperations,
-            preparedDirectory,
-            "Prepared layer directory");
-        string destination = _pathResolver.ResolveWithinDirectory(preparedDirectory, package.FileName);
+        _repositoryFileSystem.EnsureRealDirectory(preparedDirectory, "Prepared layer directory");
+        string destination = _repositoryFileSystem.ResolveWithinDirectory(preparedDirectory, package.FileName);
 
         if (TrustedPath.PathsEqual(source, destination))
         {
@@ -150,37 +146,31 @@ internal sealed class LayerStore : ILayerStore
 
         FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(destination);
 
-        if (!package.Integrity.Matches(actual))
+        if (package.Integrity.Matches(actual))
         {
-            _fileSystemOperations.DeleteFile(destination);
-
-            throw new IOException($"Layer package verification failed: {source}");
+            return actual;
         }
 
-        return actual;
+        _fileSystemOperations.DeleteFile(destination);
+
+        throw new IOException($"Layer package verification failed: {source}");
     }
 
     public void WritePreparedLayer(LayerRecord record, string preparedLayerDirectory)
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        string preparedDirectory = FileCompositionStoreSupport.ResolvePreparedTransactionChild(
-            _fileSystemOperations,
-            _pathResolver,
+        string preparedDirectory = _repositoryFileSystem.ResolvePreparedTransactionChild(
             _layout.TransactionDirectory,
             preparedLayerDirectory,
             "Prepared layer");
         _fileSystemOperations.EnsureDirectory(preparedDirectory);
-        FileCompositionStoreSupport.EnsureRealDirectory(
-            _fileSystemOperations,
-            preparedDirectory,
-            "Prepared layer directory");
-        string layerPath = _pathResolver.ResolveWithinDirectory(
+        _repositoryFileSystem.EnsureRealDirectory(preparedDirectory, "Prepared layer directory");
+        string layerPath = _repositoryFileSystem.ResolveWithinDirectory(
             preparedDirectory,
             FileRepositoryLayout.LayerRecordFileName);
 
-        FileCompositionStoreSupport.WriteJson(
-            _fileSystemOperations,
+        _jsonPersistence.Write(
             layerPath,
             record,
             RepositoryJsonContext.Default.LayerRecord,
@@ -189,10 +179,8 @@ internal sealed class LayerStore : ILayerStore
 
     public void CommitLayer(string preparedLayerDirectory, string layerId)
     {
-        string normalizedLayerId = FileCompositionStoreSupport.NormalizeIdentifier(layerId, nameof(layerId));
-        string sourceDirectory = FileCompositionStoreSupport.ResolveExistingTransactionChild(
-            _fileSystemOperations,
-            _pathResolver,
+        string normalizedLayerId = RepositoryFileSystem.NormalizeIdentifier(layerId, nameof(layerId));
+        string sourceDirectory = _repositoryFileSystem.ResolveExistingTransactionChild(
             _layout.TransactionDirectory,
             preparedLayerDirectory,
             "Prepared layer");
@@ -205,14 +193,11 @@ internal sealed class LayerStore : ILayerStore
 
         ValidatePackage(sourceDirectory, record.Package);
         _fileSystemOperations.EnsureDirectory(_layout.LayersDirectory);
-        FileCompositionStoreSupport.EnsureRealDirectory(
-            _fileSystemOperations,
-            _layout.LayersDirectory,
-            "Layers directory");
+        _repositoryFileSystem.EnsureRealDirectory(_layout.LayersDirectory, "Layers directory");
 
         string destinationDirectory = GetLayerDirectory(normalizedLayerId);
 
-        if (FileCompositionStoreSupport.TryGetAttributes(_fileSystemOperations, destinationDirectory, out _))
+        if (_repositoryFileSystem.TryGetAttributes(destinationDirectory, out _))
         {
             throw new IOException($"Layer already exists: {normalizedLayerId}");
         }
@@ -222,21 +207,20 @@ internal sealed class LayerStore : ILayerStore
 
     public void DeleteLayer(string layerId)
     {
-        string layerDirectory = _pathResolver.ResolveExistingDirectory(GetLayerDirectory(layerId));
+        string layerDirectory = _repositoryFileSystem.ResolveExistingDirectory(GetLayerDirectory(layerId));
 
-        FileCompositionStoreSupport.EnsureRealDirectory(_fileSystemOperations, layerDirectory, "Layer directory");
+        _repositoryFileSystem.EnsureRealDirectory(layerDirectory, "Layer directory");
         _fileSystemOperations.DeleteDirectoryTree(layerDirectory);
     }
 
     private LayerRecord ReadLayerCore(string layerDirectory, string normalizedLayerId)
     {
-        string layerPath = _pathResolver.ResolveWithinDirectory(
+        string layerPath = _repositoryFileSystem.ResolveWithinDirectory(
             layerDirectory,
             Path.GetFileName(_layout.GetLayerRecordPath(normalizedLayerId)));
-        FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, layerPath, "Layer record");
+        _repositoryFileSystem.EnsureRegularFile(layerPath, "Layer record");
 
-        return FileCompositionStoreSupport.ReadJson(
-            _fileSystemOperations,
+        return _jsonPersistence.Read(
             layerPath,
             RepositoryJsonContext.Default.LayerRecord,
             "Layer record");
@@ -244,8 +228,8 @@ internal sealed class LayerStore : ILayerStore
 
     private void ValidatePackage(string layerDirectory, LayerPackageInfo package)
     {
-        string packagePath = _pathResolver.ResolveWithinDirectory(layerDirectory, package.FileName);
-        FileCompositionStoreSupport.EnsureRegularFile(_fileSystemOperations, packagePath, "Layer package");
+        string packagePath = _repositoryFileSystem.ResolveWithinDirectory(layerDirectory, package.FileName);
+        _repositoryFileSystem.EnsureRegularFile(packagePath, "Layer package");
         FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(packagePath);
 
         if (!package.Integrity.Matches(actual))
