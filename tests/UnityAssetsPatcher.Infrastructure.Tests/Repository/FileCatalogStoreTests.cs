@@ -14,16 +14,17 @@ public sealed class FileCatalogStoreTests
     {
         using RepositoryTestDirectory directory = new();
         string repositoryPath = directory.GetPath("backup");
-        FileCatalogStore store = CreateCatalog(repositoryPath);
+        FileRepositoryLayout layout = new(repositoryPath);
+        FileCatalogStore store = CreateCatalog(layout);
 
         RepositoryMetadata created = store.LoadOrCreateMetadata();
-        RepositoryMetadata loaded = CreateCatalog(repositoryPath).LoadOrCreateMetadata();
+        RepositoryMetadata loaded = CreateCatalog(new FileRepositoryLayout(repositoryPath)).LoadOrCreateMetadata();
 
         Assert.Equal(FileCatalogStore.CurrentRepositoryFormatVersion, created.FormatVersion);
         Assert.Matches("^[0-9a-f]{32}$", created.RepositoryId);
         Assert.Equal(created, loaded);
-        Assert.True(File.Exists(Path.Combine(repositoryPath, FileCatalogStore.RepositoryFileName)));
-        Assert.False(Directory.Exists(store.TransactionDirectory));
+        Assert.True(File.Exists(layout.MetadataPath));
+        Assert.False(Directory.Exists(layout.TransactionDirectory));
     }
 
     [Fact]
@@ -34,7 +35,7 @@ public sealed class FileCatalogStoreTests
         directory.WriteFile(
             "backup/repository.json",
             "{\"formatVersion\":1,\"repositoryId\":\"repository\"}");
-        FileCatalogStore store = CreateCatalog(repositoryPath);
+        FileCatalogStore store = CreateCatalog(new FileRepositoryLayout(repositoryPath));
 
         var exception = Assert.Throws<NotSupportedException>(store.LoadOrCreateMetadata);
 
@@ -47,7 +48,7 @@ public sealed class FileCatalogStoreTests
         using RepositoryTestDirectory directory = new();
         string repositoryPath = directory.CreateDirectory("backup");
         directory.WriteFile("backup/repository.json", "{\"formatVersion\":3,\"repositoryId\":\"repository\"}");
-        FileCatalogStore store = CreateCatalog(repositoryPath);
+        FileCatalogStore store = CreateCatalog(new FileRepositoryLayout(repositoryPath));
 
         var exception = Assert.Throws<NotSupportedException>(store.LoadOrCreateMetadata);
 
@@ -69,11 +70,11 @@ public sealed class FileCatalogStoreTests
     }
 
     private static FileCatalogStore CreateCatalog(
-        string repositoryPath,
+        FileRepositoryLayout layout,
         FileSystemOperations? fileSystem = null)
     {
         return new FileCatalogStore(
-            repositoryPath,
+            layout,
             fileSystem ?? CreateFileSystem(),
             NullLogger<FileCatalogStore>.Instance);
     }

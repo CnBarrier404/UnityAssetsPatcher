@@ -139,6 +139,7 @@ public sealed class BaseSnapshotCapturerTests
         string relativePath = Path.Combine("Game_Data", "sharedassets0.assets");
         string sourcePath = directory.WriteFile(Path.Combine("game", relativePath), "original-assets");
         MutatingCopyFileSystemOperations fileSystem = new(sourcePath);
+        FileRepositoryLayout layout = new(repositoryPath);
         FileRepository repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(fileSystem, gameDirectory);
@@ -153,10 +154,7 @@ public sealed class BaseSnapshotCapturerTests
         Assert.Contains("verification failed", exception.Message);
         Assert.Null(repository.BaseSnapshots.TryReadCatalog(fingerprint));
         Assert.Equal("changed-assets", File.ReadAllText(sourcePath));
-        Assert.False(File.Exists(Path.Combine(
-            repository.BaseSnapshots.GetBaseDirectory(fingerprint),
-            BaseSnapshotStore.FilesDirectoryName,
-            relativePath)));
+        Assert.False(File.Exists(Path.Combine(layout.GetBaseFilesDirectory(fingerprint), relativePath)));
     }
 
     [Fact]

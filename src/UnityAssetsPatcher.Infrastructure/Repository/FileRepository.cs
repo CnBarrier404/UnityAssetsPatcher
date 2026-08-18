@@ -6,14 +6,12 @@ namespace UnityAssetsPatcher.Infrastructure.Repository;
 
 internal sealed class FileRepository : IRepositoryStorage, ICompositionRepository
 {
-    public string RepositoryDirectory => _catalogStore.RepositoryDirectory;
-
-    public string TransactionDirectory => _catalogStore.TransactionDirectory;
-
+    public string RepositoryDirectory => _layout.RepositoryDirectory;
+    public string TransactionDirectory => _layout.TransactionDirectory;
     public IBaseSnapshotStore BaseSnapshots => _baseSnapshotStore;
-
     public ILayerStore Layers => _layerStore;
 
+    private readonly FileRepositoryLayout _layout;
     private readonly FileCatalogStore _catalogStore;
     private readonly BaseSnapshotStore _baseSnapshotStore;
     private readonly LayerStore _layerStore;
@@ -27,12 +25,13 @@ internal sealed class FileRepository : IRepositoryStorage, ICompositionRepositor
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
+        _layout = new FileRepositoryLayout(repositoryDirectory);
         _catalogStore = new FileCatalogStore(
-            repositoryDirectory,
+            _layout,
             fileSystemOperations,
             loggerFactory.CreateLogger<FileCatalogStore>());
-        _baseSnapshotStore = new BaseSnapshotStore(repositoryDirectory, fileSystemOperations);
-        _layerStore = new LayerStore(repositoryDirectory, fileSystemOperations);
+        _baseSnapshotStore = new BaseSnapshotStore(_layout, fileSystemOperations);
+        _layerStore = new LayerStore(_layout, fileSystemOperations);
     }
 
     public RepositoryMetadata LoadOrCreateMetadata()

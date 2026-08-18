@@ -9,40 +9,32 @@ namespace UnityAssetsPatcher.Infrastructure.Repository;
 internal sealed class FileCatalogStore
 {
     public const int CurrentRepositoryFormatVersion = 2;
-    public const string RepositoryFileName = "repository.json";
-    public const string TransactionDirectoryName = ".temp";
 
-    public string RepositoryDirectory { get; }
-    public string TransactionDirectory { get; }
-
-    private string MetadataPath { get; }
-
+    private readonly FileRepositoryLayout _layout;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly ILogger<FileCatalogStore> _logger;
 
     public FileCatalogStore(
-        string repositoryDirectory,
+        FileRepositoryLayout layout,
         IFileSystemOperations fileSystemOperations,
         ILogger<FileCatalogStore> logger)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(repositoryDirectory);
+        ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(logger);
 
-        RepositoryDirectory = TrustedPath.NormalizeAbsolutePath(repositoryDirectory);
-        TransactionDirectory = Path.Combine(RepositoryDirectory, TransactionDirectoryName);
-        MetadataPath = Path.Combine(RepositoryDirectory, RepositoryFileName);
+        _layout = layout;
         _fileSystemOperations = fileSystemOperations;
         _logger = logger;
     }
 
     public RepositoryMetadata LoadOrCreateMetadata()
     {
-        _fileSystemOperations.EnsureDirectory(RepositoryDirectory);
+        _fileSystemOperations.EnsureDirectory(_layout.RepositoryDirectory);
 
         bool created = EnsureMetadataExists();
 
-        EnsureRegularFile(MetadataPath, "Backup repository metadata");
+        EnsureRegularFile(_layout.MetadataPath, "Backup repository metadata");
 
         RepositoryMetadata metadata = ReadMetadataCore();
 
@@ -50,11 +42,11 @@ internal sealed class FileCatalogStore
 
         if (created)
         {
-            RepositoryLog.RepositoryInitialized(_logger, RepositoryDirectory, metadata.RepositoryId);
+            RepositoryLog.RepositoryInitialized(_logger, _layout.RepositoryDirectory, metadata.RepositoryId);
         }
         else
         {
-            RepositoryLog.RepositoryLoaded(_logger, RepositoryDirectory, metadata.RepositoryId);
+            RepositoryLog.RepositoryLoaded(_logger, _layout.RepositoryDirectory, metadata.RepositoryId);
         }
 
         return metadata;
@@ -62,7 +54,7 @@ internal sealed class FileCatalogStore
 
     private bool EnsureMetadataExists()
     {
-        if (TryGetAttributes(MetadataPath, out _))
+        if (TryGetAttributes(_layout.MetadataPath, out _))
         {
             return false;
         }
@@ -74,14 +66,14 @@ internal sealed class FileCatalogStore
         try
         {
             WriteJson(
-                MetadataPath,
+                _layout.MetadataPath,
                 RepositoryJsonMapper.Map(metadata),
                 RepositoryCatalogJsonContext.Default.RepositoryDocument,
                 FileDestinationMode.CreateNew);
 
             return true;
         }
-        catch (IOException) when (TryGetAttributes(MetadataPath, out _))
+        catch (IOException) when (TryGetAttributes(_layout.MetadataPath, out _))
         {
             return false;
         }
@@ -90,7 +82,7 @@ internal sealed class FileCatalogStore
     private RepositoryMetadata ReadMetadataCore()
     {
         RepositoryDocument document = ReadJson(
-            MetadataPath,
+            _layout.MetadataPath,
             RepositoryCatalogJsonContext.Default.RepositoryDocument,
             "Backup repository metadata");
 
