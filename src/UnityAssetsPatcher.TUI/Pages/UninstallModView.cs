@@ -443,9 +443,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             row = AddSectionHeader(_strings.UninstallResult_ChangedFiles, row);
             foreach (UninstallChangedFileResult file in result.ChangedFiles)
             {
-                _body.Add(new StyledLabel(
-                        $"- {file.RelativePath}  {FormatChangedFileAction(file.Action)}  " +
-                        FormatIntegrityStatus(file.Status))
+                _body.Add(new StyledLabel($"- {file.RelativePath}")
                     { X = 0, Y = row++, Width = Dim.Fill() });
             }
 
@@ -469,29 +467,6 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         _body.Add(error, back);
         _body.SetContentHeightForRows(4);
         back.SetFocus();
-    }
-
-    private string FormatIntegrityStatus(FileIntegrityStatus status)
-    {
-        return status switch
-        {
-            FileIntegrityStatus.Matches => _strings.UninstallPreview_Ready,
-            FileIntegrityStatus.Missing => _strings.UninstallPreview_AlreadyMissing,
-            FileIntegrityStatus.Modified => _strings.UninstallPreview_Modified,
-            FileIntegrityStatus.Unreadable => _strings.UninstallPreview_Unreadable,
-            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
-        };
-    }
-
-    private string FormatChangedFileAction(UninstallChangedFileAction action)
-    {
-        return action switch
-        {
-            UninstallChangedFileAction.Rebuild => _strings.UninstallAction_Rebuild,
-            UninstallChangedFileAction.RestoreBase => _strings.UninstallAction_RestoreBase,
-            UninstallChangedFileAction.Delete => _strings.UninstallAction_Delete,
-            _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
-        };
     }
 
     private static string FormatInstalledAt(DateTimeOffset installedAt)
