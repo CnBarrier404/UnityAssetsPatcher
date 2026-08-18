@@ -15,6 +15,7 @@ public sealed class RepositoryService
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly IRepositoryStorage _repository;
     private readonly ICompositionRepository _compositionRepository;
+    private readonly IRepositoryTransactionStore _transactionStore;
     private readonly ILogger<RepositoryService> _logger;
 
     public string RepositoryDirectory => _repository.RepositoryDirectory;
@@ -24,14 +25,17 @@ public sealed class RepositoryService
         IRepositoryStorage repository,
         ICompositionRepository compositionRepository,
         IFileSystemOperations fileSystemOperations,
+        IRepositoryTransactionStore transactionStore,
         ILogger<RepositoryService>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(compositionRepository);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(transactionStore);
         _repository = repository;
         _compositionRepository = compositionRepository;
         _fileSystemOperations = fileSystemOperations;
+        _transactionStore = transactionStore;
         _logger = logger ?? NullLogger<RepositoryService>.Instance;
     }
 
@@ -73,7 +77,8 @@ public sealed class RepositoryService
     public RepositoryRecoveryPreview PreviewPendingTransaction(string gameDirectory)
     {
         using RepositoryOperationLock operationLock = AcquireLock();
-        return new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations).Preview(gameDirectory);
+        return new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations, _transactionStore)
+            .Preview(gameDirectory);
     }
 
     public RepositoryRecoveryReport RecoverPendingTransactions(string gameDirectory)
@@ -82,14 +87,15 @@ public sealed class RepositoryService
         using RepositoryOperationLock operationLock = AcquireLock();
         _ = RequireWritableMetadata();
         RepositoryRecoveryReport report =
-            new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations).Recover(gameDirectory);
+            new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations, _transactionStore)
+                .Recover(gameDirectory);
         _logger.LogInformation("Recovery finished with status {RecoveryStatus}", report.Status);
         return report;
     }
 
     public RepositoryRecoveryReport CheckPendingTransactionsUnderLock()
     {
-        return new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations).Check();
+        return new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations, _transactionStore).Check();
     }
 
     public RepositoryRecoveryReport RecoverTrustedUnderLock(RepositoryTransaction transaction, string gameDirectory)
@@ -99,7 +105,7 @@ public sealed class RepositoryService
             transaction.Kind,
             transaction.InstallId);
         RepositoryRecoveryReport report =
-            new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations)
+            new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations, _transactionStore)
                 .RecoverTrusted(transaction, gameDirectory);
         _logger.LogInformation("Rollback finished with status {RecoveryStatus}", report.Status);
         return report;

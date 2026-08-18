@@ -832,7 +832,7 @@ public sealed class LayeredInstallTests
                         Path.Combine("rollback", "file-000000.bin"),
                         Path.Combine("prepared", "file-000000.bin"))
                 ]);
-            RepositoryTransactionStore.Save(FileSystem, transactionDirectory, transaction);
+            _serviceProvider.GetRequiredService<IRepositoryTransactionStore>().Save(transaction);
 
             if (applyAfter)
             {

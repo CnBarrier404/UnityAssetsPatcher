@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using UnityAssetsPatcher.Application.Repository;
 
 namespace UnityAssetsPatcher.Infrastructure.Repository;
 
@@ -6,6 +7,14 @@ internal sealed record RepositoryDocument(int FormatVersion, string? RepositoryI
 
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    WriteIndented = true)]
+    WriteIndented = true,
+    UseStringEnumConverter = true)]
 [JsonSerializable(typeof(RepositoryDocument))]
-internal sealed partial class RepositoryCatalogJsonContext : JsonSerializerContext;
+[JsonSerializable(typeof(RepositoryTransaction))]
+[JsonSerializable(typeof(RepositoryMetadata))]
+[JsonSerializable(typeof(BaseCatalog))]
+[JsonSerializable(typeof(BaseFileEntry))]
+[JsonSerializable(typeof(PayloadBaseEntry))]
+[JsonSerializable(typeof(LayerRecord))]
+[JsonSerializable(typeof(LayerPackageInfo))]
+internal sealed partial class RepositoryJsonContext : JsonSerializerContext;

@@ -74,7 +74,7 @@ internal sealed class FileCatalogStore
             _jsonPersistence.Write(
                 _layout.MetadataPath,
                 RepositoryJsonMapper.Map(metadata),
-                RepositoryCatalogJsonContext.Default.RepositoryDocument,
+                RepositoryJsonContext.Default.RepositoryDocument,
                 FileDestinationMode.CreateNew);
 
             return true;
@@ -89,7 +89,7 @@ internal sealed class FileCatalogStore
     {
         RepositoryDocument document = _jsonPersistence.Read(
             _layout.MetadataPath,
-            RepositoryCatalogJsonContext.Default.RepositoryDocument,
+            RepositoryJsonContext.Default.RepositoryDocument,
             "Backup repository metadata");
 
         return RepositoryJsonMapper.Map(document);

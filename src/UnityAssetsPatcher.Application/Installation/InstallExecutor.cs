@@ -33,6 +33,7 @@ public sealed class InstallExecutor
     private readonly BaseSnapshotCapturer _baseSnapshotCapturer;
     private readonly ModComposer _modComposer;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly IRepositoryTransactionStore _transactionStore;
     private readonly TrustedPathResolver _pathResolver;
     private readonly ILogger<InstallExecutor> _logger;
 
@@ -42,6 +43,7 @@ public sealed class InstallExecutor
         BaseSnapshotCapturer baseSnapshotCapturer,
         ModComposer modComposer,
         IFileSystemOperations fileSystemOperations,
+        IRepositoryTransactionStore transactionStore,
         ILogger<InstallExecutor>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(repositoryService);
@@ -49,12 +51,14 @@ public sealed class InstallExecutor
         ArgumentNullException.ThrowIfNull(baseSnapshotCapturer);
         ArgumentNullException.ThrowIfNull(modComposer);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(transactionStore);
 
         _repositoryService = repositoryService;
         _compositionRepository = compositionRepository;
         _baseSnapshotCapturer = baseSnapshotCapturer;
         _modComposer = modComposer;
         _fileSystemOperations = fileSystemOperations;
+        _transactionStore = transactionStore;
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
         _logger = logger ?? NullLogger<InstallExecutor>.Instance;
     }
@@ -145,7 +149,7 @@ public sealed class InstallExecutor
                 installId,
                 fingerprint,
                 transactionFiles);
-            RepositoryTransactionStore.Save(_fileSystemOperations, temporaryDirectory, transaction);
+            _transactionStore.Save(transaction);
             transactionSaved = true;
 
             ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);

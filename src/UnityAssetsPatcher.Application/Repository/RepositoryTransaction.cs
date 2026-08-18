@@ -1,5 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Domain.Integrity;
 
@@ -31,45 +29,6 @@ public sealed record RepositoryTransaction(
     string InstallId,
     string GameInstanceFingerprint,
     IReadOnlyList<RepositoryTransactionFile> Files);
-
-public static class RepositoryTransactionStore
-{
-    public const string FileName = "transaction.json";
-
-    public static void Save(
-        IFileSystemOperations fileSystemOperations,
-        string transactionDirectory,
-        RepositoryTransaction transaction)
-    {
-        RepositoryJsonStore.Save(
-            fileSystemOperations,
-            Path.Combine(transactionDirectory, FileName),
-            transaction,
-            RepositoryJsonContext.Default.RepositoryTransaction);
-    }
-
-    public static RepositoryTransaction Load(string transactionDirectory)
-    {
-        string path = Path.Combine(transactionDirectory, FileName);
-        using FileStream stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return JsonSerializer.Deserialize(stream, RepositoryJsonContext.Default.RepositoryTransaction)
-               ?? throw new InvalidOperationException($"Transaction could not be read: {path}");
-    }
-}
-
-internal static class RepositoryJsonStore
-{
-    public static void Save<T>(
-        IFileSystemOperations fileSystemOperations,
-        string path,
-        T value,
-        System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
-    {
-        ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        fileSystemOperations.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        fileSystemOperations.WriteFile(path, stream => { JsonSerializer.Serialize(stream, value, typeInfo); });
-    }
-}
 
 public sealed class RepositoryOperationLock : IDisposable
 {
@@ -128,16 +87,3 @@ public sealed class RepositoryOperationLock : IDisposable
         _stream.Dispose();
     }
 }
-
-[JsonSourceGenerationOptions(
-    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    WriteIndented = true,
-    UseStringEnumConverter = true)]
-[JsonSerializable(typeof(RepositoryTransaction))]
-[JsonSerializable(typeof(RepositoryMetadata))]
-[JsonSerializable(typeof(BaseCatalog))]
-[JsonSerializable(typeof(BaseFileEntry))]
-[JsonSerializable(typeof(PayloadBaseEntry))]
-[JsonSerializable(typeof(LayerRecord))]
-[JsonSerializable(typeof(LayerPackageInfo))]
-public sealed partial class RepositoryJsonContext : JsonSerializerContext;

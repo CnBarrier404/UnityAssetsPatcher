@@ -9,26 +9,29 @@ internal sealed class RepositoryRecovery
     private readonly RepositoryService _repository;
     private readonly ICompositionRepository _compositionRepository;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly IRepositoryTransactionStore _transactionStore;
 
     public RepositoryRecovery(
         RepositoryService repository,
         ICompositionRepository compositionRepository,
-        IFileSystemOperations fileSystemOperations)
+        IFileSystemOperations fileSystemOperations,
+        IRepositoryTransactionStore transactionStore)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(compositionRepository);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(transactionStore);
         _repository = repository;
         _compositionRepository = compositionRepository;
         _fileSystemOperations = fileSystemOperations;
+        _transactionStore = transactionStore;
     }
 
     public RepositoryRecoveryReport Check()
     {
         try
         {
-            _ = LoadTransaction();
-            return Directory.Exists(_repository.TransactionDirectory)
+            return LoadTransaction() is not null
                 ? new RepositoryRecoveryReport(RepositoryRecoveryStatus.RecoveryRequired, [], [])
                 : RepositoryRecoveryReport.Clean;
         }
@@ -336,13 +339,12 @@ internal sealed class RepositoryRecovery
     private RepositoryTransaction? LoadTransaction()
     {
         RepositoryMetadata metadata = _repository.LoadMetadata();
-        if (!Directory.Exists(_repository.TransactionDirectory))
+        RepositoryTransaction? transaction = _transactionStore.TryLoad();
+        if (transaction is null)
         {
             return null;
         }
 
-        EnsureRealDirectory(_repository.TransactionDirectory, "Transaction directory");
-        RepositoryTransaction transaction = RepositoryTransactionStore.Load(_repository.TransactionDirectory);
         ValidateTransaction(transaction, metadata.RepositoryId);
         return transaction;
     }
@@ -452,17 +454,7 @@ internal sealed class RepositoryRecovery
 
     private void DeleteTransaction()
     {
-        EnsureRealDirectory(_repository.TransactionDirectory, "Transaction directory");
-        _fileSystemOperations.DeleteDirectory(_repository.TransactionDirectory);
-    }
-
-    private static void EnsureRealDirectory(string path, string description)
-    {
-        var info = new DirectoryInfo(path);
-        if (!info.Exists || info.LinkTarget is not null || info.Attributes.HasFlag(FileAttributes.ReparsePoint))
-        {
-            throw new InvalidOperationException($"{description} is not trusted: {path}");
-        }
+        _transactionStore.Delete();
     }
 
     private FileState Inspect(string path, FileIntegrity? before, FileIntegrity? after)

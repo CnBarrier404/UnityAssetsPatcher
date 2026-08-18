@@ -14,6 +14,7 @@ public sealed class UninstallExecutor
     private readonly RepositoryService _repositoryService;
     private readonly UninstallCompositionService _compositionService;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly IRepositoryTransactionStore _transactionStore;
     private readonly TrustedPathResolver _pathResolver;
     private readonly ILogger<UninstallExecutor> _logger;
 
@@ -21,15 +22,18 @@ public sealed class UninstallExecutor
         RepositoryService repositoryService,
         UninstallCompositionService compositionService,
         IFileSystemOperations fileSystemOperations,
+        IRepositoryTransactionStore transactionStore,
         ILogger<UninstallExecutor>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(repositoryService);
         ArgumentNullException.ThrowIfNull(compositionService);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
+        ArgumentNullException.ThrowIfNull(transactionStore);
 
         _repositoryService = repositoryService;
         _compositionService = compositionService;
         _fileSystemOperations = fileSystemOperations;
+        _transactionStore = transactionStore;
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
         _logger = logger ?? NullLogger<UninstallExecutor>.Instance;
     }
@@ -76,7 +80,7 @@ public sealed class UninstallExecutor
                 plan.Layer.Id,
                 plan.Layer.GameInstanceFingerprint,
                 transactionFiles);
-            RepositoryTransactionStore.Save(_fileSystemOperations, temporaryDirectory, transaction);
+            _transactionStore.Save(transaction);
             transactionSaved = true;
 
             ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
