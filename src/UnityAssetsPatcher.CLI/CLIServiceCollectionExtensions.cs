@@ -46,6 +46,10 @@ public static class CLIServiceCollectionExtensions
                 provider.GetRequiredService<IServiceScopeFactory>(),
                 provider.GetRequiredService<CLIOptions>()));
 
+            services.AddSingleton<ICLICommand>(provider => new RepositoryCLICommand(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                provider.GetRequiredService<CLIOptions>()));
+
             return services;
         }
     }

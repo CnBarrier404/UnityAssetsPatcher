@@ -280,6 +280,15 @@ internal static class CLIOutput
         };
     }
 
+    public static JsonObject RepositoryClear(RepositoryClearResult result)
+    {
+        return new JsonObject
+        {
+            ["previousFormatVersion"] = result.PreviousFormatVersion,
+            ["formatVersion"] = result.FormatVersion
+        };
+    }
+
     public static JsonObject UninstallPreview(UninstallPreviewResult result)
     {
         return new JsonObject
@@ -367,6 +376,12 @@ internal static class CLIOutput
             output.WriteLine(
                 $"{record.InstallId} | {record.ModName} {record.ModVersion}{game} | {record.InstalledAt:O}");
         }
+    }
+
+    public static void WriteRepositoryClearText(TextWriter output, RepositoryClearResult result)
+    {
+        output.WriteLine(
+            $"Cleared unsupported backup repository format {result.PreviousFormatVersion} and initialized format {result.FormatVersion}.");
     }
 
     public static void WriteUninstallPreviewText(TextWriter output, UninstallPreviewResult result)
@@ -878,6 +893,8 @@ internal static class OperationErrorText
                 "The backup repository is damaged or unsafe.",
             _ when error.Code == RepositoryErrorCodes.UnsupportedVersion =>
                 "The backup repository version is not supported.",
+            _ when error.Code == RepositoryErrorCodes.ClearNotAllowed =>
+                "The backup repository can only be cleared when its format is unsupported.",
             _ => "The operation failed."
         };
     }

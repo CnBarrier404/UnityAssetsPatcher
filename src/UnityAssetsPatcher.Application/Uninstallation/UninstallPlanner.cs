@@ -48,6 +48,8 @@ public sealed class UninstallPlanner
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        _ = _repositoryService.LoadMetadata();
+
         LayerRecordEntry entry = ResolveLayer(request.InstallId);
         LayerRecord layer = entry.Record;
         string gameDirectory = ResolveGameDirectory(request.GameDirectory, layer);
@@ -103,6 +105,8 @@ public sealed class UninstallPlanner
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        _ = _repositoryService.LoadMetadata();
 
         LayerRecordEntry entry = ResolveLayer(request.InstallId);
         LayerRecord layer = entry.Record;

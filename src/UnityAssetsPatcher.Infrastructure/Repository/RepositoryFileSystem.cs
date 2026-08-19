@@ -62,6 +62,35 @@ internal sealed class RepositoryFileSystem
         }
     }
 
+    public void ClearRepositoryDirectory(
+        string repositoryDirectory,
+        string metadataPath,
+        string lockPath)
+    {
+        EnsureRealDirectory(repositoryDirectory, "Backup repository");
+
+        foreach (string entryPath in Directory.EnumerateFileSystemEntries(repositoryDirectory))
+        {
+            if (TrustedPath.PathsEqual(entryPath, lockPath) ||
+                TrustedPath.PathsEqual(entryPath, metadataPath))
+            {
+                continue;
+            }
+
+            FileAttributes attributes = _fileSystemOperations.GetAttributes(entryPath);
+            if (attributes.HasFlag(FileAttributes.Directory))
+            {
+                _fileSystemOperations.DeleteDirectoryTree(entryPath);
+            }
+            else
+            {
+                _fileSystemOperations.DeleteFile(entryPath);
+            }
+        }
+
+        _fileSystemOperations.DeleteFile(metadataPath);
+    }
+
     public string ResolveExistingDirectory(string path)
     {
         return _pathResolver.ResolveExistingDirectory(path);

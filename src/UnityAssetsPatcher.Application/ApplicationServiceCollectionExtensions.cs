@@ -7,6 +7,7 @@ using UnityAssetsPatcher.Application.Features.Check;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Features.Inspect;
 using UnityAssetsPatcher.Application.Features.Recovery;
+using UnityAssetsPatcher.Application.Features.RepositoryManagement;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.IO;
@@ -57,6 +58,7 @@ public static class ApplicationServiceCollectionExtensions
             AddInspectHandlers(services);
             AddInstallHandlers(services);
             AddRecoveryHandlers(services);
+            AddRepositoryManagementHandlers(services);
             AddUninstallHandlers(services);
 
             return services;
@@ -108,6 +110,13 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<
             IRequestHandler<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>,
             RecoveryHandler>();
+    }
+
+    private static void AddRepositoryManagementHandlers(IServiceCollection services)
+    {
+        services.AddScoped<
+            IRequestHandler<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>,
+            RepositoryManagementHandler>();
     }
 
     private static void AddUninstallHandlers(IServiceCollection services)

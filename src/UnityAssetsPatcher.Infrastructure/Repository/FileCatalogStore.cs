@@ -38,7 +38,7 @@ internal sealed class FileCatalogStore
 
     public RepositoryMetadata LoadOrCreateMetadata()
     {
-        _fileSystemOperations.EnsureDirectory(_layout.RepositoryDirectory);
+        EnsureRepositoryDirectory();
 
         bool created = EnsureMetadataExists();
 
@@ -48,6 +48,8 @@ internal sealed class FileCatalogStore
             _layout.MetadataPath,
             RepositoryJsonContext.Default.RepositoryDocument,
             "Backup repository metadata");
+        ValidateFormatVersion(document.FormatVersion);
+
         var metadata = new RepositoryMetadata(
             document.FormatVersion,
             document.RepositoryId ??
@@ -65,6 +67,22 @@ internal sealed class FileCatalogStore
         }
 
         return metadata;
+    }
+
+    private void EnsureRepositoryDirectory()
+    {
+        if (!_repositoryFileSystem.TryGetAttributes(_layout.RepositoryDirectory, out FileAttributes attributes))
+        {
+            _fileSystemOperations.EnsureDirectory(_layout.RepositoryDirectory);
+
+            return;
+        }
+
+        if (!attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new InvalidDataException(
+                $"Backup repository must be a real directory: {_layout.RepositoryDirectory}");
+        }
     }
 
     private bool EnsureMetadataExists()
@@ -96,14 +114,21 @@ internal sealed class FileCatalogStore
 
     private static void ValidateMetadata(RepositoryMetadata metadata)
     {
-        if (metadata.FormatVersion != CurrentRepositoryFormatVersion)
-        {
-            throw new NotSupportedException($"Unsupported backup repository format: {metadata.FormatVersion}.");
-        }
+        ValidateFormatVersion(metadata.FormatVersion);
 
         if (string.IsNullOrWhiteSpace(metadata.RepositoryId))
         {
             throw new InvalidDataException("Backup repository ID must not be empty.");
+        }
+    }
+
+    private static void ValidateFormatVersion(int formatVersion)
+    {
+        if (formatVersion != CurrentRepositoryFormatVersion)
+        {
+            throw new UnsupportedRepositoryFormatException(
+                formatVersion,
+                CurrentRepositoryFormatVersion);
         }
     }
 }

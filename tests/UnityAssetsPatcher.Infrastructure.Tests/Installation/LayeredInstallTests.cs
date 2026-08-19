@@ -91,6 +91,24 @@ public sealed class LayeredInstallTests
 
         Assert.Equal(RepositoryErrorCodes.UnsupportedVersion, failed.Error.Code);
         Assert.Equal("Unsupported backup repository format: 1.", failed.Error.Parameters["detail"]?.ToString());
+        Assert.Equal(
+            [RepositoryService.RepositoryFileName],
+            Directory.EnumerateFileSystemEntries(fixture.Repository.RepositoryDirectory)
+                .Select(Path.GetFileName)
+                .ToArray());
+    }
+
+    [Fact]
+    public void UninstallPreview_WhenRepositoryUsesUnsupportedVersion_RejectsBeforeReadingLayers()
+    {
+        using LayeredInstallFixture fixture = new(1);
+
+        var result = fixture.PreviewUninstallOperation(
+            new UninstallPreviewRequest("missing-layer", fixture.GameDirectory));
+
+        var failed = Assert.IsType<OperationFailed<UninstallPreviewResult>>(result);
+        Assert.Equal(RepositoryErrorCodes.UnsupportedVersion, failed.Error.Code);
+        Assert.Equal("Unsupported backup repository format: 1.", failed.Error.Parameters["detail"]?.ToString());
     }
 
     [Fact]

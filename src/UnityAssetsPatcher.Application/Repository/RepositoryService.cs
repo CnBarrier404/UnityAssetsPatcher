@@ -48,14 +48,14 @@ public sealed class RepositoryService
 
     public RepositoryMetadata RequireWritableMetadata()
     {
-        RepositoryMetadata metadata = LoadMetadata();
+        return LoadMetadata();
+    }
 
-        if (metadata.FormatVersion != CurrentRepositoryFormatVersion)
-        {
-            throw new NotSupportedException($"Unsupported backup repository format: {metadata.FormatVersion}.");
-        }
+    public RepositoryClearResult ClearUnsupportedRepository()
+    {
+        using IRepositoryOperationLock operationLock = _operationLockProvider.Acquire();
 
-        return metadata;
+        return _repositoryStore.ClearUnsupportedRepository(operationLock);
     }
 
     public string CreateTransactionDirectory()

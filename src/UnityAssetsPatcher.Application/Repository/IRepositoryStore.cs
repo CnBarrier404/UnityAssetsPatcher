@@ -66,4 +66,6 @@ public interface IRepositoryStore
     public IRepositoryTransactionStore Transactions { get; }
 
     public RepositoryMetadata LoadOrCreateMetadata();
+
+    public RepositoryClearResult ClearUnsupportedRepository(IRepositoryOperationLock operationLock);
 }

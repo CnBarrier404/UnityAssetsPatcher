@@ -84,9 +84,11 @@ public sealed class FileCatalogStoreTests
             "{\"formatVersion\":1,\"repositoryId\":\"repository\"}");
         FileCatalogStore store = CreateCatalog(new FileRepositoryLayout(repositoryPath));
 
-        var exception = Assert.Throws<NotSupportedException>(store.LoadOrCreateMetadata);
+        var exception = Assert.Throws<UnsupportedRepositoryFormatException>(store.LoadOrCreateMetadata);
 
         Assert.Equal("Unsupported backup repository format: 1.", exception.Message);
+        Assert.Equal(1, exception.ActualVersion);
+        Assert.Equal(2, exception.SupportedVersion);
     }
 
     [Fact]
@@ -97,9 +99,22 @@ public sealed class FileCatalogStoreTests
         directory.WriteFile("backup/repository.json", "{\"formatVersion\":3,\"repositoryId\":\"repository\"}");
         FileCatalogStore store = CreateCatalog(new FileRepositoryLayout(repositoryPath));
 
-        var exception = Assert.Throws<NotSupportedException>(store.LoadOrCreateMetadata);
+        var exception = Assert.Throws<UnsupportedRepositoryFormatException>(store.LoadOrCreateMetadata);
 
         Assert.Equal("Unsupported backup repository format: 3.", exception.Message);
+    }
+
+    [Fact]
+    public void LoadOrCreateMetadata_WhenUnsupportedRepositoryIdIsMissing_RejectsVersionFirst()
+    {
+        using RepositoryTestDirectory directory = new();
+        string repositoryPath = directory.CreateDirectory("backup");
+        directory.WriteFile("backup/repository.json", "{\"formatVersion\":1}");
+        FileCatalogStore store = CreateCatalog(new FileRepositoryLayout(repositoryPath));
+
+        var exception = Assert.Throws<UnsupportedRepositoryFormatException>(store.LoadOrCreateMetadata);
+
+        Assert.Equal(1, exception.ActualVersion);
     }
 
     [Fact]

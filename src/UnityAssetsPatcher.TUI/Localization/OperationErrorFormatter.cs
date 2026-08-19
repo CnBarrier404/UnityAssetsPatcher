@@ -79,6 +79,7 @@ internal static class OperationErrorFormatter
                 strings.Error_RepositoryUnsafe,
             _ when error.Code == RepositoryErrorCodes.UnsupportedVersion =>
                 strings.Error_UnsupportedRepositoryVersion,
+            _ when error.Code == RepositoryErrorCodes.ClearNotAllowed => strings.Error_RepositoryClearNotAllowed,
             _ => strings.Error_OperationFailed
         };
     }

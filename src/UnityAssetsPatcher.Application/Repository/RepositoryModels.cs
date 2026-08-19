@@ -4,6 +4,27 @@ namespace UnityAssetsPatcher.Application.Repository;
 
 public sealed record RepositoryMetadata(int FormatVersion, string RepositoryId);
 
+public sealed record RepositoryClearResult(int PreviousFormatVersion, int FormatVersion);
+
+public sealed class UnsupportedRepositoryFormatException : NotSupportedException
+{
+    public int ActualVersion { get; }
+    public int SupportedVersion { get; }
+
+    public UnsupportedRepositoryFormatException(int actualVersion, int supportedVersion)
+        : base($"Unsupported backup repository format: {actualVersion}.")
+    {
+        ActualVersion = actualVersion;
+        SupportedVersion = supportedVersion;
+    }
+}
+
+public sealed class RepositoryClearNotAllowedException : InvalidOperationException
+{
+    public RepositoryClearNotAllowedException()
+        : base("The backup repository can only be cleared when its format is unsupported.") { }
+}
+
 internal static class RepositoryCollections
 {
     public static IReadOnlyList<T> Copy<T>(IEnumerable<T?> values, string parameterName) where T : class

@@ -8,4 +8,5 @@ public static class RepositoryErrorCodes
     public static OperationErrorCode RecoveryRequired { get; } = new("backup.recovery_required");
     public static OperationErrorCode Unsafe { get; } = new("backup.repository_unsafe");
     public static OperationErrorCode UnsupportedVersion { get; } = new("backup.unsupported_repository_version");
+    public static OperationErrorCode ClearNotAllowed { get; } = new("backup.clear_not_allowed");
 }

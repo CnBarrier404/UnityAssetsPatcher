@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Recovery;
+using UnityAssetsPatcher.Application.Features.RepositoryManagement;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Repository;
@@ -162,7 +163,33 @@ public sealed class TerminalNavigator
 
     private void CheckRecovery()
     {
-        RunRecoveryOperation(() => Task.FromResult(InitializeRepository()));
+        bool started = _taskRunner!.TryRun(
+            () => Task.FromResult(InitializeRepository()),
+            result =>
+            {
+                if (result is OperationFailed<RepositoryRecoveryReport> failed &&
+                    failed.Error.Code == RepositoryErrorCodes.UnsupportedVersion)
+                {
+                    ShowUnsupportedRepository(failed.Error);
+
+                    return;
+                }
+
+                _recovery = result switch
+                {
+                    OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
+                    OperationFailed<RepositoryRecoveryReport> recoveryFailed =>
+                        recoveryFailed.Error.Recovery ?? FailedRecovery(),
+                    _ => throw new ArgumentOutOfRangeException(nameof(result))
+                };
+                ShowRecoveryResult();
+            },
+            _ => ShowRecoveryFailure());
+
+        if (!started)
+        {
+            ShowRecoveryFailure();
+        }
     }
 
     private OperationResult<RepositoryRecoveryReport> InitializeRepository()
@@ -179,6 +206,19 @@ public sealed class TerminalNavigator
             var error = new OperationError(
                 RepositoryErrorCodes.RecoveryRequired,
                 recovery: exception.Recovery);
+
+            return new OperationFailed<RepositoryRecoveryReport>(error);
+        }
+        catch (UnsupportedRepositoryFormatException exception)
+        {
+            var error = new OperationError(
+                RepositoryErrorCodes.UnsupportedVersion,
+                new Dictionary<string, object?>
+                {
+                    ["actual"] = exception.ActualVersion,
+                    ["supported"] = exception.SupportedVersion,
+                    ["detail"] = exception.Message
+                });
 
             return new OperationFailed<RepositoryRecoveryReport>(error);
         }
@@ -248,6 +288,60 @@ public sealed class TerminalNavigator
             new RecoverRecoveryRequest(gameDirectory)));
     }
 
+    private void ShowUnsupportedRepository(OperationError formatError, OperationError? clearError = null)
+    {
+        string actualVersion = ParameterText(formatError, "actual") ?? "?";
+        string supportedVersion = ParameterText(formatError, "supported") ??
+                                  RepositoryService.CurrentRepositoryFormatVersion.ToString(
+                                      CultureInfo.InvariantCulture);
+        string? failure = clearError is null ? null : OperationErrorFormatter.Format(_strings, clearError);
+
+        _shell.ShowContent(new UnsupportedRepositoryView(
+            _strings,
+            actualVersion,
+            supportedVersion,
+            failure,
+            () => ShowClearUnsupportedRepositoryConfirmation(formatError),
+            _requestStop));
+    }
+
+    private void ShowClearUnsupportedRepositoryConfirmation(OperationError formatError)
+    {
+        _shell.ShowContent(new ClearUnsupportedRepositoryConfirmationView(
+            _strings,
+            () => ClearUnsupportedRepository(formatError),
+            () => ShowUnsupportedRepository(formatError)));
+    }
+
+    private void ClearUnsupportedRepository(OperationError formatError)
+    {
+        bool started = _taskRunner!.TryRun(
+            () => DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
+                new ClearUnsupportedRepositoryRequest()),
+            result =>
+            {
+                if (result is OperationSucceeded<RepositoryClearResult>)
+                {
+                    ShowMainMenu();
+
+                    return;
+                }
+
+                var failed = (OperationFailed<RepositoryClearResult>)result;
+                ShowUnsupportedRepository(formatError, failed.Error);
+            },
+            _ => ShowUnsupportedRepository(
+                formatError,
+                new OperationError(RepositoryErrorCodes.Unsafe)));
+
+        if (!started)
+        {
+            ShowUnsupportedRepository(
+                formatError,
+                new OperationError(RepositoryErrorCodes.OperationAlreadyRunning));
+        }
+    }
+
     private void RunRecoveryOperation(Func<Task<OperationResult<RepositoryRecoveryReport>>> operation)
     {
         bool started = _taskRunner!.TryRun(
@@ -300,6 +394,13 @@ public sealed class TerminalNavigator
             RepositoryRecoveryStatus.Locked,
             [],
             [new RepositoryRecoveryIssue(RepositoryRecoveryIssueCode.UnexpectedFailure, string.Empty)]);
+    }
+
+    private static string? ParameterText(OperationError error, string key)
+    {
+        return error.Parameters.TryGetValue(key, out object? value)
+            ? Convert.ToString(value, CultureInfo.InvariantCulture)
+            : null;
     }
 
     private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
