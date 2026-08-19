@@ -1,24 +1,66 @@
-name: Publish JSON Schema
+name: Publish Documentation
 
 on:
   push:
     branches:
       - main
     paths:
+      - "docs/**"
+      - "schema/**"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "docs/**"
       - "schema/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 concurrency:
-  group: pages
+  group: pages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy schema to GitHub Pages
+  build:
+    name: Build documentation
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs
+        run: npm ci
+
+      - name: Build documentation
+        working-directory: docs
+        run: npm run build
+
+      - name: Verify published schema
+        shell: bash
+        run: cmp schema/schema-v1.json docs/dist/schema-v1.json
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/dist
+
+  deploy:
+    name: Deploy documentation
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
       pages: write
       id-token: write
     environment:
@@ -26,17 +68,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload schema artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: schema
-
-      - name: Deploy schema
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

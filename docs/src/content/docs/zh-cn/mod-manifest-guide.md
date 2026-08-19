@@ -1,4 +1,9 @@
-# Mod Manifest 编写指南
+---
+title: Mod Manifest 编写指南
+description: Unity Assets Patcher manifest.json 的完整格式、匹配规则与示例。
+sidebar:
+  order: 3
+---
 
 本文档说明 Unity Assets Patcher 当前支持的 `manifest.json` 格式。
 Manifest 用来描述 Mod 元数据、目标游戏、需要复制的 payload 文件，以及要安装到 Unity `.assets` 文件中的变更。

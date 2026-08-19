@@ -1,4 +1,9 @@
-# 常见问题 - FAQ
+---
+title: 常见问题
+description: Unity Assets Patcher 常见问题及解决方法。
+sidebar:
+  order: 2
+---
 
 ## Q1: 为什么提示“你正在使用旧版 Windows 控制台”？
 
