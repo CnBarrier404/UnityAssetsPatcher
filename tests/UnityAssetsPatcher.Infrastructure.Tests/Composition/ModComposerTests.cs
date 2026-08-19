@@ -272,7 +272,7 @@ public sealed class ModComposerTests
         public string GameDirectory { get; }
         public string GameAssetsPath { get; }
         public string ReplacementFieldPath { get; }
-        public ICompositionRepository Repository { get; }
+        public IRepositoryStore Repository { get; }
         public IServiceProvider Provider { get; }
 
         private readonly RepositoryTestDirectory _directory;
@@ -297,7 +297,7 @@ public sealed class ModComposerTests
             services.AddUnityAssetsPatcherRepository(repositoryDirectory);
             _serviceProvider = services.BuildServiceProvider();
             Provider = _serviceProvider;
-            Repository = _serviceProvider.GetRequiredService<ICompositionRepository>();
+            Repository = _serviceProvider.GetRequiredService<IRepositoryStore>();
 
             var fileSystem = _serviceProvider.GetRequiredService<IFileSystemOperations>();
             var capturer = _serviceProvider.GetRequiredService<BaseSnapshotCapturer>();

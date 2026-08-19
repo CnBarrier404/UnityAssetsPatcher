@@ -280,7 +280,7 @@ public sealed class CompositionStoreTests
     }
 
     [Fact]
-    public void AddRepository_WhenCompositionRepositoryIsResolved_UsesRepositoryInstance()
+    public void AddRepository_WhenRepositoryStoreIsResolved_ExposesAllStoresFromFileRepositoryStore()
     {
         using RepositoryTestDirectory directory = new();
         var services = new ServiceCollection();
@@ -289,12 +289,17 @@ public sealed class CompositionStoreTests
         services.AddUnityAssetsPatcherRepository(directory.GetPath("backup"));
 
         using ServiceProvider provider = services.BuildServiceProvider();
-        var repositoryStorage = provider.GetRequiredService<IRepositoryStorage>();
-        var compositionRepository = provider.GetRequiredService<ICompositionRepository>();
+        var repositoryStore = provider.GetRequiredService<IRepositoryStore>();
+        var fileRepositoryStore = provider.GetRequiredService<FileRepositoryStore>();
 
-        Assert.Same(repositoryStorage, compositionRepository);
-        Assert.NotNull(compositionRepository.BaseSnapshots);
-        Assert.NotNull(compositionRepository.Layers);
+        Assert.Same(fileRepositoryStore, repositoryStore);
+        Assert.Equal(
+            FileCatalogStore.CurrentRepositoryFormatVersion,
+            repositoryStore.LoadOrCreateMetadata().FormatVersion);
+        Assert.NotNull(repositoryStore.BaseSnapshots);
+        Assert.NotNull(repositoryStore.Layers);
+        Assert.NotNull(repositoryStore.Transactions);
+        Assert.Null(provider.GetService<IRepositoryTransactionStore>());
     }
 
     private static LayerRecord CreateLayerRecord(FileIntegrity packageIntegrity)

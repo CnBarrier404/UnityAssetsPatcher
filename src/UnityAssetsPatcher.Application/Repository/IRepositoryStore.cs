@@ -53,7 +53,7 @@ public interface ILayerStore
     public void DeleteLayer(string layerId);
 }
 
-public interface ICompositionRepository
+public interface IRepositoryStore
 {
     public string RepositoryDirectory { get; }
 
@@ -62,4 +62,8 @@ public interface ICompositionRepository
     public IBaseSnapshotStore BaseSnapshots { get; }
 
     public ILayerStore Layers { get; }
+
+    public IRepositoryTransactionStore Transactions { get; }
+
+    public RepositoryMetadata LoadOrCreateMetadata();
 }

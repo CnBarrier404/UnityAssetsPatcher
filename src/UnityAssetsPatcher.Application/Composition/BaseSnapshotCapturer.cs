@@ -6,18 +6,18 @@ namespace UnityAssetsPatcher.Application.Composition;
 
 public sealed class BaseSnapshotCapturer
 {
-    private readonly ICompositionRepository _compositionRepository;
+    private readonly IRepositoryStore _repositoryStore;
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly TrustedPathResolver _pathResolver;
 
     public BaseSnapshotCapturer(
-        ICompositionRepository compositionRepository,
+        IRepositoryStore repositoryStore,
         IFileSystemOperations fileSystemOperations)
     {
-        ArgumentNullException.ThrowIfNull(compositionRepository);
+        ArgumentNullException.ThrowIfNull(repositoryStore);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
-        _compositionRepository = compositionRepository;
+        _repositoryStore = repositoryStore;
         _fileSystemOperations = fileSystemOperations;
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
     }
@@ -29,7 +29,7 @@ public sealed class BaseSnapshotCapturer
         RepositoryFileKind fileKind)
     {
         ArgumentNullException.ThrowIfNull(operationLock);
-        operationLock.EnsureHeldFor(_compositionRepository.RepositoryDirectory);
+        operationLock.EnsureHeldFor(_repositoryStore.RepositoryDirectory);
 
         if (!Enum.IsDefined(fileKind))
         {
@@ -39,7 +39,7 @@ public sealed class BaseSnapshotCapturer
         string normalizedGameDirectory = _pathResolver.ResolveExistingDirectory(gameDirectory);
         string normalizedRelativePath = NormalizeRelativePath(relativePath);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(_pathResolver, normalizedGameDirectory);
-        BaseCatalog? existingCatalog = _compositionRepository.BaseSnapshots.TryReadCatalog(fingerprint);
+        BaseCatalog? existingCatalog = _repositoryStore.BaseSnapshots.TryReadCatalog(fingerprint);
 
         if (existingCatalog is not null && ContainsEntry(existingCatalog, normalizedRelativePath, fileKind))
         {
@@ -53,7 +53,7 @@ public sealed class BaseSnapshotCapturer
         if (fileKind == RepositoryFileKind.Assets)
         {
             EnsureRegularFile(sourcePath, "Assets source");
-            FileIntegrity storedIntegrity = _compositionRepository.BaseSnapshots.StoreVerifiedCopy(
+            FileIntegrity storedIntegrity = _repositoryStore.BaseSnapshots.StoreVerifiedCopy(
                 fingerprint,
                 normalizedRelativePath,
                 sourcePath);
@@ -69,7 +69,7 @@ public sealed class BaseSnapshotCapturer
             else
             {
                 EnsureRegularFile(attributes, sourcePath, "Payload source");
-                FileIntegrity storedIntegrity = _compositionRepository.BaseSnapshots.StoreVerifiedCopy(
+                FileIntegrity storedIntegrity = _repositoryStore.BaseSnapshots.StoreVerifiedCopy(
                     fingerprint,
                     normalizedRelativePath,
                     sourcePath);
@@ -97,7 +97,7 @@ public sealed class BaseSnapshotCapturer
 
         BaseCatalog updatedCatalog = new(fingerprint, capturedAt, assetsFiles, payloadTargets);
 
-        _compositionRepository.BaseSnapshots.WriteCatalog(updatedCatalog);
+        _repositoryStore.BaseSnapshots.WriteCatalog(updatedCatalog);
 
         return updatedCatalog;
     }
@@ -127,7 +127,7 @@ public sealed class BaseSnapshotCapturer
         normalizedRelativePath = NormalizeRelativePath(relativePath);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(_pathResolver, normalizedGameDirectory);
 
-        return _compositionRepository.BaseSnapshots.TryReadCatalog(fingerprint);
+        return _repositoryStore.BaseSnapshots.TryReadCatalog(fingerprint);
     }
 
     private static bool ContainsEntry(BaseCatalog catalog, string relativePath, RepositoryFileKind fileKind)

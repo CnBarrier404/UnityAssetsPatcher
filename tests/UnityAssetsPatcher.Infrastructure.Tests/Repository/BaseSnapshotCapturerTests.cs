@@ -20,7 +20,7 @@ public sealed class BaseSnapshotCapturerTests
         string relativePath = Path.Combine("Game_Data", "sharedassets0.assets");
         string sourcePath = directory.WriteFile(Path.Combine("game", relativePath), "original-assets");
         FileSystemOperations fileSystem = CreateFileSystem();
-        FileRepository repository = CreateRepository(repositoryPath, fileSystem);
+        FileRepositoryStore repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(fileSystem, gameDirectory);
 
@@ -49,7 +49,7 @@ public sealed class BaseSnapshotCapturerTests
         string relativePath = Path.Combine("BepInEx", "plugins", "example.dll");
         string sourcePath = directory.WriteFile(Path.Combine("game", relativePath), "payload");
         FileSystemOperations fileSystem = CreateFileSystem();
-        FileRepository repository = CreateRepository(repositoryPath, fileSystem);
+        FileRepositoryStore repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
 
         using IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
@@ -77,7 +77,7 @@ public sealed class BaseSnapshotCapturerTests
         string gameDirectory = directory.CreateDirectory("game");
         string relativePath = Path.Combine("Data", "config.json");
         FileSystemOperations fileSystem = CreateFileSystem();
-        FileRepository repository = CreateRepository(repositoryPath, fileSystem);
+        FileRepositoryStore repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
 
         using IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
@@ -106,7 +106,7 @@ public sealed class BaseSnapshotCapturerTests
         string relativePath = Path.Combine("Game_Data", "sharedassets0.assets");
         string sourcePath = directory.WriteFile(Path.Combine("game", relativePath), "original-assets");
         FileSystemOperations fileSystem = CreateFileSystem();
-        FileRepository repository = CreateRepository(repositoryPath, fileSystem);
+        FileRepositoryStore repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
 
         using IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
@@ -140,7 +140,7 @@ public sealed class BaseSnapshotCapturerTests
         string sourcePath = directory.WriteFile(Path.Combine("game", relativePath), "original-assets");
         MutatingCopyFileSystemOperations fileSystem = new(sourcePath);
         FileRepositoryLayout layout = new(repositoryPath);
-        FileRepository repository = CreateRepository(repositoryPath, fileSystem);
+        FileRepositoryStore repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(fileSystem, gameDirectory);
 
@@ -166,7 +166,7 @@ public sealed class BaseSnapshotCapturerTests
         string relativePath = Path.Combine("Game_Data", "sharedassets0.assets");
         _ = directory.WriteFile(Path.Combine("game", relativePath), "original-assets");
         FileSystemOperations fileSystem = CreateFileSystem();
-        FileRepository repository = CreateRepository(repositoryPath, fileSystem);
+        FileRepositoryStore repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
 
         var exception = Assert.Throws<ArgumentNullException>(() => capturer.Capture(
@@ -187,7 +187,7 @@ public sealed class BaseSnapshotCapturerTests
         string relativePath = Path.Combine("Game_Data", "sharedassets0.assets");
         _ = directory.WriteFile(Path.Combine("game", relativePath), "original-assets");
         FileSystemOperations fileSystem = CreateFileSystem();
-        FileRepository repository = CreateRepository(repositoryPath, fileSystem);
+        FileRepositoryStore repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
         IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
         operationLock.Dispose();
@@ -201,9 +201,12 @@ public sealed class BaseSnapshotCapturerTests
         Assert.Contains("no longer held", exception.Message);
     }
 
-    private static FileRepository CreateRepository(string repositoryPath, IFileSystemOperations fileSystem)
+    private static FileRepositoryStore CreateRepository(string repositoryPath, IFileSystemOperations fileSystem)
     {
-        return new FileRepository(new FileRepositoryLayout(repositoryPath), fileSystem, NullLoggerFactory.Instance);
+        return new FileRepositoryStore(
+            new FileRepositoryLayout(repositoryPath),
+            fileSystem,
+            NullLoggerFactory.Instance);
     }
 
     private static FileSystemOperations CreateFileSystem()

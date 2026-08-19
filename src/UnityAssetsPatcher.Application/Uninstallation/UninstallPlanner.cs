@@ -15,7 +15,7 @@ public sealed record UninstallPlan(
 public sealed class UninstallPlanner
 {
     private readonly RepositoryService _repositoryService;
-    private readonly ICompositionRepository _compositionRepository;
+    private readonly IRepositoryStore _repositoryStore;
     private readonly GameDirectoryResolver _gameDirectoryResolver;
     private readonly UninstallCompositionService _compositionService;
     private readonly IFileSystemOperations _fileSystemOperations;
@@ -23,19 +23,19 @@ public sealed class UninstallPlanner
 
     public UninstallPlanner(
         RepositoryService repositoryService,
-        ICompositionRepository compositionRepository,
+        IRepositoryStore repositoryStore,
         GameDirectoryResolver gameDirectoryResolver,
         UninstallCompositionService compositionService,
         IFileSystemOperations fileSystemOperations)
     {
         ArgumentNullException.ThrowIfNull(repositoryService);
-        ArgumentNullException.ThrowIfNull(compositionRepository);
+        ArgumentNullException.ThrowIfNull(repositoryStore);
         ArgumentNullException.ThrowIfNull(gameDirectoryResolver);
         ArgumentNullException.ThrowIfNull(compositionService);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
         _repositoryService = repositoryService;
-        _compositionRepository = compositionRepository;
+        _repositoryStore = repositoryStore;
         _gameDirectoryResolver = gameDirectoryResolver;
         _compositionService = compositionService;
         _fileSystemOperations = fileSystemOperations;
@@ -239,7 +239,7 @@ public sealed class UninstallPlanner
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(layerId);
 
-        var matches = _compositionRepository.Layers
+        var matches = _repositoryStore.Layers
             .ListLayers()
             .Where(entry => TrustedPath.PathComparer.Equals(entry.Record.Id, layerId))
             .ToArray();

@@ -72,24 +72,13 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.TryAddSingleton(new FileRepositoryLayout(repositoryDirectory));
 
-        services.TryAddSingleton<FileRepository>(provider => new FileRepository(
+        services.TryAddSingleton<FileRepositoryStore>(provider => new FileRepositoryStore(
             provider.GetRequiredService<FileRepositoryLayout>(),
             provider.GetRequiredService<IFileSystemOperations>(),
             provider.GetRequiredService<ILoggerFactory>()));
-        services.TryAddSingleton<IRepositoryTransactionStore>(provider =>
-        {
-            var fileSystemOperations = provider.GetRequiredService<IFileSystemOperations>();
-
-            return new FileRepositoryTransactionStore(
-                provider.GetRequiredService<FileRepositoryLayout>(),
-                fileSystemOperations,
-                new RepositoryFileSystem(fileSystemOperations),
-                new RepositoryJsonPersistence(fileSystemOperations));
-        });
         services.TryAddSingleton<IRepositoryOperationLockProvider>(provider =>
             new FileRepositoryOperationLockProvider(provider.GetRequiredService<FileRepositoryLayout>()));
-        services.TryAddSingleton<IRepositoryStorage>(provider => provider.GetRequiredService<FileRepository>());
-        services.TryAddSingleton<ICompositionRepository>(provider => provider.GetRequiredService<FileRepository>());
+        services.TryAddSingleton<IRepositoryStore>(provider => provider.GetRequiredService<FileRepositoryStore>());
 
         return services;
     }

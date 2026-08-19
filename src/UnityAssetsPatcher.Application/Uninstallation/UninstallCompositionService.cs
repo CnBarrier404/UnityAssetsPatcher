@@ -45,20 +45,20 @@ public sealed class UninstallCompositionException : InvalidOperationException
 
 public sealed class UninstallCompositionService
 {
-    private readonly ICompositionRepository _compositionRepository;
+    private readonly IRepositoryStore _repositoryStore;
     private readonly ModComposer _modComposer;
     private readonly TrustedPathResolver _pathResolver;
 
     public UninstallCompositionService(
-        ICompositionRepository compositionRepository,
+        IRepositoryStore repositoryStore,
         ModComposer modComposer,
         IFileSystemOperations fileSystemOperations)
     {
-        ArgumentNullException.ThrowIfNull(compositionRepository);
+        ArgumentNullException.ThrowIfNull(repositoryStore);
         ArgumentNullException.ThrowIfNull(modComposer);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
 
-        _compositionRepository = compositionRepository;
+        _repositoryStore = repositoryStore;
         _modComposer = modComposer;
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
     }
@@ -112,7 +112,7 @@ public sealed class UninstallCompositionService
     {
         LayerRecord[] layers =
         [
-            .. _compositionRepository.Layers
+            .. _repositoryStore.Layers
                 .ListLayers()
                 .Select(entry => entry.Record)
                 .Where(layer => TrustedPath.PathComparer.Equals(layer.GameInstanceFingerprint, fingerprint))

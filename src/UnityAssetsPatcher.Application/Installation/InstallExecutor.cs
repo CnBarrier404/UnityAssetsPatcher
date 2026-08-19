@@ -29,36 +29,32 @@ public sealed class InstallExecutor
     private const string LayerPackageFileName = "package.zip";
 
     private readonly RepositoryService _repositoryService;
-    private readonly ICompositionRepository _compositionRepository;
+    private readonly IRepositoryStore _repositoryStore;
     private readonly BaseSnapshotCapturer _baseSnapshotCapturer;
     private readonly ModComposer _modComposer;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly IRepositoryTransactionStore _transactionStore;
     private readonly TrustedPathResolver _pathResolver;
     private readonly ILogger<InstallExecutor> _logger;
 
     public InstallExecutor(
         RepositoryService repositoryService,
-        ICompositionRepository compositionRepository,
+        IRepositoryStore repositoryStore,
         BaseSnapshotCapturer baseSnapshotCapturer,
         ModComposer modComposer,
         IFileSystemOperations fileSystemOperations,
-        IRepositoryTransactionStore transactionStore,
         ILogger<InstallExecutor>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(repositoryService);
-        ArgumentNullException.ThrowIfNull(compositionRepository);
+        ArgumentNullException.ThrowIfNull(repositoryStore);
         ArgumentNullException.ThrowIfNull(baseSnapshotCapturer);
         ArgumentNullException.ThrowIfNull(modComposer);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        ArgumentNullException.ThrowIfNull(transactionStore);
 
         _repositoryService = repositoryService;
-        _compositionRepository = compositionRepository;
+        _repositoryStore = repositoryStore;
         _baseSnapshotCapturer = baseSnapshotCapturer;
         _modComposer = modComposer;
         _fileSystemOperations = fileSystemOperations;
-        _transactionStore = transactionStore;
         _pathResolver = new TrustedPathResolver(fileSystemOperations);
         _logger = logger ?? NullLogger<InstallExecutor>.Instance;
     }
@@ -149,11 +145,11 @@ public sealed class InstallExecutor
                 installId,
                 fingerprint,
                 transactionFiles);
-            _transactionStore.Save(transaction);
+            _repositoryStore.Transactions.Save(transaction);
             transactionSaved = true;
 
             ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
-            _compositionRepository.Layers.CommitLayer(preparedLayerDirectory, installId);
+            _repositoryStore.Layers.CommitLayer(preparedLayerDirectory, installId);
             _fileSystemOperations.DeleteDirectory(temporaryDirectory);
             _logger.LogInformation("Committed layered install {InstallId}", installId);
 
@@ -171,7 +167,7 @@ public sealed class InstallExecutor
     {
         LayerRecord[] layers =
         [
-            .. _compositionRepository.Layers
+            .. _repositoryStore.Layers
                 .ListLayers()
                 .Select(entry => entry.Record)
                 .Where(layer => TrustedPath.PathComparer.Equals(layer.GameInstanceFingerprint, fingerprint))
@@ -220,7 +216,7 @@ public sealed class InstallExecutor
         InstallAnalysis analysis,
         string fingerprint)
     {
-        BaseCatalog? existingCatalog = _compositionRepository.BaseSnapshots.TryReadCatalog(fingerprint);
+        BaseCatalog? existingCatalog = _repositoryStore.BaseSnapshots.TryReadCatalog(fingerprint);
         var existingAssets = existingCatalog?.AssetsFiles
             .Select(file => file.RelativePath)
             .ToHashSet(TrustedPath.PathComparer) ?? [];
@@ -270,11 +266,11 @@ public sealed class InstallExecutor
 
     private void PrepareLayer(LayerRecord layer, string packagePath, string preparedLayerDirectory)
     {
-        _compositionRepository.Layers.StoreVerifiedPackage(
+        _repositoryStore.Layers.StoreVerifiedPackage(
             packagePath,
             preparedLayerDirectory,
             layer.Package);
-        _compositionRepository.Layers.WritePreparedLayer(layer, preparedLayerDirectory);
+        _repositoryStore.Layers.WritePreparedLayer(layer, preparedLayerDirectory);
     }
 
     private async Task<CompositionResult> ComposeAsync(

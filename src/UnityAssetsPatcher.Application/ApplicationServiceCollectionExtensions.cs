@@ -46,10 +46,8 @@ public static class ApplicationServiceCollectionExtensions
             services.AddSingleton<GameDirectoryResolver>();
             services.AddSingleton<TargetAssetResolver>();
             services.AddSingleton(provider => new RepositoryService(
-                provider.GetRequiredService<IRepositoryStorage>(),
-                provider.GetRequiredService<ICompositionRepository>(),
+                provider.GetRequiredService<IRepositoryStore>(),
                 provider.GetRequiredService<IFileSystemOperations>(),
-                provider.GetRequiredService<IRepositoryTransactionStore>(),
                 provider.GetRequiredService<IRepositoryOperationLockProvider>(),
                 provider.GetService<ILogger<RepositoryService>>()));
             services.AddSingleton<BaseSnapshotCapturer>();

@@ -7,24 +7,20 @@ namespace UnityAssetsPatcher.Application.Repository;
 internal sealed class RepositoryRecovery
 {
     private readonly RepositoryService _repository;
-    private readonly ICompositionRepository _compositionRepository;
+    private readonly IRepositoryStore _repositoryStore;
     private readonly IFileSystemOperations _fileSystemOperations;
-    private readonly IRepositoryTransactionStore _transactionStore;
 
     public RepositoryRecovery(
         RepositoryService repository,
-        ICompositionRepository compositionRepository,
-        IFileSystemOperations fileSystemOperations,
-        IRepositoryTransactionStore transactionStore)
+        IRepositoryStore repositoryStore,
+        IFileSystemOperations fileSystemOperations)
     {
         ArgumentNullException.ThrowIfNull(repository);
-        ArgumentNullException.ThrowIfNull(compositionRepository);
+        ArgumentNullException.ThrowIfNull(repositoryStore);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        ArgumentNullException.ThrowIfNull(transactionStore);
         _repository = repository;
-        _compositionRepository = compositionRepository;
+        _repositoryStore = repositoryStore;
         _fileSystemOperations = fileSystemOperations;
-        _transactionStore = transactionStore;
     }
 
     public RepositoryRecoveryReport Check()
@@ -254,7 +250,7 @@ internal sealed class RepositoryRecovery
 
     private LayerLocation InspectLayerLocation(string installId, string removedDirectory)
     {
-        string layerDirectory = _compositionRepository.Layers.GetLayerDirectory(installId);
+        string layerDirectory = _repositoryStore.Layers.GetLayerDirectory(installId);
         bool active = TryGetRealDirectory(layerDirectory, "Layer directory");
         bool removed = TryGetRealDirectory(removedDirectory, "Removed layer directory");
 
@@ -265,7 +261,7 @@ internal sealed class RepositoryRecovery
 
         if (active)
         {
-            _ = _compositionRepository.Layers.ReadLayer(installId);
+            _ = _repositoryStore.Layers.ReadLayer(installId);
             return LayerLocation.Active;
         }
 
@@ -280,13 +276,13 @@ internal sealed class RepositoryRecovery
         }
 
         string removedDirectory = GetRemovedLayerDirectory();
-        string layerDirectory = _compositionRepository.Layers.GetLayerDirectory(transaction.InstallId);
+        string layerDirectory = _repositoryStore.Layers.GetLayerDirectory(transaction.InstallId);
 
         if (!TryGetRealDirectory(removedDirectory, "Removed layer directory"))
         {
             if (TryGetRealDirectory(layerDirectory, "Layer directory"))
             {
-                _ = _compositionRepository.Layers.ReadLayer(transaction.InstallId);
+                _ = _repositoryStore.Layers.ReadLayer(transaction.InstallId);
 
                 return;
             }
@@ -299,11 +295,11 @@ internal sealed class RepositoryRecovery
             throw new InvalidOperationException("The active and removed layer directories both exist.");
         }
 
-        _fileSystemOperations.EnsureDirectory(_compositionRepository.Layers.LayersDirectory);
+        _fileSystemOperations.EnsureDirectory(_repositoryStore.Layers.LayersDirectory);
         _fileSystemOperations.MoveDirectory(removedDirectory, layerDirectory);
         try
         {
-            _ = _compositionRepository.Layers.ReadLayer(transaction.InstallId);
+            _ = _repositoryStore.Layers.ReadLayer(transaction.InstallId);
         }
         catch
         {
@@ -339,7 +335,7 @@ internal sealed class RepositoryRecovery
     private RepositoryTransaction? LoadTransaction()
     {
         RepositoryMetadata metadata = _repository.LoadMetadata();
-        RepositoryTransaction? transaction = _transactionStore.TryLoad();
+        RepositoryTransaction? transaction = _repositoryStore.Transactions.TryLoad();
         if (transaction is null)
         {
             return null;
@@ -454,7 +450,7 @@ internal sealed class RepositoryRecovery
 
     private void DeleteTransaction()
     {
-        _transactionStore.Delete();
+        _repositoryStore.Transactions.Delete();
     }
 
     private FileState Inspect(string path, FileIntegrity? before, FileIntegrity? after)

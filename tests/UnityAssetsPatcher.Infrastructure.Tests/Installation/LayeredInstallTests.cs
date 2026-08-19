@@ -655,7 +655,7 @@ public sealed class LayeredInstallTests
             GameInstanceIdentity.CreateFingerprint(FileSystem, GameDirectory),
             "Game_Data/sharedassets0.assets");
 
-        public ICompositionRepository Repository { get; }
+        public IRepositoryStore Repository { get; }
 
         private RepositoryService RepositoryService => _serviceProvider.GetRequiredService<RepositoryService>();
         private IFileSystemOperations FileSystem => _serviceProvider.GetRequiredService<IFileSystemOperations>();
@@ -689,7 +689,7 @@ public sealed class LayeredInstallTests
             services.AddUnityAssetsPatcherInfrastructure(OpenClassPackage);
             services.AddUnityAssetsPatcherRepository(repositoryDirectory);
             _serviceProvider = services.BuildServiceProvider();
-            Repository = _serviceProvider.GetRequiredService<ICompositionRepository>();
+            Repository = _serviceProvider.GetRequiredService<IRepositoryStore>();
         }
 
         public InstallModResult Install(string packagePath)
@@ -832,7 +832,7 @@ public sealed class LayeredInstallTests
                         Path.Combine("rollback", "file-000000.bin"),
                         Path.Combine("prepared", "file-000000.bin"))
                 ]);
-            _serviceProvider.GetRequiredService<IRepositoryTransactionStore>().Save(transaction);
+            Repository.Transactions.Save(transaction);
 
             if (applyAfter)
             {

@@ -38,7 +38,7 @@ internal sealed class LayerPackageValidationException : Exception
 
 public sealed class ModComposer
 {
-    private readonly ICompositionRepository _compositionRepository;
+    private readonly IRepositoryStore _repositoryStore;
     private readonly TargetAssetResolver _targetAssetResolver;
     private readonly IAssetsAccessScopeFactory _assetsAccessScopeFactory;
     private readonly IFileSystemOperations _fileSystemOperations;
@@ -48,7 +48,7 @@ public sealed class ModComposer
     private readonly ILogger<ModComposer> _logger;
 
     public ModComposer(
-        ICompositionRepository compositionRepository,
+        IRepositoryStore repositoryStore,
         TargetAssetResolver targetAssetResolver,
         IAssetsAccessScopeFactory assetsAccessScopeFactory,
         IFileSystemOperations fileSystemOperations,
@@ -56,14 +56,14 @@ public sealed class ModComposer
         IEnumerable<IFieldPatchOperationHandler> operationHandlers,
         ILogger<ModComposer>? logger = null)
     {
-        ArgumentNullException.ThrowIfNull(compositionRepository);
+        ArgumentNullException.ThrowIfNull(repositoryStore);
         ArgumentNullException.ThrowIfNull(targetAssetResolver);
         ArgumentNullException.ThrowIfNull(assetsAccessScopeFactory);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(modPackageReader);
         ArgumentNullException.ThrowIfNull(operationHandlers);
 
-        _compositionRepository = compositionRepository;
+        _repositoryStore = repositoryStore;
         _targetAssetResolver = targetAssetResolver;
         _assetsAccessScopeFactory = assetsAccessScopeFactory;
         _fileSystemOperations = fileSystemOperations;
@@ -84,7 +84,7 @@ public sealed class ModComposer
         string workingDirectory = _pathResolver.ResolveExistingDirectory(request.WorkingDirectory);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(_pathResolver, gameDirectory);
         var layers = SelectLayers(request, fingerprint);
-        BaseCatalog baseCatalog = _compositionRepository.BaseSnapshots.ReadCatalog(fingerprint);
+        BaseCatalog baseCatalog = _repositoryStore.BaseSnapshots.ReadCatalog(fingerprint);
         string compositionDirectory = CreateCompositionDirectory(workingDirectory);
 
         using IAssetsAccessScope assetsAccessScope = _assetsAccessScopeFactory.CreateScope();
@@ -152,8 +152,8 @@ public sealed class ModComposer
                                   throw new InvalidDataException(
                                       $"Base catalog does not contain the assets file: {file.RelativePath}");
 
-        _compositionRepository.BaseSnapshots.VerifyFile(fingerprint, file.RelativePath, baseEntry.Integrity);
-        string currentPath = _compositionRepository.BaseSnapshots.ResolveFilePath(fingerprint, file.RelativePath);
+        _repositoryStore.BaseSnapshots.VerifyFile(fingerprint, file.RelativePath, baseEntry.Integrity);
+        string currentPath = _repositoryStore.BaseSnapshots.ResolveFilePath(fingerprint, file.RelativePath);
         currentPath = PrepareBaseFile(compositionDirectory, RepositoryFileKind.Assets, fileIndex, file.RelativePath,
             currentPath);
 
@@ -265,12 +265,12 @@ public sealed class ModComposer
                 null);
         }
 
-        _compositionRepository.BaseSnapshots.VerifyFile(
+        _repositoryStore.BaseSnapshots.VerifyFile(
             fingerprint,
             file.RelativePath,
             baseEntry.Integrity ?? throw new InvalidDataException(
                 $"Present payload base entry does not contain integrity: {file.RelativePath}"));
-        string basePath = _compositionRepository.BaseSnapshots.ResolveFilePath(fingerprint, file.RelativePath);
+        string basePath = _repositoryStore.BaseSnapshots.ResolveFilePath(fingerprint, file.RelativePath);
         string outputPath = PrepareBaseFile(
             compositionDirectory,
             RepositoryFileKind.Payload,
@@ -361,7 +361,7 @@ public sealed class ModComposer
         }
         else
         {
-            packagePath = _compositionRepository.Layers.ResolvePackagePath(layer.Id);
+            packagePath = _repositoryStore.Layers.ResolvePackagePath(layer.Id);
         }
 
         FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(packagePath);
