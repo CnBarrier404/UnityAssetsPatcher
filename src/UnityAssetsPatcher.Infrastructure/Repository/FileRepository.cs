@@ -17,15 +17,15 @@ internal sealed class FileRepository : IRepositoryStorage, ICompositionRepositor
     private readonly LayerStore _layerStore;
 
     public FileRepository(
-        string repositoryDirectory,
+        FileRepositoryLayout layout,
         IFileSystemOperations fileSystemOperations,
         ILoggerFactory loggerFactory)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(repositoryDirectory);
+        ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
-        _layout = new FileRepositoryLayout(repositoryDirectory);
+        _layout = layout;
         RepositoryFileSystem repositoryFileSystem = new(fileSystemOperations);
         RepositoryJsonPersistence jsonPersistence = new(fileSystemOperations);
         _catalogStore = new FileCatalogStore(

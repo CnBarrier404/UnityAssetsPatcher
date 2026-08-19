@@ -301,8 +301,8 @@ public sealed class ModComposerTests
 
             var fileSystem = _serviceProvider.GetRequiredService<IFileSystemOperations>();
             var capturer = _serviceProvider.GetRequiredService<BaseSnapshotCapturer>();
-            using RepositoryOperationLock operationLock = RepositoryOperationLock.Acquire(
-                Path.Combine(repositoryDirectory, RepositoryService.LockFileName));
+            using IRepositoryOperationLock operationLock =
+                _serviceProvider.GetRequiredService<IRepositoryOperationLockProvider>().Acquire();
             _ = capturer.Capture(operationLock, GameDirectory, AssetsRelativePath, RepositoryFileKind.Assets);
             _ = capturer.Capture(operationLock, GameDirectory, BasePayloadRelativePath, RepositoryFileKind.Payload);
             _ = capturer.Capture(operationLock, GameDirectory, AbsentPayloadRelativePath, RepositoryFileKind.Payload);

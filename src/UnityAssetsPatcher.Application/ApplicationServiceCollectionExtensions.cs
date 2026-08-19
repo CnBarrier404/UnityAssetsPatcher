@@ -50,6 +50,7 @@ public static class ApplicationServiceCollectionExtensions
                 provider.GetRequiredService<ICompositionRepository>(),
                 provider.GetRequiredService<IFileSystemOperations>(),
                 provider.GetRequiredService<IRepositoryTransactionStore>(),
+                provider.GetRequiredService<IRepositoryOperationLockProvider>(),
                 provider.GetService<ILogger<RepositoryService>>()));
             services.AddSingleton<BaseSnapshotCapturer>();
             services.AddScoped<IRepository, RepositoryFacade>();

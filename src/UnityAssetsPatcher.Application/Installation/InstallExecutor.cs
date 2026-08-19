@@ -66,7 +66,7 @@ public sealed class InstallExecutor
     public async Task<InstallExecutionResult> ExecuteAsync(
         string packagePath,
         InstallAnalysis analysis,
-        RepositoryOperationLock operationLock,
+        IRepositoryOperationLock operationLock,
         StepTimer timings,
         IReadOnlyList<PreparedInstallAssetFile>? expectedAssetFiles = null,
         CancellationToken cancellationToken = default)
@@ -215,7 +215,7 @@ public sealed class InstallExecutor
     }
 
     private int CaptureBaseSnapshots(
-        RepositoryOperationLock operationLock,
+        IRepositoryOperationLock operationLock,
         string gameDirectory,
         InstallAnalysis analysis,
         string fingerprint)

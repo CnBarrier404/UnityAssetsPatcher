@@ -23,7 +23,7 @@ public sealed class BaseSnapshotCapturer
     }
 
     public BaseCatalog Capture(
-        RepositoryOperationLock operationLock,
+        IRepositoryOperationLock operationLock,
         string gameDirectory,
         string relativePath,
         RepositoryFileKind fileKind)

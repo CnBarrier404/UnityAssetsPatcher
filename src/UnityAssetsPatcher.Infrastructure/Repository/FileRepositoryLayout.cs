@@ -6,6 +6,7 @@ internal sealed class FileRepositoryLayout
 {
     public string RepositoryDirectory { get; }
     public string MetadataPath { get; }
+    public string LockPath { get; }
     public string TransactionDirectory { get; }
     public string TransactionPath { get; }
     public string GamesDirectory { get; }
@@ -14,6 +15,7 @@ internal sealed class FileRepositoryLayout
     internal const string PackageFileName = "package.zip";
     internal const string LayerRecordFileName = "layer.json";
     private const string MetadataFileName = "repository.json";
+    private const string LockFileName = ".lock";
     private const string TransactionDirectoryName = ".temp";
     private const string TransactionFileName = "transaction.json";
     private const string GamesDirectoryName = "games";
@@ -26,6 +28,7 @@ internal sealed class FileRepositoryLayout
     {
         RepositoryDirectory = TrustedPath.NormalizeAbsolutePath(repositoryDirectory);
         MetadataPath = Path.Combine(RepositoryDirectory, MetadataFileName);
+        LockPath = Path.Combine(RepositoryDirectory, LockFileName);
         TransactionDirectory = Path.Combine(RepositoryDirectory, TransactionDirectoryName);
         TransactionPath = Path.Combine(TransactionDirectory, TransactionFileName);
         GamesDirectory = Path.Combine(RepositoryDirectory, GamesDirectoryName);

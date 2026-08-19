@@ -24,7 +24,7 @@ public sealed class BaseSnapshotCapturerTests
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(fileSystem, gameDirectory);
 
-        using RepositoryOperationLock operationLock = AcquireLock(repositoryPath);
+        using IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
         BaseCatalog catalog = capturer.Capture(
             operationLock,
             gameDirectory,
@@ -52,7 +52,7 @@ public sealed class BaseSnapshotCapturerTests
         FileRepository repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
 
-        using RepositoryOperationLock operationLock = AcquireLock(repositoryPath);
+        using IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
         BaseCatalog catalog = capturer.Capture(
             operationLock,
             gameDirectory,
@@ -80,7 +80,7 @@ public sealed class BaseSnapshotCapturerTests
         FileRepository repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
 
-        using RepositoryOperationLock operationLock = AcquireLock(repositoryPath);
+        using IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
         BaseCatalog catalog = capturer.Capture(
             operationLock,
             gameDirectory,
@@ -109,7 +109,7 @@ public sealed class BaseSnapshotCapturerTests
         FileRepository repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
 
-        using RepositoryOperationLock operationLock = AcquireLock(repositoryPath);
+        using IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
         BaseCatalog firstCatalog = capturer.Capture(
             operationLock,
             gameDirectory,
@@ -144,7 +144,7 @@ public sealed class BaseSnapshotCapturerTests
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(fileSystem, gameDirectory);
 
-        using RepositoryOperationLock operationLock = AcquireLock(repositoryPath);
+        using IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
         var exception = Assert.Throws<IOException>(() => capturer.Capture(
             operationLock,
             gameDirectory,
@@ -189,7 +189,7 @@ public sealed class BaseSnapshotCapturerTests
         FileSystemOperations fileSystem = CreateFileSystem();
         FileRepository repository = CreateRepository(repositoryPath, fileSystem);
         BaseSnapshotCapturer capturer = new(repository, fileSystem);
-        RepositoryOperationLock operationLock = AcquireLock(repositoryPath);
+        IRepositoryOperationLock operationLock = AcquireLock(repositoryPath);
         operationLock.Dispose();
 
         var exception = Assert.Throws<InvalidOperationException>(() => capturer.Capture(
@@ -203,7 +203,7 @@ public sealed class BaseSnapshotCapturerTests
 
     private static FileRepository CreateRepository(string repositoryPath, IFileSystemOperations fileSystem)
     {
-        return new FileRepository(repositoryPath, fileSystem, NullLoggerFactory.Instance);
+        return new FileRepository(new FileRepositoryLayout(repositoryPath), fileSystem, NullLoggerFactory.Instance);
     }
 
     private static FileSystemOperations CreateFileSystem()
@@ -211,9 +211,9 @@ public sealed class BaseSnapshotCapturerTests
         return new FileSystemOperations(NullLogger<FileSystemOperations>.Instance);
     }
 
-    private static RepositoryOperationLock AcquireLock(string repositoryPath)
+    private static IRepositoryOperationLock AcquireLock(string repositoryPath)
     {
-        return RepositoryOperationLock.Acquire(Path.Combine(repositoryPath, RepositoryService.LockFileName));
+        return new FileRepositoryOperationLockProvider(new FileRepositoryLayout(repositoryPath)).Acquire();
     }
 
     private sealed class MutatingCopyFileSystemOperations : IFileSystemOperations

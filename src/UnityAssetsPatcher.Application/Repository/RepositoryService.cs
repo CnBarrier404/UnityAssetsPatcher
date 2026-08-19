@@ -10,12 +10,12 @@ public sealed class RepositoryService
     public const int CurrentRepositoryFormatVersion = 2;
     public const string RepositoryFileName = "repository.json";
     public const string TransactionDirectoryName = ".temp";
-    public const string LockFileName = ".lock";
 
     private readonly IFileSystemOperations _fileSystemOperations;
     private readonly IRepositoryStorage _repository;
     private readonly ICompositionRepository _compositionRepository;
     private readonly IRepositoryTransactionStore _transactionStore;
+    private readonly IRepositoryOperationLockProvider _operationLockProvider;
     private readonly ILogger<RepositoryService> _logger;
 
     public string RepositoryDirectory => _repository.RepositoryDirectory;
@@ -26,24 +26,27 @@ public sealed class RepositoryService
         ICompositionRepository compositionRepository,
         IFileSystemOperations fileSystemOperations,
         IRepositoryTransactionStore transactionStore,
+        IRepositoryOperationLockProvider operationLockProvider,
         ILogger<RepositoryService>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(compositionRepository);
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
         ArgumentNullException.ThrowIfNull(transactionStore);
+        ArgumentNullException.ThrowIfNull(operationLockProvider);
         _repository = repository;
         _compositionRepository = compositionRepository;
         _fileSystemOperations = fileSystemOperations;
         _transactionStore = transactionStore;
+        _operationLockProvider = operationLockProvider;
         _logger = logger ?? NullLogger<RepositoryService>.Instance;
     }
 
-    public RepositoryOperationLock AcquireLock()
+    public IRepositoryOperationLock AcquireLock()
     {
         _repository.LoadOrCreateMetadata();
 
-        return RepositoryOperationLock.Acquire(Path.Combine(RepositoryDirectory, LockFileName));
+        return _operationLockProvider.Acquire();
     }
 
     public RepositoryMetadata LoadMetadata()
@@ -76,7 +79,7 @@ public sealed class RepositoryService
 
     public RepositoryRecoveryPreview PreviewPendingTransaction(string gameDirectory)
     {
-        using RepositoryOperationLock operationLock = AcquireLock();
+        using IRepositoryOperationLock operationLock = AcquireLock();
         return new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations, _transactionStore)
             .Preview(gameDirectory);
     }
@@ -84,7 +87,7 @@ public sealed class RepositoryService
     public RepositoryRecoveryReport RecoverPendingTransactions(string gameDirectory)
     {
         _logger.LogInformation("Recovering pending transactions for {GameDirectory}", gameDirectory);
-        using RepositoryOperationLock operationLock = AcquireLock();
+        using IRepositoryOperationLock operationLock = AcquireLock();
         _ = RequireWritableMetadata();
         RepositoryRecoveryReport report =
             new RepositoryRecovery(this, _compositionRepository, _fileSystemOperations, _transactionStore)

@@ -28,7 +28,7 @@ public sealed class Repository : IRepository
 
     public void Initialize()
     {
-        using RepositoryOperationLock operationLock = _repositoryService.AcquireLock();
+        using IRepositoryOperationLock operationLock = _repositoryService.AcquireLock();
         _ = CheckPendingTransactions("initializing the repository");
     }
 
@@ -43,7 +43,7 @@ public sealed class Repository : IRepository
     {
         ArgumentNullException.ThrowIfNull(plan);
 
-        using RepositoryOperationLock operationLock = _repositoryService.AcquireLock();
+        using IRepositoryOperationLock operationLock = _repositoryService.AcquireLock();
         RepositoryRecoveryReport recovery = CheckPendingTransactions("installing another mod");
         _ = _repositoryService.RequireWritableMetadata();
 
@@ -65,7 +65,7 @@ public sealed class Repository : IRepository
     {
         ArgumentNullException.ThrowIfNull(plan);
 
-        using RepositoryOperationLock operationLock = _repositoryService.AcquireLock();
+        using IRepositoryOperationLock operationLock = _repositoryService.AcquireLock();
         RepositoryRecoveryReport recovery = CheckPendingTransactions("uninstalling another mod");
         _ = _repositoryService.RequireWritableMetadata();
 
