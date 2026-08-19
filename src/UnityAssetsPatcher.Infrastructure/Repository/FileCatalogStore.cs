@@ -4,6 +4,8 @@ using UnityAssetsPatcher.Application.IO;
 
 namespace UnityAssetsPatcher.Infrastructure.Repository;
 
+internal sealed record RepositoryDocument(int FormatVersion, string? RepositoryId);
+
 internal sealed class FileCatalogStore
 {
     public const int CurrentRepositoryFormatVersion = 2;
@@ -42,7 +44,14 @@ internal sealed class FileCatalogStore
 
         _repositoryFileSystem.EnsureRegularFile(_layout.MetadataPath, "Backup repository metadata");
 
-        RepositoryMetadata metadata = ReadMetadataCore();
+        RepositoryDocument document = _jsonPersistence.Read(
+            _layout.MetadataPath,
+            RepositoryJsonContext.Default.RepositoryDocument,
+            "Backup repository metadata");
+        var metadata = new RepositoryMetadata(
+            document.FormatVersion,
+            document.RepositoryId ??
+            throw new InvalidDataException("Backup repository data is invalid: repository ID is missing."));
 
         ValidateMetadata(metadata);
 
@@ -73,7 +82,7 @@ internal sealed class FileCatalogStore
         {
             _jsonPersistence.Write(
                 _layout.MetadataPath,
-                RepositoryJsonMapper.Map(metadata),
+                new RepositoryDocument(metadata.FormatVersion, metadata.RepositoryId),
                 RepositoryJsonContext.Default.RepositoryDocument,
                 FileDestinationMode.CreateNew);
 
@@ -83,16 +92,6 @@ internal sealed class FileCatalogStore
         {
             return false;
         }
-    }
-
-    private RepositoryMetadata ReadMetadataCore()
-    {
-        RepositoryDocument document = _jsonPersistence.Read(
-            _layout.MetadataPath,
-            RepositoryJsonContext.Default.RepositoryDocument,
-            "Backup repository metadata");
-
-        return RepositoryJsonMapper.Map(document);
     }
 
     private static void ValidateMetadata(RepositoryMetadata metadata)

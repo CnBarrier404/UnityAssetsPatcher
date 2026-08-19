@@ -12,7 +12,6 @@ internal sealed class FileRepositoryLayout
     public string GamesDirectory { get; }
     public string LayersDirectory { get; }
 
-    internal const string PackageFileName = "package.zip";
     internal const string LayerRecordFileName = "layer.json";
     private const string MetadataFileName = "repository.json";
     private const string LockFileName = ".lock";

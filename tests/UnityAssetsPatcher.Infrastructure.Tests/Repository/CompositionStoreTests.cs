@@ -316,7 +316,7 @@ public sealed class CompositionStoreTests
             "Test Game",
             ["hd-textures"],
             true,
-            new LayerPackageInfo(FileRepositoryLayout.PackageFileName, packageIntegrity),
+            new LayerPackageInfo("package.zip", packageIntegrity),
             ["Game_Data/sharedassets0.assets"],
             ["Data/config.txt"]);
     }

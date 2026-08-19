@@ -1,6 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using UnityAssetsPatcher.Application.IO;
+using UnityAssetsPatcher.Application.Repository;
 
 namespace UnityAssetsPatcher.Infrastructure.Repository;
 
@@ -47,3 +49,13 @@ internal sealed class RepositoryJsonPersistence
             stream => JsonSerializer.Serialize(stream, value, typeInfo));
     }
 }
+
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    WriteIndented = true,
+    UseStringEnumConverter = true)]
+[JsonSerializable(typeof(RepositoryDocument))]
+[JsonSerializable(typeof(RepositoryTransaction))]
+[JsonSerializable(typeof(BaseCatalog))]
+[JsonSerializable(typeof(LayerRecord))]
+internal sealed partial class RepositoryJsonContext : JsonSerializerContext;

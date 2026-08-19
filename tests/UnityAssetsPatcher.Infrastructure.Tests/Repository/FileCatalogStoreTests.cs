@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Text.Json;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Infrastructure.Repository;
@@ -25,6 +26,52 @@ public sealed class FileCatalogStoreTests
         Assert.Equal(created, loaded);
         Assert.True(File.Exists(layout.MetadataPath));
         Assert.False(Directory.Exists(layout.TransactionDirectory));
+
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(layout.MetadataPath));
+        Assert.Equal(created.FormatVersion, document.RootElement.GetProperty("formatVersion").GetInt32());
+        Assert.Equal(created.RepositoryId, document.RootElement.GetProperty("repositoryId").GetString());
+        Assert.False(document.RootElement.TryGetProperty("FormatVersion", out _));
+    }
+
+    [Fact]
+    public void LoadOrCreateMetadata_WhenRepositoryIdIsMissing_ThrowsExpectedException()
+    {
+        using RepositoryTestDirectory directory = new();
+        string repositoryPath = directory.CreateDirectory("backup");
+        directory.WriteFile("backup/repository.json", "{\"formatVersion\":2}");
+        FileCatalogStore store = CreateCatalog(new FileRepositoryLayout(repositoryPath));
+
+        var exception = Assert.Throws<InvalidDataException>(store.LoadOrCreateMetadata);
+
+        Assert.Equal("Backup repository data is invalid: repository ID is missing.", exception.Message);
+    }
+
+    [Fact]
+    public void LoadOrCreateMetadata_WhenRepositoryIdIsEmpty_ThrowsExpectedException()
+    {
+        using RepositoryTestDirectory directory = new();
+        string repositoryPath = directory.CreateDirectory("backup");
+        directory.WriteFile("backup/repository.json", "{\"formatVersion\":2,\"repositoryId\":\"\"}");
+        FileCatalogStore store = CreateCatalog(new FileRepositoryLayout(repositoryPath));
+
+        var exception = Assert.Throws<InvalidDataException>(store.LoadOrCreateMetadata);
+
+        Assert.Equal("Backup repository ID must not be empty.", exception.Message);
+    }
+
+    [Fact]
+    public void LoadOrCreateMetadata_WhenJsonIsMalformed_ThrowsExpectedException()
+    {
+        using RepositoryTestDirectory directory = new();
+        string repositoryPath = directory.CreateDirectory("backup");
+        FileRepositoryLayout layout = new(repositoryPath);
+        directory.WriteFile("backup/repository.json", "{");
+        FileCatalogStore store = CreateCatalog(layout);
+
+        var exception = Assert.Throws<InvalidDataException>(store.LoadOrCreateMetadata);
+
+        Assert.Equal($"Backup repository metadata contains invalid JSON: {layout.MetadataPath}", exception.Message);
+        Assert.IsType<JsonException>(exception.InnerException);
     }
 
     [Fact]
