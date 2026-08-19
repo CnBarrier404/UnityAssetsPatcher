@@ -58,7 +58,7 @@ This section provides a high-level overview of the project's directory and file 
 ├── global.json
 ├── LICENSE
 ├── README.md
-├── README_EN.md
+├── README_ZH.md
 └── UnityAssetsPatcher.slnx
 
 ## Infrastructure

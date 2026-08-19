@@ -1,5 +1,67 @@
 # Changelog
 
+## v0.7.0
+
+引入了基于 overlay 概念的 Mod 管理：安装 Mod 时不再重复备份文件，妈妈再也不用担心我的 C 盘爆炸了；卸载 Mod 时重新生成 assets，不再要求严格按照安装顺序的逆序卸载。同时进一步强化了补丁类型校验、Mod 包处理和备份仓库的安全性。
+
+### 新增
+
+- 新增 overlay 式 Mod 管理；首次修改文件时保存基础快照，每次安装保存 Mod 层和原始 Mod 包，卸载时重新生成受影响文件
+- 新增不受支持仓库格式的重置流程；TUI 会要求二次确认，CLI 可通过 `repository clear --yes` 明确清空旧仓库并初始化当前格式
+
+### 修复
+
+- patch 的 JSON 值现在必须与目标 Assets 字段类型兼容；字符串、数字和布尔值之间不再隐式转换，数值也必须能由目标字段完整表示
+- 跨文件 asset 替换现在会验证源和目标的类型树兼容性，避免将不兼容数据写入目标文件
+- 安装计划现在会拒绝 assets 输出路径与 payload 路径冲突，避免同一目标被不同操作重复写入
+- Mod 包解压总大小限制现在覆盖完整读取流程（上限 10 GB），避免压缩包通过不同访问路径绕过限制
+- AssetsTools 会话清理现在能够安全处理释放过程中的异常，并保留第三方异常类型以提供准确诊断
+- assets 字段树缓存现在具有明确的容量边界，避免长时间处理大量类型时无限增长
+
+### 改进
+
+- 安装预览生成的计划和 assets 字段树会在实际安装时复用，减少重复扫描和解析
+- 读取 manifest 时不再执行不必要的完整 Mod 包校验，并记录 Mod 包解压耗时与数据量，提升性能和诊断能力
+- TUI 的卸载预览与结果展示更加简洁，并会直接说明需要重建、恢复基础快照或删除的文件
+- 应用层工作流迁移到类型化异步请求分发，安装、卸载、恢复、manifest 校验和 assets 浏览使用边界更清晰的独立处理器
+- 仓储布局、文件系统策略、事务持久化、操作锁和 JSON 存储已统一到新的仓储边界
+
+### 破坏性变更
+
+- 备份仓库格式已升级到 v2，v0.6.0 及更早版本创建的 v1 仓库不会自动迁移。升级前请先使用原版本卸载已安装的 Mod；否则新版本只允许在明确确认后清空旧仓库，而清空不会还原已修改的游戏文件，并会永久删除原有备份和安装记录
+- 备份目录结构已从 `installed/<install-id>` 改为基础快照 `base/` 和可重放层 `layers/<install-id>/`，依赖旧目录结构的外部工具需要更新
+
+---
+
+This release introduces overlay-based mod management. Installing mods no longer creates duplicate file backups, and uninstalling a mod regenerates the affected assets instead of requiring strict reverse installation order. It also strengthens patch type validation, mod-package handling, and backup-repository safety.
+
+### Added
+
+- Added overlay-based mod management: base snapshots are captured when files are first modified, each installation stores a mod layer and the original package, and uninstall regenerates affected files
+- Added a reset flow for unsupported repository formats; the TUI requires a second confirmation, while the CLI can explicitly clear the old repository and initialize the current format with `repository clear --yes`
+
+### Fixed
+
+- Patch JSON values must now be compatible with their target Assets field types; strings, numbers, and booleans are no longer converted implicitly, and numbers must be represented exactly by the target field
+- Cross-file asset replacement now validates source and target type-tree compatibility, preventing incompatible data from being written to the target file
+- Installation plans now reject conflicts between Assets output paths and payload paths, preventing different operations from writing the same target
+- The total Mod package extraction limit now covers the complete reading flow, with a 10 GB limit that archives cannot bypass through different access paths
+- AssetsTools session cleanup now handles disposal failures safely and preserves third-party exception types for accurate diagnostics
+- Assets field-tree caching now has an explicit capacity bound, preventing unbounded growth when many types are processed over time
+
+### Improved
+
+- Installation reuses plans and Assets field trees produced during preview, reducing repeated scanning and parsing
+- Manifest reads avoid unnecessary full-package validation, while package decompression timing and volume are logged for better performance and diagnostics
+- TUI uninstall previews and results are more concise and directly identify files that will be rebuilt, restored from a base snapshot, or deleted
+- Application workflows now use typed asynchronous request dispatch, with separate handlers and clearer boundaries for installation, uninstallation, recovery, manifest validation, and Assets inspection
+- Repository layout, file-system policy, transaction persistence, operation locking, and JSON storage are now unified behind the new repository boundary
+
+### Breaking Changes
+
+- The backup repository format has been upgraded to v2. Version 1 repositories created by v0.6.0 and earlier are not migrated automatically. Uninstall existing mods with the original version before upgrading; otherwise, the new version can only clear the old repository after explicit confirmation. Clearing does not restore modified game files and permanently deletes the existing backups and install records
+- The backup layout has changed from `installed/<install-id>` to base snapshots under `base/` and replayable layers under `layers/<install-id>`; external tools that depend on the old layout must be updated
+
 ## v0.6.0
 
 本次版本以大规模架构重构为核心：完成 Application、Domain、Infrastructure、CLI、TUI 和本地化源生成器的分层，重新整理依赖边界、基础设施实现和测试结构。在此基础上，进一步强化了 manifest、Mod 包和 Assets 文件处理的校验、安全性与诊断能力。
@@ -75,8 +137,6 @@ This release is centered on a major architectural refactor: Application, Domain,
 - Replaced the `IFileOperations` and `IDirectoryOperations` abstractions with the unified `IFileSystemOperations`
 - Updated the assets file access contracts: `IAssetsFileReader` and `IAssetsFileWriter` no longer implement `IDisposable`, and `IAssetsAccessScope.CloseReadSessions` has been removed
 - Integrations that reference the application or infrastructure interfaces must be updated for the new project layers and contracts; regular executable users do not need to migrate anything
-
----
 
 ## v0.5.1
 
