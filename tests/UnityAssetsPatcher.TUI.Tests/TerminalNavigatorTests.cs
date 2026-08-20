@@ -72,6 +72,42 @@ public sealed class TerminalNavigatorTests
     }
 
     [Fact]
+    public void TerminalNavigator_WhenInstallModPageIsShown_RendersBeforeInvokingModFilePicker()
+    {
+        var events = new List<string>();
+        using TerminalShellView shell = new(
+            new AppInfo("Unity Assets Patcher", "dev"),
+            "Footer",
+            render: () => events.Add("render"));
+        using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        var taskRunner = new TerminalTaskRunner(callback => callback());
+        var navigator = new TerminalNavigator(
+            shell,
+            new CultureInfo("en-US"),
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            new TerminalSettings(),
+            null,
+            taskRunner,
+            static () => { },
+            () =>
+            {
+                events.Add("picker");
+                return null;
+            });
+
+        navigator.ShowMainMenu();
+        shell.BeginInit();
+        shell.EndInit();
+
+        View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
+        MainMenuView mainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
+        mainMenu.SubViews.OfType<ChoiceItemList>().First().Button.InvokeCommand(Command.Accept);
+
+        Assert.Equal(["render", "picker"], events);
+        Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
+    }
+
+    [Fact]
     public void ShowAvailableUpdate_WhenAnotherPageIsVisible_ShowsUpdateAfterReturningToMainMenu()
     {
         using TerminalShellView shell = new(
@@ -135,7 +171,8 @@ public sealed class TerminalNavigatorTests
             new TerminalSettings(),
             null,
             taskRunner,
-            static () => { });
+            static () => { },
+            static () => null);
 
         navigator.Start();
 

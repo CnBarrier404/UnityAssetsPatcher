@@ -24,10 +24,12 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private readonly LocalizedStrings _strings;
     private readonly TerminalSettings _settings;
     private readonly TerminalTaskRunner _taskRunner;
+    private readonly Func<string?> _pickModFile;
     private readonly Action _returnToMainMenu;
-    private readonly InputField _modPath;
+    private readonly ActionButton _selectModButton;
     private readonly WorkingIndicator _message;
     private readonly ScrollableContentView _form;
+    private string? _modPath;
     private InputField? _gameDirectory;
     private View? _optionalGroupArea;
     private readonly List<ToggleItem> _optionalGroups = [];
@@ -39,15 +41,18 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         TerminalTaskRunner taskRunner,
+        Func<string?> pickModFile,
         Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
         ArgumentNullException.ThrowIfNull(scopeFactory);
+        ArgumentNullException.ThrowIfNull(pickModFile);
 
         _strings = strings;
         _scopeFactory = scopeFactory;
         _settings = settings;
         _taskRunner = taskRunner;
+        _pickModFile = pickModFile;
         _returnToMainMenu = returnToMainMenu;
         KeyDown += (_, key) =>
         {
@@ -85,27 +90,59 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             CanFocus = true
         };
         _form.SetContentHeightForRows(3);
-        string pathPrompt = $"{_strings.InstallPage_ModZipPathPrompt}";
-        var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
-        _modPath = new InputField
+        _selectModButton = new ActionButton(_strings.InstallPage_SelectModAction)
         {
-            X = pathPrompt.GetColumns(),
-            Y = 0,
-            Width = Dim.Fill()
+            X = 0,
+            Y = 0
         };
-        _modPath.Accepted += (_, _) => Preview();
+        _selectModButton.Accepted += (_, _) => SelectModFile();
         _message = new WorkingIndicator
         {
             X = 0,
-            Y = Pos.Bottom(_modPath) + 2,
+            Y = Pos.Bottom(_selectModButton) + 2,
             Width = Dim.Fill(),
             Visible = false
         };
-        _form.Add(pathLabel, _modPath, _message);
+        _form.Add(_selectModButton, _message);
         Add(heading, description, _form);
+        Initialized += (_, _) =>
+        {
+            RenderRequested?.Invoke(this, EventArgs.Empty);
+            SelectModFile();
+        };
+    }
+
+    private void SelectModFile()
+    {
+        if (_isWorking)
+        {
+            return;
+        }
+
+        string? selectedPath = _pickModFile();
+        if (string.IsNullOrWhiteSpace(selectedPath))
+        {
+            _returnToMainMenu();
+
+            return;
+        }
+
+        Preview(selectedPath);
     }
 
     private void Preview()
+    {
+        if (_modPath is null)
+        {
+            SelectModFile();
+
+            return;
+        }
+
+        Preview(_modPath);
+    }
+
+    private void Preview(string modPath)
     {
         if (_isWorking)
         {
@@ -114,24 +151,22 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
         _preparedInstall = null;
         ClearMessage();
-        string modPath = TerminalPathNormalizer.Normalize(_modPath.Text);
+        modPath = TerminalPathNormalizer.Normalize(modPath);
         if (string.IsNullOrWhiteSpace(modPath))
         {
-            ShowInputError(
-                _modPath,
-                _strings.Prompt_LabelRequiredFormat(_strings.InstallPage_ModZipPathPrompt));
+            ShowModError(_strings.Prompt_LabelRequiredFormat(_strings.InstallPage_SelectModAction));
 
             return;
         }
 
         if (!File.Exists(modPath))
         {
-            ShowInputError(_modPath, _strings.Prompt_FileNotFoundFormat(modPath));
+            ShowModError(_strings.Prompt_FileNotFoundFormat(modPath));
 
             return;
         }
 
-        _modPath.Text = modPath;
+        _modPath = modPath;
 
         string? gameDirectory = _gameDirectory is null
             ? null
@@ -180,7 +215,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                     }
                     else
                     {
-                        ShowInputError(_modPath, message);
+                        ShowModError(message);
                     }
 
                     return;
@@ -202,7 +237,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 _isWorking = false;
                 _form.Enabled = true;
 
-                ShowInputError(_modPath, OperationErrorFormatter.FormatUnexpected(_strings));
+                ShowModError(OperationErrorFormatter.FormatUnexpected(_strings));
             });
 
         if (!started)
@@ -221,7 +256,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         if (_gameDirectory is null)
         {
             string prompt = $"{_strings.InstallPage_GameDirectoryPrompt}: ";
-            Pos gameDirectoryRow = Pos.Bottom(_modPath) + 2;
+            Pos gameDirectoryRow = Pos.Bottom(_selectModButton) + 2;
             var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = gameDirectoryRow };
             _gameDirectory = new InputField
             {
@@ -241,7 +276,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private void ShowOptionalGroups(IReadOnlyList<(string Name, string? Description)> groups)
     {
         Pos optionalGroupsRow = _gameDirectory is null
-            ? Pos.Bottom(_modPath) + 2
+            ? Pos.Bottom(_selectModButton) + 2
             : Pos.Bottom(_gameDirectory) + 2;
         _optionalGroupArea = new View
         {
@@ -492,6 +527,12 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     {
         input.Text = string.Empty;
         input.SetFocus();
+        ShowError(message);
+    }
+
+    private void ShowModError(string message)
+    {
+        _selectModButton.SetFocus();
         ShowError(message);
     }
 
