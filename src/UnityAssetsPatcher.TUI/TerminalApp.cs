@@ -108,7 +108,10 @@ public sealed class TerminalApp
                 _settings,
                 _loggingLevelSwitch,
                 taskRunner,
-                application.RequestStop);
+                application.RequestStop,
+                () => WindowsNativeFilePicker.PickFile(
+                    strings.InstallPage_SelectModDialogTitle,
+                    strings.InstallPage_ModZipFileType));
         using CancellationTokenSource updateCancellation = new();
 
         navigator.Start();

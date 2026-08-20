@@ -22,6 +22,7 @@ public sealed class TerminalNavigator
     private readonly TerminalSettings? _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
     private readonly TerminalTaskRunner? _taskRunner;
+    private readonly Func<string?> _pickModFile;
     private readonly Action _requestStop;
     private AvailableUpdate? _availableUpdate;
     private MainMenuView? _visibleMainMenu;
@@ -34,6 +35,7 @@ public sealed class TerminalNavigator
 
         _shell = shell;
         _strings = new LocalizedStrings(culture);
+        _pickModFile = static () => null;
         _requestStop = static () => { };
     }
 
@@ -44,18 +46,21 @@ public sealed class TerminalNavigator
         TerminalSettings settings,
         ILoggingLevelSwitch? loggingLevelSwitch,
         TerminalTaskRunner taskRunner,
-        Action requestStop)
+        Action requestStop,
+        Func<string?> pickModFile)
         : this(shell, culture)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(taskRunner);
         ArgumentNullException.ThrowIfNull(requestStop);
+        ArgumentNullException.ThrowIfNull(pickModFile);
 
         _scopeFactory = scopeFactory;
         _settings = settings;
         _loggingLevelSwitch = loggingLevelSwitch;
         _taskRunner = taskRunner;
+        _pickModFile = pickModFile;
         _requestStop = requestStop;
     }
 
@@ -133,6 +138,7 @@ public sealed class TerminalNavigator
                     _scopeFactory,
                     _settings,
                     _taskRunner,
+                    _pickModFile,
                     returnToMainMenu)),
             new TerminalMenuItem(
                 _strings.MainMenu_UninstallMod_Title,
