@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.7.1
+
+完善了项目文档和 TUI 的 Mod 安装体验：新增文档站点并通过 GitHub Pages 发布；将 Mod 文件选择改为 Windows 原生文件选择器，告别手动输入或粘贴路径。
+
+### 新增
+
+- 新增文档站点，提供开始使用、常见问题和 Mod Manifest 编写指南，并通过 GitHub Pages 自动构建发布
+- 新增 Windows 原生 Mod ZIP 文件选择器，安装 Mod 时可以直接从文件对话框选择 Mod 包
+
+---
+
+This release improves the documentation and the TUI mod installation experience. It adds a documentation site published through GitHub Pages and replaces manual mod path entry with a native Windows file picker.
+
+### Added
+
+- Added a documentation site with getting started, FAQ, and mod manifest guide pages, automatically built and published through GitHub Pages
+- Added a native Windows file picker for Mod ZIP packages, allowing users to select a package directly during mod installation
+
 ## v0.7.0
 
 引入了基于 overlay 概念的 Mod 管理：安装 Mod 时不再重复备份文件，妈妈再也不用担心我的 C 盘爆炸了；卸载 Mod 时重新生成 assets，不再要求严格按照安装顺序的逆序卸载。同时进一步强化了补丁类型校验、Mod 包处理和备份仓库的安全性。
