@@ -26,6 +26,18 @@ public sealed class TrustedPathResolver
         return fullPath;
     }
 
+    public string ResolveExistingFile(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        string fullPath = TrustedPath.NormalizeAbsolutePath(path);
+        FileAttributes attributes = _fileSystemOperations.GetAttributes(fullPath);
+
+        return attributes.HasFlag(FileAttributes.Directory)
+            ? throw new FileNotFoundException($"The file does not exist: '{fullPath}'.", fullPath)
+            : fullPath;
+    }
+
     public string ResolveWithinDirectory(string rootDirectory, string relativePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);

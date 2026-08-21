@@ -39,6 +39,28 @@ public sealed class TrustedPathResolverTests
     }
 
     [Fact]
+    public void ResolveExistingFile_WhenFileExists_ReturnsNormalizedPath()
+    {
+        string path = TrustedPath.NormalizeAbsolutePath(Path.Combine(Path.GetTempPath(), "game.bin"));
+        TrustedPathResolver resolver = CreateResolver((path, FileAttributes.Normal));
+
+        string resolved = resolver.ResolveExistingFile(path + Path.DirectorySeparatorChar);
+
+        Assert.Equal(path, resolved);
+    }
+
+    [Fact]
+    public void ResolveExistingFile_WhenPathIsDirectory_ThrowsFileNotFoundException()
+    {
+        string path = TrustedPath.NormalizeAbsolutePath(Path.Combine(Path.GetTempPath(), "Game"));
+        TrustedPathResolver resolver = CreateResolver((path, FileAttributes.Directory));
+
+        var exception = Assert.Throws<FileNotFoundException>(() => resolver.ResolveExistingFile(path));
+
+        Assert.Equal($"The file does not exist: '{path}'.", exception.Message);
+    }
+
+    [Fact]
     public void ResolveWithinDirectory_WhenRelativePathIsSafe_ReturnsResolvedPath()
     {
         string root = TrustedPath.NormalizeAbsolutePath(Path.Combine(Path.GetTempPath(), "Game"));

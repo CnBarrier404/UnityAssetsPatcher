@@ -58,6 +58,6 @@ internal sealed class FileRepositoryTransactionStore : IRepositoryTransactionSto
     public void Delete()
     {
         _repositoryFileSystem.EnsureRealDirectory(_layout.TransactionDirectory, "Transaction directory");
-        _fileSystemOperations.DeleteDirectory(_layout.TransactionDirectory);
+        _fileSystemOperations.DeleteDirectoryTree(_layout.TransactionDirectory);
     }
 }

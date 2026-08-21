@@ -9,6 +9,7 @@ internal sealed class RepositoryRecovery
     private readonly RepositoryService _repository;
     private readonly IRepositoryStore _repositoryStore;
     private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly TrustedPathResolver _pathResolver;
 
     public RepositoryRecovery(
         RepositoryService repository,
@@ -21,6 +22,7 @@ internal sealed class RepositoryRecovery
         _repository = repository;
         _repositoryStore = repositoryStore;
         _fileSystemOperations = fileSystemOperations;
+        _pathResolver = new TrustedPathResolver(fileSystemOperations);
     }
 
     public RepositoryRecoveryReport Check()
@@ -59,7 +61,7 @@ internal sealed class RepositoryRecovery
         string? trustedRoot = null;
         try
         {
-            trustedRoot = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
+            trustedRoot = _pathResolver.ResolveExistingDirectory(gameDirectory);
             RecoveryPlan plan = BuildPlan(transaction, trustedRoot);
             return new RepositoryRecoveryPreview(
                 RepositoryRecoveryStatus.RecoveryRequired,
@@ -96,7 +98,7 @@ internal sealed class RepositoryRecovery
                 return RepositoryRecoveryReport.Clean;
             }
 
-            string trustedRoot = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
+            string trustedRoot = _pathResolver.ResolveExistingDirectory(gameDirectory);
             return Apply(transaction, trustedRoot);
         }
         catch (Exception exception)
@@ -111,7 +113,7 @@ internal sealed class RepositoryRecovery
         {
             RepositoryMetadata metadata = _repository.LoadMetadata();
             ValidateTransaction(transaction, metadata.RepositoryId);
-            string trustedRoot = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
+            string trustedRoot = _pathResolver.ResolveExistingDirectory(gameDirectory);
             return Apply(transaction, trustedRoot);
         }
         catch (Exception exception)
@@ -134,7 +136,7 @@ internal sealed class RepositoryRecovery
                     continue;
                 }
 
-                string target = _fileSystemOperations.ResolveWithinDirectory(trustedRoot, file.File.RelativePath);
+                string target = _pathResolver.ResolveWithinDirectory(trustedRoot, file.File.RelativePath);
                 if (file.Action == RepositoryRecoveryFileAction.Delete)
                 {
                     _fileSystemOperations.DeleteFile(target);
@@ -169,7 +171,7 @@ internal sealed class RepositoryRecovery
         var states = new List<(RepositoryTransactionFile File, FileState State)>();
         foreach (RepositoryTransactionFile file in transaction.Files)
         {
-            string target = _fileSystemOperations.ResolveWithinDirectory(trustedRoot, file.RelativePath);
+            string target = _pathResolver.ResolveWithinDirectory(trustedRoot, file.RelativePath);
             FileState state = Inspect(target, file.Before, file.After);
             states.Add((file, state));
         }
@@ -311,7 +313,7 @@ internal sealed class RepositoryRecovery
 
     private string GetRemovedLayerDirectory()
     {
-        return _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory, "removed-install");
+        return _pathResolver.ResolveWithinDirectory(_repository.TransactionDirectory, "removed-install");
     }
 
     private bool TryGetRealDirectory(string path, string description)
@@ -424,9 +426,9 @@ internal sealed class RepositoryRecovery
 
     private void ValidateRollback(RepositoryTransactionFile file)
     {
-        string rollback = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
+        string rollback = _pathResolver.ResolveWithinDirectory(_repository.TransactionDirectory,
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
-        if (!_fileSystemOperations.MatchesFile(rollback, file.Before!))
+        if (!file.Before!.Matches(_fileSystemOperations.ComputeFileIntegrity(rollback)))
         {
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
         }
@@ -434,15 +436,15 @@ internal sealed class RepositoryRecovery
 
     private void RestoreOriginalFile(RepositoryTransactionFile file, string target)
     {
-        string rollback = _fileSystemOperations.ResolveWithinDirectory(_repository.TransactionDirectory,
+        string rollback = _pathResolver.ResolveWithinDirectory(_repository.TransactionDirectory,
             file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
-        if (!_fileSystemOperations.MatchesFile(rollback, file.Before!))
+        if (!file.Before!.Matches(_fileSystemOperations.ComputeFileIntegrity(rollback)))
         {
             throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
         }
 
-        _fileSystemOperations.CopyFile(rollback, target);
-        if (!_fileSystemOperations.MatchesFile(target, file.Before!))
+        _fileSystemOperations.CopyFileAtomically(rollback, target, FileDestinationMode.CreateOrReplace);
+        if (!file.Before!.Matches(_fileSystemOperations.ComputeFileIntegrity(target)))
         {
             throw new InvalidOperationException($"Transaction rollback verification failed: {target}");
         }
@@ -465,12 +467,12 @@ internal sealed class RepositoryRecovery
             return after is null ? FileState.After : FileState.Unknown;
         }
 
-        if (before is not null && _fileSystemOperations.MatchesFile(path, before))
+        if (before is not null && before.Matches(_fileSystemOperations.ComputeFileIntegrity(path)))
         {
             return FileState.Before;
         }
 
-        if (after is not null && _fileSystemOperations.MatchesFile(path, after))
+        if (after is not null && after.Matches(_fileSystemOperations.ComputeFileIntegrity(path)))
         {
             return FileState.After;
         }

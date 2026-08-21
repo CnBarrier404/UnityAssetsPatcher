@@ -74,7 +74,7 @@ public sealed class InstallExecutor
         cancellationToken.ThrowIfCancellationRequested();
 
         RepositoryMetadata repository = _repositoryService.RequireWritableMetadata();
-        string normalizedPackagePath = _fileSystemOperations.ResolveExistingFile(packagePath);
+        string normalizedPackagePath = _pathResolver.ResolveExistingFile(packagePath);
         string gameDirectory = _pathResolver.ResolveExistingDirectory(analysis.GameDirectory);
         string fingerprint = GameInstanceIdentity.CreateFingerprint(_pathResolver, gameDirectory);
         var activeLayers = GetActiveLayers(fingerprint);
@@ -150,7 +150,7 @@ public sealed class InstallExecutor
 
             ApplyPreparedFiles(transaction, temporaryDirectory, gameDirectory);
             _repositoryStore.Layers.CommitLayer(preparedLayerDirectory, installId);
-            _fileSystemOperations.DeleteDirectory(temporaryDirectory);
+            _fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
             _logger.LogInformation("Committed layered install {InstallId}", installId);
 
             return new InstallExecutionResult(patched, copied, installId, baseSnapshotCount);
@@ -361,7 +361,7 @@ public sealed class InstallExecutor
 
             string preparedPath = result.PreparedPath ?? throw new InvalidOperationException(
                 $"Layered install cannot delete target file: {result.RelativePath}");
-            preparedPath = _fileSystemOperations.ResolveExistingFile(preparedPath);
+            preparedPath = _pathResolver.ResolveExistingFile(preparedPath);
             EnsureRegularFile(preparedPath, "Prepared install file");
             FileIntegrity after = _fileSystemOperations.ComputeFileIntegrity(preparedPath);
             string? rollbackRelativePath = null;
@@ -371,7 +371,7 @@ public sealed class InstallExecutor
                 string rollbackPath = Path.Combine(rollbackDirectory, $"file-{fileIndex:D6}.bin");
                 _fileSystemOperations.CopyFileAtomically(targetPath, rollbackPath, FileDestinationMode.CreateNew);
 
-                if (!_fileSystemOperations.MatchesFile(rollbackPath, before))
+                if (!before.Matches(_fileSystemOperations.ComputeFileIntegrity(rollbackPath)))
                 {
                     throw new IOException($"Rollback verification failed: {targetPath}");
                 }
@@ -453,7 +453,7 @@ public sealed class InstallExecutor
 
             if (Directory.Exists(temporaryDirectory))
             {
-                _fileSystemOperations.DeleteDirectory(temporaryDirectory);
+                _fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
             }
 
             return;
@@ -476,11 +476,12 @@ public sealed class InstallExecutor
     {
         foreach (RepositoryTransactionFile file in transaction.Files)
         {
-            string target = _fileSystemOperations.ResolveWithinDirectory(gameDirectory, file.RelativePath);
+            string target = _pathResolver.ResolveWithinDirectory(gameDirectory, file.RelativePath);
 
-            if (file.Before is null
+            FileIntegrity? expectedBefore = file.Before;
+            if (expectedBefore is null
                     ? File.Exists(target)
-                    : !_fileSystemOperations.MatchesFile(target, file.Before))
+                    : !expectedBefore.Matches(_fileSystemOperations.ComputeFileIntegrity(target)))
             {
                 throw new IOException($"Install target changed before mutation: {target}");
             }
@@ -488,14 +489,15 @@ public sealed class InstallExecutor
 
         foreach (RepositoryTransactionFile file in transaction.Files)
         {
-            string target = _fileSystemOperations.ResolveWithinDirectory(gameDirectory, file.RelativePath);
-            string source = _fileSystemOperations.ResolveWithinDirectory(
+            string target = _pathResolver.ResolveWithinDirectory(gameDirectory, file.RelativePath);
+            string source = _pathResolver.ResolveWithinDirectory(
                 temporaryDirectory,
                 file.PreparedRelativePath ?? throw new InvalidOperationException("Prepared file path is missing."));
 
-            _fileSystemOperations.CopyFile(source, target);
+            _fileSystemOperations.CopyFileAtomically(source, target, FileDestinationMode.CreateOrReplace);
 
-            if (file.After is null || !_fileSystemOperations.MatchesFile(target, file.After))
+            FileIntegrity? expectedAfter = file.After;
+            if (expectedAfter is null || !expectedAfter.Matches(_fileSystemOperations.ComputeFileIntegrity(target)))
             {
                 throw new IOException($"Installed file verification failed: {target}");
             }

@@ -6,12 +6,12 @@ namespace UnityAssetsPatcher.Application.Installation;
 
 public sealed class TargetAssetResolver
 {
-    private readonly IFileSystemOperations _fileSystemOperations;
+    private readonly TrustedPathResolver _pathResolver;
 
     public TargetAssetResolver(IFileSystemOperations fileSystemOperations)
     {
         ArgumentNullException.ThrowIfNull(fileSystemOperations);
-        _fileSystemOperations = fileSystemOperations;
+        _pathResolver = new TrustedPathResolver(fileSystemOperations);
     }
 
     public TargetAssetSet Execute(string gameDirectory, ModManifest manifest, StepTimer timings)
@@ -32,7 +32,7 @@ public sealed class TargetAssetResolver
         string gameDirectory,
         IEnumerable<string> targetNames)
     {
-        string fullGameDirectory = _fileSystemOperations.ResolveExistingDirectory(gameDirectory);
+        string fullGameDirectory = _pathResolver.ResolveExistingDirectory(gameDirectory);
 
         string[] distinctTargetNames = targetNames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var matchesByTarget = distinctTargetNames.ToDictionary(
@@ -56,9 +56,10 @@ public sealed class TargetAssetResolver
                 continue;
             }
 
-            string resolvedFilePath = _fileSystemOperations.ResolveExistingFile(filePath);
+            string resolvedFilePath = _pathResolver.ResolveExistingFile(filePath);
 
-            if (!_fileSystemOperations.IsPathWithinDirectory(resolvedFilePath, fullGameDirectory))
+            if (TrustedPath.PathsEqual(resolvedFilePath, fullGameDirectory) ||
+                !TrustedPath.IsWithinRoot(resolvedFilePath, fullGameDirectory))
             {
                 throw new InvalidOperationException(
                     $"Target '{fileName}' resolved outside game directory: {filePath}");

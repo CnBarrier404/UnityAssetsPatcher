@@ -21,45 +21,6 @@ public sealed class FileSystemOperations : IFileSystemOperations
         _logger = logger;
     }
 
-    public string ResolveExistingDirectory(string path)
-    {
-        var resolver = new TrustedPathResolver(this);
-
-        return resolver.ResolveExistingDirectory(path);
-    }
-
-    public string ResolveExistingFile(string path)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-
-        string fullPath = TrustedPath.NormalizeAbsolutePath(path);
-        FileAttributes attributes = GetAttributes(fullPath);
-
-        if (attributes.HasFlag(FileAttributes.Directory))
-        {
-            throw new FileNotFoundException($"The file does not exist: '{fullPath}'.", fullPath);
-        }
-
-        return fullPath;
-    }
-
-    public string ResolveWithinDirectory(string rootDirectory, string relativePath)
-    {
-        var resolver = new TrustedPathResolver(this);
-
-        return resolver.ResolveWithinDirectory(rootDirectory, relativePath);
-    }
-
-    public bool PathsEqual(string leftPath, string rightPath)
-    {
-        return TrustedPath.PathsEqual(leftPath, rightPath);
-    }
-
-    public bool IsPathWithinDirectory(string path, string directory)
-    {
-        return !TrustedPath.PathsEqual(path, directory) && TrustedPath.IsWithinRoot(path, directory);
-    }
-
     public Stream OpenRead(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -166,27 +127,6 @@ public sealed class FileSystemOperations : IFileSystemOperations
         IOLog.FileCopied(_logger, fullSourcePath, fullDestinationPath, mode);
     }
 
-    public void WriteFile(string destinationPath, Action<Stream> writer)
-    {
-        WriteFileAtomically(destinationPath, FileDestinationMode.CreateOrReplace, writer);
-    }
-
-    public void CopyFile(string sourcePath, string destinationPath)
-    {
-        CopyFileAtomically(sourcePath, destinationPath, FileDestinationMode.CreateOrReplace);
-    }
-
-    public void MoveFile(string sourcePath, string destinationPath)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
-
-        string fullSourcePath = Path.GetFullPath(sourcePath);
-        string fullDestinationPath = Path.GetFullPath(destinationPath);
-
-        CommitFile(fullSourcePath, fullDestinationPath, FileDestinationMode.CreateOrReplace);
-    }
-
     public void DeleteFile(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -225,11 +165,6 @@ public sealed class FileSystemOperations : IFileSystemOperations
         Directory.CreateDirectory(fullPath);
 
         IOLog.DirectoryReady(_logger, fullPath);
-    }
-
-    public void CreateDirectory(string path)
-    {
-        EnsureDirectory(path);
     }
 
     public void MoveDirectory(string sourcePath, string destinationPath)
@@ -271,11 +206,6 @@ public sealed class FileSystemOperations : IFileSystemOperations
         DeleteDirectoryTreeCore(fullPath, attributes);
 
         IOLog.DirectoryTreeDeleted(_logger, fullPath);
-    }
-
-    public void DeleteDirectory(string path)
-    {
-        DeleteDirectoryTree(path);
     }
 
     private void WriteFileCore(string destinationPath, FileDestinationMode mode, Action<Stream> writer)

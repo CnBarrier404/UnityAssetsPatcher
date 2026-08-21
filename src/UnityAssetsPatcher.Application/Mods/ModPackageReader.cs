@@ -326,7 +326,8 @@ public sealed class ModPackageReader
             fullRootDirectory,
             relativePath.Replace('/', Path.DirectorySeparatorChar)));
 
-        if (!_fileSystemOperations.IsPathWithinDirectory(fullPath, fullRootDirectory))
+        if (TrustedPath.PathsEqual(fullPath, fullRootDirectory) ||
+            !TrustedPath.IsWithinRoot(fullPath, fullRootDirectory))
         {
             throw new InvalidDataException(
                 $"Package payload source cannot escape its extraction directory: {relativePath}");

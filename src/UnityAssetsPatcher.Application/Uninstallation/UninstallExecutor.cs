@@ -87,7 +87,7 @@ public sealed class UninstallExecutor
 
             string removedLayerDirectory = Path.Combine(temporaryDirectory, "removed-install");
             _fileSystemOperations.MoveDirectory(layerDirectory, removedLayerDirectory);
-            _fileSystemOperations.DeleteDirectory(temporaryDirectory);
+            _fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
 
             return new UninstallModResult(
                 plan.Layer.Id,
@@ -141,7 +141,7 @@ public sealed class UninstallExecutor
                 string rollbackPath = Path.Combine(rollbackDirectory, $"file-{fileIndex:D6}.bin");
                 _fileSystemOperations.CopyFileAtomically(targetPath, rollbackPath, FileDestinationMode.CreateNew);
 
-                if (!_fileSystemOperations.MatchesFile(rollbackPath, before))
+                if (!before.Matches(_fileSystemOperations.ComputeFileIntegrity(rollbackPath)))
                 {
                     throw new IOException($"Uninstall rollback snapshot verification failed: {targetPath}");
                 }
@@ -224,9 +224,9 @@ public sealed class UninstallExecutor
                 temporaryDirectory,
                 file.PreparedRelativePath ?? throw new InvalidOperationException(
                     "Prepared uninstall file path is missing."));
-            _fileSystemOperations.CopyFile(source, target);
+            _fileSystemOperations.CopyFileAtomically(source, target, FileDestinationMode.CreateOrReplace);
 
-            if (!_fileSystemOperations.MatchesFile(target, file.After))
+            if (!file.After!.Matches(_fileSystemOperations.ComputeFileIntegrity(target)))
             {
                 throw new IOException($"Uninstalled file verification failed: {target}");
             }
@@ -248,7 +248,7 @@ public sealed class UninstallExecutor
 
             if (Directory.Exists(temporaryDirectory))
             {
-                _fileSystemOperations.DeleteDirectory(temporaryDirectory);
+                _fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
             }
 
             return;
