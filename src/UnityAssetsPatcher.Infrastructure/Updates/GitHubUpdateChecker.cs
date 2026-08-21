@@ -28,9 +28,11 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        UpdateLog.UpdateCheckStarted(_logger);
+
         if (!SemanticVersion.TryParse(_appInfo.DisplayVersion, out SemanticVersion currentVersion))
         {
-            UpdateLog.UpdateCheckSkipped(_logger, _appInfo.DisplayVersion);
+            UpdateLog.UpdateCheckSkipped(_logger);
 
             return new UpdateCheckFailed();
         }
@@ -44,12 +46,18 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
 
         if (manifest.SemanticVersion.CompareTo(currentVersion) <= 0)
         {
-            UpdateLog.NoUpdateAvailable(_logger, _appInfo.DisplayVersion, manifest.Version);
+            UpdateLog.UpdateCheckCompletedWithoutUpdate(
+                _logger,
+                _appInfo.DisplayVersion,
+                manifest.Version);
 
             return new UpToDate();
         }
 
-        UpdateLog.UpdateAvailable(_logger, _appInfo.DisplayVersion, manifest.Version);
+        UpdateLog.UpdateCheckCompletedWithUpdate(
+            _logger,
+            _appInfo.DisplayVersion,
+            manifest.Version);
 
         return new UpdateAvailable(new AvailableUpdate(
             manifest.Version,

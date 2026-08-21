@@ -10,11 +10,22 @@ internal sealed record UpdateManifest(
     Uri DownloadUrl,
     string Sha256);
 
+internal enum UpdateManifestReadStatus
+{
+    Success,
+    TooLarge,
+    Invalid
+}
+
+internal sealed record UpdateManifestReadResult(
+    UpdateManifest? Manifest,
+    UpdateManifestReadStatus Status);
+
 internal static partial class UpdateManifestReader
 {
     private static readonly Regex Sha256Pattern = CreateSha256Pattern();
 
-    public static async Task<UpdateManifest?> ReadAsync(
+    public static async Task<UpdateManifestReadResult> ReadAsync(
         Stream contentStream,
         int maximumSize,
         CancellationToken cancellationToken)
@@ -36,7 +47,7 @@ internal static partial class UpdateManifestReader
 
             if (manifestBuffer.Length + bytesRead > maximumSize)
             {
-                return null;
+                return new UpdateManifestReadResult(null, UpdateManifestReadStatus.TooLarge);
             }
 
             manifestBuffer.Write(buffer, 0, bytesRead);
@@ -49,8 +60,8 @@ internal static partial class UpdateManifestReader
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         return TryReadManifest(document.RootElement, out UpdateManifest? manifest)
-            ? manifest
-            : null;
+            ? new UpdateManifestReadResult(manifest, UpdateManifestReadStatus.Success)
+            : new UpdateManifestReadResult(null, UpdateManifestReadStatus.Invalid);
     }
 
     private static bool TryReadManifest(JsonElement root, out UpdateManifest? manifest)

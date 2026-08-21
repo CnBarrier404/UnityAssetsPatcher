@@ -22,28 +22,44 @@ public sealed class UpdateManifestReaderTests
             }
             """));
 
-        UpdateManifest? manifest = await UpdateManifestReader.ReadAsync(
+        UpdateManifestReadResult result = await UpdateManifestReader.ReadAsync(
             content,
             GitHubUpdateManifestClient.MaximumManifestSize,
             TestContext.Current.CancellationToken);
 
-        Assert.NotNull(manifest);
-        Assert.Equal("v1.3.0", manifest!.Version);
-        Assert.Equal("https://example.com/releases/v1.3.0", manifest.ReleaseUrl.AbsoluteUri);
-        Assert.Equal(Sha256, manifest.Sha256);
+        Assert.Equal(UpdateManifestReadStatus.Success, result.Status);
+        Assert.NotNull(result.Manifest);
+        Assert.Equal("v1.3.0", result.Manifest!.Version);
+        Assert.Equal("https://example.com/releases/v1.3.0", result.Manifest.ReleaseUrl.AbsoluteUri);
+        Assert.Equal(Sha256, result.Manifest.Sha256);
     }
 
     [Fact]
-    public async Task ReadAsync_WhenStreamExceedsLimit_ReturnsNull()
+    public async Task ReadAsync_WhenStreamExceedsLimit_ReturnsTooLargeStatus()
     {
         using var content = new MemoryStream(
             new byte[GitHubUpdateManifestClient.MaximumManifestSize + 1]);
 
-        UpdateManifest? manifest = await UpdateManifestReader.ReadAsync(
+        UpdateManifestReadResult result = await UpdateManifestReader.ReadAsync(
             content,
             GitHubUpdateManifestClient.MaximumManifestSize,
             TestContext.Current.CancellationToken);
 
-        Assert.Null(manifest);
+        Assert.Equal(UpdateManifestReadStatus.TooLarge, result.Status);
+        Assert.Null(result.Manifest);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WhenManifestDoesNotMatchSchema_ReturnsInvalidStatus()
+    {
+        using var content = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+
+        UpdateManifestReadResult result = await UpdateManifestReader.ReadAsync(
+            content,
+            GitHubUpdateManifestClient.MaximumManifestSize,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(UpdateManifestReadStatus.Invalid, result.Status);
+        Assert.Null(result.Manifest);
     }
 }

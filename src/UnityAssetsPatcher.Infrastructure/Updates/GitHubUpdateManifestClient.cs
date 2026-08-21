@@ -33,7 +33,7 @@ internal sealed class GitHubUpdateManifestClient
         }
         catch (HttpRequestException exception)
         {
-            UpdateLog.UpdateRequestFailed(_logger, exception);
+            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
 
             throw;
         }
@@ -45,19 +45,19 @@ internal sealed class GitHubUpdateManifestClient
         }
         catch (OperationCanceledException exception)
         {
-            UpdateLog.UpdateRequestFailed(_logger, exception);
+            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
 
             throw;
         }
         catch (IOException exception)
         {
-            UpdateLog.UpdateRequestFailed(_logger, exception);
+            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
 
             throw;
         }
-        catch (JsonException)
+        catch (JsonException exception)
         {
-            UpdateLog.UpdateManifestRejected(_logger);
+            UpdateLog.UpdateManifestRejectedAsInvalidJson(_logger, exception);
 
             throw;
         }
@@ -65,8 +65,6 @@ internal sealed class GitHubUpdateManifestClient
 
     private async Task<UpdateManifest?> FetchLatestManifestAsync(CancellationToken cancellationToken)
     {
-        UpdateLog.CheckingForUpdate(_logger, UpdateManifestUrl);
-
         using HttpRequestMessage request = CreateRequest();
         using HttpResponseMessage response = await _httpClient.SendAsync(
             request,
@@ -82,7 +80,7 @@ internal sealed class GitHubUpdateManifestClient
 
         if (response.Content.Headers.ContentLength is > MaximumManifestSize)
         {
-            UpdateLog.UpdateManifestRejected(_logger);
+            UpdateLog.UpdateManifestRejectedAsTooLarge(_logger, MaximumManifestSize);
 
             return null;
         }
@@ -91,17 +89,21 @@ internal sealed class GitHubUpdateManifestClient
             .ReadAsStreamAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        UpdateManifest? manifest = await UpdateManifestReader.ReadAsync(
+        UpdateManifestReadResult readResult = await UpdateManifestReader.ReadAsync(
             contentStream,
             MaximumManifestSize,
             cancellationToken).ConfigureAwait(false);
 
-        if (manifest is null)
+        if (readResult.Status is UpdateManifestReadStatus.TooLarge)
+        {
+            UpdateLog.UpdateManifestRejectedAsTooLarge(_logger, MaximumManifestSize);
+        }
+        else if (readResult.Status is UpdateManifestReadStatus.Invalid)
         {
             UpdateLog.UpdateManifestRejected(_logger);
         }
 
-        return manifest;
+        return readResult.Manifest;
     }
 
     private static HttpRequestMessage CreateRequest()
