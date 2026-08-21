@@ -28,7 +28,7 @@ public sealed class GitHubUpdateCheckerTests
             result.Update.DownloadUrl.AbsoluteUri);
         Assert.Equal(Sha256, result.Update.Sha256);
         Assert.Equal(1, handler.RequestCount);
-        Assert.Equal(GitHubUpdateChecker.UpdateManifestUrl, handler.LastRequestUri?.AbsoluteUri);
+        Assert.Equal(GitHubUpdateManifestClient.UpdateManifestUrl, handler.LastRequestUri?.AbsoluteUri);
         Assert.Contains("UnityAssetsPatcher", handler.LastUserAgent ?? string.Empty);
         Assert.Contains("application/json", handler.LastAccept ?? string.Empty);
     }
@@ -155,7 +155,7 @@ public sealed class GitHubUpdateCheckerTests
         using HttpClient httpClient = new(new StubHttpMessageHandler(_ =>
         {
             HttpResponseMessage response = CreateJsonResponse("{}");
-            response.Content.Headers.ContentLength = GitHubUpdateChecker.MaximumManifestSize + 1;
+            response.Content.Headers.ContentLength = GitHubUpdateManifestClient.MaximumManifestSize + 1;
 
             return response;
         }));
@@ -167,7 +167,7 @@ public sealed class GitHubUpdateCheckerTests
     [Fact]
     public async Task CheckForUpdateAsync_WhenStreamExceedsLimitWithoutContentLength_ReturnsFailed()
     {
-        string json = new(' ', GitHubUpdateChecker.MaximumManifestSize + 1);
+        string json = new(' ', GitHubUpdateManifestClient.MaximumManifestSize + 1);
         using HttpClient httpClient = new(new StubHttpMessageHandler(_ =>
         {
             HttpResponseMessage response = CreateJsonResponse(json);
@@ -250,8 +250,12 @@ public sealed class GitHubUpdateCheckerTests
 
     private static GitHubUpdateChecker CreateChecker(HttpClient httpClient, string currentVersion)
     {
-        return new GitHubUpdateChecker(
+        var manifestClient = new GitHubUpdateManifestClient(
             httpClient,
+            NullLogger<GitHubUpdateManifestClient>.Instance);
+
+        return new GitHubUpdateChecker(
+            manifestClient,
             new AppInfo("Unity Assets Patcher", currentVersion),
             NullLogger<GitHubUpdateChecker>.Instance);
     }

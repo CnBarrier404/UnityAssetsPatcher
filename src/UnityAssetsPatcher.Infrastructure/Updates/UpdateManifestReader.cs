@@ -15,20 +15,11 @@ internal static partial class UpdateManifestReader
     private static readonly Regex Sha256Pattern = CreateSha256Pattern();
 
     public static async Task<UpdateManifest?> ReadAsync(
-        HttpContent content,
+        Stream contentStream,
         int maximumSize,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(content);
-
-        if (content.Headers.ContentLength is { } contentLength && contentLength > maximumSize)
-        {
-            return null;
-        }
-
-        await using Stream contentStream = await content
-            .ReadAsStreamAsync(cancellationToken)
-            .ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(contentStream);
 
         using MemoryStream manifestBuffer = new();
 
