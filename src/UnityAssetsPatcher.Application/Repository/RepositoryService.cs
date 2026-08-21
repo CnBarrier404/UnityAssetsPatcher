@@ -65,7 +65,7 @@ public sealed class RepositoryService
             throw new InvalidOperationException("The backup repository contains an unfinished transaction.");
         }
 
-        _fileSystemOperations.CreateDirectory(TransactionDirectory);
+        _fileSystemOperations.EnsureDirectory(TransactionDirectory);
         return TransactionDirectory;
     }
 

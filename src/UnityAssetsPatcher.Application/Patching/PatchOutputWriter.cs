@@ -8,16 +8,12 @@ namespace UnityAssetsPatcher.Application.Patching;
 public sealed class PatchOutputWriter
 {
     private readonly IAssetsFileWriter _assetsPatchWriter;
-    private readonly IFileSystemOperations _fileSystemOperations;
 
     public PatchOutputWriter(
-        IAssetsFileWriter assetsPatchWriter,
-        IFileSystemOperations fileSystemOperations)
+        IAssetsFileWriter assetsPatchWriter)
     {
         ArgumentNullException.ThrowIfNull(assetsPatchWriter);
-        ArgumentNullException.ThrowIfNull(fileSystemOperations);
         _assetsPatchWriter = assetsPatchWriter;
-        _fileSystemOperations = fileSystemOperations;
     }
 
     public PatchApplyResult Write(
@@ -79,7 +75,7 @@ public sealed class PatchOutputWriter
             throw new FileNotFoundException($"Assets file not found: {assetsFilePath}", assetsFilePath);
         }
 
-        bool overwritesInput = _fileSystemOperations.PathsEqual(outputPath, assetsFilePath);
+        bool overwritesInput = TrustedPath.PathsEqual(outputPath, assetsFilePath);
 
         if (overwritesInput)
         {

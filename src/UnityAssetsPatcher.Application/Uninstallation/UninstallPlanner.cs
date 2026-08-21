@@ -229,7 +229,7 @@ public sealed class UninstallPlanner
         try
         {
             FileIntegrity expected = _fileSystemOperations.ComputeFileIntegrity(expectedPreparedPath);
-            return _fileSystemOperations.MatchesFile(path, expected)
+            return expected.Matches(_fileSystemOperations.ComputeFileIntegrity(path))
                 ? FileIntegrityStatus.Matches
                 : FileIntegrityStatus.Modified;
         }
@@ -304,7 +304,7 @@ public sealed class UninstallPlanner
     {
         if (Directory.Exists(workingDirectory))
         {
-            _fileSystemOperations.DeleteDirectory(workingDirectory);
+            _fileSystemOperations.DeleteDirectoryTree(workingDirectory);
         }
     }
 

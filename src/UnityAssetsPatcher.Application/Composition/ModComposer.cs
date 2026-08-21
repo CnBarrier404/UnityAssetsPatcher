@@ -89,7 +89,7 @@ public sealed class ModComposer
 
         using IAssetsAccessScope assetsAccessScope = _assetsAccessScopeFactory.CreateScope();
         PatchPlanner patchPlanner = CreatePatchPlanner(assetsAccessScope.Reader);
-        var outputWriter = new PatchOutputWriter(assetsAccessScope.Writer, _fileSystemOperations);
+        var outputWriter = new PatchOutputWriter(assetsAccessScope.Writer);
         var results = new List<CompositionFileResult>(request.Files.Count);
 
         for (int fileIndex = 0; fileIndex < request.Files.Count; fileIndex++)
