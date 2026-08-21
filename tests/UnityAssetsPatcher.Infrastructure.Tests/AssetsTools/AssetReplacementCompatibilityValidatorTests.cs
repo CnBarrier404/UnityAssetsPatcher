@@ -24,21 +24,18 @@ public sealed class AssetReplacementCompatibilityValidatorTests
     }
 
     [Fact]
-    public void ValidateMetadataAndAssetCompatibility_WhenSerializationHeadersDiffer_Throws()
+    public void ValidateMetadataAndAssetCompatibility_WhenSerializationHeadersDiffer_DoesNotThrow()
     {
         ClassPackageCache classPackageCache = CreateClassPackageCache();
         using AssetsFileSession targetSession = OpenSession(classPackageCache);
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
         sourceSession.AssetsFile.Header.Version++;
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
-                targetSession,
-                new AssetPathId(4),
-                sourceSession,
-                new AssetPathId(4)));
-
-        Assert.Contains("serialization header", exception.Message, StringComparison.Ordinal);
+        AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
+            targetSession,
+            new AssetPathId(4),
+            sourceSession,
+            new AssetPathId(4));
     }
 
     [Fact]

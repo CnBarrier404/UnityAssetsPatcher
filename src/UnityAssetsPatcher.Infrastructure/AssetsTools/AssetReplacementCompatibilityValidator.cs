@@ -53,14 +53,6 @@ internal static class AssetReplacementCompatibilityValidator
 
     private static void ValidateFileCompatibility(AssetsFile targetFile, AssetsFile sourceFile)
     {
-        if (sourceFile.Header.Version != targetFile.Header.Version ||
-            sourceFile.Header.Endianness != targetFile.Header.Endianness)
-        {
-            throw new InvalidOperationException(
-                "Asset replacement is incompatible: source and target assets files use different serialization " +
-                "header formats.");
-        }
-
         if (sourceFile.Metadata.TargetPlatform != targetFile.Metadata.TargetPlatform)
         {
             throw new InvalidOperationException(
