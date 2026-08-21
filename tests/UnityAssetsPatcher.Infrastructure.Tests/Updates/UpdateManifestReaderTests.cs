@@ -13,14 +13,14 @@ public sealed class UpdateManifestReaderTests
     {
         using var content = new MemoryStream(Encoding.UTF8.GetBytes(
             $$"""
-            {
-              "schemaVersion": 1,
-              "version": "v1.3.0",
-              "releaseUrl": "https://example.com/releases/v1.3.0",
-              "downloadUrl": "https://example.com/download/file.exe",
-              "sha256": "{{Sha256}}"
-            }
-            """));
+              {
+                "schemaVersion": 1,
+                "version": "v1.3.0",
+                "releaseUrl": "https://example.com/releases/v1.3.0",
+                "downloadUrl": "https://example.com/download/file.exe",
+                "sha256": "{{Sha256}}"
+              }
+              """));
 
         UpdateManifestReadResult result = await UpdateManifestReader.ReadAsync(
             content,
