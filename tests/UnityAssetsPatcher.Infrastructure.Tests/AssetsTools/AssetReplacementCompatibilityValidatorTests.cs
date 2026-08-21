@@ -9,21 +9,18 @@ namespace UnityAssetsPatcher.Infrastructure.Tests.AssetsTools;
 public sealed class AssetReplacementCompatibilityValidatorTests
 {
     [Fact]
-    public void ValidateMetadataAndAssetCompatibility_WhenUnityVersionsDiffer_Throws()
+    public void ValidateMetadataAndAssetCompatibility_WhenUnityVersionsDiffer_DoesNotThrow()
     {
         ClassPackageCache classPackageCache = CreateClassPackageCache();
         using AssetsFileSession targetSession = OpenSession(classPackageCache);
         using AssetsFileSession sourceSession = OpenSession(classPackageCache);
         sourceSession.AssetsFile.Metadata.UnityVersion = "2019.4.40f1";
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
-                targetSession,
-                new AssetPathId(4),
-                sourceSession,
-                new AssetPathId(4)));
-
-        Assert.Contains("Unity version", exception.Message, StringComparison.Ordinal);
+        AssetReplacementCompatibilityValidator.ValidateMetadataAndAssetCompatibility(
+            targetSession,
+            new AssetPathId(4),
+            sourceSession,
+            new AssetPathId(4));
     }
 
     [Fact]

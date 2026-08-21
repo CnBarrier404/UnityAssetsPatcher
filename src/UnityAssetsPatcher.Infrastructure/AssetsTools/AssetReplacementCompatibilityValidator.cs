@@ -53,17 +53,6 @@ internal static class AssetReplacementCompatibilityValidator
 
     private static void ValidateFileCompatibility(AssetsFile targetFile, AssetsFile sourceFile)
     {
-        string targetUnityVersion = targetFile.Metadata.UnityVersion;
-        string sourceUnityVersion = sourceFile.Metadata.UnityVersion;
-
-        if (string.IsNullOrWhiteSpace(targetUnityVersion) || string.IsNullOrWhiteSpace(sourceUnityVersion) ||
-            !string.Equals(targetUnityVersion, sourceUnityVersion, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException(
-                $"Asset replacement is incompatible: source Unity version '{sourceUnityVersion}' does not match " +
-                $"target Unity version '{targetUnityVersion}'.");
-        }
-
         if (sourceFile.Header.Version != targetFile.Header.Version ||
             sourceFile.Header.Endianness != targetFile.Header.Endianness)
         {
