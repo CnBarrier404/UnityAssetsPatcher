@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.7.2
+
+修复跨 Unity 版本或序列化头格式不同但其他结构兼容的资产替换被拒绝的问题，同时保留目标平台、TypeTree、字段布局和引用安全检查。
+
+### 修复
+
+- 允许源资产与目标资产使用不同 Unity 版本时继续进行资产替换，只要其余兼容性检查通过
+- 允许源资产与目标资产使用不同序列化头格式时继续进行资产替换，只要目标平台、TypeTree、字段布局和引用关系等其他检查通过
+
+---
+
+This release fixes compatible asset replacements being rejected solely because the source and target Unity version strings or serialization header formats differ. Target-platform, TypeTree, field-layout, and reference-safety checks remain enabled.
+
+### Fixed
+
+- Allow asset replacements between source and target files with different Unity version strings when the remaining compatibility checks pass
+- Allow asset replacements between source and target files with different serialization header formats when all remaining compatibility checks pass
+
 ## v0.7.1
 
 完善了项目文档和 TUI 的 Mod 安装体验：新增文档站点并通过 GitHub Pages 发布；将 Mod 文件选择改为 Windows 原生文件选择器，告别手动输入或粘贴路径。
