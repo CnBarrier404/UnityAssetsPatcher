@@ -24,7 +24,7 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
         _logger = logger;
     }
 
-    public async Task<UpdateCheckResult> CheckForUpdateAsync(CancellationToken cancellationToken = default)
+    public async Task<UpdateInfo?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -34,24 +34,28 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
         {
             UpdateLog.UpdateCheckSkipped(_logger);
 
-            return new UpdateCheckFailed();
+            return null;
         }
 
-        UpdateManifest? manifest = await _manifestClient.FetchAsync(cancellationToken).ConfigureAwait(false);
+        UpdateInfo manifest = await _manifestClient
+            .FetchAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        if (manifest is null)
+        if (!SemanticVersion.TryParse(manifest.Version, out SemanticVersion latestVersion))
         {
-            return new UpdateCheckFailed();
+            UpdateLog.UpdateManifestRejected(_logger);
+
+            throw new InvalidDataException("The update manifest contains an invalid version.");
         }
 
-        if (manifest.SemanticVersion.CompareTo(currentVersion) <= 0)
+        if (latestVersion.CompareTo(currentVersion) <= 0)
         {
             UpdateLog.UpdateCheckCompletedWithoutUpdate(
                 _logger,
                 _appInfo.DisplayVersion,
                 manifest.Version);
 
-            return new UpToDate();
+            return null;
         }
 
         UpdateLog.UpdateCheckCompletedWithUpdate(
@@ -59,10 +63,6 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
             _appInfo.DisplayVersion,
             manifest.Version);
 
-        return new UpdateAvailable(new AvailableUpdate(
-            manifest.Version,
-            manifest.ReleaseUrl,
-            manifest.DownloadUrl,
-            manifest.Sha256));
+        return manifest;
     }
 }

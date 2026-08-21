@@ -18,7 +18,7 @@ namespace UnityAssetsPatcher.Infrastructure;
 
 public static class InfrastructureServiceCollectionExtensions
 {
-    public static IServiceCollection AddUnityAssetsPatcherUpdateChecking(this IServiceCollection services)
+    public static IServiceCollection AddUnityAssetsPatcherGitHubUpdates(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 

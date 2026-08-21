@@ -1,14 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using UnityAssetsPatcher.Application.Updates;
 
 namespace UnityAssetsPatcher.Infrastructure.Updates;
-
-internal sealed record UpdateManifest(
-    string Version,
-    SemanticVersion SemanticVersion,
-    Uri ReleaseUrl,
-    Uri DownloadUrl,
-    string Sha256);
 
 internal enum UpdateManifestReadStatus
 {
@@ -18,7 +12,7 @@ internal enum UpdateManifestReadStatus
 }
 
 internal sealed record UpdateManifestReadResult(
-    UpdateManifest? Manifest,
+    UpdateInfo? Manifest,
     UpdateManifestReadStatus Status);
 
 internal static partial class UpdateManifestReader
@@ -59,12 +53,12 @@ internal static partial class UpdateManifestReader
             manifestBuffer,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        return TryReadManifest(document.RootElement, out UpdateManifest? manifest)
+        return TryReadManifest(document.RootElement, out UpdateInfo? manifest)
             ? new UpdateManifestReadResult(manifest, UpdateManifestReadStatus.Success)
             : new UpdateManifestReadResult(null, UpdateManifestReadStatus.Invalid);
     }
 
-    private static bool TryReadManifest(JsonElement root, out UpdateManifest? manifest)
+    private static bool TryReadManifest(JsonElement root, out UpdateInfo? manifest)
     {
         manifest = null;
 
@@ -76,15 +70,13 @@ internal static partial class UpdateManifestReader
             !TryReadHttpsUri(root, "releaseUrl", out Uri? releaseUrl) ||
             !TryReadHttpsUri(root, "downloadUrl", out Uri? downloadUrl) ||
             !TryReadString(root, "sha256", out string? sha256) ||
-            !Sha256Pattern.IsMatch(sha256!) ||
-            !SemanticVersion.TryParse(version, out SemanticVersion semanticVersion))
+            !Sha256Pattern.IsMatch(sha256!))
         {
             return false;
         }
 
-        manifest = new UpdateManifest(
+        manifest = new UpdateInfo(
             version!,
-            semanticVersion,
             releaseUrl!,
             downloadUrl!,
             sha256!.ToLowerInvariant());

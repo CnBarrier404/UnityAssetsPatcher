@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using UnityAssetsPatcher.Application.Updates;
 
 namespace UnityAssetsPatcher.Infrastructure.Updates;
 
@@ -23,7 +24,7 @@ internal sealed class GitHubUpdateManifestClient
         _logger = logger;
     }
 
-    public async Task<UpdateManifest?> FetchAsync(CancellationToken cancellationToken = default)
+    public async Task<UpdateInfo> FetchAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -63,7 +64,7 @@ internal sealed class GitHubUpdateManifestClient
         }
     }
 
-    private async Task<UpdateManifest?> FetchLatestManifestAsync(CancellationToken cancellationToken)
+    private async Task<UpdateInfo> FetchLatestManifestAsync(CancellationToken cancellationToken)
     {
         using HttpRequestMessage request = CreateRequest();
         using HttpResponseMessage response = await _httpClient.SendAsync(
@@ -75,14 +76,14 @@ internal sealed class GitHubUpdateManifestClient
         {
             UpdateLog.UpdateRequestRejected(_logger, (int)response.StatusCode);
 
-            return null;
+            response.EnsureSuccessStatusCode();
         }
 
         if (response.Content.Headers.ContentLength is > MaximumManifestSize)
         {
             UpdateLog.UpdateManifestRejectedAsTooLarge(_logger, MaximumManifestSize);
 
-            return null;
+            throw new InvalidDataException("The update manifest exceeds the maximum size.");
         }
 
         await using Stream contentStream = await response.Content
@@ -94,16 +95,22 @@ internal sealed class GitHubUpdateManifestClient
             MaximumManifestSize,
             cancellationToken).ConfigureAwait(false);
 
-        if (readResult.Status is UpdateManifestReadStatus.TooLarge)
+        switch (readResult.Status)
         {
-            UpdateLog.UpdateManifestRejectedAsTooLarge(_logger, MaximumManifestSize);
-        }
-        else if (readResult.Status is UpdateManifestReadStatus.Invalid)
-        {
-            UpdateLog.UpdateManifestRejected(_logger);
+            case UpdateManifestReadStatus.TooLarge:
+                UpdateLog.UpdateManifestRejectedAsTooLarge(_logger, MaximumManifestSize);
+                throw new InvalidDataException("The update manifest exceeds the maximum size.");
+            case UpdateManifestReadStatus.Invalid:
+                UpdateLog.UpdateManifestRejected(_logger);
+                throw new InvalidDataException("The update manifest does not match the expected format.");
+            case UpdateManifestReadStatus.Success:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
         }
 
-        return readResult.Manifest;
+        return readResult.Manifest ?? throw new InvalidDataException(
+            "The update manifest reader returned no manifest for a successful result.");
     }
 
     private static HttpRequestMessage CreateRequest()
