@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Terminal.Gui.App;
@@ -161,6 +163,10 @@ public sealed class TerminalApp
             catch (InvalidOperationException) { }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (HttpRequestException) { }
+        catch (IOException) { }
+        catch (JsonException) { }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Update check terminated unexpectedly");

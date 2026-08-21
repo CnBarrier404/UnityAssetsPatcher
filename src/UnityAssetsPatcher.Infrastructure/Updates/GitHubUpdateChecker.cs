@@ -33,6 +33,8 @@ public sealed class GitHubUpdateChecker : IUpdateChecker
 
     public async Task<UpdateCheckResult> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!SemanticVersion.TryParse(_appInfo.DisplayVersion, out SemanticVersion currentVersion))
         {
             UpdateLog.UpdateCheckSkipped(_logger, _appInfo.DisplayVersion);
@@ -88,25 +90,31 @@ public sealed class GitHubUpdateChecker : IUpdateChecker
         {
             UpdateLog.UpdateRequestFailed(_logger, exception);
 
-            return new UpdateCheckFailed();
+            throw;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             UpdateLog.UpdateCheckCanceled(_logger);
 
-            return new UpdateCheckFailed();
+            throw;
+        }
+        catch (OperationCanceledException exception)
+        {
+            UpdateLog.UpdateRequestFailed(_logger, exception);
+
+            throw;
         }
         catch (IOException exception)
         {
             UpdateLog.UpdateRequestFailed(_logger, exception);
 
-            return new UpdateCheckFailed();
+            throw;
         }
         catch (JsonException)
         {
             UpdateLog.UpdateManifestRejected(_logger);
 
-            return new UpdateCheckFailed();
+            throw;
         }
     }
 

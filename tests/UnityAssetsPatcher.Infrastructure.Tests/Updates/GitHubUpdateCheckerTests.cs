@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Updates;
@@ -79,7 +80,6 @@ public sealed class GitHubUpdateCheckerTests
 
     [Theory]
     [InlineData("{}")]
-    [InlineData("not-json")]
     [InlineData(
         """
         {
@@ -140,6 +140,16 @@ public sealed class GitHubUpdateCheckerTests
     }
 
     [Fact]
+    public async Task CheckForUpdateAsync_WhenManifestIsNotJson_PropagatesJsonException()
+    {
+        using HttpClient httpClient = new(
+            new StubHttpMessageHandler(_ => CreateJsonResponse("not-json")));
+        GitHubUpdateChecker checker = CreateChecker(httpClient, "v1.2.3");
+
+        await Assert.ThrowsAnyAsync<JsonException>(() => Check(checker));
+    }
+
+    [Fact]
     public async Task CheckForUpdateAsync_WhenContentLengthExceedsLimit_ReturnsFailed()
     {
         using HttpClient httpClient = new(new StubHttpMessageHandler(_ =>
@@ -194,23 +204,48 @@ public sealed class GitHubUpdateCheckerTests
     }
 
     [Fact]
-    public async Task CheckForUpdateAsync_WhenRequestFails_ReturnsFailed()
+    public async Task CheckForUpdateAsync_WhenRequestFails_PropagatesHttpRequestException()
     {
         using HttpClient httpClient = new(
             new StubHttpMessageHandler(_ => throw new HttpRequestException("Offline")));
         GitHubUpdateChecker checker = CreateChecker(httpClient, "v1.2.3");
 
-        Assert.IsType<UpdateCheckFailed>(await Check(checker));
+        await Assert.ThrowsAsync<HttpRequestException>(() => Check(checker));
     }
 
     [Fact]
-    public async Task CheckForUpdateAsync_WhenCanceled_ReturnsFailed()
+    public async Task CheckForUpdateAsync_WhenResponseReadFails_PropagatesIOException()
+    {
+        using HttpClient httpClient = new(
+            new StubHttpMessageHandler(_ => throw new IOException("Read failed")));
+        GitHubUpdateChecker checker = CreateChecker(httpClient, "v1.2.3");
+
+        await Assert.ThrowsAsync<IOException>(() => Check(checker));
+    }
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenResponseOperationIsCanceled_PropagatesOperationCanceledException()
     {
         using HttpClient httpClient = new(
             new StubHttpMessageHandler(_ => throw new OperationCanceledException()));
         GitHubUpdateChecker checker = CreateChecker(httpClient, "v1.2.3");
 
-        Assert.IsType<UpdateCheckFailed>(await Check(checker));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Check(checker));
+    }
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenCancellationIsRequestedBeforeRequest_PropagatesCancellation()
+    {
+        var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException());
+        using HttpClient httpClient = new(handler);
+        GitHubUpdateChecker checker = CreateChecker(httpClient, "v1.2.3");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            checker.CheckForUpdateAsync(cancellation.Token));
+
+        Assert.Equal(0, handler.RequestCount);
     }
 
     private static GitHubUpdateChecker CreateChecker(HttpClient httpClient, string currentVersion)
