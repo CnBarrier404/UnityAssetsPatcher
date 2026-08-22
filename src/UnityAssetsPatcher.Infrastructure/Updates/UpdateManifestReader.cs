@@ -1,34 +1,30 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using UnityAssetsPatcher.Application.Updates;
 
 namespace UnityAssetsPatcher.Infrastructure.Updates;
 
-internal sealed record UpdateManifest(
-    string Version,
-    SemanticVersion SemanticVersion,
-    Uri ReleaseUrl,
-    Uri DownloadUrl,
-    string Sha256);
+internal enum UpdateManifestReadStatus
+{
+    Success,
+    TooLarge,
+    Invalid
+}
+
+internal sealed record UpdateManifestReadResult(
+    UpdateInfo? Manifest,
+    UpdateManifestReadStatus Status);
 
 internal static partial class UpdateManifestReader
 {
     private static readonly Regex Sha256Pattern = CreateSha256Pattern();
 
-    public static async Task<UpdateManifest?> ReadAsync(
-        HttpContent content,
+    public static async Task<UpdateManifestReadResult> ReadAsync(
+        Stream contentStream,
         int maximumSize,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(content);
-
-        if (content.Headers.ContentLength is { } contentLength && contentLength > maximumSize)
-        {
-            return null;
-        }
-
-        await using Stream contentStream = await content
-            .ReadAsStreamAsync(cancellationToken)
-            .ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(contentStream);
 
         using MemoryStream manifestBuffer = new();
 
@@ -45,7 +41,7 @@ internal static partial class UpdateManifestReader
 
             if (manifestBuffer.Length + bytesRead > maximumSize)
             {
-                return null;
+                return new UpdateManifestReadResult(null, UpdateManifestReadStatus.TooLarge);
             }
 
             manifestBuffer.Write(buffer, 0, bytesRead);
@@ -57,12 +53,12 @@ internal static partial class UpdateManifestReader
             manifestBuffer,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        return TryReadManifest(document.RootElement, out UpdateManifest? manifest)
-            ? manifest
-            : null;
+        return TryReadManifest(document.RootElement, out UpdateInfo? manifest)
+            ? new UpdateManifestReadResult(manifest, UpdateManifestReadStatus.Success)
+            : new UpdateManifestReadResult(null, UpdateManifestReadStatus.Invalid);
     }
 
-    private static bool TryReadManifest(JsonElement root, out UpdateManifest? manifest)
+    private static bool TryReadManifest(JsonElement root, out UpdateInfo? manifest)
     {
         manifest = null;
 
@@ -74,15 +70,13 @@ internal static partial class UpdateManifestReader
             !TryReadHttpsUri(root, "releaseUrl", out Uri? releaseUrl) ||
             !TryReadHttpsUri(root, "downloadUrl", out Uri? downloadUrl) ||
             !TryReadString(root, "sha256", out string? sha256) ||
-            !Sha256Pattern.IsMatch(sha256!) ||
-            !SemanticVersion.TryParse(version, out SemanticVersion semanticVersion))
+            !Sha256Pattern.IsMatch(sha256!))
         {
             return false;
         }
 
-        manifest = new UpdateManifest(
+        manifest = new UpdateInfo(
             version!,
-            semanticVersion,
             releaseUrl!,
             downloadUrl!,
             sha256!.ToLowerInvariant());

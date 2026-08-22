@@ -18,14 +18,12 @@ namespace UnityAssetsPatcher.Infrastructure;
 
 public static class InfrastructureServiceCollectionExtensions
 {
-    public static IServiceCollection AddUnityAssetsPatcherUpdateChecking(this IServiceCollection services)
+    public static IServiceCollection AddUnityAssetsPatcherGitHubUpdates(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddHttpClient<IUpdateChecker, GitHubUpdateChecker>(client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(10);
-        });
+        services.AddHttpClient<GitHubUpdateManifestClient>(client => { client.Timeout = TimeSpan.FromSeconds(10); });
+        services.AddTransient<IUpdateChecker, GitHubUpdateChecker>();
 
         return services;
     }

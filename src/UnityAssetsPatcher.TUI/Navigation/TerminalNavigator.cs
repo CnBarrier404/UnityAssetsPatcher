@@ -24,7 +24,7 @@ public sealed class TerminalNavigator
     private readonly TerminalTaskRunner? _taskRunner;
     private readonly Func<string?> _pickModFile;
     private readonly Action _requestStop;
-    private AvailableUpdate? _availableUpdate;
+    private UpdateInfo? _availableUpdate;
     private MainMenuView? _visibleMainMenu;
     private RepositoryRecoveryReport _recovery = RepositoryRecoveryReport.Clean;
 
@@ -98,7 +98,7 @@ public sealed class TerminalNavigator
         _shell.ShowContent(menu);
     }
 
-    public void ShowAvailableUpdate(AvailableUpdate update)
+    public void ShowAvailableUpdate(UpdateInfo update)
     {
         ArgumentNullException.ThrowIfNull(update);
 
@@ -426,7 +426,7 @@ public sealed class TerminalNavigator
             returnToMainMenu => new EmptyPageView(title, _strings.EmptyPage_BackAction, returnToMainMenu));
     }
 
-    private TerminalUpdateNotice CreateUpdateNotice(AvailableUpdate update)
+    private TerminalUpdateNotice CreateUpdateNotice(UpdateInfo update)
     {
         return new TerminalUpdateNotice(
             _strings.Update_AvailableFormat(update.Version),

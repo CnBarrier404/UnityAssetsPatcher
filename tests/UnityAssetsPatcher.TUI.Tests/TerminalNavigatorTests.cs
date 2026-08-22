@@ -123,7 +123,7 @@ public sealed class TerminalNavigatorTests
 
         firstChoice.Button.InvokeCommand(Command.Accept);
 
-        var update = new AvailableUpdate(
+        var update = new UpdateInfo(
             "v1.3.0",
             new Uri("https://example.com/releases/v1.3.0"),
             new Uri("https://example.com/download/v1.3.0.exe"),

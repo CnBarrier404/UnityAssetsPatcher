@@ -5,6 +5,7 @@ using Terminal.Gui.App;
 using Terminal.Gui.Drivers;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
@@ -16,41 +17,44 @@ namespace UnityAssetsPatcher.TUI;
 public sealed class TerminalApp
 {
     private readonly AppInfo _appInfo;
-    private readonly IUpdateChecker _updateChecker;
+    private readonly UpdateCheckModule _updateCheckModule;
     private readonly IServiceScopeFactory? _scopeFactory;
     private readonly TerminalSettings _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
     private readonly ILogger<TerminalApp> _logger;
 
-    public TerminalApp(AppInfo appInfo, IUpdateChecker updateChecker, ILogger<TerminalApp> logger)
+    public TerminalApp(
+        AppInfo appInfo,
+        UpdateCheckModule updateCheckModule,
+        ILogger<TerminalApp> logger)
     {
         ArgumentNullException.ThrowIfNull(appInfo);
-        ArgumentNullException.ThrowIfNull(updateChecker);
+        ArgumentNullException.ThrowIfNull(updateCheckModule);
         ArgumentNullException.ThrowIfNull(logger);
 
         _appInfo = appInfo;
-        _updateChecker = updateChecker;
+        _updateCheckModule = updateCheckModule;
         _settings = new TerminalSettings();
         _logger = logger;
     }
 
     public TerminalApp(
         AppInfo appInfo,
-        IUpdateChecker updateChecker,
+        UpdateCheckModule updateCheckModule,
         IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         ILoggingLevelSwitch loggingLevelSwitch,
         ILogger<TerminalApp> logger)
     {
         ArgumentNullException.ThrowIfNull(appInfo);
-        ArgumentNullException.ThrowIfNull(updateChecker);
+        ArgumentNullException.ThrowIfNull(updateCheckModule);
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(loggingLevelSwitch);
         ArgumentNullException.ThrowIfNull(logger);
 
         _appInfo = appInfo;
-        _updateChecker = updateChecker;
+        _updateCheckModule = updateCheckModule;
         _scopeFactory = scopeFactory;
         _settings = settings;
         _loggingLevelSwitch = loggingLevelSwitch;
@@ -116,13 +120,24 @@ public sealed class TerminalApp
 
         navigator.Start();
 
-        _ = CheckForUpdateAsync(application, navigator, updateCancellation.Token);
+        Task updateTask = CheckForUpdateAsync(application, navigator, updateCancellation.Token);
 
         _logger.LogInformation("Terminal application started");
 
-        application.Run(shell);
+        try
+        {
+            application.Run(shell);
+        }
+        finally
+        {
+            updateCancellation.Cancel();
 
-        updateCancellation.Cancel();
+            try
+            {
+                updateTask.GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException) when (updateCancellation.IsCancellationRequested) { }
+        }
 
         return 0;
     }
@@ -134,11 +149,12 @@ public sealed class TerminalApp
     {
         try
         {
-            UpdateCheckResult result = await _updateChecker
+            var result = await _updateCheckModule
                 .CheckForUpdateAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            if (result is not UpdateAvailable update || cancellationToken.IsCancellationRequested)
+            if (result is not OperationSucceeded<UpdateInfo?> { Value: { } update } ||
+                cancellationToken.IsCancellationRequested)
             {
                 return;
             }
@@ -152,7 +168,7 @@ public sealed class TerminalApp
                         return;
                     }
 
-                    navigator.ShowAvailableUpdate(update.Update);
+                    navigator.ShowAvailableUpdate(update);
 
                     application.LayoutAndDraw();
                 });
@@ -161,9 +177,5 @@ public sealed class TerminalApp
             catch (InvalidOperationException) { }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Update check terminated unexpectedly");
-        }
     }
 }

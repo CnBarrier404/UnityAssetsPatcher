@@ -8,7 +8,7 @@ namespace UnityAssetsPatcher.Infrastructure.Tests.Architecture;
 public sealed class InfrastructureDependencyTests
 {
     [Fact]
-    public void InfrastructureAssembly_WhenInspected_DoesNotReferenceApplicationOperationOrModErrorTypes()
+    public void InfrastructureAssembly_WhenInspected_DoesNotReferenceApplicationResultOrErrorTypes()
     {
         string assemblyPath = typeof(ZipModArchiveReader).Assembly.Location;
         using FileStream assemblyStream = File.OpenRead(assemblyPath);
@@ -21,7 +21,8 @@ public sealed class InfrastructureDependencyTests
         string[] forbiddenTypes = referencedTypes
             .Where(type =>
                 type is "UnityAssetsPatcher.Application.Operations.OperationResult`1" or
-                    "UnityAssetsPatcher.Application.Operations.OperationError" ||
+                    "UnityAssetsPatcher.Application.Operations.OperationError" or
+                    "UnityAssetsPatcher.Application.Updates.UpdateErrorCodes" ||
                 (type.StartsWith("UnityAssetsPatcher.Application.Mods.", StringComparison.Ordinal) &&
                  type.EndsWith("ErrorCodes", StringComparison.Ordinal)))
             .ToArray();

@@ -16,7 +16,9 @@ public sealed class TerminalDependencyInjectionTests
 
         services.AddSingleton(new AppInfo("Unity Assets Patcher", "dev"));
 
-        services.AddSingleton<IUpdateChecker>(new StubUpdateChecker());
+        services.AddSingleton(new UpdateCheckModule(
+            new StubUpdateChecker(),
+            NullLogger<UpdateCheckModule>.Instance));
 
         services.AddSingleton<ILogger<TerminalApp>>(NullLogger<TerminalApp>.Instance);
 
@@ -35,9 +37,10 @@ public sealed class TerminalDependencyInjectionTests
 
     private sealed class StubUpdateChecker : IUpdateChecker
     {
-        public Task<UpdateCheckResult> CheckForUpdateAsync(CancellationToken cancellationToken = default)
+        public Task<UpdateInfo?> CheckForUpdateAsync(
+            CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<UpdateCheckResult>(new UpToDate());
+            return Task.FromResult<UpdateInfo?>(null);
         }
     }
 }

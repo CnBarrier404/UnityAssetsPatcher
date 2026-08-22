@@ -84,8 +84,7 @@ internal readonly record struct SemanticVersion(int Major, int Minor, int Patch,
     private static int ComparePrereleaseIdentifier(string left, string right)
     {
         bool leftIsNumber = int.TryParse(left, NumberStyles.None, CultureInfo.InvariantCulture, out int leftNumber);
-        bool rightIsNumber =
-            int.TryParse(right, NumberStyles.None, CultureInfo.InvariantCulture, out int rightNumber);
+        bool rightIsNumber = int.TryParse(right, NumberStyles.None, CultureInfo.InvariantCulture, out int rightNumber);
 
         if (leftIsNumber && rightIsNumber)
         {

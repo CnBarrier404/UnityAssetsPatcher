@@ -17,6 +17,7 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.Application.Patching.Fields;
 using UnityAssetsPatcher.Application.Uninstallation;
+using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Domain.Assets;
 using RepositoryFacade = UnityAssetsPatcher.Application.Repository.Repository;
 
@@ -60,6 +61,15 @@ public static class ApplicationServiceCollectionExtensions
             AddRecoveryHandlers(services);
             AddRepositoryManagementHandlers(services);
             AddUninstallHandlers(services);
+
+            return services;
+        }
+
+        public IServiceCollection AddUnityAssetsPatcherUpdates()
+        {
+            ArgumentNullException.ThrowIfNull(services);
+
+            services.AddSingleton<UpdateCheckModule>();
 
             return services;
         }
