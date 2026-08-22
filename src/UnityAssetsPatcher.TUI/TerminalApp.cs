@@ -17,7 +17,7 @@ namespace UnityAssetsPatcher.TUI;
 public sealed class TerminalApp
 {
     private readonly AppInfo _appInfo;
-    private readonly IUpdateCheckModule _updateCheckModule;
+    private readonly UpdateCheckModule _updateCheckModule;
     private readonly IServiceScopeFactory? _scopeFactory;
     private readonly TerminalSettings _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
@@ -25,7 +25,7 @@ public sealed class TerminalApp
 
     public TerminalApp(
         AppInfo appInfo,
-        IUpdateCheckModule updateCheckModule,
+        UpdateCheckModule updateCheckModule,
         ILogger<TerminalApp> logger)
     {
         ArgumentNullException.ThrowIfNull(appInfo);
@@ -40,7 +40,7 @@ public sealed class TerminalApp
 
     public TerminalApp(
         AppInfo appInfo,
-        IUpdateCheckModule updateCheckModule,
+        UpdateCheckModule updateCheckModule,
         IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         ILoggingLevelSwitch loggingLevelSwitch,

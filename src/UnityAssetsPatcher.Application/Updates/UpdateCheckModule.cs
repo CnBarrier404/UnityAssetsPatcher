@@ -4,7 +4,7 @@ using UnityAssetsPatcher.Application.Operations;
 
 namespace UnityAssetsPatcher.Application.Updates;
 
-public sealed class UpdateCheckModule : IUpdateCheckModule
+public sealed class UpdateCheckModule
 {
     private readonly IUpdateChecker _updateChecker;
     private readonly ILogger<UpdateCheckModule> _logger;
@@ -18,8 +18,7 @@ public sealed class UpdateCheckModule : IUpdateCheckModule
         _logger = logger;
     }
 
-    public async Task<OperationResult<UpdateInfo?>> CheckForUpdateAsync(
-        CancellationToken cancellationToken = default)
+    public async Task<OperationResult<UpdateInfo?>> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 

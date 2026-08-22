@@ -69,7 +69,7 @@ public static class ApplicationServiceCollectionExtensions
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            services.AddSingleton<IUpdateCheckModule, UpdateCheckModule>();
+            services.AddSingleton<UpdateCheckModule>();
 
             return services;
         }
