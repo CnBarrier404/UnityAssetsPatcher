@@ -54,6 +54,6 @@ public sealed class Program
 
         var terminalApp = serviceProvider.GetRequiredService<TerminalApp>();
 
-        return terminalApp.Run();
+        return await terminalApp.RunAsync().ConfigureAwait(false);
     }
 }
