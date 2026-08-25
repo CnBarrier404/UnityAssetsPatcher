@@ -1,5 +1,6 @@
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
@@ -7,9 +8,10 @@ public sealed record TerminalMenuItem(string Title, string Description, Func<Act
 
 public sealed record TerminalUpdateNotice(string AvailableText, string DownloadText);
 
-public sealed class MainMenuView : View
+public sealed class MainMenuView : View, ITerminalRenderRequester
 {
     public event EventHandler<TerminalMenuItem>? ItemSelected;
+    public event EventHandler? RenderRequested;
 
     private readonly List<ChoiceItemList> _choices = [];
     private readonly View _updateArea;
@@ -81,6 +83,7 @@ public sealed class MainMenuView : View
 
         AddUpdate(updateNotice);
         _hasUpdate = true;
+        RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void AddUpdate(TerminalUpdateNotice updateNotice)

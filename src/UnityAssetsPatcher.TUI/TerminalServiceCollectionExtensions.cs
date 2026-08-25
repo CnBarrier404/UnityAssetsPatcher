@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.TUI.Hooks;
 using UnityAssetsPatcher.TUI.Lifecycle;
+using UnityAssetsPatcher.TUI.Modules;
 
 namespace UnityAssetsPatcher.TUI;
 
@@ -11,6 +13,8 @@ public static class TerminalServiceCollectionExtensions
 
         services.AddSingleton<TerminalSettings>();
         services.AddSingleton<TerminalApp>();
+        services.AddScoped<TerminalLifecycle>();
+        services.AddScoped<ITerminalSessionHook, UpdateCheckSessionHook>();
         services.AddScoped<TerminalSession>();
 
         return services;

@@ -6,8 +6,6 @@ using Terminal.Gui.App;
 using Terminal.Gui.Drivers;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Navigation;
@@ -18,7 +16,7 @@ namespace UnityAssetsPatcher.TUI.Lifecycle;
 internal sealed class TerminalSession
 {
     private readonly AppInfo _appInfo;
-    private readonly UpdateCheckModule _updateCheckModule;
+    private readonly TerminalLifecycle _lifecycle;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TerminalSettings _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
@@ -26,19 +24,19 @@ internal sealed class TerminalSession
 
     public TerminalSession(
         AppInfo appInfo,
-        UpdateCheckModule updateCheckModule,
+        TerminalLifecycle lifecycle,
         IServiceScopeFactory scopeFactory,
         TerminalSettings settings,
         ILoggingLevelSwitch? loggingLevelSwitch = null,
         ILogger<TerminalSession>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(appInfo);
-        ArgumentNullException.ThrowIfNull(updateCheckModule);
+        ArgumentNullException.ThrowIfNull(lifecycle);
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(settings);
 
         _appInfo = appInfo;
-        _updateCheckModule = updateCheckModule;
+        _lifecycle = lifecycle;
         _scopeFactory = scopeFactory;
         _settings = settings;
         _loggingLevelSwitch = loggingLevelSwitch;
@@ -77,11 +75,10 @@ internal sealed class TerminalSession
             () => WindowsNativeFilePicker.PickFile(
                 strings.InstallPage_SelectModDialogTitle,
                 strings.InstallPage_ModZipFileType));
-        using CancellationTokenSource updateCancellation = new();
-
         navigator.Start();
 
-        Task updateTask = CheckForUpdateAsync(application, uiDispatcher, navigator, updateCancellation.Token);
+        var context = new TerminalLifecycleContext(uiDispatcher, navigator, application.RequestStop);
+        _ = _lifecycle.Start(context);
 
         _logger.LogInformation("Terminal application started");
 
@@ -92,41 +89,7 @@ internal sealed class TerminalSession
         finally
         {
             uiDispatcher.StopAccepting();
-            await updateCancellation.CancelAsync().ConfigureAwait(false);
-
-            try
-            {
-                await updateTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (updateCancellation.IsCancellationRequested) { }
+            await _lifecycle.StopAsync().ConfigureAwait(false);
         }
-    }
-
-    private async Task CheckForUpdateAsync(
-        IApplication application,
-        ITerminalUIDispatcher uiDispatcher,
-        TerminalNavigator navigator,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await _updateCheckModule
-                .CheckForUpdateAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            if (result is not OperationSucceeded<UpdateInfo?> { Value: { } update })
-            {
-                return;
-            }
-
-            uiDispatcher.TryInvoke(
-                () =>
-                {
-                    navigator.ShowAvailableUpdate(update);
-                    application.LayoutAndDraw();
-                },
-                cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
     }
 }
