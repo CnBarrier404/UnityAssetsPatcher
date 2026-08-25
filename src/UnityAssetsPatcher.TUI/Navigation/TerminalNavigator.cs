@@ -9,7 +9,6 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Localization;
-using UnityAssetsPatcher.TUI.Modules;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
 
@@ -65,18 +64,6 @@ public sealed class TerminalNavigator
         _requestStop = requestStop;
     }
 
-    public void Start()
-    {
-        if (_scopeFactory is null || _taskRunner is null)
-        {
-            ShowMainMenu();
-
-            return;
-        }
-
-        CheckRecovery();
-    }
-
     public void ShowMainMenu()
     {
         var items = CreateMenuItems();
@@ -106,6 +93,30 @@ public sealed class TerminalNavigator
         _availableUpdate = update;
 
         _visibleMainMenu?.ShowAvailableUpdate(CreateUpdateNotice(update));
+    }
+
+    public void ShowRepositoryInitializationResult(
+        OperationResult<RepositoryRecoveryReport> result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (result is OperationFailed<RepositoryRecoveryReport> failed &&
+            failed.Error.Code == RepositoryErrorCodes.UnsupportedVersion)
+        {
+            ShowUnsupportedRepository(failed.Error);
+
+            return;
+        }
+
+        _recovery = result switch
+        {
+            OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
+            OperationFailed<RepositoryRecoveryReport> recoveryFailed =>
+                recoveryFailed.Error.Recovery ?? FailedRecovery(),
+            _ => throw new ArgumentOutOfRangeException(nameof(result))
+        };
+
+        ShowRecoveryResult();
     }
 
     private TerminalMenuItem[] CreateMenuItems()
@@ -168,45 +179,6 @@ public sealed class TerminalNavigator
         ];
     }
 
-    private void CheckRecovery()
-    {
-        bool started = _taskRunner!.TryRun(
-            () => Task.FromResult(InitializeRepository()),
-            result =>
-            {
-                if (result is OperationFailed<RepositoryRecoveryReport> failed &&
-                    failed.Error.Code == RepositoryErrorCodes.UnsupportedVersion)
-                {
-                    ShowUnsupportedRepository(failed.Error);
-
-                    return;
-                }
-
-                _recovery = result switch
-                {
-                    OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
-                    OperationFailed<RepositoryRecoveryReport> recoveryFailed =>
-                        recoveryFailed.Error.Recovery ?? FailedRecovery(),
-                    _ => throw new ArgumentOutOfRangeException(nameof(result))
-                };
-                ShowRecoveryResult();
-            },
-            _ => ShowRecoveryFailure());
-
-        if (!started)
-        {
-            ShowRecoveryFailure();
-        }
-    }
-
-    private OperationResult<RepositoryRecoveryReport> InitializeRepository()
-    {
-        using IServiceScope scope = _scopeFactory!.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<IRepository>();
-
-        return new RepositoryInitializationModule(repository).Initialize();
-    }
-
     private void PreviewRecovery(string gameDirectory)
     {
         bool started = _taskRunner!.TryRun(
@@ -244,6 +216,27 @@ public sealed class TerminalNavigator
         {
             ShowRecoveryFailure();
         }
+    }
+
+    private void RetryRepositoryInitialization()
+    {
+        bool started = _taskRunner!.TryRun(
+            () => Task.FromResult(InitializeRepository()),
+            ShowRepositoryInitializationResult,
+            _ => ShowRecoveryFailure());
+
+        if (!started)
+        {
+            ShowRecoveryFailure();
+        }
+    }
+
+    private OperationResult<RepositoryRecoveryReport> InitializeRepository()
+    {
+        using IServiceScope scope = _scopeFactory!.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IRepository>();
+
+        return new RepositoryInitializationModule(repository).Initialize();
     }
 
     private void Recover(string gameDirectory)
@@ -343,7 +336,7 @@ public sealed class TerminalNavigator
                 _strings,
                 _recovery,
                 PreviewRecovery,
-                CheckRecovery,
+                RetryRepositoryInitialization,
                 _requestStop));
 
             return;

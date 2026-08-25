@@ -1,8 +1,7 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Repository;
 
-namespace UnityAssetsPatcher.TUI.Modules;
+namespace UnityAssetsPatcher.Application.Repository;
 
 public sealed class RepositoryInitializationModule
 {

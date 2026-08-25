@@ -75,7 +75,6 @@ internal sealed class TerminalSession
             () => WindowsNativeFilePicker.PickFile(
                 strings.InstallPage_SelectModDialogTitle,
                 strings.InstallPage_ModZipFileType));
-        navigator.Start();
 
         var context = new TerminalLifecycleContext(uiDispatcher, navigator, application.RequestStop);
         _ = _lifecycle.Start(context);

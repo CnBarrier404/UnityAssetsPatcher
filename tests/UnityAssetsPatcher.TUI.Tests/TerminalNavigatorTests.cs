@@ -13,6 +13,8 @@ using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Uninstallation;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Hooks;
+using UnityAssetsPatcher.TUI.Lifecycle;
 using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
@@ -150,7 +152,7 @@ public sealed class TerminalNavigatorTests
     }
 
     [Fact]
-    public void Start_WhenRepositoryFormatIsUnsupported_RequiresConfirmationBeforeShowingMainMenu()
+    public async Task RepositoryInitialization_WhenRepositoryFormatIsUnsupported_RequiresConfirmationBeforeShowingMainMenu()
     {
         using TerminalShellView shell = new(
             new AppInfo("Unity Assets Patcher", "dev"),
@@ -174,7 +176,14 @@ public sealed class TerminalNavigatorTests
             static () => { },
             static () => null);
 
-        navigator.Start();
+        var context = new TerminalLifecycleContext(
+            new ImmediateUIDispatcher(),
+            navigator,
+            static () => { });
+        var hook = new RepositoryInitializationStartupHook(
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        await hook.RunAsync(context, CancellationToken.None);
 
         Assert.True(SpinWait.SpinUntil(
             () => FindContent<UnsupportedRepositoryView>(shell) is not null && !taskRunner.IsRunning,
@@ -209,6 +218,21 @@ public sealed class TerminalNavigatorTests
         View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
 
         return Assert.Single(contentHost.SubViews);
+    }
+
+    private sealed class ImmediateUIDispatcher : ITerminalUIDispatcher
+    {
+        public bool TryInvoke(Action callback, CancellationToken cancellationToken = default)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            callback();
+
+            return true;
+        }
     }
 
     private sealed class UnsupportedRepository : IRepository
