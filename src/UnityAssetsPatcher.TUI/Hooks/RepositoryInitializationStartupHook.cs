@@ -26,37 +26,37 @@ public sealed class RepositoryInitializationStartupHook : ITerminalStartupHook
         _strings = new LocalizedStrings(CultureInfo.CurrentUICulture);
     }
 
-    public Task RunAsync(TerminalLifecycleContext context, CancellationToken cancellationToken)
+    public async Task RunAsync(TerminalLifecycleContext context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        OperationResult<RepositoryRecoveryReport> result;
+        var completion = new TaskCompletionSource<object?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = InitializeRepository(cancellationToken);
 
-            result = InitializeRepository();
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return Task.CompletedTask;
-        }
-        catch (Exception)
-        {
-            result = new OperationFailed<RepositoryRecoveryReport>(
-                new OperationError(RepositoryErrorCodes.Unsafe));
-        }
-
-        context.UIDispatcher.TryInvoke(
-            () => ShowInitializationResult(context, result),
+        bool started = context.UIDispatcher.TryInvoke(
+            () => RunOnUi(
+                completion,
+                cancellationToken,
+                () => ShowInitializationResult(context, result, completion, cancellationToken)),
             cancellationToken);
 
-        return Task.CompletedTask;
+        if (!started)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException(
+                "The terminal UI is no longer accepting repository initialization updates.");
+        }
+
+        await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private OperationResult<RepositoryRecoveryReport> InitializeRepository()
+    private OperationResult<RepositoryRecoveryReport> InitializeRepository(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using IServiceScope scope = _scopeFactory.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IRepository>();
 
@@ -65,12 +65,14 @@ public sealed class RepositoryInitializationStartupHook : ITerminalStartupHook
 
     private void ShowInitializationResult(
         TerminalLifecycleContext context,
-        OperationResult<RepositoryRecoveryReport> result)
+        OperationResult<RepositoryRecoveryReport> result,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         if (result is OperationFailed<RepositoryRecoveryReport> failed &&
             failed.Error.Code == RepositoryErrorCodes.UnsupportedVersion)
         {
-            ShowUnsupportedRepository(context, failed.Error);
+            ShowUnsupportedRepository(context, failed.Error, completion, cancellationToken);
 
             return;
         }
@@ -83,72 +85,99 @@ public sealed class RepositoryInitializationStartupHook : ITerminalStartupHook
             _ => throw new ArgumentOutOfRangeException(nameof(result))
         };
 
-        ShowRecoveryResult(context);
+        ShowRecoveryResult(context, completion, cancellationToken);
     }
 
-    private void PreviewRecovery(TerminalLifecycleContext context, string gameDirectory)
+    private void PreviewRecovery(
+        TerminalLifecycleContext context,
+        string gameDirectory,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         bool started = context.TaskRunner.TryRun(
             () => DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
-                new PreviewRecoveryRequest(gameDirectory)),
+                new PreviewRecoveryRequest(gameDirectory),
+                cancellationToken),
             result =>
-            {
-                if (result is not OperationSucceeded<RepositoryRecoveryPreview> succeeded)
+                RunOnUi(completion, cancellationToken, () =>
                 {
-                    ShowRecoveryFailure(context);
+                    if (result is not OperationSucceeded<RepositoryRecoveryPreview> succeeded)
+                    {
+                        ShowRecoveryFailure(context, completion, cancellationToken);
 
-                    return;
-                }
+                        return;
+                    }
 
-                RepositoryRecoveryPreview preview = succeeded.Value;
+                    RepositoryRecoveryPreview preview = succeeded.Value;
 
-                if (!preview.CanRecover)
-                {
-                    _recovery = new RepositoryRecoveryReport(preview.Status, [], preview.Issues);
-                    ShowRecoveryResult(context);
+                    if (!preview.CanRecover)
+                    {
+                        _recovery = new RepositoryRecoveryReport(preview.Status, [], preview.Issues);
+                        ShowRecoveryResult(context, completion, cancellationToken);
 
-                    return;
-                }
+                        return;
+                    }
 
-                context.ContentHost.ShowContent(new RepositoryRecoveryPreviewView(
-                    _strings,
-                    preview,
-                    () => Recover(context, preview.GameDirectory!),
-                    () => ShowRecoveryResult(context),
-                    context.RequestStop));
-            },
-            _ => ShowRecoveryFailure(context));
+                    context.ContentHost.ShowContent(new RepositoryRecoveryPreviewView(
+                        _strings,
+                        preview,
+                        () => Recover(context, preview.GameDirectory!, completion, cancellationToken),
+                        () => ShowRecoveryResult(context, completion, cancellationToken),
+                        context.RequestStop));
+                }),
+            exception => SetOperationFailure(completion, cancellationToken, exception));
 
         if (!started)
         {
-            ShowRecoveryFailure(context);
+            RunOnUi(
+                completion,
+                cancellationToken,
+                () => ShowRecoveryFailure(context, completion, cancellationToken));
         }
     }
 
-    private void RetryRepositoryInitialization(TerminalLifecycleContext context)
+    private void RetryRepositoryInitialization(
+        TerminalLifecycleContext context,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         bool started = context.TaskRunner.TryRun(
-            () => Task.FromResult(InitializeRepository()),
-            result => ShowInitializationResult(context, result),
-            _ => ShowRecoveryFailure(context));
+            () => Task.FromResult(InitializeRepository(cancellationToken)),
+            result => RunOnUi(
+                completion,
+                cancellationToken,
+                () => ShowInitializationResult(context, result, completion, cancellationToken)),
+            exception => SetOperationFailure(completion, cancellationToken, exception));
 
         if (!started)
         {
-            ShowRecoveryFailure(context);
+            RunOnUi(
+                completion,
+                cancellationToken,
+                () => ShowRecoveryFailure(context, completion, cancellationToken));
         }
     }
 
-    private void Recover(TerminalLifecycleContext context, string gameDirectory)
+    private void Recover(
+        TerminalLifecycleContext context,
+        string gameDirectory,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         RunRecoveryOperation(
             context,
             () => DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
-                new RecoverRecoveryRequest(gameDirectory)));
+                new RecoverRecoveryRequest(gameDirectory),
+                cancellationToken),
+            completion,
+            cancellationToken);
     }
 
     private void ShowUnsupportedRepository(
         TerminalLifecycleContext context,
         OperationError formatError,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken,
         OperationError? clearError = null)
     {
         string actualVersion = ParameterText(formatError, "actual") ?? "?";
@@ -162,99 +191,163 @@ public sealed class RepositoryInitializationStartupHook : ITerminalStartupHook
             actualVersion,
             supportedVersion,
             failure,
-            () => ShowClearUnsupportedRepositoryConfirmation(context, formatError),
+            () => ShowClearUnsupportedRepositoryConfirmation(
+                context,
+                formatError,
+                completion,
+                cancellationToken),
             context.RequestStop));
     }
 
     private void ShowClearUnsupportedRepositoryConfirmation(
         TerminalLifecycleContext context,
-        OperationError formatError)
+        OperationError formatError,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         context.ContentHost.ShowContent(new ClearUnsupportedRepositoryConfirmationView(
             _strings,
-            () => ClearUnsupportedRepository(context, formatError),
-            () => ShowUnsupportedRepository(context, formatError)));
+            () => ClearUnsupportedRepository(context, formatError, completion, cancellationToken),
+            () => ShowUnsupportedRepository(context, formatError, completion, cancellationToken)));
     }
 
     private void ClearUnsupportedRepository(
         TerminalLifecycleContext context,
-        OperationError formatError)
+        OperationError formatError,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         bool started = context.TaskRunner.TryRun(
             () => DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
-                new ClearUnsupportedRepositoryRequest()),
+                new ClearUnsupportedRepositoryRequest(),
+                cancellationToken),
             result =>
-            {
-                if (result is OperationSucceeded<RepositoryClearResult>)
+                RunOnUi(completion, cancellationToken, () =>
                 {
-                    context.Navigator.ShowMainMenu();
+                    if (result is OperationSucceeded<RepositoryClearResult>)
+                    {
+                        completion.TrySetResult(null);
 
-                    return;
-                }
+                        return;
+                    }
 
-                var failed = (OperationFailed<RepositoryClearResult>)result;
-                ShowUnsupportedRepository(context, formatError, failed.Error);
-            },
-            _ => ShowUnsupportedRepository(
-                context,
-                formatError,
-                new OperationError(RepositoryErrorCodes.Unsafe)));
+                    if (result is not OperationFailed<RepositoryClearResult> failed)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(result));
+                    }
+
+                    ShowUnsupportedRepository(
+                        context,
+                        formatError,
+                        completion,
+                        cancellationToken,
+                        failed.Error);
+                }),
+            exception => SetOperationFailure(completion, cancellationToken, exception));
 
         if (!started)
         {
-            ShowUnsupportedRepository(
-                context,
-                formatError,
-                new OperationError(RepositoryErrorCodes.OperationAlreadyRunning));
+            RunOnUi(
+                completion,
+                cancellationToken,
+                () => ShowUnsupportedRepository(
+                    context,
+                    formatError,
+                    completion,
+                    cancellationToken,
+                    new OperationError(RepositoryErrorCodes.OperationAlreadyRunning)));
         }
     }
 
     private void RunRecoveryOperation(
         TerminalLifecycleContext context,
-        Func<Task<OperationResult<RepositoryRecoveryReport>>> operation)
+        Func<Task<OperationResult<RepositoryRecoveryReport>>> operation,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         bool started = context.TaskRunner.TryRun(
             operation,
             result =>
-            {
-                _recovery = result switch
+                RunOnUi(completion, cancellationToken, () =>
                 {
-                    OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
-                    OperationFailed<RepositoryRecoveryReport> failed => failed.Error.Recovery ?? FailedRecovery(),
-                    _ => throw new ArgumentOutOfRangeException(nameof(result))
-                };
+                    _recovery = result switch
+                    {
+                        OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
+                        OperationFailed<RepositoryRecoveryReport> failed => failed.Error.Recovery ?? FailedRecovery(),
+                        _ => throw new ArgumentOutOfRangeException(nameof(result))
+                    };
 
-                ShowRecoveryResult(context);
-            },
-            _ => ShowRecoveryFailure(context));
+                    ShowRecoveryResult(context, completion, cancellationToken);
+                }),
+            exception => SetOperationFailure(completion, cancellationToken, exception));
 
         if (!started)
         {
-            ShowRecoveryFailure(context);
+            RunOnUi(
+                completion,
+                cancellationToken,
+                () => ShowRecoveryFailure(context, completion, cancellationToken));
         }
     }
 
-    private void ShowRecoveryFailure(TerminalLifecycleContext context)
+    private void ShowRecoveryFailure(
+        TerminalLifecycleContext context,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         _recovery = FailedRecovery();
-        ShowRecoveryResult(context);
+        ShowRecoveryResult(context, completion, cancellationToken);
     }
 
-    private void ShowRecoveryResult(TerminalLifecycleContext context)
+    private void ShowRecoveryResult(
+        TerminalLifecycleContext context,
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken)
     {
         if (_recovery.Status is RepositoryRecoveryStatus.RecoveryRequired or RepositoryRecoveryStatus.Locked)
         {
             context.ContentHost.ShowContent(new RepositoryRecoveryView(
                 _strings,
                 _recovery,
-                gameDirectory => PreviewRecovery(context, gameDirectory),
-                () => RetryRepositoryInitialization(context),
+                gameDirectory => PreviewRecovery(context, gameDirectory, completion, cancellationToken),
+                () => RetryRepositoryInitialization(context, completion, cancellationToken),
                 context.RequestStop));
 
             return;
         }
 
-        context.Navigator.ShowMainMenu();
+        completion.TrySetResult(null);
+    }
+
+    private static void RunOnUi(
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken,
+        Action action)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            action();
+        }
+        catch (Exception exception)
+        {
+            completion.TrySetException(exception);
+        }
+    }
+
+    private static void SetOperationFailure(
+        TaskCompletionSource<object?> completion,
+        CancellationToken cancellationToken,
+        Exception exception)
+    {
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            completion.TrySetException(exception);
+        }
     }
 
     private static RepositoryRecoveryReport FailedRecovery()
@@ -272,12 +365,14 @@ public sealed class RepositoryInitializationStartupHook : ITerminalStartupHook
             : null;
     }
 
-    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
+        return await dispatcher.DispatchAsync<TRequest, TResponse>(request, cancellationToken).ConfigureAwait(false);
     }
 }

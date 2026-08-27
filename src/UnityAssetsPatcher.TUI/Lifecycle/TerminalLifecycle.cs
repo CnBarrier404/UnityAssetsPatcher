@@ -12,7 +12,7 @@ public sealed class TerminalLifecycle
     private readonly Lock _gate = new();
     private readonly List<Task> _ownedTasks = [];
     private CancellationTokenSource? _sessionCancellation;
-    private Task? _startupTask;
+    private Task? _lifecycleTask;
     private Task? _stopTask;
     private ExceptionDispatchInfo? _fault;
 
@@ -43,19 +43,11 @@ public sealed class TerminalLifecycle
             _sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             CancellationToken sessionToken = _sessionCancellation.Token;
 
-            _startupTask = Task.Run(() => RunStartupHooksAsync(context, sessionToken), CancellationToken.None);
+            _lifecycleTask = Task.Run(() => RunLifecycleAsync(context, sessionToken), CancellationToken.None);
 
-            _ownedTasks.Add(_startupTask);
+            _ownedTasks.Add(_lifecycleTask);
 
-            foreach (ITerminalSessionHook hook in _sessionHooks)
-            {
-                Task sessionTask = Task.Run(
-                    () => RunSessionHookAsync(hook, context, sessionToken), CancellationToken.None);
-
-                _ownedTasks.Add(sessionTask);
-            }
-
-            return _startupTask;
+            return _lifecycleTask;
         }
     }
 
@@ -79,7 +71,7 @@ public sealed class TerminalLifecycle
         }
     }
 
-    private async Task RunStartupHooksAsync(TerminalLifecycleContext context, CancellationToken cancellationToken)
+    private async Task RunLifecycleAsync(TerminalLifecycleContext context, CancellationToken cancellationToken)
     {
         try
         {
@@ -89,11 +81,43 @@ public sealed class TerminalLifecycle
 
                 await hook.RunAsync(context, cancellationToken).ConfigureAwait(false);
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await InvokeOnUiAsync(
+                context,
+                context.Navigator.ShowMainMenu,
+                cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
             HandleFault(exception, "startup", context);
+
+            throw;
+        }
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            Task[] sessionTasks =
+                [.. _sessionHooks.Select(hook => RunSessionHookAsync(hook, context, cancellationToken))];
+
+            await Task.WhenAll(sessionTasks).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            HandleFault(exception, "session", context);
+
+            throw;
         }
     }
 
@@ -106,11 +130,53 @@ public sealed class TerminalLifecycle
         {
             await hook.RunAsync(context, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
             HandleFault(exception, "session", context);
+
+            throw;
         }
+    }
+
+    private static async Task InvokeOnUiAsync(
+        TerminalLifecycleContext context,
+        Action action,
+        CancellationToken cancellationToken)
+    {
+        var completion = new TaskCompletionSource<object?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        bool started = context.UIDispatcher.TryInvoke(
+            () =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                try
+                {
+                    action();
+                    completion.TrySetResult(null);
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            },
+            cancellationToken);
+
+        if (!started)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("The terminal UI is no longer accepting lifecycle updates.");
+        }
+
+        await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task StopCoreAsync(CancellationTokenSource sessionCancellation, IReadOnlyList<Task> ownedTasks)
@@ -118,7 +184,12 @@ public sealed class TerminalLifecycle
         try
         {
             await sessionCancellation.CancelAsync().ConfigureAwait(false);
-            await Task.WhenAll(ownedTasks).ConfigureAwait(false);
+
+            try
+            {
+                await Task.WhenAll(ownedTasks).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested && _fault is null) { }
         }
         finally
         {
