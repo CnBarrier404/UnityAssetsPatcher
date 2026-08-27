@@ -293,8 +293,9 @@ public sealed class UninstallPlanner
     private string CreateWorkingDirectory()
     {
         string workingDirectory = Path.Combine(
-            Path.GetTempPath(),
+            AppConfig.TemporaryDirectory,
             $"UnityAssetsPatcher.Uninstall.{Guid.NewGuid():N}");
+
         _fileSystemOperations.EnsureDirectory(workingDirectory);
 
         return _pathResolver.ResolveExistingDirectory(workingDirectory);

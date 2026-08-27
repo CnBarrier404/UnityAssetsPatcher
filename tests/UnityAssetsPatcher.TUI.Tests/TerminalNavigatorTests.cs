@@ -18,10 +18,9 @@ public sealed class TerminalNavigatorTests
     public void TerminalNavigator_WhenChineseCultureIsUsed_ShowsChineseHomePage()
     {
         using TerminalShellView shell = new(
-            new AppInfo("Unity Assets Patcher", "dev"),
             "Footer");
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
-        var navigator = CreateNavigator(
+        TerminalNavigator navigator = CreateNavigator(
             shell,
             new CultureInfo("zh-CN"),
             provider.GetRequiredService<IServiceScopeFactory>());
@@ -42,7 +41,6 @@ public sealed class TerminalNavigatorTests
     {
         var events = new List<string>();
         using TerminalShellView shell = new(
-            new AppInfo("Unity Assets Patcher", "dev"),
             "Footer",
             render: () => events.Add("render"));
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
@@ -51,7 +49,7 @@ public sealed class TerminalNavigatorTests
             shell,
             new CultureInfo("en-US"),
             provider.GetRequiredService<IServiceScopeFactory>(),
-            new TerminalSettings(),
+            new AppRuntimeConfig(),
             null,
             taskRunner,
             () =>
@@ -76,10 +74,9 @@ public sealed class TerminalNavigatorTests
     public void ShowAvailableUpdate_WhenAnotherPageIsVisible_ShowsUpdateAfterReturningToMainMenu()
     {
         using TerminalShellView shell = new(
-            new AppInfo("Unity Assets Patcher", "v1.2.3"),
             "Footer");
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
-        var navigator = CreateNavigator(
+        TerminalNavigator navigator = CreateNavigator(
             shell,
             new CultureInfo("en-US"),
             provider.GetRequiredService<IServiceScopeFactory>());
@@ -127,7 +124,7 @@ public sealed class TerminalNavigatorTests
             shell,
             culture,
             scopeFactory,
-            new TerminalSettings(),
+            new AppRuntimeConfig(),
             null,
             new TerminalTaskRunner(callback => callback()),
             static () => null);

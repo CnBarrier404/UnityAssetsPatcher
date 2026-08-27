@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Updates;
 
 namespace UnityAssetsPatcher.Infrastructure.Updates;
@@ -7,20 +6,20 @@ namespace UnityAssetsPatcher.Infrastructure.Updates;
 internal sealed class GitHubUpdateChecker : IUpdateChecker
 {
     private readonly GitHubUpdateManifestClient _manifestClient;
+    private readonly string _currentVersion;
     private readonly ILogger<GitHubUpdateChecker> _logger;
-    private readonly AppInfo _appInfo;
 
     public GitHubUpdateChecker(
         GitHubUpdateManifestClient manifestClient,
-        AppInfo appInfo,
+        string currentVersion,
         ILogger<GitHubUpdateChecker> logger)
     {
         ArgumentNullException.ThrowIfNull(manifestClient);
-        ArgumentNullException.ThrowIfNull(appInfo);
+        ArgumentException.ThrowIfNullOrWhiteSpace(currentVersion);
         ArgumentNullException.ThrowIfNull(logger);
 
         _manifestClient = manifestClient;
-        _appInfo = appInfo;
+        _currentVersion = currentVersion;
         _logger = logger;
     }
 
@@ -30,7 +29,7 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
 
         UpdateLog.UpdateCheckStarted(_logger);
 
-        if (!SemanticVersion.TryParse(_appInfo.DisplayVersion, out SemanticVersion currentVersion))
+        if (!SemanticVersion.TryParse(_currentVersion, out SemanticVersion currentVersion))
         {
             UpdateLog.UpdateCheckSkipped(_logger);
 
@@ -52,7 +51,7 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
         {
             UpdateLog.UpdateCheckCompletedWithoutUpdate(
                 _logger,
-                _appInfo.DisplayVersion,
+                _currentVersion,
                 manifest.Version);
 
             return null;
@@ -60,7 +59,7 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
 
         UpdateLog.UpdateCheckCompletedWithUpdate(
             _logger,
-            _appInfo.DisplayVersion,
+            _currentVersion,
             manifest.Version);
 
         return manifest;

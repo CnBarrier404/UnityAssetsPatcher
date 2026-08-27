@@ -1,6 +1,5 @@
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
-using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Infrastructure.Updates;
 using Xunit;
@@ -100,7 +99,7 @@ public sealed class GitHubUpdateCheckerTests
 
         return new GitHubUpdateChecker(
             manifestClient,
-            new AppInfo("Unity Assets Patcher", currentVersion),
+            currentVersion,
             NullLogger<GitHubUpdateChecker>.Instance);
     }
 

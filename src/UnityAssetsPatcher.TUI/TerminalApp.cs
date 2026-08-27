@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Lifecycle;
 
@@ -38,12 +39,7 @@ public sealed class TerminalApp
             _logger.LogError(exception, "Terminal application terminated unexpectedly");
 
             var strings = new LocalizedStrings(CultureInfo.CurrentUICulture);
-            string logDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "UnityAssetsPatcher",
-                "logs");
-
-            Console.Error.WriteLine(strings.Error_UnexpectedFormat(logDirectory));
+            Console.Error.WriteLine(strings.Error_UnexpectedFormat(AppConfig.LogDirectory));
 
             return 1;
         }

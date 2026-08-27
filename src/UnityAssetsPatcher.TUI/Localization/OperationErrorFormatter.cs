@@ -1,5 +1,6 @@
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Assets;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Mods;
@@ -86,12 +87,7 @@ internal static class OperationErrorFormatter
 
     public static string FormatUnexpected(LocalizedStrings strings)
     {
-        string logDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "UnityAssetsPatcher",
-            "logs");
-
-        return strings.Error_UnexpectedFormat(logDirectory);
+        return strings.Error_UnexpectedFormat(AppConfig.LogDirectory);
     }
 
     public static string Format(LocalizedStrings strings, PatchDiagnostic diagnostic)

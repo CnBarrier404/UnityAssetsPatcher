@@ -5,6 +5,7 @@ using Terminal.Gui.Input;
 using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Installation;
 using UnityAssetsPatcher.Application.Messaging;
@@ -22,7 +23,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
-    private readonly TerminalSettings _settings;
+    private readonly AppRuntimeConfig _runtimeConfig;
     private readonly TerminalTaskRunner _taskRunner;
     private readonly Func<string?> _pickModFile;
     private readonly Action _returnToMainMenu;
@@ -39,7 +40,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     internal InstallModView(
         LocalizedStrings strings,
         IServiceScopeFactory scopeFactory,
-        TerminalSettings settings,
+        AppRuntimeConfig runtimeConfig,
         TerminalTaskRunner taskRunner,
         Func<string?> pickModFile,
         Action returnToMainMenu)
@@ -50,7 +51,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
         _strings = strings;
         _scopeFactory = scopeFactory;
-        _settings = settings;
+        _runtimeConfig = runtimeConfig;
         _taskRunner = taskRunner;
         _pickModFile = pickModFile;
         _returnToMainMenu = returnToMainMenu;
@@ -359,7 +360,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             nextRow = AddPreviewTargets(patches, nextRow);
         }
 
-        string verboseText = FormatPreviewVerboseDetails(result, _settings.VerboseOutput);
+        string verboseText = FormatPreviewVerboseDetails(result, _runtimeConfig.VerboseLogging);
         if (!string.IsNullOrEmpty(verboseText))
         {
             int detailsHeight = GetReportHeight(verboseText);

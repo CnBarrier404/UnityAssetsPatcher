@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Localization;
@@ -14,7 +15,7 @@ public sealed class TerminalNavigator
     private readonly TerminalShellView _shell;
     private readonly LocalizedStrings _strings;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly TerminalSettings _settings;
+    private readonly AppRuntimeConfig _runtimeConfig;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
     private readonly TerminalTaskRunner _taskRunner;
     private readonly Func<string?> _pickModFile;
@@ -25,7 +26,7 @@ public sealed class TerminalNavigator
         TerminalShellView shell,
         CultureInfo culture,
         IServiceScopeFactory scopeFactory,
-        TerminalSettings settings,
+        AppRuntimeConfig runtimeConfig,
         ILoggingLevelSwitch? loggingLevelSwitch,
         TerminalTaskRunner taskRunner,
         Func<string?> pickModFile)
@@ -33,14 +34,14 @@ public sealed class TerminalNavigator
         ArgumentNullException.ThrowIfNull(shell);
         ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(scopeFactory);
-        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(runtimeConfig);
         ArgumentNullException.ThrowIfNull(taskRunner);
         ArgumentNullException.ThrowIfNull(pickModFile);
 
         _shell = shell;
         _strings = new LocalizedStrings(culture);
         _scopeFactory = scopeFactory;
-        _settings = settings;
+        _runtimeConfig = runtimeConfig;
         _loggingLevelSwitch = loggingLevelSwitch;
         _taskRunner = taskRunner;
         _pickModFile = pickModFile;
@@ -87,7 +88,7 @@ public sealed class TerminalNavigator
                 returnToMainMenu => new InstallModView(
                     _strings,
                     _scopeFactory,
-                    _settings,
+                    _runtimeConfig,
                     _taskRunner,
                     _pickModFile,
                     returnToMainMenu)),
@@ -112,7 +113,7 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_Settings_Description,
                 returnToMainMenu => new SettingsView(
                     _strings,
-                    _settings,
+                    _runtimeConfig,
                     returnToMainMenu,
                     _loggingLevelSwitch))
         ];

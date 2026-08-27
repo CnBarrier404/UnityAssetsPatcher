@@ -14,7 +14,7 @@ public sealed class TerminalDependencyInjectionTests
     {
         var services = new ServiceCollection();
 
-        services.AddSingleton(new AppInfo("Unity Assets Patcher", "dev"));
+        services.AddSingleton(new AppRuntimeConfig());
 
         services.AddSingleton(new UpdateCheckModule(
             new StubUpdateChecker(),

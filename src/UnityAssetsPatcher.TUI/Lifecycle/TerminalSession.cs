@@ -15,30 +15,26 @@ namespace UnityAssetsPatcher.TUI.Lifecycle;
 
 internal sealed class TerminalSession
 {
-    private readonly AppInfo _appInfo;
     private readonly TerminalLifecycle _lifecycle;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly TerminalSettings _settings;
+    private readonly AppRuntimeConfig _runtimeConfig;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
     private readonly ILogger<TerminalSession> _logger;
 
     public TerminalSession(
-        AppInfo appInfo,
         TerminalLifecycle lifecycle,
         IServiceScopeFactory scopeFactory,
-        TerminalSettings settings,
+        AppRuntimeConfig runtimeConfig,
         ILoggingLevelSwitch? loggingLevelSwitch = null,
         ILogger<TerminalSession>? logger = null)
     {
-        ArgumentNullException.ThrowIfNull(appInfo);
         ArgumentNullException.ThrowIfNull(lifecycle);
         ArgumentNullException.ThrowIfNull(scopeFactory);
-        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(runtimeConfig);
 
-        _appInfo = appInfo;
         _lifecycle = lifecycle;
         _scopeFactory = scopeFactory;
-        _settings = settings;
+        _runtimeConfig = runtimeConfig;
         _loggingLevelSwitch = loggingLevelSwitch;
         _logger = logger ?? NullLogger<TerminalSession>.Instance;
     }
@@ -58,7 +54,6 @@ internal sealed class TerminalSession
         string? warningText = isLegacyConsole ? strings.Layout_LegacyConsoleWarning : null;
 
         using TerminalShellView shell = new(
-            _appInfo,
             strings.Layout_ShortcutHint,
             warningText,
             () => application.LayoutAndDraw());
@@ -68,7 +63,7 @@ internal sealed class TerminalSession
             shell,
             culture,
             _scopeFactory,
-            _settings,
+            _runtimeConfig,
             _loggingLevelSwitch,
             taskRunner,
             () => WindowsNativeFilePicker.PickFile(

@@ -27,7 +27,9 @@ This section provides a high-level overview of the project's directory and file 
 │   │   ├── Patching/
 │   │   ├── Repository/
 │   │   ├── Uninstallation/
-│   │   └── Updates/
+│   │   ├── Updates/
+│   │   ├── AppConfig.cs
+│   │   └── AppRuntimeConfig.cs
 │   ├── UnityAssetsPatcher.CLI/                        # Non-interactive command parsing and presentation
 │   ├── UnityAssetsPatcher.Domain/                     # Domain models, value objects, and validation rules
 │   │   ├── Assets/
@@ -64,3 +66,8 @@ This section provides a high-level overview of the project's directory and file 
 ## Infrastructure
 
 - Infrastructure implementations must propagate original exceptions from underlying platform APIs and third-party libraries without wrapping, translating, or replacing them.
+
+## Application configuration
+
+- `AppConfig` is the static source for application identity, version, and fixed application directories.
+- `AppRuntimeConfig` is the singleton source for mutable process-level settings such as verbose logging.

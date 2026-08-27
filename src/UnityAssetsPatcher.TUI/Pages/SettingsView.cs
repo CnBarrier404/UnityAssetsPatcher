@@ -1,5 +1,6 @@
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
@@ -8,18 +9,19 @@ namespace UnityAssetsPatcher.TUI.Pages;
 
 public sealed class SettingsView : View
 {
-    private readonly TerminalSettings _settings;
+    private readonly AppRuntimeConfig _runtimeConfig;
     private readonly ToggleItem _verboseOutput;
 
     internal SettingsView(
         LocalizedStrings strings,
-        TerminalSettings settings,
+        AppRuntimeConfig runtimeConfig,
         Action returnToMainMenu,
         ILoggingLevelSwitch? loggingLevelSwitch = null)
     {
         ArgumentNullException.ThrowIfNull(strings);
+        ArgumentNullException.ThrowIfNull(runtimeConfig);
 
-        _settings = settings;
+        _runtimeConfig = runtimeConfig;
 
         KeyDown += (_, key) =>
         {
@@ -51,10 +53,10 @@ public sealed class SettingsView : View
             X = 0,
             Y = 3
         };
-        _verboseOutput.IsSelected = _settings.VerboseOutput;
+        _verboseOutput.IsSelected = _runtimeConfig.VerboseLogging;
         _verboseOutput.IsSelectedChanged += (_, _) =>
         {
-            _settings.VerboseOutput = _verboseOutput.IsSelected;
+            _runtimeConfig.VerboseLogging = _verboseOutput.IsSelected;
 
             if (loggingLevelSwitch is not null)
             {
