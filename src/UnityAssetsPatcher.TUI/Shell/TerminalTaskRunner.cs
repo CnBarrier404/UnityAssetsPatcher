@@ -2,8 +2,6 @@ namespace UnityAssetsPatcher.TUI.Shell;
 
 public sealed class TerminalTaskRunner
 {
-    public bool IsRunning => Volatile.Read(ref _isRunning) != 0;
-
     private readonly Action<Action> _dispatch;
     private int _isRunning;
 
@@ -11,22 +9,6 @@ public sealed class TerminalTaskRunner
     {
         ArgumentNullException.ThrowIfNull(dispatch);
         _dispatch = dispatch;
-    }
-
-    public bool TryRun<T>(Func<T> operation, Action<T> onSucceeded, Action<Exception> onFailed)
-    {
-        ArgumentNullException.ThrowIfNull(operation);
-        ArgumentNullException.ThrowIfNull(onSucceeded);
-        ArgumentNullException.ThrowIfNull(onFailed);
-
-        if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
-        {
-            return false;
-        }
-
-        _ = RunAsync(() => Task.FromResult(operation()), onSucceeded, onFailed);
-
-        return true;
     }
 
     public bool TryRun<T>(Func<Task<T>> operation, Action<T> onSucceeded, Action<Exception> onFailed)
