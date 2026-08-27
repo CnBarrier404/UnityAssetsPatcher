@@ -71,7 +71,6 @@ internal sealed class TerminalSession
             _settings,
             _loggingLevelSwitch,
             taskRunner,
-            application.RequestStop,
             () => WindowsNativeFilePicker.PickFile(
                 strings.InstallPage_SelectModDialogTitle,
                 strings.InstallPage_ModZipFileType));

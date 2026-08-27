@@ -14,17 +14,6 @@ public sealed class TerminalLifecycleContext
     public TerminalLifecycleContext(
         ITerminalUIDispatcher uiDispatcher,
         TerminalNavigator navigator,
-        Action requestStop)
-        : this(
-            uiDispatcher,
-            navigator,
-            navigator,
-            new TerminalTaskRunner(callback => uiDispatcher.TryInvoke(callback)),
-            requestStop) { }
-
-    public TerminalLifecycleContext(
-        ITerminalUIDispatcher uiDispatcher,
-        TerminalNavigator navigator,
         ITerminalContentHost contentHost,
         TerminalTaskRunner taskRunner,
         Action requestStop)

@@ -9,27 +9,17 @@ using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Navigation;
 
-public sealed class TerminalNavigator : ITerminalContentHost
+public sealed class TerminalNavigator
 {
     private readonly TerminalShellView _shell;
     private readonly LocalizedStrings _strings;
-    private readonly IServiceScopeFactory? _scopeFactory;
-    private readonly TerminalSettings? _settings;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly TerminalSettings _settings;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
-    private readonly TerminalTaskRunner? _taskRunner;
+    private readonly TerminalTaskRunner _taskRunner;
     private readonly Func<string?> _pickModFile;
     private UpdateInfo? _availableUpdate;
     private MainMenuView? _visibleMainMenu;
-
-    public TerminalNavigator(TerminalShellView shell, CultureInfo culture)
-    {
-        ArgumentNullException.ThrowIfNull(shell);
-        ArgumentNullException.ThrowIfNull(culture);
-
-        _shell = shell;
-        _strings = new LocalizedStrings(culture);
-        _pickModFile = static () => null;
-    }
 
     public TerminalNavigator(
         TerminalShellView shell,
@@ -38,28 +28,22 @@ public sealed class TerminalNavigator : ITerminalContentHost
         TerminalSettings settings,
         ILoggingLevelSwitch? loggingLevelSwitch,
         TerminalTaskRunner taskRunner,
-        Action requestStop,
         Func<string?> pickModFile)
-        : this(shell, culture)
     {
+        ArgumentNullException.ThrowIfNull(shell);
+        ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(taskRunner);
-        ArgumentNullException.ThrowIfNull(requestStop);
         ArgumentNullException.ThrowIfNull(pickModFile);
 
+        _shell = shell;
+        _strings = new LocalizedStrings(culture);
         _scopeFactory = scopeFactory;
         _settings = settings;
         _loggingLevelSwitch = loggingLevelSwitch;
         _taskRunner = taskRunner;
         _pickModFile = pickModFile;
-    }
-
-    public void ShowContent(View content)
-    {
-        ArgumentNullException.ThrowIfNull(content);
-
-        _shell.ShowContent(content);
     }
 
     public void ShowMainMenu()
@@ -81,7 +65,7 @@ public sealed class TerminalNavigator : ITerminalContentHost
             _shell.ShowContent(content);
         };
 
-        ShowContent(menu);
+        _shell.ShowContent(menu);
     }
 
     public void ShowAvailableUpdate(UpdateInfo update)
@@ -95,25 +79,6 @@ public sealed class TerminalNavigator : ITerminalContentHost
 
     private TerminalMenuItem[] CreateMenuItems()
     {
-        if (_scopeFactory is null || _settings is null || _taskRunner is null)
-        {
-            return
-            [
-                CreateEmptyPageMenuItem(
-                    _strings.MainMenu_InstallMod_Title,
-                    _strings.MainMenu_InstallMod_Description),
-                CreateEmptyPageMenuItem(
-                    _strings.MainMenu_UninstallMod_Title,
-                    _strings.MainMenu_UninstallMod_Description),
-                CreateEmptyPageMenuItem(
-                    _strings.MainMenu_InspectAssets_Title,
-                    _strings.MainMenu_InspectAssets_Description),
-                CreateEmptyPageMenuItem(
-                    _strings.MainMenu_Settings_Title,
-                    _strings.MainMenu_Settings_Description)
-            ];
-        }
-
         return
         [
             new TerminalMenuItem(
@@ -151,14 +116,6 @@ public sealed class TerminalNavigator : ITerminalContentHost
                     returnToMainMenu,
                     _loggingLevelSwitch))
         ];
-    }
-
-    private TerminalMenuItem CreateEmptyPageMenuItem(string title, string description)
-    {
-        return new TerminalMenuItem(
-            title,
-            description,
-            returnToMainMenu => new EmptyPageView(title, _strings.EmptyPage_BackAction, returnToMainMenu));
     }
 
     private TerminalUpdateNotice CreateUpdateNotice(UpdateInfo update)

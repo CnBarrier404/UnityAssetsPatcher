@@ -1,5 +1,4 @@
 {
-  "EmptyPage_BackAction": "Return to main menu",
   "Error_AccessDeniedFormat": "Access was denied: {arg0}",
   "Error_AssetNotFound": "The requested asset was not found.",
   "Error_DirectoryNotFoundFormat": "The directory was not found: {arg0}",

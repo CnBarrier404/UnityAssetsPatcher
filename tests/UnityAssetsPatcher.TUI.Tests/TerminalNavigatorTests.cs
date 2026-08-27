@@ -25,42 +25,16 @@ namespace UnityAssetsPatcher.TUI.Tests;
 public sealed class TerminalNavigatorTests
 {
     [Fact]
-    public void TerminalNavigator_WhenMenuItemAndBackAreAccepted_CompletesNavigationLoop()
-    {
-        using TerminalShellView shell = new(
-            new AppInfo("Unity Assets Patcher", "dev"),
-            "Footer");
-        var navigator = new TerminalNavigator(shell, new CultureInfo("en-US"));
-
-        navigator.ShowMainMenu();
-
-        View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
-        MainMenuView mainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
-        ChoiceItemList[] choices = [.. mainMenu.SubViews.OfType<ChoiceItemList>()];
-
-        Assert.Equal(4, choices.Length);
-        Assert.Equal("  Install Mod", choices[0].Button.Text);
-
-        choices[0].Button.InvokeCommand(Command.Accept);
-
-        EmptyPageView emptyPage = Assert.Single(contentHost.SubViews.OfType<EmptyPageView>());
-        StyledLabel heading = Assert.Single(emptyPage.SubViews.OfType<StyledLabel>());
-
-        Assert.Equal("Install Mod", heading.Text);
-
-        emptyPage.BackButton.InvokeCommand(Command.Accept);
-
-        Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
-        Assert.Empty(contentHost.SubViews.OfType<EmptyPageView>());
-    }
-
-    [Fact]
     public void TerminalNavigator_WhenChineseCultureIsUsed_ShowsChineseHomePage()
     {
         using TerminalShellView shell = new(
             new AppInfo("Unity Assets Patcher", "dev"),
             "Footer");
-        var navigator = new TerminalNavigator(shell, new CultureInfo("zh-CN"));
+        using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        var navigator = CreateNavigator(
+            shell,
+            new CultureInfo("zh-CN"),
+            provider.GetRequiredService<IServiceScopeFactory>());
 
         navigator.ShowMainMenu();
 
@@ -90,7 +64,6 @@ public sealed class TerminalNavigatorTests
             new TerminalSettings(),
             null,
             taskRunner,
-            static () => { },
             () =>
             {
                 events.Add("picker");
@@ -115,7 +88,11 @@ public sealed class TerminalNavigatorTests
         using TerminalShellView shell = new(
             new AppInfo("Unity Assets Patcher", "v1.2.3"),
             "Footer");
-        var navigator = new TerminalNavigator(shell, new CultureInfo("en-US"));
+        using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        var navigator = CreateNavigator(
+            shell,
+            new CultureInfo("en-US"),
+            provider.GetRequiredService<IServiceScopeFactory>());
 
         navigator.ShowMainMenu();
 
@@ -133,9 +110,9 @@ public sealed class TerminalNavigatorTests
 
         navigator.ShowAvailableUpdate(update);
 
-        EmptyPageView emptyPage = Assert.Single(contentHost.SubViews.OfType<EmptyPageView>());
+        Assert.Single(contentHost.SubViews.OfType<InstallModView>());
 
-        emptyPage.BackButton.InvokeCommand(Command.Accept);
+        navigator.ShowMainMenu();
 
         MainMenuView updatedMainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
         var updateLabels = updatedMainMenu.SubViews
@@ -173,12 +150,13 @@ public sealed class TerminalNavigatorTests
             new TerminalSettings(),
             null,
             taskRunner,
-            static () => { },
             static () => null);
 
         var context = new TerminalLifecycleContext(
             new ImmediateUIDispatcher(),
             navigator,
+            shell,
+            taskRunner,
             static () => { });
         var hook = new RepositoryInitializationStartupHook(
             provider.GetRequiredService<IServiceScopeFactory>());
@@ -204,6 +182,21 @@ public sealed class TerminalNavigatorTests
             () => FindContent<MainMenuView>(shell) is not null && !taskRunner.IsRunning,
             TimeSpan.FromSeconds(5)));
         Assert.Equal(1, clearHandler.CallCount);
+    }
+
+    private static TerminalNavigator CreateNavigator(
+        TerminalShellView shell,
+        CultureInfo culture,
+        IServiceScopeFactory scopeFactory)
+    {
+        return new TerminalNavigator(
+            shell,
+            culture,
+            scopeFactory,
+            new TerminalSettings(),
+            null,
+            new TerminalTaskRunner(callback => callback()),
+            static () => null);
     }
 
     private static T? FindContent<T>(TerminalShellView shell) where T : View
