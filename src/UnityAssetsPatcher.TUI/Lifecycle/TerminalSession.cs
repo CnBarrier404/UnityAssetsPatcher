@@ -76,7 +76,8 @@ internal sealed class TerminalSession
                 strings.InstallPage_SelectModDialogTitle,
                 strings.InstallPage_ModZipFileType));
 
-        var context = new TerminalLifecycleContext(uiDispatcher, navigator, application.RequestStop);
+        var context = new TerminalLifecycleContext(uiDispatcher, navigator, shell, taskRunner, application.RequestStop);
+
         _ = _lifecycle.Start(context);
 
         _logger.LogInformation("Terminal application started");

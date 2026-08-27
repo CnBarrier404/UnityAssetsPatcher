@@ -2,11 +2,6 @@ using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Features.Recovery;
-using UnityAssetsPatcher.Application.Features.RepositoryManagement;
-using UnityAssetsPatcher.Application.Messaging;
-using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
@@ -14,7 +9,7 @@ using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Navigation;
 
-public sealed class TerminalNavigator
+public sealed class TerminalNavigator : ITerminalContentHost
 {
     private readonly TerminalShellView _shell;
     private readonly LocalizedStrings _strings;
@@ -23,10 +18,8 @@ public sealed class TerminalNavigator
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
     private readonly TerminalTaskRunner? _taskRunner;
     private readonly Func<string?> _pickModFile;
-    private readonly Action _requestStop;
     private UpdateInfo? _availableUpdate;
     private MainMenuView? _visibleMainMenu;
-    private RepositoryRecoveryReport _recovery = RepositoryRecoveryReport.Clean;
 
     public TerminalNavigator(TerminalShellView shell, CultureInfo culture)
     {
@@ -36,7 +29,6 @@ public sealed class TerminalNavigator
         _shell = shell;
         _strings = new LocalizedStrings(culture);
         _pickModFile = static () => null;
-        _requestStop = static () => { };
     }
 
     public TerminalNavigator(
@@ -61,7 +53,13 @@ public sealed class TerminalNavigator
         _loggingLevelSwitch = loggingLevelSwitch;
         _taskRunner = taskRunner;
         _pickModFile = pickModFile;
-        _requestStop = requestStop;
+    }
+
+    public void ShowContent(View content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        _shell.ShowContent(content);
     }
 
     public void ShowMainMenu()
@@ -83,7 +81,7 @@ public sealed class TerminalNavigator
             _shell.ShowContent(content);
         };
 
-        _shell.ShowContent(menu);
+        ShowContent(menu);
     }
 
     public void ShowAvailableUpdate(UpdateInfo update)
@@ -93,30 +91,6 @@ public sealed class TerminalNavigator
         _availableUpdate = update;
 
         _visibleMainMenu?.ShowAvailableUpdate(CreateUpdateNotice(update));
-    }
-
-    public void ShowRepositoryInitializationResult(
-        OperationResult<RepositoryRecoveryReport> result)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-
-        if (result is OperationFailed<RepositoryRecoveryReport> failed &&
-            failed.Error.Code == RepositoryErrorCodes.UnsupportedVersion)
-        {
-            ShowUnsupportedRepository(failed.Error);
-
-            return;
-        }
-
-        _recovery = result switch
-        {
-            OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
-            OperationFailed<RepositoryRecoveryReport> recoveryFailed =>
-                recoveryFailed.Error.Recovery ?? FailedRecovery(),
-            _ => throw new ArgumentOutOfRangeException(nameof(result))
-        };
-
-        ShowRecoveryResult();
     }
 
     private TerminalMenuItem[] CreateMenuItems()
@@ -177,196 +151,6 @@ public sealed class TerminalNavigator
                     returnToMainMenu,
                     _loggingLevelSwitch))
         ];
-    }
-
-    private void PreviewRecovery(string gameDirectory)
-    {
-        bool started = _taskRunner!.TryRun(
-            () => DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
-                new PreviewRecoveryRequest(gameDirectory)),
-            result =>
-            {
-                if (result is not OperationSucceeded<RepositoryRecoveryPreview> succeeded)
-                {
-                    ShowRecoveryFailure();
-
-                    return;
-                }
-
-                RepositoryRecoveryPreview preview = succeeded.Value;
-
-                if (!preview.CanRecover)
-                {
-                    _recovery = new RepositoryRecoveryReport(preview.Status, [], preview.Issues);
-                    ShowRecoveryResult();
-
-                    return;
-                }
-
-                _shell.ShowContent(new RepositoryRecoveryPreviewView(
-                    _strings,
-                    preview,
-                    () => Recover(preview.GameDirectory!),
-                    ShowRecoveryResult,
-                    _requestStop));
-            },
-            _ => ShowRecoveryFailure());
-
-        if (!started)
-        {
-            ShowRecoveryFailure();
-        }
-    }
-
-    private void RetryRepositoryInitialization()
-    {
-        bool started = _taskRunner!.TryRun(
-            () => Task.FromResult(InitializeRepository()),
-            ShowRepositoryInitializationResult,
-            _ => ShowRecoveryFailure());
-
-        if (!started)
-        {
-            ShowRecoveryFailure();
-        }
-    }
-
-    private OperationResult<RepositoryRecoveryReport> InitializeRepository()
-    {
-        using IServiceScope scope = _scopeFactory!.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<IRepository>();
-
-        return new RepositoryInitializationModule(repository).Initialize();
-    }
-
-    private void Recover(string gameDirectory)
-    {
-        RunRecoveryOperation(() => DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
-            new RecoverRecoveryRequest(gameDirectory)));
-    }
-
-    private void ShowUnsupportedRepository(OperationError formatError, OperationError? clearError = null)
-    {
-        string actualVersion = ParameterText(formatError, "actual") ?? "?";
-        string supportedVersion = ParameterText(formatError, "supported") ??
-                                  RepositoryService.CurrentRepositoryFormatVersion.ToString(
-                                      CultureInfo.InvariantCulture);
-        string? failure = clearError is null ? null : OperationErrorFormatter.Format(_strings, clearError);
-
-        _shell.ShowContent(new UnsupportedRepositoryView(
-            _strings,
-            actualVersion,
-            supportedVersion,
-            failure,
-            () => ShowClearUnsupportedRepositoryConfirmation(formatError),
-            _requestStop));
-    }
-
-    private void ShowClearUnsupportedRepositoryConfirmation(OperationError formatError)
-    {
-        _shell.ShowContent(new ClearUnsupportedRepositoryConfirmationView(
-            _strings,
-            () => ClearUnsupportedRepository(formatError),
-            () => ShowUnsupportedRepository(formatError)));
-    }
-
-    private void ClearUnsupportedRepository(OperationError formatError)
-    {
-        bool started = _taskRunner!.TryRun(
-            () => DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
-                new ClearUnsupportedRepositoryRequest()),
-            result =>
-            {
-                if (result is OperationSucceeded<RepositoryClearResult>)
-                {
-                    ShowMainMenu();
-
-                    return;
-                }
-
-                var failed = (OperationFailed<RepositoryClearResult>)result;
-                ShowUnsupportedRepository(formatError, failed.Error);
-            },
-            _ => ShowUnsupportedRepository(
-                formatError,
-                new OperationError(RepositoryErrorCodes.Unsafe)));
-
-        if (!started)
-        {
-            ShowUnsupportedRepository(
-                formatError,
-                new OperationError(RepositoryErrorCodes.OperationAlreadyRunning));
-        }
-    }
-
-    private void RunRecoveryOperation(Func<Task<OperationResult<RepositoryRecoveryReport>>> operation)
-    {
-        bool started = _taskRunner!.TryRun(
-            operation,
-            result =>
-            {
-                _recovery = result switch
-                {
-                    OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
-                    OperationFailed<RepositoryRecoveryReport> failed => failed.Error.Recovery ?? FailedRecovery(),
-                    _ => throw new ArgumentOutOfRangeException(nameof(result))
-                };
-
-                ShowRecoveryResult();
-            },
-            _ => ShowRecoveryFailure());
-
-        if (!started)
-        {
-            ShowRecoveryFailure();
-        }
-    }
-
-    private void ShowRecoveryFailure()
-    {
-        _recovery = FailedRecovery();
-        ShowRecoveryResult();
-    }
-
-    private void ShowRecoveryResult()
-    {
-        if (_recovery.Status is RepositoryRecoveryStatus.RecoveryRequired or RepositoryRecoveryStatus.Locked)
-        {
-            _shell.ShowContent(new RepositoryRecoveryView(
-                _strings,
-                _recovery,
-                PreviewRecovery,
-                RetryRepositoryInitialization,
-                _requestStop));
-
-            return;
-        }
-
-        ShowMainMenu();
-    }
-
-    private static RepositoryRecoveryReport FailedRecovery()
-    {
-        return new RepositoryRecoveryReport(
-            RepositoryRecoveryStatus.Locked,
-            [],
-            [new RepositoryRecoveryIssue(RepositoryRecoveryIssueCode.UnexpectedFailure, string.Empty)]);
-    }
-
-    private static string? ParameterText(OperationError error, string key)
-    {
-        return error.Parameters.TryGetValue(key, out object? value)
-            ? Convert.ToString(value, CultureInfo.InvariantCulture)
-            : null;
-    }
-
-    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
-        where TRequest : IRequest<TResponse>
-    {
-        using IServiceScope scope = _scopeFactory!.CreateScope();
-        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-
-        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
     }
 
     private TerminalMenuItem CreateEmptyPageMenuItem(string title, string description)

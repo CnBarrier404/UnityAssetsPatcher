@@ -6,7 +6,7 @@ using UnityAssetsPatcher.TUI.Framework;
 
 namespace UnityAssetsPatcher.TUI.Shell;
 
-public sealed class TerminalShellView : Window
+public sealed class TerminalShellView : Window, ITerminalContentHost
 {
     private readonly View _contentHost;
     private readonly Action? _render;
