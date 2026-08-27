@@ -10,7 +10,6 @@ public sealed class TerminalLifecycle
     private readonly IReadOnlyList<ITerminalSessionHook> _sessionHooks;
     private readonly ILogger<TerminalLifecycle> _logger;
     private readonly Lock _gate = new();
-    private readonly List<Task> _ownedTasks = [];
     private CancellationTokenSource? _sessionCancellation;
     private Task? _lifecycleTask;
     private Task? _stopTask;
@@ -45,8 +44,6 @@ public sealed class TerminalLifecycle
 
             _lifecycleTask = Task.Run(() => RunLifecycleAsync(context, sessionToken), CancellationToken.None);
 
-            _ownedTasks.Add(_lifecycleTask);
-
             return _lifecycleTask;
         }
     }
@@ -65,7 +62,7 @@ public sealed class TerminalLifecycle
                 return Task.CompletedTask;
             }
 
-            _stopTask = StopCoreAsync(_sessionCancellation, [.. _ownedTasks]);
+            _stopTask = StopCoreAsync(_sessionCancellation, _lifecycleTask!);
 
             return _stopTask;
         }
@@ -100,25 +97,11 @@ public sealed class TerminalLifecycle
             throw;
         }
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+        cancellationToken.ThrowIfCancellationRequested();
 
-            Task[] sessionTasks =
-                [.. _sessionHooks.Select(hook => RunSessionHookAsync(hook, context, cancellationToken))];
-
-            await Task.WhenAll(sessionTasks).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            HandleFault(exception, "session", context);
-
-            throw;
-        }
+        await Task.WhenAll(
+                _sessionHooks.Select(hook => RunSessionHookAsync(hook, context, cancellationToken)))
+            .ConfigureAwait(false);
     }
 
     private async Task RunSessionHookAsync(
@@ -179,7 +162,7 @@ public sealed class TerminalLifecycle
         await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task StopCoreAsync(CancellationTokenSource sessionCancellation, IReadOnlyList<Task> ownedTasks)
+    private async Task StopCoreAsync(CancellationTokenSource sessionCancellation, Task lifecycleTask)
     {
         try
         {
@@ -187,7 +170,7 @@ public sealed class TerminalLifecycle
 
             try
             {
-                await Task.WhenAll(ownedTasks).ConfigureAwait(false);
+                await lifecycleTask.ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested && _fault is null) { }
         }
