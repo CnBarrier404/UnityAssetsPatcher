@@ -66,10 +66,7 @@ internal sealed class TerminalSession
             culture,
             _scopeFactory,
             _runtimeConfig,
-            _loggingLevelSwitch,
-            () => WindowsNativeFilePicker.PickFile(
-                strings.InstallPage_SelectModDialogTitle,
-                strings.InstallPage_ModZipFileType));
+            _loggingLevelSwitch);
 
         var context = new TerminalFlowContext(
             shell,

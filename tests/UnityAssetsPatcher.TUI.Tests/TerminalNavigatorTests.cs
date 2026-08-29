@@ -36,35 +36,24 @@ public sealed class TerminalNavigatorTests
     }
 
     [Fact]
-    public void TerminalNavigator_WhenInstallModPageIsShown_RendersBeforeInvokingModFilePicker()
+    public void TerminalNavigator_WhenInstallModIsSelected_ShowsInstallModPage()
     {
-        var events = new List<string>();
-        using TerminalShellView shell = new(
-            "Footer",
-            render: () => events.Add("render"));
+        using TerminalShellView shell = new("Footer");
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
         var navigator = new TerminalNavigator(
             shell,
             new CultureInfo("en-US"),
             provider.GetRequiredService<IServiceScopeFactory>(),
             new AppRuntimeConfig(),
-            null,
-            () =>
-            {
-                events.Add("picker");
-                return null;
-            });
+            null);
 
         navigator.ShowMainMenu();
-        shell.BeginInit();
-        shell.EndInit();
 
         View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
         MainMenuView mainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
         mainMenu.SubViews.OfType<ChoiceItemList>().First().Button.InvokeCommand(Command.Accept);
 
-        Assert.Equal(["render", "picker"], events);
-        Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
+        Assert.Single(contentHost.SubViews.OfType<InstallModView>());
     }
 
     private static TerminalNavigator CreateNavigator(
@@ -77,7 +66,6 @@ public sealed class TerminalNavigatorTests
             culture,
             scopeFactory,
             new AppRuntimeConfig(),
-            null,
-            static () => null);
+            null);
     }
 }

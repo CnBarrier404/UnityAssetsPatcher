@@ -25,7 +25,6 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private readonly LocalizedStrings _strings;
     private readonly AppRuntimeConfig _runtimeConfig;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
-    private readonly Func<string?> _pickModFile;
     private readonly Action _returnToMainMenu;
     private readonly ActionButton _selectModButton;
     private readonly WorkingIndicator _message;
@@ -41,17 +40,14 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         LocalizedStrings strings,
         IServiceScopeFactory scopeFactory,
         AppRuntimeConfig runtimeConfig,
-        Func<string?> pickModFile,
         Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
         ArgumentNullException.ThrowIfNull(scopeFactory);
-        ArgumentNullException.ThrowIfNull(pickModFile);
 
         _strings = strings;
         _scopeFactory = scopeFactory;
         _runtimeConfig = runtimeConfig;
-        _pickModFile = pickModFile;
         _returnToMainMenu = returnToMainMenu;
         KeyDown += (_, key) =>
         {
@@ -123,7 +119,9 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             return;
         }
 
-        string? selectedPath = _pickModFile();
+        string? selectedPath = WindowsNativeFilePicker.PickFile(
+            _strings.InstallPage_SelectModDialogTitle,
+            _strings.InstallPage_ModZipFileType);
         if (string.IsNullOrWhiteSpace(selectedPath))
         {
             _returnToMainMenu();

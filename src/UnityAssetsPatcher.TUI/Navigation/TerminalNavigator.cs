@@ -16,28 +16,24 @@ public sealed class TerminalNavigator
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly AppRuntimeConfig _runtimeConfig;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
-    private readonly Func<string?> _pickModFile;
 
     public TerminalNavigator(
         TerminalShellView shell,
         CultureInfo culture,
         IServiceScopeFactory scopeFactory,
         AppRuntimeConfig runtimeConfig,
-        ILoggingLevelSwitch? loggingLevelSwitch,
-        Func<string?> pickModFile)
+        ILoggingLevelSwitch? loggingLevelSwitch)
     {
         ArgumentNullException.ThrowIfNull(shell);
         ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(runtimeConfig);
-        ArgumentNullException.ThrowIfNull(pickModFile);
 
         _shell = shell;
         _strings = new LocalizedStrings(culture);
         _scopeFactory = scopeFactory;
         _runtimeConfig = runtimeConfig;
         _loggingLevelSwitch = loggingLevelSwitch;
-        _pickModFile = pickModFile;
     }
 
     public void ShowMainMenu()
@@ -66,7 +62,6 @@ public sealed class TerminalNavigator
                     _strings,
                     _scopeFactory,
                     _runtimeConfig,
-                    _pickModFile,
                     returnToMainMenu)),
             new TerminalMenuItem(
                 _strings.MainMenu_UninstallMod_Title,
