@@ -85,6 +85,8 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
 
         Initialized += (_, _) => firstButton?.SetFocus();
 
+        // TODO: Move update checking to page/session logic so it runs once per
+        // terminal session instead of once per MainMenuView instance.
         if (_scopeFactory is not null)
         {
             _updateCancellation = new CancellationTokenSource();
