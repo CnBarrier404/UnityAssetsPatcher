@@ -1,31 +1,26 @@
-using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Lifecycle;
 
-public sealed class TerminalLifecycleContext
+internal sealed class TerminalFlowContext
 {
     public ITerminalUIDispatcher UIDispatcher { get; }
-    public TerminalNavigator Navigator { get; }
     public ITerminalContentHost ContentHost { get; }
     public TerminalTaskRunner TaskRunner { get; }
     public Action RequestStop { get; }
 
-    public TerminalLifecycleContext(
+    public TerminalFlowContext(
         ITerminalUIDispatcher uiDispatcher,
-        TerminalNavigator navigator,
         ITerminalContentHost contentHost,
         TerminalTaskRunner taskRunner,
         Action requestStop)
     {
         ArgumentNullException.ThrowIfNull(uiDispatcher);
-        ArgumentNullException.ThrowIfNull(navigator);
         ArgumentNullException.ThrowIfNull(contentHost);
         ArgumentNullException.ThrowIfNull(taskRunner);
         ArgumentNullException.ThrowIfNull(requestStop);
 
         UIDispatcher = uiDispatcher;
-        Navigator = navigator;
         ContentHost = contentHost;
         TaskRunner = taskRunner;
         RequestStop = requestStop;

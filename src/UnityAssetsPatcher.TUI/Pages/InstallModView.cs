@@ -198,8 +198,8 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             IncludePatchPreviewDetails = false
         };
         bool started = _taskRunner.TryRun(
-            () => DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
-                new PreviewInstallRequest(request)),
+            cancellationToken => DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
+                new PreviewInstallRequest(request), cancellationToken),
             result =>
             {
                 _isWorking = false;
@@ -324,7 +324,9 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         string? gameDirectory,
         IReadOnlyList<string> selectedGroups)
     {
-        _form.RemoveAll();
+        _form.RemoveAllAndDispose(_message);
+        _message.Visible = false;
+        _form.Add(_message);
         var summaryRows = GetPreviewSummaryRows(result);
         var status = new StyledLabel(
             _strings.InstallPreview_DryRunStatus, TextRole.Preview) { X = 0, Y = 0 };
@@ -402,8 +404,8 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             PreparedInstall = _preparedInstall
         };
         bool started = _taskRunner.TryRun(
-            () => DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
-                new InstallModRequest(request)),
+            cancellationToken => DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
+                new InstallModRequest(request), cancellationToken),
             result =>
             {
                 _isWorking = false;
@@ -437,7 +439,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private void ShowWorking(string text)
     {
-        _form.RemoveAll();
+        _form.RemoveAllAndDispose(_message);
         _message.Y = 0;
         _form.Add(_message);
         ShowBusy(text);
@@ -445,18 +447,22 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
+        return await dispatcher
+            .DispatchAsync<TRequest, TResponse>(request, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private void ShowResult(InstallModResult result)
     {
-        _form.RemoveAll();
+        _form.RemoveAllAndDispose();
         var summaryRows = GetResultSummaryRows(result);
         string text = FormatResultDetails(result);
         int detailsHeight = string.IsNullOrEmpty(text) ? 0 : GetReportHeight(text);
@@ -486,7 +492,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
     private void ShowResult(string text, bool isError)
     {
-        _form.RemoveAll();
+        _form.RemoveAllAndDispose();
         int outputHeight = GetReportHeight(text);
         var output = new StyledLabel(
             text, isError ? TextRole.Error : TextRole.Base)

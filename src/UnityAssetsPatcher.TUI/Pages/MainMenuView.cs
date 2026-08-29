@@ -21,6 +21,7 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
     private readonly LocalizedStrings? _strings;
     private readonly IServiceScopeFactory? _scopeFactory;
     private readonly ITerminalUIDispatcher? _uiDispatcher;
+    private readonly TerminalTaskRunner? _taskRunner;
     private readonly CancellationTokenSource? _updateCancellation;
     private bool _hasUpdate;
 
@@ -33,15 +34,17 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
         LocalizedStrings strings,
         IReadOnlyList<TerminalMenuItem> items,
         IServiceScopeFactory scopeFactory,
-        ITerminalUIDispatcher uiDispatcher)
-        : this(strings.MainMenu_Title, items, strings, scopeFactory, uiDispatcher) { }
+        ITerminalUIDispatcher uiDispatcher,
+        TerminalTaskRunner taskRunner)
+        : this(strings.MainMenu_Title, items, strings, scopeFactory, uiDispatcher, taskRunner) { }
 
     private MainMenuView(
         string title,
         IReadOnlyList<TerminalMenuItem> items,
         LocalizedStrings? strings,
         IServiceScopeFactory? scopeFactory,
-        ITerminalUIDispatcher? uiDispatcher)
+        ITerminalUIDispatcher? uiDispatcher,
+        TerminalTaskRunner? taskRunner = null)
     {
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(items);
@@ -49,6 +52,7 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
         _strings = strings;
         _scopeFactory = scopeFactory;
         _uiDispatcher = uiDispatcher;
+        _taskRunner = taskRunner;
 
         _updateArea = new View
         {
@@ -90,11 +94,16 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
 
         Initialized += (_, _) => firstButton?.SetFocus();
 
-        if (_scopeFactory is not null && _uiDispatcher is not null)
+        if (_scopeFactory is not null && _uiDispatcher is not null && _taskRunner is not null)
         {
             _updateCancellation = new CancellationTokenSource();
-            Initialized += (_, _) => _ = CheckForUpdateAsync(_updateCancellation.Token);
-            Disposing += (_, _) => _updateCancellation.Cancel();
+            Initialized += (_, _) =>
+                _taskRunner.TryRunBackground(CheckForUpdateAsync, _updateCancellation.Token);
+            Disposing += (_, _) =>
+            {
+                _updateCancellation.Cancel();
+                _updateCancellation.Dispose();
+            };
         }
     }
 

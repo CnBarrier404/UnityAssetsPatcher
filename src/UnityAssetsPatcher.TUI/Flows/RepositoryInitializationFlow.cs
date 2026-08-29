@@ -26,7 +26,7 @@ internal sealed class RepositoryInitializationFlow
         _strings = new LocalizedStrings(CultureInfo.CurrentUICulture);
     }
 
-    public async Task RunAsync(TerminalLifecycleContext context, CancellationToken cancellationToken)
+    public async Task RunAsync(TerminalFlowContext context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -64,7 +64,7 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void ShowInitializationResult(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         OperationResult<RepositoryRecoveryReport> result,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
@@ -89,15 +89,15 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void PreviewRecovery(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         string gameDirectory,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
     {
         bool started = context.TaskRunner.TryRun(
-            () => DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
+            operationCancellation => DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
                 new PreviewRecoveryRequest(gameDirectory),
-                cancellationToken),
+                operationCancellation),
             result =>
                 RunOnUi(completion, cancellationToken, () =>
                 {
@@ -137,12 +137,12 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void RetryRepositoryInitialization(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
     {
         bool started = context.TaskRunner.TryRun(
-            () => Task.FromResult(InitializeRepository(cancellationToken)),
+            operationCancellation => Task.FromResult(InitializeRepository(operationCancellation)),
             result => RunOnUi(
                 completion,
                 cancellationToken,
@@ -159,22 +159,22 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void Recover(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         string gameDirectory,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
     {
         RunRecoveryOperation(
             context,
-            () => DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
+            operationCancellation => DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
                 new RecoverRecoveryRequest(gameDirectory),
-                cancellationToken),
+                operationCancellation),
             completion,
             cancellationToken);
     }
 
     private void ShowUnsupportedRepository(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         OperationError formatError,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken,
@@ -200,7 +200,7 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void ShowClearUnsupportedRepositoryConfirmation(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         OperationError formatError,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
@@ -212,15 +212,16 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void ClearUnsupportedRepository(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         OperationError formatError,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
     {
         bool started = context.TaskRunner.TryRun(
-            () => DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
-                new ClearUnsupportedRepositoryRequest(),
-                cancellationToken),
+            operationCancellation =>
+                DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
+                    new ClearUnsupportedRepositoryRequest(),
+                    operationCancellation),
             result =>
                 RunOnUi(completion, cancellationToken, () =>
                 {
@@ -260,8 +261,8 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void RunRecoveryOperation(
-        TerminalLifecycleContext context,
-        Func<Task<OperationResult<RepositoryRecoveryReport>>> operation,
+        TerminalFlowContext context,
+        Func<CancellationToken, Task<OperationResult<RepositoryRecoveryReport>>> operation,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
     {
@@ -291,7 +292,7 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void ShowRecoveryFailure(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
     {
@@ -300,7 +301,7 @@ internal sealed class RepositoryInitializationFlow
     }
 
     private void ShowRecoveryResult(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
         TaskCompletionSource<object?> completion,
         CancellationToken cancellationToken)
     {

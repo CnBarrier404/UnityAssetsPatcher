@@ -52,7 +52,7 @@ public sealed class TerminalNavigator
     public void ShowMainMenu()
     {
         var items = CreateMenuItems();
-        var menu = new MainMenuView(_strings, items, _scopeFactory, _uiDispatcher);
+        var menu = new MainMenuView(_strings, items, _scopeFactory, _uiDispatcher, _taskRunner);
 
         menu.ItemSelected += (_, item) =>
         {

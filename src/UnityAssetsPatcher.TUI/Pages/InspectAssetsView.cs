@@ -87,7 +87,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     {
         SetPage(_strings.MainMenu_InspectAssets_Title, _strings.InspectPage_Description);
 
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
 
         ChoiceItem list = AddChoice(
             _strings.InspectPage_ListAssetsTitle,
@@ -128,7 +128,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowPathInput(Action<string> accepted)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         string prompt = $"{_strings.InspectPage_AssetsFilePathPrompt}: ";
 
         var label = new StyledLabel(prompt, TextRole.Label)
@@ -178,7 +178,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     {
         SetPage(_strings.InspectPage_RowsToPrintTitle,
             _strings.InspectPage_ListAssetsDescription);
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         Button first = CreateActionButton(_strings.InspectPage_First100Choice, 0, 0);
         first.Accepted += (_, _) => InspectList(assetsFilePath, DefaultLimit);
         Button all = CreateActionButton(_strings.InspectPage_AllRowsChoice, 0, 2);
@@ -193,7 +193,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowCustomLimitInput(string assetsFilePath)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         string prompt = $"{_strings.InspectPage_MaximumRowsPrompt}: ";
         var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = 0 };
         var input = new InputField { X = prompt.GetColumns(), Y = 0, Width = 12 };
@@ -227,8 +227,8 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         }
 
         bool started = _taskRunner.TryRun(
-            () => DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
-                new InspectListRequest(path, limit)),
+            cancellationToken => DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
+                new InspectListRequest(path, limit), cancellationToken),
             result =>
             {
                 _isWorking = false;
@@ -260,7 +260,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowAssets(InspectListResult result)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var table = new DataTableView
         {
             X = 0,
@@ -284,7 +284,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     {
         SetPage(_strings.InspectPage_ShowFieldsTitle,
             _strings.InspectPage_ShowFieldsDescription);
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         string pathPrompt = $"{_strings.InspectPage_AssetsFilePathPrompt}: ";
         var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
         var pathInput = new InputField
@@ -337,8 +337,8 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         }
 
         bool started = _taskRunner.TryRun(
-            () => DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
-                new InspectFieldsRequest(path, pathId)),
+            cancellationToken => DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
+                new InspectFieldsRequest(path, pathId), cancellationToken),
             result =>
             {
                 _isWorking = false;
@@ -370,7 +370,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowFields(AssetField fieldTree)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var output = new TextViewer(FormatFieldTree(fieldTree))
         {
             X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(2)
@@ -383,7 +383,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowWorking()
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var status = new WorkingIndicator(_strings.InspectPage_Analyzing)
             { X = 0, Y = 0 };
         _body.Add(status);
@@ -392,7 +392,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowError(string message)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var error = new StyledLabel(message, TextRole.Error)
             { X = 0, Y = 0, Width = Dim.Fill() };
         Button back = CreateActionButton(_strings.InspectPage_ReturnAction, 0, 2);
@@ -401,13 +401,17 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         back.SetFocus();
     }
 
-    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
+        return await dispatcher
+            .DispatchAsync<TRequest, TResponse>(request, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private void SetPage(string title, string description)

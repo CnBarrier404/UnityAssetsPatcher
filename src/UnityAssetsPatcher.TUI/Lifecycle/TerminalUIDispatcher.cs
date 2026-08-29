@@ -45,6 +45,11 @@ internal sealed class TerminalUIDispatcher : ITerminalUIDispatcher
         }
     }
 
+    public Task InvokeAsync(Action callback, CancellationToken cancellationToken = default)
+    {
+        return TerminalUIInvocation.InvokeAsync(this, callback, cancellationToken);
+    }
+
     public void StopAccepting()
     {
         Volatile.Write(ref _isAccepting, 0);

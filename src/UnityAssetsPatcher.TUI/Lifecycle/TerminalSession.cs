@@ -57,7 +57,7 @@ internal sealed class TerminalSession
             warningText,
             () => application.LayoutAndDraw());
         var uiDispatcher = new TerminalUIDispatcher(application);
-        var taskRunner = new TerminalTaskRunner(callback => uiDispatcher.TryInvoke(callback));
+        await using var taskRunner = new TerminalTaskRunner(uiDispatcher);
         var navigator = new TerminalNavigator(
             shell,
             culture,
@@ -70,33 +70,43 @@ internal sealed class TerminalSession
                 strings.InstallPage_SelectModDialogTitle,
                 strings.InstallPage_ModZipFileType));
 
-        var context = new TerminalLifecycleContext(uiDispatcher, navigator, shell, taskRunner, application.RequestStop);
-        using var sessionCancellation = new CancellationTokenSource();
-        Task startupTask = Task.Run(
-            () => RunStartupAsync(context, sessionCancellation.Token),
-            CancellationToken.None);
+        var context = new TerminalFlowContext(
+            uiDispatcher,
+            shell,
+            taskRunner,
+            () => application.RequestStop(shell));
+
+        void StartSession(object? sender, EventArgs eventArgs)
+        {
+            shell.Initialized -= StartSession;
+
+            if (!taskRunner.TryRunBackground(cancellationToken => RunStartupAsync(
+                    context,
+                    navigator,
+                    cancellationToken)))
+            {
+                application.RequestStop(shell);
+            }
+        }
+
+        shell.Initialized += StartSession;
 
         _logger.LogInformation("Terminal application started");
 
         try
         {
-            await application.RunAsync(shell, sessionCancellation.Token);
+            application.Run(shell);
         }
         finally
         {
             uiDispatcher.StopAccepting();
-            await sessionCancellation.CancelAsync().ConfigureAwait(false);
-
-            try
-            {
-                await startupTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested) { }
+            await taskRunner.StopAsync().ConfigureAwait(false);
         }
     }
 
     private async Task RunStartupAsync(
-        TerminalLifecycleContext context,
+        TerminalFlowContext context,
+        TerminalNavigator navigator,
         CancellationToken cancellationToken)
     {
         try
@@ -105,10 +115,9 @@ internal sealed class TerminalSession
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            await InvokeOnUIAsync(
-                context,
-                context.Navigator.ShowMainMenu,
-                cancellationToken).ConfigureAwait(false);
+            await context.UIDispatcher
+                .InvokeAsync(navigator.ShowMainMenu, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -120,7 +129,9 @@ internal sealed class TerminalSession
 
             try
             {
-                context.RequestStop();
+                await context.UIDispatcher
+                    .InvokeAsync(context.RequestStop, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             catch (Exception stopException)
             {
@@ -129,42 +140,5 @@ internal sealed class TerminalSession
 
             throw;
         }
-    }
-
-    private static async Task InvokeOnUIAsync(
-        TerminalLifecycleContext context,
-        Action action,
-        CancellationToken cancellationToken)
-    {
-        var completion = new TaskCompletionSource<object?>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-
-        bool started = context.UIDispatcher.TryInvoke(
-            () =>
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                try
-                {
-                    action();
-                    completion.TrySetResult(null);
-                }
-                catch (Exception exception)
-                {
-                    completion.TrySetException(exception);
-                }
-            },
-            cancellationToken);
-
-        if (!started)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new InvalidOperationException("The terminal UI is no longer accepting startup updates.");
-        }
-
-        await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 }
