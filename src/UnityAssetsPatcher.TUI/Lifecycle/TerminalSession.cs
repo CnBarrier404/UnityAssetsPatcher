@@ -52,14 +52,11 @@ internal sealed class TerminalSession
         var strings = new LocalizedStrings(culture);
         string? warningText = isLegacyConsole ? strings.Layout_LegacyConsoleWarning : null;
 
+        var renderer = new ApplicationRenderer(application);
         using TerminalShellView shell = new(
             strings.Layout_ShortcutHint,
             warningText,
-            () => application.LayoutAndDraw());
-        using var sessionCancellation = new CancellationTokenSource();
-        Task? startupTask = null;
-        bool isStopPending = false;
-        bool canStop = false;
+            renderer.Render);
 
         var navigator = new TerminalNavigator(
             shell,
@@ -68,85 +65,12 @@ internal sealed class TerminalSession
             _runtimeConfig,
             _loggingLevelSwitch);
 
+        var runState = new RunState(this, application, shell, navigator);
         var context = new TerminalFlowContext(
             shell,
-            () => application.RequestStop(shell));
+            runState.RequestStop);
 
-        void StartSession(object? sender, EventArgs eventArgs)
-        {
-            shell.Initialized -= StartSession;
-            startupTask = RunStartupAsync(context, navigator, sessionCancellation.Token);
-        }
-
-        void CancelStartupBeforeStopping(object? sender, CancelEventArgs<bool> eventArgs)
-        {
-            if (eventArgs.NewValue || canStop)
-            {
-                return;
-            }
-
-            sessionCancellation.Cancel();
-
-            if (startupTask is null || startupTask.IsCompleted)
-            {
-                return;
-            }
-
-            eventArgs.Cancel = true;
-
-            if (isStopPending)
-            {
-                return;
-            }
-
-            isStopPending = true;
-            _ = RequestStopAfterStartupAsync(startupTask);
-        }
-
-        async Task RequestStopAfterStartupAsync(Task task)
-        {
-            try
-            {
-                await task;
-            }
-            catch
-            {
-                // RunStartupAsync logs failures; RunAsync observes them after Run returns.
-            }
-
-            application.AddTimeout(
-                TimeSpan.Zero,
-                () =>
-                {
-                    canStop = true;
-                    application.RequestStop(shell);
-                    return false;
-                });
-        }
-
-        shell.Initialized += StartSession;
-        shell.IsRunningChanging += CancelStartupBeforeStopping;
-
-        _logger.LogInformation("Terminal application started");
-
-        try
-        {
-            application.Run(shell);
-        }
-        finally
-        {
-            shell.IsRunningChanging -= CancelStartupBeforeStopping;
-            await sessionCancellation.CancelAsync().ConfigureAwait(false);
-
-            if (startupTask is not null)
-            {
-                try
-                {
-                    await startupTask.ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested) { }
-            }
-        }
+        await runState.RunAsync(context);
     }
 
     private async Task RunStartupAsync(
@@ -179,6 +103,121 @@ internal sealed class TerminalSession
             }
 
             throw;
+        }
+    }
+
+    private sealed class ApplicationRenderer(IApplication application)
+    {
+        public void Render()
+        {
+            application.LayoutAndDraw();
+        }
+    }
+
+    private sealed class RunState(
+        TerminalSession session,
+        IApplication application,
+        TerminalShellView shell,
+        TerminalNavigator navigator)
+    {
+        private CancellationTokenSource? _sessionCancellation;
+        private TerminalFlowContext? _context;
+        private Task? _startupTask;
+        private bool _isStopPending;
+        private bool _canStop;
+
+        public async Task RunAsync(TerminalFlowContext context)
+        {
+            using var sessionCancellation = new CancellationTokenSource();
+            _sessionCancellation = sessionCancellation;
+            _context = context;
+
+            shell.Initialized += StartSession;
+            shell.IsRunningChanging += CancelStartupBeforeStopping;
+
+            session._logger.LogInformation("Terminal application started");
+
+            try
+            {
+                await application.RunAsync(shell, sessionCancellation.Token);
+            }
+            finally
+            {
+                shell.Initialized -= StartSession;
+                shell.IsRunningChanging -= CancelStartupBeforeStopping;
+                await sessionCancellation.CancelAsync().ConfigureAwait(false);
+
+                if (_startupTask is not null)
+                {
+                    try
+                    {
+                        await _startupTask.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested) { }
+                }
+            }
+        }
+
+        public void RequestStop()
+        {
+            application.RequestStop(shell);
+        }
+
+        private void StartSession(object? sender, EventArgs eventArgs)
+        {
+            shell.Initialized -= StartSession;
+            _startupTask = session.RunStartupAsync(
+                _context!,
+                navigator,
+                _sessionCancellation!.Token);
+        }
+
+        private void CancelStartupBeforeStopping(
+            object? sender,
+            CancelEventArgs<bool> eventArgs)
+        {
+            if (eventArgs.NewValue || _canStop)
+            {
+                return;
+            }
+
+            _sessionCancellation!.Cancel();
+
+            if (_startupTask is null || _startupTask.IsCompleted)
+            {
+                return;
+            }
+
+            eventArgs.Cancel = true;
+
+            if (_isStopPending)
+            {
+                return;
+            }
+
+            _isStopPending = true;
+            _ = RequestStopAfterStartupAsync(_startupTask);
+        }
+
+        private async Task RequestStopAfterStartupAsync(Task task)
+        {
+            try
+            {
+                await task;
+            }
+            catch
+            {
+                // RunStartupAsync logs failures; RunAsync observes them after Run returns.
+            }
+
+            application.AddTimeout(TimeSpan.Zero, StopAfterStartup);
+        }
+
+        private bool StopAfterStartup()
+        {
+            _canStop = true;
+            RequestStop();
+            return false;
         }
     }
 }
