@@ -7,7 +7,6 @@ namespace UnityAssetsPatcher.TUI.Lifecycle;
 public sealed class TerminalLifecycle
 {
     private readonly IReadOnlyList<ITerminalStartupHook> _startupHooks;
-    private readonly IReadOnlyList<ITerminalSessionHook> _sessionHooks;
     private readonly ILogger<TerminalLifecycle> _logger;
     private readonly Lock _gate = new();
     private CancellationTokenSource? _sessionCancellation;
@@ -17,14 +16,11 @@ public sealed class TerminalLifecycle
 
     public TerminalLifecycle(
         IEnumerable<ITerminalStartupHook> startupHooks,
-        IEnumerable<ITerminalSessionHook> sessionHooks,
         ILogger<TerminalLifecycle>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(startupHooks);
-        ArgumentNullException.ThrowIfNull(sessionHooks);
 
         _startupHooks = [.. startupHooks];
-        _sessionHooks = [.. sessionHooks];
         _logger = logger ?? NullLogger<TerminalLifecycle>.Instance;
     }
 
@@ -92,34 +88,7 @@ public sealed class TerminalLifecycle
         }
         catch (Exception exception)
         {
-            HandleFault(exception, "startup", context);
-
-            throw;
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        await Task.WhenAll(
-                _sessionHooks.Select(hook => RunSessionHookAsync(hook, context, cancellationToken)))
-            .ConfigureAwait(false);
-    }
-
-    private async Task RunSessionHookAsync(
-        ITerminalSessionHook hook,
-        TerminalLifecycleContext context,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await hook.RunAsync(context, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            HandleFault(exception, "session", context);
+            HandleFault(exception, context);
 
             throw;
         }
@@ -182,7 +151,7 @@ public sealed class TerminalLifecycle
         _fault?.Throw();
     }
 
-    private void HandleFault(Exception exception, string hookKind, TerminalLifecycleContext context)
+    private void HandleFault(Exception exception, TerminalLifecycleContext context)
     {
         ExceptionDispatchInfo fault = ExceptionDispatchInfo.Capture(exception);
         bool isFirstFault = Interlocked.CompareExchange(ref _fault, fault, null) is null;
@@ -192,7 +161,7 @@ public sealed class TerminalLifecycle
             return;
         }
 
-        _logger.LogError(exception, "Terminal {HookKind} hook failed.", hookKind);
+        _logger.LogError(exception, "Terminal startup hook failed.");
 
         CancellationTokenSource? sessionCancellation;
 

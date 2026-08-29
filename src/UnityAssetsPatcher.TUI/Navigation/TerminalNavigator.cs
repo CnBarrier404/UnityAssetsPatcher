@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Updates;
+using UnityAssetsPatcher.TUI.Lifecycle;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
@@ -17,10 +17,9 @@ public sealed class TerminalNavigator
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly AppRuntimeConfig _runtimeConfig;
     private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
+    private readonly ITerminalUIDispatcher _uiDispatcher;
     private readonly TerminalTaskRunner _taskRunner;
     private readonly Func<string?> _pickModFile;
-    private UpdateInfo? _availableUpdate;
-    private MainMenuView? _visibleMainMenu;
 
     public TerminalNavigator(
         TerminalShellView shell,
@@ -28,6 +27,7 @@ public sealed class TerminalNavigator
         IServiceScopeFactory scopeFactory,
         AppRuntimeConfig runtimeConfig,
         ILoggingLevelSwitch? loggingLevelSwitch,
+        ITerminalUIDispatcher uiDispatcher,
         TerminalTaskRunner taskRunner,
         Func<string?> pickModFile)
     {
@@ -35,6 +35,7 @@ public sealed class TerminalNavigator
         ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(runtimeConfig);
+        ArgumentNullException.ThrowIfNull(uiDispatcher);
         ArgumentNullException.ThrowIfNull(taskRunner);
         ArgumentNullException.ThrowIfNull(pickModFile);
 
@@ -43,6 +44,7 @@ public sealed class TerminalNavigator
         _scopeFactory = scopeFactory;
         _runtimeConfig = runtimeConfig;
         _loggingLevelSwitch = loggingLevelSwitch;
+        _uiDispatcher = uiDispatcher;
         _taskRunner = taskRunner;
         _pickModFile = pickModFile;
     }
@@ -50,32 +52,16 @@ public sealed class TerminalNavigator
     public void ShowMainMenu()
     {
         var items = CreateMenuItems();
-        TerminalUpdateNotice? updateNotice = _availableUpdate is null
-            ? null
-            : CreateUpdateNotice(_availableUpdate);
-        var menu = new MainMenuView(_strings.MainMenu_Title, items, updateNotice);
-
-        _visibleMainMenu = menu;
+        var menu = new MainMenuView(_strings, items, _scopeFactory, _uiDispatcher);
 
         menu.ItemSelected += (_, item) =>
         {
-            _visibleMainMenu = null;
-
             View content = item.CreateView(ShowMainMenu);
 
             _shell.ShowContent(content);
         };
 
         _shell.ShowContent(menu);
-    }
-
-    public void ShowAvailableUpdate(UpdateInfo update)
-    {
-        ArgumentNullException.ThrowIfNull(update);
-
-        _availableUpdate = update;
-
-        _visibleMainMenu?.ShowAvailableUpdate(CreateUpdateNotice(update));
     }
 
     private TerminalMenuItem[] CreateMenuItems()
@@ -117,12 +103,5 @@ public sealed class TerminalNavigator
                     returnToMainMenu,
                     _loggingLevelSwitch))
         ];
-    }
-
-    private TerminalUpdateNotice CreateUpdateNotice(UpdateInfo update)
-    {
-        return new TerminalUpdateNotice(
-            _strings.Update_AvailableFormat(update.Version),
-            _strings.Update_DownloadFormat(update.ReleaseUrl));
     }
 }

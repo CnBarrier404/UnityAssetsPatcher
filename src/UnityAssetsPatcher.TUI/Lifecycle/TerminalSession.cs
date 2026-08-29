@@ -65,6 +65,7 @@ internal sealed class TerminalSession
             _scopeFactory,
             _runtimeConfig,
             _loggingLevelSwitch,
+            uiDispatcher,
             taskRunner,
             () => WindowsNativeFilePicker.PickFile(
                 strings.InstallPage_SelectModDialogTitle,

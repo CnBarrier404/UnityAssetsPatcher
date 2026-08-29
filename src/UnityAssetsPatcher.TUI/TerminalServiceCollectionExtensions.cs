@@ -13,7 +13,6 @@ public static class TerminalServiceCollectionExtensions
         services.AddSingleton<TerminalApp>();
         services.AddScoped<TerminalLifecycle>();
         services.AddScoped<ITerminalStartupHook, RepositoryInitializationStartupHook>();
-        services.AddScoped<ITerminalSessionHook, UpdateCheckSessionHook>();
         services.AddScoped<TerminalSession>();
 
         return services;

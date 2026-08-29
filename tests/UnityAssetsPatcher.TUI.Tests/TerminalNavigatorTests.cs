@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Lifecycle;
 using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
@@ -51,6 +51,7 @@ public sealed class TerminalNavigatorTests
             provider.GetRequiredService<IServiceScopeFactory>(),
             new AppRuntimeConfig(),
             null,
+            new ImmediateUIDispatcher(),
             taskRunner,
             () =>
             {
@@ -70,51 +71,6 @@ public sealed class TerminalNavigatorTests
         Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
     }
 
-    [Fact]
-    public void ShowAvailableUpdate_WhenAnotherPageIsVisible_ShowsUpdateAfterReturningToMainMenu()
-    {
-        using TerminalShellView shell = new(
-            "Footer");
-        using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
-        TerminalNavigator navigator = CreateNavigator(
-            shell,
-            new CultureInfo("en-US"),
-            provider.GetRequiredService<IServiceScopeFactory>());
-
-        navigator.ShowMainMenu();
-
-        View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
-        MainMenuView mainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
-        ChoiceItemList firstChoice = mainMenu.SubViews.OfType<ChoiceItemList>().First();
-
-        firstChoice.Button.InvokeCommand(Command.Accept);
-
-        var update = new UpdateInfo(
-            "v1.3.0",
-            new Uri("https://example.com/releases/v1.3.0"),
-            new Uri("https://example.com/download/v1.3.0.exe"),
-            new string('0', 64));
-
-        navigator.ShowAvailableUpdate(update);
-
-        Assert.Single(contentHost.SubViews.OfType<InstallModView>());
-
-        navigator.ShowMainMenu();
-
-        MainMenuView updatedMainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
-        var updateLabels = updatedMainMenu.SubViews
-            .SelectMany(view => view.SubViews.Append(view))
-            .OfType<StyledLabel>()
-            .Where(label => label.Text?.ToString().Contains("v1.3.0", StringComparison.Ordinal) == true)
-            .ToArray();
-
-        Assert.Equal(2, updateLabels.Length);
-        Assert.Contains(updateLabels, label => label.Text?.ToString() == "A new version is available: v1.3.0");
-        Assert.Contains(
-            updateLabels,
-            label => label.Text?.ToString() == "Download: https://example.com/releases/v1.3.0");
-    }
-
     private static TerminalNavigator CreateNavigator(
         TerminalShellView shell,
         CultureInfo culture,
@@ -126,7 +82,23 @@ public sealed class TerminalNavigatorTests
             scopeFactory,
             new AppRuntimeConfig(),
             null,
+            new ImmediateUIDispatcher(),
             new TerminalTaskRunner(callback => callback()),
             static () => null);
+    }
+
+    private sealed class ImmediateUIDispatcher : ITerminalUIDispatcher
+    {
+        public bool TryInvoke(Action callback, CancellationToken cancellationToken = default)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            callback();
+
+            return true;
+        }
     }
 }
