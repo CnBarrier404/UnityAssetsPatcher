@@ -104,7 +104,7 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
         {
             using IServiceScope scope = _scopeFactory!.CreateScope();
             var updateCheckModule = scope.ServiceProvider.GetRequiredService<UpdateCheckModule>();
-            OperationResult<UpdateInfo?> result = await updateCheckModule
+            var result = await updateCheckModule
                 .CheckForUpdateAsync(cancellationToken)
                 .ConfigureAwait(false);
 

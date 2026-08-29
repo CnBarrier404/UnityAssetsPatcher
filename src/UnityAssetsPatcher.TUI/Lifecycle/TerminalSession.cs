@@ -72,19 +72,27 @@ internal sealed class TerminalSession
                 strings.InstallPage_ModZipFileType));
 
         var context = new TerminalLifecycleContext(uiDispatcher, navigator, shell, taskRunner, application.RequestStop);
-
-        _ = _lifecycle.Start(context);
+        using var lifecycleCancellation = new CancellationTokenSource();
+        Task lifecycleTask = Task.Run(
+            () => _lifecycle.RunAsync(context, lifecycleCancellation.Token),
+            CancellationToken.None);
 
         _logger.LogInformation("Terminal application started");
 
         try
         {
-            application.Run(shell);
+            await application.RunAsync(shell, lifecycleCancellation.Token);
         }
         finally
         {
             uiDispatcher.StopAccepting();
-            await _lifecycle.StopAsync().ConfigureAwait(false);
+            await lifecycleCancellation.CancelAsync().ConfigureAwait(false);
+
+            try
+            {
+                await lifecycleTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (lifecycleCancellation.IsCancellationRequested) { }
         }
     }
 }

@@ -1,83 +1,34 @@
-using System.Runtime.ExceptionServices;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using UnityAssetsPatcher.TUI.Flows;
 
 namespace UnityAssetsPatcher.TUI.Lifecycle;
 
 public sealed class TerminalLifecycle
 {
-    private readonly IReadOnlyList<ITerminalStartupHook> _startupHooks;
+    private readonly RepositoryInitializationFlow _repositoryInitialization;
     private readonly ILogger<TerminalLifecycle> _logger;
-    private readonly Lock _gate = new();
-    private CancellationTokenSource? _sessionCancellation;
-    private Task? _lifecycleTask;
-    private Task? _stopTask;
-    private ExceptionDispatchInfo? _fault;
 
-    public TerminalLifecycle(
-        IEnumerable<ITerminalStartupHook> startupHooks,
-        ILogger<TerminalLifecycle>? logger = null)
+    public TerminalLifecycle(IServiceScopeFactory scopeFactory, ILogger<TerminalLifecycle>? logger = null)
     {
-        ArgumentNullException.ThrowIfNull(startupHooks);
+        ArgumentNullException.ThrowIfNull(scopeFactory);
 
-        _startupHooks = [.. startupHooks];
+        _repositoryInitialization = new RepositoryInitializationFlow(scopeFactory);
         _logger = logger ?? NullLogger<TerminalLifecycle>.Instance;
     }
 
-    public Task Start(TerminalLifecycleContext context, CancellationToken cancellationToken = default)
+    public async Task RunAsync(TerminalLifecycleContext context, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        lock (_gate)
-        {
-            if (_sessionCancellation is not null)
-            {
-                throw new InvalidOperationException("The terminal lifecycle has already started.");
-            }
-
-            _sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            CancellationToken sessionToken = _sessionCancellation.Token;
-
-            _lifecycleTask = Task.Run(() => RunLifecycleAsync(context, sessionToken), CancellationToken.None);
-
-            return _lifecycleTask;
-        }
-    }
-
-    public Task StopAsync()
-    {
-        lock (_gate)
-        {
-            if (_stopTask is not null)
-            {
-                return _stopTask;
-            }
-
-            if (_sessionCancellation is null)
-            {
-                return Task.CompletedTask;
-            }
-
-            _stopTask = StopCoreAsync(_sessionCancellation, _lifecycleTask!);
-
-            return _stopTask;
-        }
-    }
-
-    private async Task RunLifecycleAsync(TerminalLifecycleContext context, CancellationToken cancellationToken)
-    {
         try
         {
-            foreach (ITerminalStartupHook hook in _startupHooks)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                await hook.RunAsync(context, cancellationToken).ConfigureAwait(false);
-            }
+            await _repositoryInitialization.RunAsync(context, cancellationToken).ConfigureAwait(false);
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            await InvokeOnUiAsync(
+            await InvokeOnUIAsync(
                 context,
                 context.Navigator.ShowMainMenu,
                 cancellationToken).ConfigureAwait(false);
@@ -88,13 +39,22 @@ public sealed class TerminalLifecycle
         }
         catch (Exception exception)
         {
-            HandleFault(exception, context);
+            _logger.LogError(exception, "Terminal lifecycle failed.");
+
+            try
+            {
+                context.RequestStop();
+            }
+            catch (Exception stopException)
+            {
+                _logger.LogError(stopException, "Terminal lifecycle could not request session stop.");
+            }
 
             throw;
         }
     }
 
-    private static async Task InvokeOnUiAsync(
+    private static async Task InvokeOnUIAsync(
         TerminalLifecycleContext context,
         Action action,
         CancellationToken cancellationToken)
@@ -129,56 +89,5 @@ public sealed class TerminalLifecycle
         }
 
         await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task StopCoreAsync(CancellationTokenSource sessionCancellation, Task lifecycleTask)
-    {
-        try
-        {
-            await sessionCancellation.CancelAsync().ConfigureAwait(false);
-
-            try
-            {
-                await lifecycleTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested && _fault is null) { }
-        }
-        finally
-        {
-            sessionCancellation.Dispose();
-        }
-
-        _fault?.Throw();
-    }
-
-    private void HandleFault(Exception exception, TerminalLifecycleContext context)
-    {
-        ExceptionDispatchInfo fault = ExceptionDispatchInfo.Capture(exception);
-        bool isFirstFault = Interlocked.CompareExchange(ref _fault, fault, null) is null;
-
-        if (!isFirstFault)
-        {
-            return;
-        }
-
-        _logger.LogError(exception, "Terminal startup hook failed.");
-
-        CancellationTokenSource? sessionCancellation;
-
-        lock (_gate)
-        {
-            sessionCancellation = _sessionCancellation;
-        }
-
-        sessionCancellation?.Cancel();
-
-        try
-        {
-            context.RequestStop();
-        }
-        catch (Exception stopException)
-        {
-            _logger.LogError(stopException, "Terminal lifecycle could not request session stop.");
-        }
     }
 }

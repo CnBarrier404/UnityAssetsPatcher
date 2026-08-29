@@ -10,15 +10,15 @@ using UnityAssetsPatcher.TUI.Lifecycle;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
 
-namespace UnityAssetsPatcher.TUI.Hooks;
+namespace UnityAssetsPatcher.TUI.Flows;
 
-public sealed class RepositoryInitializationStartupHook : ITerminalStartupHook
+internal sealed class RepositoryInitializationFlow
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private RepositoryRecoveryReport _recovery = RepositoryRecoveryReport.Clean;
 
-    public RepositoryInitializationStartupHook(IServiceScopeFactory scopeFactory)
+    public RepositoryInitializationFlow(IServiceScopeFactory scopeFactory)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
 

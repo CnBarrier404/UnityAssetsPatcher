@@ -45,6 +45,7 @@ This section provides a high-level overview of the project's directory and file 
 │   ├── UnityAssetsPatcher.LocalizationGenerator/      # Roslyn source generator for localized strings
 │   └── UnityAssetsPatcher.TUI/                        # Terminal.Gui interactive UI and localization
 │       ├── Framework/
+│       ├── Lifecycle/
 │       ├── Localization/
 │       ├── Navigation/
 │       ├── Pages/
