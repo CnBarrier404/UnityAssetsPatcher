@@ -24,7 +24,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private readonly AppRuntimeConfig _runtimeConfig;
-    private readonly TerminalTaskRunner _taskRunner;
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly Func<string?> _pickModFile;
     private readonly Action _returnToMainMenu;
     private readonly ActionButton _selectModButton;
@@ -41,7 +41,6 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         LocalizedStrings strings,
         IServiceScopeFactory scopeFactory,
         AppRuntimeConfig runtimeConfig,
-        TerminalTaskRunner taskRunner,
         Func<string?> pickModFile,
         Action returnToMainMenu)
     {
@@ -52,7 +51,6 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         _strings = strings;
         _scopeFactory = scopeFactory;
         _runtimeConfig = runtimeConfig;
-        _taskRunner = taskRunner;
         _pickModFile = pickModFile;
         _returnToMainMenu = returnToMainMenu;
         KeyDown += (_, key) =>
@@ -96,7 +94,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             X = 0,
             Y = 0
         };
-        _selectModButton.Accepted += (_, _) => SelectModFile();
+        _selectModButton.Accepted += async (_, _) => await SelectModFileAsync();
         _message = new WorkingIndicator
         {
             X = 0,
@@ -106,14 +104,19 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         };
         _form.Add(_selectModButton, _message);
         Add(heading, description, _form);
-        Initialized += (_, _) =>
+        Initialized += async (_, _) =>
         {
             RenderRequested?.Invoke(this, EventArgs.Empty);
-            SelectModFile();
+            await SelectModFileAsync();
+        };
+        Disposing += (_, _) =>
+        {
+            _lifetimeCancellation.Cancel();
+            _lifetimeCancellation.Dispose();
         };
     }
 
-    private void SelectModFile()
+    private async Task SelectModFileAsync()
     {
         if (_isWorking)
         {
@@ -128,22 +131,22 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             return;
         }
 
-        Preview(selectedPath);
+        await PreviewAsync(selectedPath);
     }
 
-    private void Preview()
+    private async Task PreviewAsync()
     {
         if (_modPath is null)
         {
-            SelectModFile();
+            await SelectModFileAsync();
 
             return;
         }
 
-        Preview(_modPath);
+        await PreviewAsync(_modPath);
     }
 
-    private void Preview(string modPath)
+    private async Task PreviewAsync(string modPath)
     {
         if (_isWorking)
         {
@@ -197,59 +200,67 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             SelectedOptionalGroups = selectedGroups,
             IncludePatchPreviewDetails = false
         };
-        bool started = _taskRunner.TryRun(
-            cancellationToken => DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
-                new PreviewInstallRequest(request), cancellationToken),
-            result =>
-            {
-                _isWorking = false;
-                _form.Enabled = true;
-
-                if (result is OperationFailed<InstallPreviewResult> failed)
-                {
-                    string message = OperationErrorFormatter.Format(_strings, failed.Error);
-                    if ((failed.Error.Code == GameDirectoryErrorCodes.Required ||
-                         failed.Error.Code == GameDirectoryErrorCodes.NotFound) &&
-                        string.IsNullOrEmpty(gameDirectory))
-                    {
-                        ShowGameDirectory(message);
-                    }
-                    else
-                    {
-                        ShowModError(message);
-                    }
-
-                    return;
-                }
-
-                InstallPreviewResult preview = ((OperationSucceeded<InstallPreviewResult>)result).Value;
-                _preparedInstall = preview.PreparedInstall;
-                if (preview.OptionalGroups.Count > 0 && _optionalGroupArea is null)
-                {
-                    ShowOptionalGroups(preview.OptionalGroups);
-                    ClearMessage();
-                    return;
-                }
-
-                ShowPreview(preview, modPath, gameDirectory, selectedGroups);
-            },
-            exception =>
-            {
-                _isWorking = false;
-                _form.Enabled = true;
-
-                ShowModError(OperationErrorFormatter.FormatUnexpected(_strings));
-            });
-
-        if (!started)
-        {
-            return;
-        }
 
         _isWorking = true;
         _form.Enabled = false;
         ShowBusy(_strings.InstallPage_AnalyzingMod);
         RenderRequested?.Invoke(this, EventArgs.Empty);
+
+        CancellationToken cancellationToken = _lifetimeCancellation.Token;
+
+        try
+        {
+            var result = await DispatchAsync<
+                PreviewInstallRequest,
+                OperationResult<InstallPreviewResult>>(
+                new PreviewInstallRequest(request),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            _form.Enabled = true;
+
+            if (result is OperationFailed<InstallPreviewResult> failed)
+            {
+                string message = OperationErrorFormatter.Format(_strings, failed.Error);
+                if ((failed.Error.Code == GameDirectoryErrorCodes.Required ||
+                     failed.Error.Code == GameDirectoryErrorCodes.NotFound) &&
+                    string.IsNullOrEmpty(gameDirectory))
+                {
+                    ShowGameDirectory(message);
+                }
+                else
+                {
+                    ShowModError(message);
+                }
+
+                return;
+            }
+
+            InstallPreviewResult preview = ((OperationSucceeded<InstallPreviewResult>)result).Value;
+            _preparedInstall = preview.PreparedInstall;
+            if (preview.OptionalGroups.Count > 0 && _optionalGroupArea is null)
+            {
+                ShowOptionalGroups(preview.OptionalGroups);
+                ClearMessage();
+                return;
+            }
+
+            ShowPreview(preview, modPath, gameDirectory, selectedGroups);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            ShowModError(OperationErrorFormatter.FormatUnexpected(_strings));
+        }
+        finally
+        {
+            _isWorking = false;
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                _form.Enabled = true;
+            }
+        }
     }
 
     private void ShowGameDirectory(string message)
@@ -265,7 +276,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 Y = gameDirectoryRow,
                 Width = Dim.Fill()
             };
-            _gameDirectory.Accepted += (_, _) => Preview();
+            _gameDirectory.Accepted += async (_, _) => await PreviewAsync();
             _message.Y = Pos.Bottom(_gameDirectory) + 1;
             _form.Add(label, _gameDirectory);
             _gameDirectory.SetFocus();
@@ -303,7 +314,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         int actionsRow = 3 + groups.Count * 2;
         var actions = new ConfirmationBar(
             _strings.InstallPage_SubmitAction,
-            Preview,
+            PreviewAsync,
             _strings.InstallPage_BackAction,
             _returnToMainMenu)
         {
@@ -380,7 +391,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
 
         var actions = new ConfirmationBar(
             _strings.InstallPage_InstallAction,
-            () => Install(modPath, gameDirectory, selectedGroups),
+            () => InstallAsync(modPath, gameDirectory, selectedGroups),
             _strings.InstallPage_BackAction,
             _returnToMainMenu)
         {
@@ -392,7 +403,10 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         actions.ConfirmButton.SetFocus();
     }
 
-    private void Install(string modPath, string? gameDirectory, IReadOnlyList<string> selectedGroups)
+    private async Task InstallAsync(
+        string modPath,
+        string? gameDirectory,
+        IReadOnlyList<string> selectedGroups)
     {
         if (_isWorking)
         {
@@ -404,38 +418,45 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             SelectedOptionalGroups = selectedGroups,
             PreparedInstall = _preparedInstall
         };
-        bool started = _taskRunner.TryRun(
-            cancellationToken => DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
-                new InstallModRequest(request), cancellationToken),
-            result =>
-            {
-                _isWorking = false;
-                if (result is OperationSucceeded<InstallModResult> succeeded)
-                {
-                    ShowResult(succeeded.Value);
-                }
-                else
-                {
-                    ShowResult(
-                        OperationErrorFormatter.Format(
-                            _strings,
-                            ((OperationFailed<InstallModResult>)result).Error),
-                        true);
-                }
-            },
-            exception =>
-            {
-                _isWorking = false;
-                ShowResult(OperationErrorFormatter.FormatUnexpected(_strings), true);
-            });
-
-        if (!started)
-        {
-            return;
-        }
 
         _isWorking = true;
         ShowWorking(_strings.InstallPage_InstallingMod);
+
+        CancellationToken cancellationToken = _lifetimeCancellation.Token;
+
+        try
+        {
+            var result = await DispatchAsync<
+                InstallModRequest,
+                OperationResult<InstallModResult>>(
+                new InstallModRequest(request),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (result is OperationSucceeded<InstallModResult> succeeded)
+            {
+                ShowResult(succeeded.Value);
+            }
+            else
+            {
+                ShowResult(
+                    OperationErrorFormatter.Format(
+                        _strings,
+                        ((OperationFailed<InstallModResult>)result).Error),
+                    true);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            ShowResult(OperationErrorFormatter.FormatUnexpected(_strings), true);
+        }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
     private void ShowWorking(string text)
@@ -457,8 +478,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
         return await dispatcher
-            .DispatchAsync<TRequest, TResponse>(request, cancellationToken)
-            .ConfigureAwait(false);
+            .DispatchAsync<TRequest, TResponse>(request, cancellationToken);
     }
 
     private void ShowResult(InstallModResult result)

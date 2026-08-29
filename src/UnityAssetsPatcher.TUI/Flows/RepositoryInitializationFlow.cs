@@ -17,6 +17,7 @@ internal sealed class RepositoryInitializationFlow
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private RepositoryRecoveryReport _recovery = RepositoryRecoveryReport.Clean;
+    private bool _isWorking;
 
     public RepositoryInitializationFlow(IServiceScopeFactory scopeFactory)
     {
@@ -30,30 +31,21 @@ internal sealed class RepositoryInitializationFlow
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var completion = new TaskCompletionSource<object?>(
+        var completion = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
-        cancellationToken.ThrowIfCancellationRequested();
-        var result = InitializeRepository(cancellationToken);
-
-        bool started = context.UIDispatcher.TryInvoke(
-            () => RunOnUi(
-                completion,
-                cancellationToken,
-                () => ShowInitializationResult(context, result, completion, cancellationToken)),
+        var result = await Task.Run(
+            () => InitializeRepository(cancellationToken),
             cancellationToken);
 
-        if (!started)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new InvalidOperationException(
-                "The terminal UI is no longer accepting repository initialization updates.");
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        ShowInitializationResult(context, result, completion, cancellationToken);
 
-        await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await completion.Task.WaitAsync(cancellationToken);
     }
 
-    private OperationResult<RepositoryRecoveryReport> InitializeRepository(CancellationToken cancellationToken)
+    private OperationResult<RepositoryRecoveryReport> InitializeRepository(
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -66,7 +58,7 @@ internal sealed class RepositoryInitializationFlow
     private void ShowInitializationResult(
         TerminalFlowContext context,
         OperationResult<RepositoryRecoveryReport> result,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
         if (result is OperationFailed<RepositoryRecoveryReport> failed &&
@@ -88,95 +80,144 @@ internal sealed class RepositoryInitializationFlow
         ShowRecoveryResult(context, completion, cancellationToken);
     }
 
-    private void PreviewRecovery(
+    private async Task PreviewRecoveryAsync(
         TerminalFlowContext context,
         string gameDirectory,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
-        bool started = context.TaskRunner.TryRun(
-            operationCancellation => DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
-                new PreviewRecoveryRequest(gameDirectory),
-                operationCancellation),
-            result =>
-                RunOnUi(completion, cancellationToken, () =>
-                {
-                    if (result is not OperationSucceeded<RepositoryRecoveryPreview> succeeded)
-                    {
-                        ShowRecoveryFailure(context, completion, cancellationToken);
-
-                        return;
-                    }
-
-                    RepositoryRecoveryPreview preview = succeeded.Value;
-
-                    if (!preview.CanRecover)
-                    {
-                        _recovery = new RepositoryRecoveryReport(preview.Status, [], preview.Issues);
-                        ShowRecoveryResult(context, completion, cancellationToken);
-
-                        return;
-                    }
-
-                    context.ContentHost.ShowContent(new RepositoryRecoveryPreviewView(
-                        _strings,
-                        preview,
-                        () => Recover(context, preview.GameDirectory!, completion, cancellationToken),
-                        () => ShowRecoveryResult(context, completion, cancellationToken),
-                        context.RequestStop));
-                }),
-            exception => SetOperationFailure(completion, cancellationToken, exception));
-
-        if (!started)
+        if (_isWorking)
         {
-            RunOnUi(
-                completion,
-                cancellationToken,
-                () => ShowRecoveryFailure(context, completion, cancellationToken));
+            return;
+        }
+
+        _isWorking = true;
+
+        try
+        {
+            var result = await Task.Run(
+                () => DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
+                    new PreviewRecoveryRequest(gameDirectory),
+                    cancellationToken),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (result is not OperationSucceeded<RepositoryRecoveryPreview> succeeded)
+            {
+                ShowRecoveryFailure(context, completion, cancellationToken);
+
+                return;
+            }
+
+            RepositoryRecoveryPreview preview = succeeded.Value;
+
+            if (!preview.CanRecover)
+            {
+                _recovery = new RepositoryRecoveryReport(preview.Status, [], preview.Issues);
+                ShowRecoveryResult(context, completion, cancellationToken);
+
+                return;
+            }
+
+            context.ContentHost.ShowContent(new RepositoryRecoveryPreviewView(
+                _strings,
+                preview,
+                () => RecoverAsync(context, preview.GameDirectory!, completion, cancellationToken),
+                () => ShowRecoveryResult(context, completion, cancellationToken),
+                context.RequestStop));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            SetOperationFailure(completion, cancellationToken, exception);
+        }
+        finally
+        {
+            _isWorking = false;
         }
     }
 
-    private void RetryRepositoryInitialization(
+    private async Task RetryRepositoryInitializationAsync(
         TerminalFlowContext context,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
-        bool started = context.TaskRunner.TryRun(
-            operationCancellation => Task.FromResult(InitializeRepository(operationCancellation)),
-            result => RunOnUi(
-                completion,
-                cancellationToken,
-                () => ShowInitializationResult(context, result, completion, cancellationToken)),
-            exception => SetOperationFailure(completion, cancellationToken, exception));
-
-        if (!started)
+        if (_isWorking)
         {
-            RunOnUi(
-                completion,
-                cancellationToken,
-                () => ShowRecoveryFailure(context, completion, cancellationToken));
+            return;
+        }
+
+        _isWorking = true;
+
+        try
+        {
+            var result = await Task.Run(
+                () => InitializeRepository(cancellationToken),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            ShowInitializationResult(context, result, completion, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            SetOperationFailure(completion, cancellationToken, exception);
+        }
+        finally
+        {
+            _isWorking = false;
         }
     }
 
-    private void Recover(
+    private async Task RecoverAsync(
         TerminalFlowContext context,
         string gameDirectory,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
-        RunRecoveryOperation(
-            context,
-            operationCancellation => DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
-                new RecoverRecoveryRequest(gameDirectory),
-                operationCancellation),
-            completion,
-            cancellationToken);
+        if (_isWorking)
+        {
+            return;
+        }
+
+        _isWorking = true;
+
+        try
+        {
+            var result = await Task.Run(
+                () => DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
+                    new RecoverRecoveryRequest(gameDirectory),
+                    cancellationToken),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _recovery = result switch
+            {
+                OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
+                OperationFailed<RepositoryRecoveryReport> failed =>
+                    failed.Error.Recovery ?? FailedRecovery(),
+                _ => throw new ArgumentOutOfRangeException(nameof(result))
+            };
+
+            ShowRecoveryResult(context, completion, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            SetOperationFailure(completion, cancellationToken, exception);
+        }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
     private void ShowUnsupportedRepository(
         TerminalFlowContext context,
         OperationError formatError,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken,
         OperationError? clearError = null)
     {
@@ -202,98 +243,75 @@ internal sealed class RepositoryInitializationFlow
     private void ShowClearUnsupportedRepositoryConfirmation(
         TerminalFlowContext context,
         OperationError formatError,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
         context.ContentHost.ShowContent(new ClearUnsupportedRepositoryConfirmationView(
             _strings,
-            () => ClearUnsupportedRepository(context, formatError, completion, cancellationToken),
+            () => ClearUnsupportedRepositoryAsync(
+                context,
+                formatError,
+                completion,
+                cancellationToken),
             () => ShowUnsupportedRepository(context, formatError, completion, cancellationToken)));
     }
 
-    private void ClearUnsupportedRepository(
+    private async Task ClearUnsupportedRepositoryAsync(
         TerminalFlowContext context,
         OperationError formatError,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
-        bool started = context.TaskRunner.TryRun(
-            operationCancellation =>
-                DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
-                    new ClearUnsupportedRepositoryRequest(),
-                    operationCancellation),
-            result =>
-                RunOnUi(completion, cancellationToken, () =>
-                {
-                    if (result is OperationSucceeded<RepositoryClearResult>)
-                    {
-                        completion.TrySetResult(null);
-
-                        return;
-                    }
-
-                    if (result is not OperationFailed<RepositoryClearResult> failed)
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(result));
-                    }
-
-                    ShowUnsupportedRepository(
-                        context,
-                        formatError,
-                        completion,
-                        cancellationToken,
-                        failed.Error);
-                }),
-            exception => SetOperationFailure(completion, cancellationToken, exception));
-
-        if (!started)
+        if (_isWorking)
         {
-            RunOnUi(
-                completion,
-                cancellationToken,
-                () => ShowUnsupportedRepository(
-                    context,
-                    formatError,
-                    completion,
-                    cancellationToken,
-                    new OperationError(RepositoryErrorCodes.OperationAlreadyRunning)));
+            return;
         }
-    }
 
-    private void RunRecoveryOperation(
-        TerminalFlowContext context,
-        Func<CancellationToken, Task<OperationResult<RepositoryRecoveryReport>>> operation,
-        TaskCompletionSource<object?> completion,
-        CancellationToken cancellationToken)
-    {
-        bool started = context.TaskRunner.TryRun(
-            operation,
-            result =>
-                RunOnUi(completion, cancellationToken, () =>
-                {
-                    _recovery = result switch
-                    {
-                        OperationSucceeded<RepositoryRecoveryReport> succeeded => succeeded.Value,
-                        OperationFailed<RepositoryRecoveryReport> failed => failed.Error.Recovery ?? FailedRecovery(),
-                        _ => throw new ArgumentOutOfRangeException(nameof(result))
-                    };
+        _isWorking = true;
 
-                    ShowRecoveryResult(context, completion, cancellationToken);
-                }),
-            exception => SetOperationFailure(completion, cancellationToken, exception));
-
-        if (!started)
+        try
         {
-            RunOnUi(
+            var result = await Task.Run(
+                () => DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
+                    new ClearUnsupportedRepositoryRequest(),
+                    cancellationToken),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (result is OperationSucceeded<RepositoryClearResult>)
+            {
+                completion.TrySetResult();
+
+                return;
+            }
+
+            if (result is not OperationFailed<RepositoryClearResult> failed)
+            {
+                throw new ArgumentOutOfRangeException(nameof(result));
+            }
+
+            ShowUnsupportedRepository(
+                context,
+                formatError,
                 completion,
                 cancellationToken,
-                () => ShowRecoveryFailure(context, completion, cancellationToken));
+                failed.Error);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            SetOperationFailure(completion, cancellationToken, exception);
+        }
+        finally
+        {
+            _isWorking = false;
         }
     }
 
     private void ShowRecoveryFailure(
         TerminalFlowContext context,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
         _recovery = FailedRecovery();
@@ -302,7 +320,7 @@ internal sealed class RepositoryInitializationFlow
 
     private void ShowRecoveryResult(
         TerminalFlowContext context,
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
         if (_recovery.Status is RepositoryRecoveryStatus.RecoveryRequired or RepositoryRecoveryStatus.Locked)
@@ -310,38 +328,25 @@ internal sealed class RepositoryInitializationFlow
             context.ContentHost.ShowContent(new RepositoryRecoveryView(
                 _strings,
                 _recovery,
-                gameDirectory => PreviewRecovery(context, gameDirectory, completion, cancellationToken),
-                () => RetryRepositoryInitialization(context, completion, cancellationToken),
+                gameDirectory => PreviewRecoveryAsync(
+                    context,
+                    gameDirectory,
+                    completion,
+                    cancellationToken),
+                () => RetryRepositoryInitializationAsync(
+                    context,
+                    completion,
+                    cancellationToken),
                 context.RequestStop));
 
             return;
         }
 
-        completion.TrySetResult(null);
-    }
-
-    private static void RunOnUi(
-        TaskCompletionSource<object?> completion,
-        CancellationToken cancellationToken,
-        Action action)
-    {
-        if (cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        try
-        {
-            action();
-        }
-        catch (Exception exception)
-        {
-            completion.TrySetException(exception);
-        }
+        completion.TrySetResult();
     }
 
     private static void SetOperationFailure(
-        TaskCompletionSource<object?> completion,
+        TaskCompletionSource completion,
         CancellationToken cancellationToken,
         Exception exception)
     {
@@ -374,6 +379,6 @@ internal sealed class RepositoryInitializationFlow
         using IServiceScope scope = _scopeFactory.CreateScope();
         var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.DispatchAsync<TRequest, TResponse>(request, cancellationToken).ConfigureAwait(false);
+        return await dispatcher.DispatchAsync<TRequest, TResponse>(request, cancellationToken);
     }
 }

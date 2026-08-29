@@ -56,40 +56,79 @@ internal sealed class TerminalSession
             strings.Layout_ShortcutHint,
             warningText,
             () => application.LayoutAndDraw());
-        var uiDispatcher = new TerminalUIDispatcher(application);
-        await using var taskRunner = new TerminalTaskRunner(uiDispatcher);
+        using var sessionCancellation = new CancellationTokenSource();
+        Task? startupTask = null;
+        bool isStopPending = false;
+        bool canStop = false;
+
         var navigator = new TerminalNavigator(
             shell,
             culture,
             _scopeFactory,
             _runtimeConfig,
             _loggingLevelSwitch,
-            uiDispatcher,
-            taskRunner,
             () => WindowsNativeFilePicker.PickFile(
                 strings.InstallPage_SelectModDialogTitle,
                 strings.InstallPage_ModZipFileType));
 
         var context = new TerminalFlowContext(
-            uiDispatcher,
             shell,
-            taskRunner,
             () => application.RequestStop(shell));
 
         void StartSession(object? sender, EventArgs eventArgs)
         {
             shell.Initialized -= StartSession;
+            startupTask = RunStartupAsync(context, navigator, sessionCancellation.Token);
+        }
 
-            if (!taskRunner.TryRunBackground(cancellationToken => RunStartupAsync(
-                    context,
-                    navigator,
-                    cancellationToken)))
+        void CancelStartupBeforeStopping(object? sender, CancelEventArgs<bool> eventArgs)
+        {
+            if (eventArgs.NewValue || canStop)
             {
-                application.RequestStop(shell);
+                return;
             }
+
+            sessionCancellation.Cancel();
+
+            if (startupTask is null || startupTask.IsCompleted)
+            {
+                return;
+            }
+
+            eventArgs.Cancel = true;
+
+            if (isStopPending)
+            {
+                return;
+            }
+
+            isStopPending = true;
+            _ = RequestStopAfterStartupAsync(startupTask);
+        }
+
+        async Task RequestStopAfterStartupAsync(Task task)
+        {
+            try
+            {
+                await task;
+            }
+            catch
+            {
+                // RunStartupAsync logs failures; RunAsync observes them after Run returns.
+            }
+
+            application.AddTimeout(
+                TimeSpan.Zero,
+                () =>
+                {
+                    canStop = true;
+                    application.RequestStop(shell);
+                    return false;
+                });
         }
 
         shell.Initialized += StartSession;
+        shell.IsRunningChanging += CancelStartupBeforeStopping;
 
         _logger.LogInformation("Terminal application started");
 
@@ -99,8 +138,17 @@ internal sealed class TerminalSession
         }
         finally
         {
-            uiDispatcher.StopAccepting();
-            await taskRunner.StopAsync().ConfigureAwait(false);
+            shell.IsRunningChanging -= CancelStartupBeforeStopping;
+            await sessionCancellation.CancelAsync().ConfigureAwait(false);
+
+            if (startupTask is not null)
+            {
+                try
+                {
+                    await startupTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested) { }
+            }
         }
     }
 
@@ -111,13 +159,10 @@ internal sealed class TerminalSession
     {
         try
         {
-            await _repositoryInitialization.RunAsync(context, cancellationToken).ConfigureAwait(false);
+            await _repositoryInitialization.RunAsync(context, cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
-
-            await context.UIDispatcher
-                .InvokeAsync(navigator.ShowMainMenu, cancellationToken)
-                .ConfigureAwait(false);
+            navigator.ShowMainMenu();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -129,9 +174,7 @@ internal sealed class TerminalSession
 
             try
             {
-                await context.UIDispatcher
-                    .InvokeAsync(context.RequestStop, CancellationToken.None)
-                    .ConfigureAwait(false);
+                context.RequestStop();
             }
             catch (Exception stopException)
             {

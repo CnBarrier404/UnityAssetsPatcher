@@ -3,7 +3,6 @@ using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Framework;
-using UnityAssetsPatcher.TUI.Lifecycle;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Shell;
 
@@ -20,39 +19,31 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
     private readonly View _updateArea;
     private readonly LocalizedStrings? _strings;
     private readonly IServiceScopeFactory? _scopeFactory;
-    private readonly ITerminalUIDispatcher? _uiDispatcher;
-    private readonly TerminalTaskRunner? _taskRunner;
     private readonly CancellationTokenSource? _updateCancellation;
     private bool _hasUpdate;
 
     public MainMenuView(
         string title,
         IReadOnlyList<TerminalMenuItem> items)
-        : this(title, items, null, null, null) { }
+        : this(title, items, null, null) { }
 
     internal MainMenuView(
         LocalizedStrings strings,
         IReadOnlyList<TerminalMenuItem> items,
-        IServiceScopeFactory scopeFactory,
-        ITerminalUIDispatcher uiDispatcher,
-        TerminalTaskRunner taskRunner)
-        : this(strings.MainMenu_Title, items, strings, scopeFactory, uiDispatcher, taskRunner) { }
+        IServiceScopeFactory scopeFactory)
+        : this(strings.MainMenu_Title, items, strings, scopeFactory) { }
 
     private MainMenuView(
         string title,
         IReadOnlyList<TerminalMenuItem> items,
         LocalizedStrings? strings,
-        IServiceScopeFactory? scopeFactory,
-        ITerminalUIDispatcher? uiDispatcher,
-        TerminalTaskRunner? taskRunner = null)
+        IServiceScopeFactory? scopeFactory)
     {
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(items);
 
         _strings = strings;
         _scopeFactory = scopeFactory;
-        _uiDispatcher = uiDispatcher;
-        _taskRunner = taskRunner;
 
         _updateArea = new View
         {
@@ -94,11 +85,11 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
 
         Initialized += (_, _) => firstButton?.SetFocus();
 
-        if (_scopeFactory is not null && _uiDispatcher is not null && _taskRunner is not null)
+        if (_scopeFactory is not null)
         {
             _updateCancellation = new CancellationTokenSource();
-            Initialized += (_, _) =>
-                _taskRunner.TryRunBackground(CheckForUpdateAsync, _updateCancellation.Token);
+            Initialized += async (_, _) =>
+                await CheckForUpdateAsync(_updateCancellation.Token);
             Disposing += (_, _) =>
             {
                 _updateCancellation.Cancel();
@@ -114,12 +105,13 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
             using IServiceScope scope = _scopeFactory!.CreateScope();
             var updateCheckModule = scope.ServiceProvider.GetRequiredService<UpdateCheckModule>();
             var result = await updateCheckModule
-                .CheckForUpdateAsync(cancellationToken)
-                .ConfigureAwait(false);
+                .CheckForUpdateAsync(cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (result is OperationSucceeded<UpdateInfo?> { Value: { } update })
             {
-                _uiDispatcher!.TryInvoke(() => ShowAvailableUpdate(update), cancellationToken);
+                ShowAvailableUpdate(update);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }

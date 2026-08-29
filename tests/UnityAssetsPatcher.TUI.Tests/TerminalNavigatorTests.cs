@@ -4,7 +4,6 @@ using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.TUI.Framework;
-using UnityAssetsPatcher.TUI.Lifecycle;
 using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Shell;
@@ -44,15 +43,12 @@ public sealed class TerminalNavigatorTests
             "Footer",
             render: () => events.Add("render"));
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
-        var taskRunner = new TerminalTaskRunner(callback => callback());
         var navigator = new TerminalNavigator(
             shell,
             new CultureInfo("en-US"),
             provider.GetRequiredService<IServiceScopeFactory>(),
             new AppRuntimeConfig(),
             null,
-            new ImmediateUIDispatcher(),
-            taskRunner,
             () =>
             {
                 events.Add("picker");
@@ -82,23 +78,6 @@ public sealed class TerminalNavigatorTests
             scopeFactory,
             new AppRuntimeConfig(),
             null,
-            new ImmediateUIDispatcher(),
-            new TerminalTaskRunner(callback => callback()),
             static () => null);
-    }
-
-    private sealed class ImmediateUIDispatcher : ITerminalUIDispatcher
-    {
-        public bool TryInvoke(Action callback, CancellationToken cancellationToken = default)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return false;
-            }
-
-            callback();
-
-            return true;
-        }
     }
 }
