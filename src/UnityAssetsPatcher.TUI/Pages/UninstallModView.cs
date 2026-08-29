@@ -96,12 +96,10 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
         try
         {
-            var installed = await Task.Run(
-                () => DispatchAsync<
-                    ListInstalledModsRequest,
-                    OperationResult<IReadOnlyList<InstallRecordSummary>>>(
-                    new ListInstalledModsRequest(),
-                    cancellationToken),
+            var installed = await DispatchAsync<
+                ListInstalledModsRequest,
+                OperationResult<IReadOnlyList<InstallRecordSummary>>>(
+                new ListInstalledModsRequest(),
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();

@@ -95,10 +95,10 @@ internal sealed class RepositoryInitializationFlow
 
         try
         {
-            var result = await Task.Run(
-                () => DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
-                    new PreviewRecoveryRequest(gameDirectory),
-                    cancellationToken),
+            var result = await DispatchAsync<
+                PreviewRecoveryRequest,
+                OperationResult<RepositoryRecoveryPreview>>(
+                new PreviewRecoveryRequest(gameDirectory),
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -185,10 +185,10 @@ internal sealed class RepositoryInitializationFlow
 
         try
         {
-            var result = await Task.Run(
-                () => DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
-                    new RecoverRecoveryRequest(gameDirectory),
-                    cancellationToken),
+            var result = await DispatchAsync<
+                RecoverRecoveryRequest,
+                OperationResult<RepositoryRecoveryReport>>(
+                new RecoverRecoveryRequest(gameDirectory),
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -271,10 +271,10 @@ internal sealed class RepositoryInitializationFlow
 
         try
         {
-            var result = await Task.Run(
-                () => DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
-                    new ClearUnsupportedRepositoryRequest(),
-                    cancellationToken),
+            var result = await DispatchAsync<
+                ClearUnsupportedRepositoryRequest,
+                OperationResult<RepositoryClearResult>>(
+                new ClearUnsupportedRepositoryRequest(),
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();

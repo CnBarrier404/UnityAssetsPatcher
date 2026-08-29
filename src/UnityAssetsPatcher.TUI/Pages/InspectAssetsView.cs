@@ -237,10 +237,10 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
         try
         {
-            var result = await Task.Run(
-                () => DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
-                    new InspectListRequest(path, limit),
-                    cancellationToken),
+            var result = await DispatchAsync<
+                InspectListRequest,
+                OperationResult<InspectListResult>>(
+                new InspectListRequest(path, limit),
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -353,10 +353,10 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
         try
         {
-            var result = await Task.Run(
-                () => DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
-                    new InspectFieldsRequest(path, pathId),
-                    cancellationToken),
+            var result = await DispatchAsync<
+                InspectFieldsRequest,
+                OperationResult<AssetField>>(
+                new InspectFieldsRequest(path, pathId),
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
