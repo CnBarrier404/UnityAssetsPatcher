@@ -325,6 +325,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         IReadOnlyList<string> selectedGroups)
     {
         _form.RemoveAllAndDispose(_message);
+        _message.Y = 0;
         _message.Visible = false;
         _form.Add(_message);
         var summaryRows = GetPreviewSummaryRows(result);
