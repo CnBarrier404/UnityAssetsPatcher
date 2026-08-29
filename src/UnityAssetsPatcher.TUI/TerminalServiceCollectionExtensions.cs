@@ -10,7 +10,6 @@ public static class TerminalServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton<TerminalApp>();
-        services.AddScoped<TerminalLifecycle>();
         services.AddScoped<TerminalSession>();
 
         return services;
