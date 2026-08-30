@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Assets;
 using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Application.IO;
@@ -23,7 +24,10 @@ public static class InfrastructureServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddHttpClient<GitHubUpdateManifestClient>(client => { client.Timeout = TimeSpan.FromSeconds(10); });
-        services.AddTransient<IUpdateChecker, GitHubUpdateChecker>();
+        services.AddTransient<IUpdateChecker>(provider => new GitHubUpdateChecker(
+            provider.GetRequiredService<GitHubUpdateManifestClient>(),
+            AppConfig.DisplayVersion,
+            provider.GetRequiredService<ILogger<GitHubUpdateChecker>>()));
 
         return services;
     }
@@ -60,9 +64,11 @@ public static class InfrastructureServiceCollectionExtensions
 
     public static IServiceCollection AddUnityAssetsPatcherRepository(
         this IServiceCollection services,
-        string repositoryDirectory)
+        string? repositoryDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        repositoryDirectory ??= AppConfig.RepositoryDirectory;
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryDirectory);
 
         services.TryAddSingleton<IFileSystemOperations>(provider => new FileSystemOperations(

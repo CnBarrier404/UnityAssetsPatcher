@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 
 namespace UnityAssetsPatcher.Logging;
@@ -16,9 +17,12 @@ public static class LoggingService
 
     public static IServiceCollection AddUnityAssetsPatcherLogging(
         this IServiceCollection services,
-        string logDirectory,
+        string? logDirectory = null,
         LoggingLevel minimumLevel = LoggingLevel.Information)
     {
+        ArgumentNullException.ThrowIfNull(services);
+
+        logDirectory ??= AppConfig.LogDirectory;
         ArgumentException.ThrowIfNullOrWhiteSpace(logDirectory);
 
         PruneOldLogFiles(logDirectory);

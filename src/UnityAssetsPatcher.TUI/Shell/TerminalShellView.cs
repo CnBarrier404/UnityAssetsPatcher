@@ -6,31 +6,27 @@ using UnityAssetsPatcher.TUI.Framework;
 
 namespace UnityAssetsPatcher.TUI.Shell;
 
-public sealed class TerminalShellView : Window
+public sealed class TerminalShellView : Window, ITerminalContentHost
 {
     private readonly View _contentHost;
     private readonly Action? _render;
     private View? _content;
 
-    private const string TerminalTitle = "UnityAssetsPatcher";
-
     public TerminalShellView(
-        AppInfo appInfo,
         string footerText,
         string? warningText = null,
         Action? render = null)
     {
-        ArgumentNullException.ThrowIfNull(appInfo);
         ArgumentNullException.ThrowIfNull(footerText);
 
         _render = render;
 
-        Title = TerminalTitle;
+        Title = AppConfig.Identifier;
         BorderStyle = LineStyle.None;
 
         SetScheme(TerminalTheme.Base);
 
-        var banner = new ApplicationBannerView(appInfo);
+        var banner = new ApplicationBannerView();
 
         _contentHost = new View
         {

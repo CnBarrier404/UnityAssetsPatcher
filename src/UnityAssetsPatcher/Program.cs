@@ -12,23 +12,11 @@ public sealed class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        string appDataDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "UnityAssetsPatcher");
-
-        string logDirectory = Path.Combine(appDataDirectory, "logs");
-        string repositoryDirectory = Path.Combine(appDataDirectory, "backup");
-        AppInfo appInfo = AppInfo.FromAssembly("Unity Assets Patcher", typeof(Program).Assembly);
-        var openClassPackage = () => typeof(Program).Assembly.GetManifestResourceStream("resources.tpk") ??
-                                     throw new InvalidOperationException(
-                                         "The bundled AssetsTools class package is missing.");
-
-        using ServiceProvider serviceProvider = new ServiceCollection()
-            .AddSingleton(appInfo)
-            .AddUnityAssetsPatcherLogging(logDirectory)
+        await using ServiceProvider serviceProvider = new ServiceCollection()
+            .AddUnityAssetsPatcherLogging()
             .AddUnityAssetsPatcherGitHubUpdates()
-            .AddUnityAssetsPatcherInfrastructure(openClassPackage)
-            .AddUnityAssetsPatcherRepository(repositoryDirectory)
+            .AddUnityAssetsPatcherInfrastructure(OpenClassPackage)
+            .AddUnityAssetsPatcherRepository()
             .AddUnityAssetsPatcherApplication()
             .AddUnityAssetsPatcherUpdates()
             .AddUnityAssetsPatcherOperations()
@@ -54,6 +42,13 @@ public sealed class Program
 
         var terminalApp = serviceProvider.GetRequiredService<TerminalApp>();
 
-        return terminalApp.Run();
+        return await terminalApp.RunAsync().ConfigureAwait(false);
+
+        Stream OpenClassPackage()
+        {
+            return typeof(Program).Assembly.GetManifestResourceStream("resources.tpk") ??
+                   throw new InvalidOperationException(
+                       "The bundled AssetsTools class package is missing.");
+        }
     }
 }

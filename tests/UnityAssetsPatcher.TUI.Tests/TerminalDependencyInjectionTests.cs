@@ -2,7 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Application.Updates;
 using Xunit;
 
 namespace UnityAssetsPatcher.TUI.Tests;
@@ -14,11 +13,7 @@ public sealed class TerminalDependencyInjectionTests
     {
         var services = new ServiceCollection();
 
-        services.AddSingleton(new AppInfo("Unity Assets Patcher", "dev"));
-
-        services.AddSingleton(new UpdateCheckModule(
-            new StubUpdateChecker(),
-            NullLogger<UpdateCheckModule>.Instance));
+        services.AddSingleton(new AppRuntimeConfig());
 
         services.AddSingleton<ILogger<TerminalApp>>(NullLogger<TerminalApp>.Instance);
 
@@ -33,14 +28,5 @@ public sealed class TerminalDependencyInjectionTests
         var terminalApp = provider.GetRequiredService<TerminalApp>();
 
         Assert.NotNull(terminalApp);
-    }
-
-    private sealed class StubUpdateChecker : IUpdateChecker
-    {
-        public Task<UpdateInfo?> CheckForUpdateAsync(
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult<UpdateInfo?>(null);
-        }
     }
 }

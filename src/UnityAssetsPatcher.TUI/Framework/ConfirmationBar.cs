@@ -15,6 +15,32 @@ public sealed class ConfirmationBar : View
         string cancelText,
         Action cancelAction,
         ActionKind confirmKind = ActionKind.Default)
+        : this(
+            confirmText,
+            ToAsync(confirmAction),
+            cancelText,
+            ToAsync(cancelAction),
+            confirmKind) { }
+
+    public ConfirmationBar(
+        string confirmText,
+        Func<Task> confirmAction,
+        string cancelText,
+        Action cancelAction,
+        ActionKind confirmKind = ActionKind.Default)
+        : this(
+            confirmText,
+            confirmAction,
+            cancelText,
+            ToAsync(cancelAction),
+            confirmKind) { }
+
+    public ConfirmationBar(
+        string confirmText,
+        Func<Task> confirmAction,
+        string cancelText,
+        Func<Task> cancelAction,
+        ActionKind confirmKind = ActionKind.Default)
     {
         ArgumentNullException.ThrowIfNull(confirmText);
         ArgumentNullException.ThrowIfNull(confirmAction);
@@ -32,7 +58,7 @@ public sealed class ConfirmationBar : View
             Width = Dim.Auto()
         };
 
-        ConfirmButton.Accepted += (_, _) => confirmAction();
+        ConfirmButton.Accepted += async (_, _) => await confirmAction();
 
         CancelButton = new ActionButton(cancelText, ActionKind.Secondary)
         {
@@ -40,8 +66,19 @@ public sealed class ConfirmationBar : View
             Y = 0,
             Width = Dim.Auto()
         };
-        CancelButton.Accepted += (_, _) => cancelAction();
+        CancelButton.Accepted += async (_, _) => await cancelAction();
 
         Add(ConfirmButton, CancelButton);
+    }
+
+    private static Func<Task> ToAsync(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        return () =>
+        {
+            action();
+            return Task.CompletedTask;
+        };
     }
 }

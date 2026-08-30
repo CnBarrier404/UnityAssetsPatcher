@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Updates;
 
 namespace UnityAssetsPatcher.Infrastructure.Updates;
@@ -119,7 +120,7 @@ internal sealed class GitHubUpdateManifestClient
 
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        request.Headers.UserAgent.ParseAdd("UnityAssetsPatcher");
+        request.Headers.UserAgent.ParseAdd(AppConfig.Identifier);
 
         return request;
     }

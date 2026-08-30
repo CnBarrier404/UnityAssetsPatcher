@@ -284,7 +284,8 @@ public sealed class ModPackageReader
             return new OperationSucceeded<PreparedSources>(emptySources);
         }
 
-        string temporaryDirectory = Path.Combine(Path.GetTempPath(), $"UnityAssetsPatcher.{Guid.NewGuid():N}");
+        string temporaryDirectory =
+            Path.Combine(AppConfig.TemporaryDirectory, $"UnityAssetsPatcher.{Guid.NewGuid():N}");
         bool completed = false;
 
         try

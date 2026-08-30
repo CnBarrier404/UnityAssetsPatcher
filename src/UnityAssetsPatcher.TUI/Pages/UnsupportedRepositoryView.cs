@@ -87,7 +87,7 @@ public sealed class ClearUnsupportedRepositoryConfirmationView : View
 {
     internal ClearUnsupportedRepositoryConfirmationView(
         LocalizedStrings strings,
-        Action confirm,
+        Func<Task> confirm,
         Action cancel)
     {
         ArgumentNullException.ThrowIfNull(strings);

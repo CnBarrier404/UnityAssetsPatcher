@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using UnityAssetsPatcher.TUI.Lifecycle;
 
 namespace UnityAssetsPatcher.TUI;
 
@@ -8,8 +9,8 @@ public static class TerminalServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddSingleton<TerminalSettings>();
         services.AddSingleton<TerminalApp>();
+        services.AddScoped<TerminalSession>();
 
         return services;
     }

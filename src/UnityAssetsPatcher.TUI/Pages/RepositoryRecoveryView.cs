@@ -10,8 +10,8 @@ public sealed class RepositoryRecoveryView : View
     internal RepositoryRecoveryView(
         LocalizedStrings strings,
         RepositoryRecoveryReport recovery,
-        Action<string> preview,
-        Action retry,
+        Func<string, Task> preview,
+        Func<Task> retry,
         Action exit)
     {
         ArgumentNullException.ThrowIfNull(strings);
@@ -47,12 +47,12 @@ public sealed class RepositoryRecoveryView : View
                     strings.RepositoryRecovery_PreviewAction,
                     strings.RepositoryRecovery_PreviewDescription)
                 { X = 0, Y = 9 };
-            previewChoice.Button.Accepted += (_, _) =>
+            previewChoice.Button.Accepted += async (_, _) =>
             {
                 string path = TerminalPathNormalizer.Normalize(input.Text);
                 if (!string.IsNullOrWhiteSpace(path))
                 {
-                    preview(path);
+                    await preview(path);
                 }
             };
             input.Accepted += (_, _) => previewChoice.Button.SetFocus();
@@ -67,7 +67,7 @@ public sealed class RepositoryRecoveryView : View
                     strings.RepositoryRecovery_RetryAction,
                     strings.RepositoryRecovery_RetryDescription)
                 { X = 0, Y = 7 };
-            retryChoice.Button.Accepted += (_, _) => retry();
+            retryChoice.Button.Accepted += async (_, _) => await retry();
             Initialized += (_, _) => retryChoice.Button.SetFocus();
             Add(retryChoice);
             choices.Add(retryChoice);
@@ -89,7 +89,7 @@ public sealed class RepositoryRecoveryPreviewView : View
     internal RepositoryRecoveryPreviewView(
         LocalizedStrings strings,
         RepositoryRecoveryPreview preview,
-        Action apply,
+        Func<Task> apply,
         Action back,
         Action exit)
     {
@@ -120,7 +120,7 @@ public sealed class RepositoryRecoveryPreviewView : View
                     strings.RepositoryRecovery_ApplyAction,
                     strings.RepositoryRecovery_ApplyDescription)
                 { X = 0, Y = actionRow };
-            applyChoice.Button.Accepted += (_, _) => apply();
+            applyChoice.Button.Accepted += async (_, _) => await apply();
             Initialized += (_, _) => applyChoice.Button.SetFocus();
             body.Add(applyChoice);
             choices.Add(applyChoice);

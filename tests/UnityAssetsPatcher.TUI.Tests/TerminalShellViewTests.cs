@@ -12,7 +12,6 @@ public sealed class TerminalShellViewTests
     public void TerminalShellView_WhenWarningIsProvided_PreservesShellLayout()
     {
         using TerminalShellView shell = new(
-            new AppInfo("Unity Assets Patcher", "dev"),
             "Footer",
             "Legacy console warning");
 
@@ -20,7 +19,7 @@ public sealed class TerminalShellViewTests
         TerminalFooterView footer = Assert.Single(shell.SubViews.OfType<TerminalFooterView>());
         View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
 
-        Assert.Equal("UnityAssetsPatcher", shell.Title);
+        Assert.Equal(AppConfig.Identifier, shell.Title);
         Assert.Equal("Legacy console warning", warning.Text.ToString());
         Assert.Same(TerminalTheme.Preview, warning.GetScheme());
         Assert.Equal(Pos.AnchorEnd(2), warning.Y);

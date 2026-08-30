@@ -1,5 +1,4 @@
 {
-  "EmptyPage_BackAction": "返回主菜单",
   "Error_AccessDeniedFormat": "没有访问权限：{arg0}",
   "Error_AssetNotFound": "未找到指定资产。",
   "Error_DirectoryNotFoundFormat": "目录不存在：{arg0}",

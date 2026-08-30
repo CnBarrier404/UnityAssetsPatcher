@@ -21,7 +21,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
-    private readonly TerminalTaskRunner _taskRunner;
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly Action _returnToMainMenu;
     private readonly ScrollableContentView _body;
     private bool _isWorking;
@@ -29,7 +29,6 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
     internal UninstallModView(
         LocalizedStrings strings,
         IServiceScopeFactory scopeFactory,
-        TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
@@ -37,7 +36,6 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
         _strings = strings;
         _scopeFactory = scopeFactory;
-        _taskRunner = taskRunner;
         _returnToMainMenu = returnToMainMenu;
 
         KeyDown += (_, key) =>
@@ -74,53 +72,64 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
         Add(heading, description, _body);
 
-        ShowInstalledMods();
+        Initialized += async (_, _) => await ShowInstalledModsAsync();
+        Disposing += (_, _) =>
+        {
+            _lifetimeCancellation.Cancel();
+            _lifetimeCancellation.Dispose();
+        };
     }
 
-    private void ShowInstalledMods()
+    private async Task ShowInstalledModsAsync()
     {
         if (_isWorking)
         {
             return;
         }
 
-        bool started = _taskRunner.TryRun(
-            () => DispatchAsync<ListInstalledModsRequest, OperationResult<IReadOnlyList<InstallRecordSummary>>>(
-                new ListInstalledModsRequest()),
-            installed =>
-            {
-                _isWorking = false;
-                if (installed is OperationSucceeded<IReadOnlyList<InstallRecordSummary>> succeeded)
-                {
-                    ShowInstalledMods(succeeded.Value);
-                }
-                else
-                {
-                    ShowError(OperationErrorFormatter.Format(
-                        _strings,
-                        ((OperationFailed<IReadOnlyList<InstallRecordSummary>>)installed).Error));
-                }
-            },
-            exception =>
-            {
-                _isWorking = false;
-                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
-            });
-
-        if (!started)
-        {
-            return;
-        }
-
         _isWorking = true;
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         _body.SetContentHeightForRows(0);
         RenderRequested?.Invoke(this, EventArgs.Empty);
+
+        CancellationToken cancellationToken = _lifetimeCancellation.Token;
+
+        try
+        {
+            var installed = await DispatchAsync<
+                ListInstalledModsRequest,
+                OperationResult<IReadOnlyList<InstallRecordSummary>>>(
+                new ListInstalledModsRequest(),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (installed is OperationSucceeded<IReadOnlyList<InstallRecordSummary>> succeeded)
+            {
+                ShowInstalledMods(succeeded.Value);
+            }
+            else
+            {
+                ShowError(OperationErrorFormatter.Format(
+                    _strings,
+                    ((OperationFailed<IReadOnlyList<InstallRecordSummary>>)installed).Error));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
+        }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
     private void ShowInstalledMods(IReadOnlyList<InstallRecordSummary> installed)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
 
         if (installed.Count == 0)
         {
@@ -157,62 +166,67 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         string installedAt = FormatInstalledAt(record.InstalledAt);
         string details = record.GameName is null ? installedAt : $"{installedAt} | {record.GameName}";
         var choice = new ChoiceItem($"{record.ModName} {record.ModVersion}", details) { X = 0, Y = row };
-        choice.Button.Accepted += (_, _) => Preview(record.InstallId, null);
+        choice.Button.Accepted += async (_, _) => await PreviewAsync(record.InstallId, null);
         _body.Add(choice);
         return choice;
     }
 
-    private void Preview(string installId, string? gameDirectory)
+    private async Task PreviewAsync(string installId, string? gameDirectory)
     {
         if (_isWorking)
         {
             return;
         }
 
-        bool started = _taskRunner.TryRun(
-            () => DispatchAsync<UninstallPreviewRequest, OperationResult<UninstallPreviewResult>>(
-                new UninstallPreviewRequest(installId, gameDirectory)),
-            preview =>
-            {
-                _isWorking = false;
-                if (preview is OperationSucceeded<UninstallPreviewResult> succeeded)
-                {
-                    ShowPreview(succeeded.Value);
-                    return;
-                }
-
-                OperationError error = ((OperationFailed<UninstallPreviewResult>)preview).Error;
-                string message = OperationErrorFormatter.Format(_strings, error);
-                if ((error.Code == GameDirectoryErrorCodes.Required ||
-                     error.Code == GameDirectoryErrorCodes.NotFound) &&
-                    gameDirectory is null)
-                {
-                    ShowGameDirectoryInput(installId, message);
-                }
-                else
-                {
-                    ShowError(message);
-                }
-            },
-            exception =>
-            {
-                _isWorking = false;
-
-                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
-            });
-
-        if (!started)
-        {
-            return;
-        }
-
         _isWorking = true;
         ShowWorking(_strings.UninstallPage_AnalyzingMod);
+
+        CancellationToken cancellationToken = _lifetimeCancellation.Token;
+
+        try
+        {
+            var preview = await DispatchAsync<
+                UninstallPreviewRequest,
+                OperationResult<UninstallPreviewResult>>(
+                new UninstallPreviewRequest(installId, gameDirectory),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (preview is OperationSucceeded<UninstallPreviewResult> succeeded)
+            {
+                ShowPreview(succeeded.Value);
+                return;
+            }
+
+            OperationError error = ((OperationFailed<UninstallPreviewResult>)preview).Error;
+            string message = OperationErrorFormatter.Format(_strings, error);
+            if ((error.Code == GameDirectoryErrorCodes.Required ||
+                 error.Code == GameDirectoryErrorCodes.NotFound) &&
+                gameDirectory is null)
+            {
+                ShowGameDirectoryInput(installId, message);
+            }
+            else
+            {
+                ShowError(message);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
+        }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
     private void ShowWorking(string text)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var status = new WorkingIndicator(text) { X = 0, Y = 0 };
         _body.Add(status);
         _body.SetContentHeightForRows(2);
@@ -221,7 +235,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private void ShowGameDirectoryInput(string installId, string message)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var info = new StyledLabel(message, TextRole.Muted)
             { X = 0, Y = 0, Width = Dim.Fill() };
         string prompt = $"{_strings.InstallPage_GameDirectoryPrompt}: ";
@@ -229,7 +243,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         var input = new InputField { X = prompt.GetColumns(), Y = 2, Width = Dim.Fill() };
         var error = new StyledLabel(role: TextRole.Error)
             { X = 0, Y = 4, Width = Dim.Fill(), Visible = false };
-        input.Accepted += (_, _) =>
+        input.Accepted += async (_, _) =>
         {
             string path = TerminalPathNormalizer.Normalize(input.Text);
             if (!Directory.Exists(path))
@@ -242,10 +256,10 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
             }
 
             input.Text = path;
-            Preview(installId, path);
+            await PreviewAsync(installId, path);
         };
         Button back = CreateActionButton(_strings.UninstallPage_BackAction, 0, 6);
-        back.Accepted += (_, _) => ShowInstalledMods();
+        back.Accepted += async (_, _) => await ShowInstalledModsAsync();
         _body.Add(info, label, input, error, back);
         _body.SetContentHeightForRows(8);
         input.SetFocus();
@@ -253,7 +267,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private void ShowPreview(UninstallPreviewResult preview)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var status = new StyledLabel(
             _strings.UninstallPreview_Status, TextRole.Preview) { X = 0, Y = 0 };
         var rows = new (string Label, string Value)[]
@@ -295,7 +309,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
                 Width = Dim.Fill()
             };
             Button back = CreateActionButton(_strings.UninstallPage_BackAction, 0, row + 3);
-            back.Accepted += (_, _) => ShowInstalledMods();
+            back.Accepted += async (_, _) => await ShowInstalledModsAsync();
             _body.Add(error, back);
             _body.SetContentHeightForRows(row + 5);
             back.SetFocus();
@@ -304,9 +318,9 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
         var actions = new ConfirmationBar(
             _strings.UninstallPage_UninstallAction,
-            () => Uninstall(preview),
+            () => UninstallAsync(preview),
             _strings.UninstallPage_BackAction,
-            ShowInstalledMods,
+            ShowInstalledModsAsync,
             ActionKind.Dangerous)
         {
             X = 0,
@@ -375,57 +389,66 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         return row + 2;
     }
 
-    private void Uninstall(UninstallPreviewResult preview)
+    private async Task UninstallAsync(UninstallPreviewResult preview)
     {
         if (_isWorking)
         {
             return;
         }
 
-        bool started = _taskRunner.TryRun(
-            () => DispatchAsync<UninstallModRequest, OperationResult<UninstallModResult>>(
-                new UninstallModRequest(preview.InstallId, preview.GameDirectory)),
-            result =>
-            {
-                _isWorking = false;
-                if (result is OperationSucceeded<UninstallModResult> succeeded)
-                {
-                    ShowResult(succeeded.Value);
-                }
-                else
-                {
-                    ShowError(OperationErrorFormatter.Format(
-                        _strings,
-                        ((OperationFailed<UninstallModResult>)result).Error));
-                }
-            },
-            exception =>
-            {
-                _isWorking = false;
-                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
-            });
-
-        if (!started)
-        {
-            return;
-        }
-
         _isWorking = true;
         ShowWorking(_strings.UninstallPage_UninstallingMod);
+
+        CancellationToken cancellationToken = _lifetimeCancellation.Token;
+
+        try
+        {
+            var result = await DispatchAsync<
+                UninstallModRequest,
+                OperationResult<UninstallModResult>>(
+                new UninstallModRequest(preview.InstallId, preview.GameDirectory),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (result is OperationSucceeded<UninstallModResult> succeeded)
+            {
+                ShowResult(succeeded.Value);
+            }
+            else
+            {
+                ShowError(OperationErrorFormatter.Format(
+                    _strings,
+                    ((OperationFailed<UninstallModResult>)result).Error));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
+        }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
-    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
+        return await dispatcher
+            .DispatchAsync<TRequest, TResponse>(request, cancellationToken);
     }
 
     private void ShowResult(UninstallModResult result)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var status = new StyledLabel(
             _strings.UninstallResult_Status, TextRole.Success) { X = 0, Y = 0 };
         var rows = new (string Label, string Value)[]
@@ -459,11 +482,11 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
 
     private void ShowError(string message)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var error = new StyledLabel(message, TextRole.Error)
             { X = 0, Y = 0, Width = Dim.Fill() };
         Button back = CreateActionButton(_strings.UninstallPage_BackAction, 0, 2);
-        back.Accepted += (_, _) => ShowInstalledMods();
+        back.Accepted += async (_, _) => await ShowInstalledModsAsync();
         _body.Add(error, back);
         _body.SetContentHeightForRows(4);
         back.SetFocus();

@@ -21,7 +21,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
-    private readonly TerminalTaskRunner _taskRunner;
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly StyledLabel _heading;
     private readonly StyledLabel _description;
     private readonly View _body;
@@ -32,7 +32,6 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     internal InspectAssetsView(
         LocalizedStrings strings,
         IServiceScopeFactory scopeFactory,
-        TerminalTaskRunner taskRunner,
         Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
@@ -40,7 +39,6 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
         _strings = strings;
         _scopeFactory = scopeFactory;
-        _taskRunner = taskRunner;
 
         KeyDown += (_, key) =>
         {
@@ -80,6 +78,12 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
         Add(_heading, _description, _body);
 
+        Disposing += (_, _) =>
+        {
+            _lifetimeCancellation.Cancel();
+            _lifetimeCancellation.Dispose();
+        };
+
         ShowActionMenu();
     }
 
@@ -87,7 +91,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     {
         SetPage(_strings.MainMenu_InspectAssets_Title, _strings.InspectPage_Description);
 
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
 
         ChoiceItem list = AddChoice(
             _strings.InspectPage_ListAssetsTitle,
@@ -128,7 +132,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowPathInput(Action<string> accepted)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         string prompt = $"{_strings.InspectPage_AssetsFilePathPrompt}: ";
 
         var label = new StyledLabel(prompt, TextRole.Label)
@@ -178,11 +182,11 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     {
         SetPage(_strings.InspectPage_RowsToPrintTitle,
             _strings.InspectPage_ListAssetsDescription);
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         Button first = CreateActionButton(_strings.InspectPage_First100Choice, 0, 0);
-        first.Accepted += (_, _) => InspectList(assetsFilePath, DefaultLimit);
+        first.Accepted += async (_, _) => await InspectListAsync(assetsFilePath, DefaultLimit);
         Button all = CreateActionButton(_strings.InspectPage_AllRowsChoice, 0, 2);
-        all.Accepted += (_, _) => InspectList(assetsFilePath, null);
+        all.Accepted += async (_, _) => await InspectListAsync(assetsFilePath, null);
         Button custom = CreateActionButton(_strings.InspectPage_CustomLimitChoice, 0, 4);
         custom.Accepted += (_, _) => ShowCustomLimitInput(assetsFilePath);
         Button back = CreateActionButton(_strings.InspectPage_BackAction, 0, 6);
@@ -193,13 +197,13 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowCustomLimitInput(string assetsFilePath)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         string prompt = $"{_strings.InspectPage_MaximumRowsPrompt}: ";
         var label = new StyledLabel(prompt, TextRole.Label) { X = 0, Y = 0 };
         var input = new InputField { X = prompt.GetColumns(), Y = 0, Width = 12 };
         var error = new StyledLabel(role: TextRole.Error)
             { X = 0, Y = 2, Width = Dim.Fill(), Visible = false };
-        input.Accepted += (_, _) =>
+        input.Accepted += async (_, _) =>
         {
             if (!int.TryParse(input.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int limit) ||
                 limit <= 0)
@@ -211,7 +215,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
                 return;
             }
 
-            InspectList(assetsFilePath, limit);
+            await InspectListAsync(assetsFilePath, limit);
         };
         Button back = CreateActionButton(_strings.InspectPage_BackAction, 0, 4);
         back.Accepted += (_, _) => ShowLimitChoices(assetsFilePath);
@@ -219,48 +223,54 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         input.SetFocus();
     }
 
-    private void InspectList(string path, int? limit)
+    private async Task InspectListAsync(string path, int? limit)
     {
         if (_isWorking)
         {
             return;
         }
 
-        bool started = _taskRunner.TryRun(
-            () => DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
-                new InspectListRequest(path, limit)),
-            result =>
-            {
-                _isWorking = false;
-                if (result is OperationSucceeded<InspectListResult> succeeded)
-                {
-                    ShowAssets(succeeded.Value);
-                }
-                else
-                {
-                    ShowError(OperationErrorFormatter.Format(
-                        _strings,
-                        ((OperationFailed<InspectListResult>)result).Error));
-                }
-            },
-            exception =>
-            {
-                _isWorking = false;
-                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
-            });
-
-        if (!started)
-        {
-            return;
-        }
-
         _isWorking = true;
         ShowWorking();
+
+        CancellationToken cancellationToken = _lifetimeCancellation.Token;
+
+        try
+        {
+            var result = await DispatchAsync<
+                InspectListRequest,
+                OperationResult<InspectListResult>>(
+                new InspectListRequest(path, limit),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (result is OperationSucceeded<InspectListResult> succeeded)
+            {
+                ShowAssets(succeeded.Value);
+            }
+            else
+            {
+                ShowError(OperationErrorFormatter.Format(
+                    _strings,
+                    ((OperationFailed<InspectListResult>)result).Error));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
+        }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
     private void ShowAssets(InspectListResult result)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var table = new DataTableView
         {
             X = 0,
@@ -284,7 +294,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
     {
         SetPage(_strings.InspectPage_ShowFieldsTitle,
             _strings.InspectPage_ShowFieldsDescription);
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         string pathPrompt = $"{_strings.InspectPage_AssetsFilePathPrompt}: ";
         var pathLabel = new StyledLabel(pathPrompt, TextRole.Label) { X = 0, Y = 0 };
         var pathInput = new InputField
@@ -295,7 +305,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         var error = new StyledLabel(role: TextRole.Error)
             { X = 0, Y = 4, Width = Dim.Fill(), Visible = false };
 
-        void Submit()
+        async Task SubmitAsync()
         {
             string path = TerminalPathNormalizer.Normalize(pathInput.Text);
             if (!File.Exists(path))
@@ -316,61 +326,67 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
                 return;
             }
 
-            InspectFields(Path.GetFullPath(path), pathId);
+            await InspectFieldsAsync(Path.GetFullPath(path), pathId);
         }
 
         pathInput.Accepted += (_, _) => idInput.SetFocus();
-        idInput.Accepted += (_, _) => Submit();
+        idInput.Accepted += async (_, _) => await SubmitAsync();
         Button inspect = CreatePrimaryActionButton(_strings.InspectPage_ShowFieldsTitle, 0, 6);
-        inspect.Accepted += (_, _) => Submit();
+        inspect.Accepted += async (_, _) => await SubmitAsync();
         Button back = CreateActionButton(_strings.InspectPage_BackAction, 0, 8);
         back.Accepted += (_, _) => ShowActionMenu();
         _body.Add(pathLabel, pathInput, idLabel, idInput, error, inspect, back);
         pathInput.SetFocus();
     }
 
-    private void InspectFields(string path, long pathId)
+    private async Task InspectFieldsAsync(string path, long pathId)
     {
         if (_isWorking)
         {
             return;
         }
 
-        bool started = _taskRunner.TryRun(
-            () => DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
-                new InspectFieldsRequest(path, pathId)),
-            result =>
-            {
-                _isWorking = false;
-                if (result is OperationSucceeded<AssetField> succeeded)
-                {
-                    ShowFields(succeeded.Value);
-                }
-                else
-                {
-                    ShowError(OperationErrorFormatter.Format(
-                        _strings,
-                        ((OperationFailed<AssetField>)result).Error));
-                }
-            },
-            exception =>
-            {
-                _isWorking = false;
-                ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
-            });
-
-        if (!started)
-        {
-            return;
-        }
-
         _isWorking = true;
         ShowWorking();
+
+        CancellationToken cancellationToken = _lifetimeCancellation.Token;
+
+        try
+        {
+            var result = await DispatchAsync<
+                InspectFieldsRequest,
+                OperationResult<AssetField>>(
+                new InspectFieldsRequest(path, pathId),
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (result is OperationSucceeded<AssetField> succeeded)
+            {
+                ShowFields(succeeded.Value);
+            }
+            else
+            {
+                ShowError(OperationErrorFormatter.Format(
+                    _strings,
+                    ((OperationFailed<AssetField>)result).Error));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            ShowError(OperationErrorFormatter.FormatUnexpected(_strings));
+        }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
     private void ShowFields(AssetField fieldTree)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var output = new TextViewer(FormatFieldTree(fieldTree))
         {
             X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(2)
@@ -383,7 +399,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowWorking()
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var status = new WorkingIndicator(_strings.InspectPage_Analyzing)
             { X = 0, Y = 0 };
         _body.Add(status);
@@ -392,7 +408,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     private void ShowError(string message)
     {
-        _body.RemoveAll();
+        _body.RemoveAllAndDispose();
         var error = new StyledLabel(message, TextRole.Error)
             { X = 0, Y = 0, Width = Dim.Fill() };
         Button back = CreateActionButton(_strings.InspectPage_ReturnAction, 0, 2);
@@ -401,13 +417,16 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         back.SetFocus();
     }
 
-    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(TRequest request)
+    private async Task<TResponse> DispatchAsync<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.DispatchAsync<TRequest, TResponse>(request).ConfigureAwait(false);
+        return await dispatcher
+            .DispatchAsync<TRequest, TResponse>(request, cancellationToken);
     }
 
     private void SetPage(string title, string description)
