@@ -1,27 +1,22 @@
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
-using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 
-namespace UnityAssetsPatcher.TUI.Pages;
+namespace UnityAssetsPatcher.TUI.Pages.Settings;
 
 public sealed class SettingsView : View
 {
-    private readonly AppRuntimeConfig _runtimeConfig;
     private readonly ToggleItem _verboseOutput;
 
     internal SettingsView(
         LocalizedStrings strings,
-        AppRuntimeConfig runtimeConfig,
-        Action returnToMainMenu,
-        ILoggingLevelSwitch? loggingLevelSwitch = null)
+        SettingsLogic logic,
+        Action returnToMainMenu)
     {
         ArgumentNullException.ThrowIfNull(strings);
-        ArgumentNullException.ThrowIfNull(runtimeConfig);
-
-        _runtimeConfig = runtimeConfig;
+        ArgumentNullException.ThrowIfNull(logic);
+        ArgumentNullException.ThrowIfNull(returnToMainMenu);
 
         KeyDown += (_, key) =>
         {
@@ -39,32 +34,25 @@ public sealed class SettingsView : View
             X = 0,
             Y = 0
         };
-        var description = new StyledLabel(
-            strings.MainMenu_Settings_Description, TextRole.Muted)
+
+        var description = new StyledLabel(strings.MainMenu_Settings_Description, TextRole.Muted)
         {
             X = 0,
             Y = 1,
             Width = Dim.Fill()
         };
+
         _verboseOutput = new ToggleItem(
             strings.SettingsPage_VerboseLoggingName,
             strings.SettingsPage_VerboseLoggingDescription)
         {
             X = 0,
-            Y = 3
+            Y = 3,
+            IsSelected = logic.VerboseLogging
         };
-        _verboseOutput.IsSelected = _runtimeConfig.VerboseLogging;
-        _verboseOutput.IsSelectedChanged += (_, _) =>
-        {
-            _runtimeConfig.VerboseLogging = _verboseOutput.IsSelected;
 
-            if (loggingLevelSwitch is not null)
-            {
-                loggingLevelSwitch.MinimumLevel = _verboseOutput.IsSelected
-                    ? LoggingLevel.Debug
-                    : LoggingLevel.Information;
-            }
-        };
+        _verboseOutput.IsSelectedChanged += (_, _) => logic.SetVerboseLogging(_verboseOutput.IsSelected);
+
         Add(heading, description, _verboseOutput);
     }
 }

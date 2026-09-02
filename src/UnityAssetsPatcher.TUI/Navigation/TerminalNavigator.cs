@@ -5,6 +5,7 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
+using UnityAssetsPatcher.TUI.Pages.Settings;
 using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Navigation;
@@ -82,9 +83,8 @@ public sealed class TerminalNavigator
                 _strings.MainMenu_Settings_Description,
                 returnToMainMenu => new SettingsView(
                     _strings,
-                    _runtimeConfig,
-                    returnToMainMenu,
-                    _loggingLevelSwitch))
+                    new SettingsLogic(_runtimeConfig, _loggingLevelSwitch),
+                    returnToMainMenu))
         ];
     }
 }
