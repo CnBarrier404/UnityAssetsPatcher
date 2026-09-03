@@ -1,5 +1,6 @@
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.TUI.Framework;
+using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Pages;
 using Xunit;
 
@@ -10,10 +11,10 @@ public sealed class MainMenuViewTests
     [Fact]
     public void MainMenuView_WhenInitialized_FocusesFirstChoice()
     {
-        TerminalMenuItem[] items =
+        MainMenuItem[] items =
         [
-            new("First", "First description", _ => new View()),
-            new("Second", "Second description", _ => new View())
+            new("First", "First description", TerminalRoute.InstallMod),
+            new("Second", "Second description", TerminalRoute.UninstallMod)
         ];
 
         using MainMenuView menu = new("Main menu", items);

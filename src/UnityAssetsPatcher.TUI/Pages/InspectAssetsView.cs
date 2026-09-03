@@ -11,11 +11,12 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
+using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public sealed class InspectAssetsView : View, ITerminalRenderRequester
+public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
 
@@ -31,8 +32,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
 
     internal InspectAssetsView(
         LocalizedStrings strings,
-        IServiceScopeFactory scopeFactory,
-        Action returnToMainMenu)
+        IServiceScopeFactory scopeFactory)
     {
         ArgumentNullException.ThrowIfNull(strings);
         ArgumentNullException.ThrowIfNull(scopeFactory);
@@ -54,7 +54,7 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
                 return;
             }
 
-            returnToMainMenu.Invoke();
+            RequestBack();
         };
 
         _heading = new StyledLabel(role: TextRole.Title)
@@ -85,6 +85,11 @@ public sealed class InspectAssetsView : View, ITerminalRenderRequester
         };
 
         ShowActionMenu();
+    }
+
+    private void RequestBack()
+    {
+        RequestNavigation(TerminalRoute.MainMenu);
     }
 
     private void ShowActionMenu()

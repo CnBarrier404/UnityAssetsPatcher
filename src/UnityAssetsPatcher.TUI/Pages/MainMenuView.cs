@@ -4,15 +4,15 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
+using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public sealed record TerminalMenuItem(string Title, string Description, Func<Action, View> CreateView);
+public sealed record MainMenuItem(string Title, string Description, TerminalRoute Route);
 
-public sealed class MainMenuView : View, ITerminalRenderRequester
+public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
 {
-    public event EventHandler<TerminalMenuItem>? ItemSelected;
     public event EventHandler? RenderRequested;
 
     private readonly List<ChoiceItemList> _choices = [];
@@ -24,18 +24,18 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
 
     public MainMenuView(
         string title,
-        IReadOnlyList<TerminalMenuItem> items)
+        IReadOnlyList<MainMenuItem> items)
         : this(title, items, null, null) { }
 
     internal MainMenuView(
         LocalizedStrings strings,
-        IReadOnlyList<TerminalMenuItem> items,
+        IReadOnlyList<MainMenuItem> items,
         IServiceScopeFactory scopeFactory)
         : this(strings.MainMenu_Title, items, strings, scopeFactory) { }
 
     private MainMenuView(
         string title,
-        IReadOnlyList<TerminalMenuItem> items,
+        IReadOnlyList<MainMenuItem> items,
         LocalizedStrings? strings,
         IServiceScopeFactory? scopeFactory)
     {
@@ -64,7 +64,7 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
         View previous = heading;
         ActionButton? firstButton = null;
 
-        foreach (TerminalMenuItem item in items)
+        foreach (MainMenuItem item in items)
         {
             var choice = new ChoiceItemList(item.Title, item.Description)
             {
@@ -72,7 +72,8 @@ public sealed class MainMenuView : View, ITerminalRenderRequester
                 Y = Pos.Bottom(previous) + 1
             };
 
-            choice.Button.Accepted += (_, _) => ItemSelected?.Invoke(this, item);
+            choice.Button.Accepted += (_, _) =>
+                RequestNavigation(item.Route);
             _choices.Add(choice);
 
             Add(choice);

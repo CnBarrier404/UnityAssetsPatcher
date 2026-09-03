@@ -60,10 +60,11 @@ internal sealed class TerminalSession
 
         var navigator = new TerminalNavigator(
             shell,
-            culture,
-            _scopeFactory,
-            _runtimeConfig,
-            _loggingLevelSwitch);
+            TerminalRouteTable.Create(
+                culture,
+                _scopeFactory,
+                _runtimeConfig,
+                _loggingLevelSwitch));
 
         var runState = new RunState(this, application, shell, navigator);
         var context = new TerminalFlowContext(
@@ -76,6 +77,7 @@ internal sealed class TerminalSession
     private async Task RunStartupAsync(
         TerminalFlowContext context,
         TerminalNavigator navigator,
+        IApplication application,
         CancellationToken cancellationToken)
     {
         try
@@ -83,7 +85,13 @@ internal sealed class TerminalSession
             await _repositoryInitialization.RunAsync(context, cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
-            navigator.ShowMainMenu();
+            application.Invoke(() =>
+            {
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    navigator.Navigate(TerminalRoute.MainMenu);
+                }
+            });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -169,6 +177,7 @@ internal sealed class TerminalSession
             _startupTask = session.RunStartupAsync(
                 _context!,
                 navigator,
+                application,
                 _sessionCancellation!.Token);
         }
 

@@ -2,21 +2,21 @@ using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
+using UnityAssetsPatcher.TUI.Navigation;
+using UnityAssetsPatcher.TUI.Pages;
 
 namespace UnityAssetsPatcher.TUI.Pages.Settings;
 
-public sealed class SettingsView : View
+public sealed class SettingsView : TerminalPageView
 {
     private readonly ToggleItem _verboseOutput;
 
     internal SettingsView(
         LocalizedStrings strings,
-        SettingsLogic logic,
-        Action returnToMainMenu)
+        SettingsLogic logic)
     {
         ArgumentNullException.ThrowIfNull(strings);
         ArgumentNullException.ThrowIfNull(logic);
-        ArgumentNullException.ThrowIfNull(returnToMainMenu);
 
         KeyDown += (_, key) =>
         {
@@ -26,7 +26,7 @@ public sealed class SettingsView : View
             }
 
             key.Handled = true;
-            returnToMainMenu();
+            RequestNavigation(TerminalRoute.MainMenu);
         };
 
         var heading = new StyledLabel(strings.MainMenu_Settings_Title, TextRole.Title)

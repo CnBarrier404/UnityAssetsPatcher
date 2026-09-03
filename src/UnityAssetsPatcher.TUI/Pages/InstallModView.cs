@@ -13,11 +13,12 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
+using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public sealed class InstallModView : View, ITerminalRenderRequester
+public sealed class InstallModView : TerminalPageView, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
 
@@ -25,7 +26,6 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     private readonly LocalizedStrings _strings;
     private readonly AppRuntimeConfig _runtimeConfig;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
-    private readonly Action _returnToMainMenu;
     private readonly ActionButton _selectModButton;
     private readonly WorkingIndicator _message;
     private readonly ScrollableContentView _form;
@@ -39,8 +39,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
     internal InstallModView(
         LocalizedStrings strings,
         IServiceScopeFactory scopeFactory,
-        AppRuntimeConfig runtimeConfig,
-        Action returnToMainMenu)
+        AppRuntimeConfig runtimeConfig)
     {
         ArgumentNullException.ThrowIfNull(strings);
         ArgumentNullException.ThrowIfNull(scopeFactory);
@@ -48,7 +47,6 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         _strings = strings;
         _scopeFactory = scopeFactory;
         _runtimeConfig = runtimeConfig;
-        _returnToMainMenu = returnToMainMenu;
         KeyDown += (_, key) =>
         {
             if (key != Key.Esc)
@@ -63,7 +61,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
                 return;
             }
 
-            _returnToMainMenu();
+            RequestBack();
         };
 
         var heading = new StyledLabel(
@@ -124,7 +122,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             _strings.InstallPage_ModZipFileType);
         if (string.IsNullOrWhiteSpace(selectedPath))
         {
-            _returnToMainMenu();
+            RequestBack();
 
             return;
         }
@@ -314,7 +312,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             _strings.InstallPage_SubmitAction,
             PreviewAsync,
             _strings.InstallPage_BackAction,
-            _returnToMainMenu)
+            RequestBack)
         {
             X = 0,
             Y = actionsRow
@@ -358,7 +356,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             };
             Button back = CreateActionButton(
                 _strings.InstallPage_BackAction, 0, summaryRows.Length + 5);
-            back.Accepted += (_, _) => _returnToMainMenu();
+            back.Accepted += (_, _) => RequestBack();
             _form.Add(error, back);
             _form.SetContentHeightForRows(summaryRows.Length + 7);
             back.SetFocus();
@@ -391,7 +389,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             _strings.InstallPage_InstallAction,
             () => InstallAsync(modPath, gameDirectory, selectedGroups),
             _strings.InstallPage_BackAction,
-            _returnToMainMenu)
+            RequestBack)
         {
             X = 0,
             Y = nextRow + 1
@@ -467,6 +465,11 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    private void RequestBack()
+    {
+        RequestNavigation(TerminalRoute.MainMenu);
+    }
+
     private async Task<TResponse> DispatchAsync<TRequest, TResponse>(
         TRequest request,
         CancellationToken cancellationToken)
@@ -491,7 +494,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
         int detailsRow = summaryRows.Length + 3;
         int actionRow = detailsRow + detailsHeight + 1;
         Button back = CreateActionButton(_strings.InstallPage_ReturnAction, 0, actionRow);
-        back.Accepted += (_, _) => _returnToMainMenu();
+        back.Accepted += (_, _) => RequestBack();
         _form.Add(status, summary);
         if (!string.IsNullOrEmpty(text))
         {
@@ -522,7 +525,7 @@ public sealed class InstallModView : View, ITerminalRenderRequester
             Height = outputHeight
         };
         Button back = CreateActionButton(_strings.InstallPage_ReturnAction, 0, outputHeight + 1);
-        back.Accepted += (_, _) => _returnToMainMenu();
+        back.Accepted += (_, _) => RequestBack();
         _form.Add(output, back);
         _form.SetContentHeightForRows(outputHeight + 3);
         back.SetFocus();

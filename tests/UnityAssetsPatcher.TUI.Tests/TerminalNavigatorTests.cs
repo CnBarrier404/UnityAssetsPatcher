@@ -26,7 +26,7 @@ public sealed class TerminalNavigatorTests
             new CultureInfo("zh-CN"),
             provider.GetRequiredService<IServiceScopeFactory>());
 
-        navigator.ShowMainMenu();
+        navigator.Navigate(TerminalRoute.MainMenu);
 
         View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
         MainMenuView mainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
@@ -44,12 +44,13 @@ public sealed class TerminalNavigatorTests
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
         var navigator = new TerminalNavigator(
             shell,
-            new CultureInfo("en-US"),
-            provider.GetRequiredService<IServiceScopeFactory>(),
-            new AppRuntimeConfig(),
-            null);
+            TerminalRouteTable.Create(
+                new CultureInfo("en-US"),
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                new AppRuntimeConfig(),
+                null));
 
-        navigator.ShowMainMenu();
+        navigator.Navigate(TerminalRoute.MainMenu);
 
         View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
         MainMenuView mainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
@@ -67,12 +68,13 @@ public sealed class TerminalNavigatorTests
         var loggingLevelSwitch = new StubLoggingLevelSwitch();
         var navigator = new TerminalNavigator(
             shell,
-            new CultureInfo("en-US"),
-            provider.GetRequiredService<IServiceScopeFactory>(),
-            runtimeConfig,
-            loggingLevelSwitch);
+            TerminalRouteTable.Create(
+                new CultureInfo("en-US"),
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                runtimeConfig,
+                loggingLevelSwitch));
 
-        navigator.ShowMainMenu();
+        navigator.Navigate(TerminalRoute.MainMenu);
 
         View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
         MainMenuView mainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
@@ -97,10 +99,11 @@ public sealed class TerminalNavigatorTests
     {
         return new TerminalNavigator(
             shell,
-            culture,
-            scopeFactory,
-            new AppRuntimeConfig(),
-            null);
+            TerminalRouteTable.Create(
+                culture,
+                scopeFactory,
+                new AppRuntimeConfig(),
+                null));
     }
 
     private sealed class StubLoggingLevelSwitch : ILoggingLevelSwitch

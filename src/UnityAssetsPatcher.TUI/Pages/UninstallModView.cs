@@ -11,32 +11,30 @@ using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
+using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public sealed class UninstallModView : View, ITerminalRenderRequester
+public sealed class UninstallModView : TerminalPageView, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
-    private readonly Action _returnToMainMenu;
     private readonly ScrollableContentView _body;
     private bool _isWorking;
 
     internal UninstallModView(
         LocalizedStrings strings,
-        IServiceScopeFactory scopeFactory,
-        Action returnToMainMenu)
+        IServiceScopeFactory scopeFactory)
     {
         ArgumentNullException.ThrowIfNull(strings);
         ArgumentNullException.ThrowIfNull(scopeFactory);
 
         _strings = strings;
         _scopeFactory = scopeFactory;
-        _returnToMainMenu = returnToMainMenu;
 
         KeyDown += (_, key) =>
         {
@@ -52,7 +50,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
                 return;
             }
 
-            _returnToMainMenu();
+            RequestBack();
         };
 
         var heading = new StyledLabel(_strings.MainMenu_UninstallMod_Title, TextRole.Title)
@@ -141,7 +139,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
                 Width = Dim.Fill()
             };
             Button back = CreateActionButton(_strings.UninstallPage_ReturnAction, 0, 2);
-            back.Accepted += (_, _) => _returnToMainMenu();
+            back.Accepted += (_, _) => RequestBack();
             _body.Add(message, back);
             _body.SetContentHeightForRows(4);
             back.SetFocus();
@@ -434,6 +432,11 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
     }
 
+    private void RequestBack()
+    {
+        RequestNavigation(TerminalRoute.MainMenu);
+    }
+
     private async Task<TResponse> DispatchAsync<TRequest, TResponse>(
         TRequest request,
         CancellationToken cancellationToken)
@@ -474,7 +477,7 @@ public sealed class UninstallModView : View, ITerminalRenderRequester
         }
 
         Button back = CreateActionButton(_strings.UninstallPage_ReturnAction, 0, row);
-        back.Accepted += (_, _) => _returnToMainMenu();
+        back.Accepted += (_, _) => RequestBack();
         _body.Add(back);
         _body.SetContentHeightForRows(row + 2);
         back.SetFocus();
