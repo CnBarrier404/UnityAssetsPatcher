@@ -29,37 +29,80 @@ public sealed class Program
 
         await using (rootLogger)
         {
-            await using ServiceProvider serviceProvider = new ServiceCollection()
-                .AddUnityAssetsPatcherLogging(rootLogger, loggingLevelSwitch)
-                .AddUnityAssetsPatcherGitHubUpdates()
-                .AddUnityAssetsPatcherInfrastructure(OpenClassPackage)
-                .AddUnityAssetsPatcherRepository()
-                .AddUnityAssetsPatcherApplication()
-                .AddUnityAssetsPatcherUpdates()
-                .AddUnityAssetsPatcherOperations()
-                .AddUnityAssetsPatcherCli()
-                .AddUnityAssetsPatcherOperationalCommands()
-                .AddUnityAssetsPatcherTUI()
-                .BuildServiceProvider(new ServiceProviderOptions
-                {
-                    ValidateOnBuild = true,
-                    ValidateScopes = true
-                });
+            ServiceProvider? serviceProvider = null;
+            Exception? unexpectedException = null;
+            int exitCode = 1;
 
-            var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-
-            logger.LogInformation("Application started.");
-
-            if (args.Length > 0)
+            try
             {
-                var cliApplication = serviceProvider.GetRequiredService<CLIApplication>();
+                serviceProvider = new ServiceCollection()
+                    .AddUnityAssetsPatcherLogging(rootLogger, loggingLevelSwitch)
+                    .AddUnityAssetsPatcherGitHubUpdates()
+                    .AddUnityAssetsPatcherInfrastructure(OpenClassPackage)
+                    .AddUnityAssetsPatcherRepository()
+                    .AddUnityAssetsPatcherApplication()
+                    .AddUnityAssetsPatcherUpdates()
+                    .AddUnityAssetsPatcherOperations()
+                    .AddUnityAssetsPatcherCli()
+                    .AddUnityAssetsPatcherOperationalCommands()
+                    .AddUnityAssetsPatcherTUI()
+                    .BuildServiceProvider(new ServiceProviderOptions
+                    {
+                        ValidateOnBuild = true,
+                        ValidateScopes = true
+                    });
 
-                return await cliApplication.RunAsync(args).ConfigureAwait(false);
+                var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+
+                logger.LogInformation("Application started.");
+
+                if (args.Length > 0)
+                {
+                    var cliApplication = serviceProvider.GetRequiredService<CLIApplication>();
+
+                    exitCode = await cliApplication.RunAsync(args).ConfigureAwait(false);
+                }
+                else
+                {
+                    var terminalApp = serviceProvider.GetRequiredService<TerminalApp>();
+
+                    exitCode = await terminalApp.RunAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception exception)
+            {
+                unexpectedException = exception;
             }
 
-            var terminalApp = serviceProvider.GetRequiredService<TerminalApp>();
+            if (serviceProvider is not null)
+            {
+                try
+                {
+                    await serviceProvider.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception disposalException)
+                {
+                    unexpectedException = unexpectedException is null
+                        ? disposalException
+                        : new AggregateException(
+                            "Application execution and service provider disposal both failed.",
+                            unexpectedException,
+                            disposalException);
+                }
+            }
 
-            return await terminalApp.RunAsync().ConfigureAwait(false);
+            if (unexpectedException is null)
+            {
+                return exitCode;
+            }
+
+            rootLogger
+                .ForContext<Program>()
+                .Fatal(unexpectedException, "Application terminated unexpectedly.");
+
+            await Console.Error.WriteLineAsync("An unexpected error occurred.");
+
+            return 1;
         }
 
         Stream OpenClassPackage()
