@@ -2,20 +2,16 @@ using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
-using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages.RepositoryIssue;
 
-public sealed class RepositoryIssueView : View, ITerminalRenderRequester
+public sealed class RepositoryIssueView : TerminalContentView
 {
-    public event EventHandler? RenderRequested;
-
     private readonly LocalizedStrings _strings;
     private readonly RepositoryIssueLogic _logic;
     private readonly Action _exit;
     private readonly ScrollableContentView _content;
     private View? _preferredFocus;
-    private bool _isDisposed;
 
     internal RepositoryIssueView(
         LocalizedStrings strings,
@@ -42,12 +38,11 @@ public sealed class RepositoryIssueView : View, ITerminalRenderRequester
         RenderState();
 
         Initialized += (_, _) => _preferredFocus?.SetFocus();
-        Disposing += (_, _) => _isDisposed = true;
     }
 
     private void RenderState()
     {
-        if (_isDisposed)
+        if (IsDisposed)
         {
             return;
         }
@@ -275,7 +270,7 @@ public sealed class RepositoryIssueView : View, ITerminalRenderRequester
 
     private async Task RunLogicAsync(Func<Task> startOperation)
     {
-        if (_logic.IsWorking || _isDisposed)
+        if (_logic.IsWorking || IsDisposed)
         {
             return;
         }
@@ -283,25 +278,25 @@ public sealed class RepositoryIssueView : View, ITerminalRenderRequester
         Task operation = startOperation();
         await operation;
 
-        if (_isDisposed || _logic.State is RepositoryIssueState.Ready)
+        if (IsDisposed || _logic.State is RepositoryIssueState.Ready)
         {
             return;
         }
 
         RenderState();
-        RenderRequested?.Invoke(this, EventArgs.Empty);
+        RequestRender();
     }
 
     private void Transition(Action transition)
     {
-        if (_logic.IsWorking || _isDisposed)
+        if (_logic.IsWorking || IsDisposed)
         {
             return;
         }
 
         transition();
         RenderState();
-        RenderRequested?.Invoke(this, EventArgs.Empty);
+        RequestRender();
     }
 
     private void AddLabel(string text, Pos y, TextRole role)

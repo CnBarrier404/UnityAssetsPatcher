@@ -2,7 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Installation;
-using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 
@@ -30,37 +29,11 @@ public abstract record InstallModState
     public sealed record InstallFailed(OperationError Error) : InstallModState;
 }
 
-public sealed class InstallModLogic : IDisposable
+public sealed class InstallModLogic : TerminalPageLogic<InstallModState>
 {
-    public InstallModState State
-    {
-        get
-        {
-            lock (_sync)
-            {
-                return _state;
-            }
-        }
-    }
-
-    public bool IsWorking
-    {
-        get
-        {
-            lock (_sync)
-            {
-                return _isWorking;
-            }
-        }
-    }
-
     public bool VerboseLogging => _runtimeConfig.VerboseLogging;
 
-    private readonly IServiceScopeFactory _scopeFactory;
     private readonly AppRuntimeConfig _runtimeConfig;
-    private readonly CancellationTokenSource _lifetimeCancellation = new();
-    private readonly Lock _sync = new();
-    private InstallModState _state = new InstallModState.SelectPackage();
     private string? _modPath;
     private string? _gameDirectory;
     private string[] _selectedOptionalGroups = [];
@@ -68,15 +41,11 @@ public sealed class InstallModLogic : IDisposable
     private PreparedInstall? _preparedInstall;
     private bool _optionalGroupsConfirmed;
     private PreviewOrigin _previewOrigin;
-    private bool _isWorking;
-    private bool _isDisposed;
-    private bool _isCancellationPending;
 
     public InstallModLogic(IServiceScopeFactory scopeFactory, AppRuntimeConfig runtimeConfig)
+        : base(scopeFactory, new InstallModState.SelectPackage())
     {
-        ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(runtimeConfig);
-        _scopeFactory = scopeFactory;
         _runtimeConfig = runtimeConfig;
     }
 
@@ -120,14 +89,14 @@ public sealed class InstallModLogic : IDisposable
 
     public Task InstallAsync()
     {
-        lock (_sync)
+        lock (SyncRoot)
         {
-            if (_isWorking || _isDisposed)
+            if (IsUnavailable)
             {
                 return Task.CompletedTask;
             }
 
-            if (_state is not InstallModState.Preview { BlockingDiagnostic: null })
+            if (CurrentState is not InstallModState.Preview { BlockingDiagnostic: null })
             {
                 throw new InvalidOperationException("The mod is not ready to install.");
             }
@@ -138,57 +107,26 @@ public sealed class InstallModLogic : IDisposable
                 PreparedInstall = _preparedInstall
             };
 
+            CurrentState = new InstallModState.Installing();
             return StartOperation<InstallModRequest, InstallModResult>(
                 new InstallModRequest(request),
-                new InstallModState.Installing(),
                 CompleteInstall);
-        }
-    }
-
-    public void Dispose()
-    {
-        lock (_sync)
-        {
-            if (_isDisposed)
-            {
-                return;
-            }
-
-            _isDisposed = true;
-            _preparedInstall = null;
-            _isCancellationPending = true;
-        }
-
-        try
-        {
-            _lifetimeCancellation.Cancel();
-        }
-        finally
-        {
-            lock (_sync)
-            {
-                _isCancellationPending = false;
-                if (!_isWorking)
-                {
-                    _lifetimeCancellation.Dispose();
-                }
-            }
         }
     }
 
     private Task StartPreview(Action configure, Type? requiredState = null)
     {
-        lock (_sync)
+        lock (SyncRoot)
         {
-            if (_isWorking || _isDisposed)
+            if (IsUnavailable)
             {
                 return Task.CompletedTask;
             }
 
-            if (requiredState is not null && !requiredState.IsInstanceOfType(_state))
+            if (requiredState is not null && !requiredState.IsInstanceOfType(CurrentState))
             {
                 throw new InvalidOperationException(
-                    $"The current install state is '{_state.GetType().Name}', not '{requiredState.Name}'.");
+                    $"The current install state is '{CurrentState.GetType().Name}', not '{requiredState.Name}'.");
             }
 
             configure();
@@ -200,52 +138,10 @@ public sealed class InstallModLogic : IDisposable
                 IncludePatchPreviewDetails = false
             };
 
+            CurrentState = new InstallModState.Analyzing();
             return StartOperation<PreviewInstallRequest, InstallPreviewResult>(
                 new PreviewInstallRequest(request),
-                new InstallModState.Analyzing(),
                 CompletePreview);
-        }
-    }
-
-    private Task StartOperation<TRequest, TResult>(
-        TRequest request,
-        InstallModState workingState,
-        Action<OperationResult<TResult>> complete)
-        where TRequest : IRequest<OperationResult<TResult>>
-    {
-        _isWorking = true;
-        _state = workingState;
-        CancellationToken cancellationToken = _lifetimeCancellation.Token;
-
-        return RunOperationAsync(request, complete, cancellationToken);
-    }
-
-    private async Task RunOperationAsync<TRequest, TResult>(
-        TRequest request,
-        Action<OperationResult<TResult>> complete,
-        CancellationToken cancellationToken)
-        where TRequest : IRequest<OperationResult<TResult>>
-    {
-        try
-        {
-            var result = await DispatchOnWorkerAsync<TRequest, TResult>(
-                request,
-                cancellationToken).ConfigureAwait(false);
-
-            lock (_sync)
-            {
-                if (!_isDisposed)
-                {
-                    complete(result);
-                }
-            }
-        }
-        catch (OperationCanceledException exception)
-            when (cancellationToken.IsCancellationRequested &&
-                  exception.CancellationToken == cancellationToken) { }
-        finally
-        {
-            EndOperation();
         }
     }
 
@@ -258,7 +154,7 @@ public sealed class InstallModLogic : IDisposable
                  failed.Error.Code == GameDirectoryErrorCodes.NotFound) &&
                 string.IsNullOrEmpty(_gameDirectory);
 
-            _state = needsGameDirectory
+            CurrentState = needsGameDirectory
                 ? new InstallModState.EnterGameDirectory(
                     failed.Error,
                     _gameDirectory,
@@ -273,7 +169,7 @@ public sealed class InstallModLogic : IDisposable
         if (preview.OptionalGroups.Count > 0 && !_optionalGroupsConfirmed)
         {
             _optionalGroups = preview.OptionalGroups.ToArray();
-            _state = new InstallModState.SelectOptionalGroups(
+            CurrentState = new InstallModState.SelectOptionalGroups(
                 _optionalGroups,
                 _selectedOptionalGroups);
             return;
@@ -282,7 +178,7 @@ public sealed class InstallModLogic : IDisposable
         PatchDiagnostic? diagnostic = preview.Changes
             .Select(change => change.Preview?.Diagnostic)
             .FirstOrDefault(candidate => candidate is not null);
-        _state = new InstallModState.Preview(preview, diagnostic);
+        CurrentState = new InstallModState.Preview(preview, diagnostic);
     }
 
     private InstallModState CreateRetryState(OperationError error)
@@ -303,36 +199,9 @@ public sealed class InstallModLogic : IDisposable
 
     private void CompleteInstall(OperationResult<InstallModResult> result)
     {
-        _state = result is OperationSucceeded<InstallModResult> succeeded
+        CurrentState = result is OperationSucceeded<InstallModResult> succeeded
             ? new InstallModState.Installed(succeeded.Value)
             : new InstallModState.InstallFailed(((OperationFailed<InstallModResult>)result).Error);
-    }
-
-    private void EndOperation()
-    {
-        lock (_sync)
-        {
-            _isWorking = false;
-            if (_isDisposed && !_isCancellationPending)
-            {
-                _lifetimeCancellation.Dispose();
-            }
-        }
-    }
-
-    private async Task<OperationResult<TResult>> DispatchOnWorkerAsync<TRequest, TResult>(
-        TRequest request,
-        CancellationToken cancellationToken)
-        where TRequest : IRequest<OperationResult<TResult>>
-    {
-        return await Task.Run(async () =>
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            return await dispatcher.DispatchAsync<TRequest, OperationResult<TResult>>(
-                request,
-                cancellationToken).ConfigureAwait(false);
-        }, cancellationToken).ConfigureAwait(false);
     }
 
     private enum PreviewOrigin

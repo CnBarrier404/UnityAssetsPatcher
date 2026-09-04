@@ -7,14 +7,11 @@ using UnityAssetsPatcher.Application.Features.Inspect;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
-using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages.InspectAssets;
 
-public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequester
+public sealed class InspectAssetsView : TerminalOperationPageView
 {
-    public event EventHandler? RenderRequested;
-
     protected override bool CanReturnToMainMenu => !_logic.IsWorking;
 
     private const int DefaultLimit = 100;
@@ -22,7 +19,6 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
     private readonly LocalizedStrings _strings;
     private readonly InspectAssetsLogic _logic;
     private readonly View _body;
-    private bool _isDisposed;
 
     internal InspectAssetsView(
         LocalizedStrings strings,
@@ -46,16 +42,12 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
         Add(_body);
         RenderState();
 
-        Disposing += (_, _) =>
-        {
-            _isDisposed = true;
-            _logic.Dispose();
-        };
+        Disposing += (_, _) => _logic.Dispose();
     }
 
-    private void RenderState()
+    protected override void RenderState()
     {
-        if (_isDisposed)
+        if (IsDisposed)
         {
             return;
         }
@@ -408,22 +400,6 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
     private void RunTransition(Action transition)
     {
         transition();
-        RenderState();
-    }
-
-    private async Task RunLogicAsync(Func<Task> startOperation)
-    {
-        Task operation = startOperation();
-        RenderState();
-        RenderRequested?.Invoke(this, EventArgs.Empty);
-
-        await operation;
-
-        if (_isDisposed)
-        {
-            return;
-        }
-
         RenderState();
     }
 

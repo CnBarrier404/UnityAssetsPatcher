@@ -1,17 +1,16 @@
 using Terminal.Gui.Input;
-using Terminal.Gui.ViewBase;
 using UnityAssetsPatcher.TUI.Navigation;
 
 namespace UnityAssetsPatcher.TUI.Pages;
 
-public abstract class TerminalPageView : View
+public abstract class TerminalPageView : TerminalContentView
 {
     public event EventHandler<TerminalRoute>? NavigationRequested;
 
     internal event EventHandler? PageHeaderChanged;
-
     internal string PageTitle { get; private set; } = string.Empty;
     internal string? PageDescription { get; private set; }
+
     protected virtual bool CanReturnToMainMenu => true;
 
     protected TerminalPageView()

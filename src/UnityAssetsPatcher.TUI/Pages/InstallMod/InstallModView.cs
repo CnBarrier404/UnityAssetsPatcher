@@ -7,20 +7,16 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Patching;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
-using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages.InstallMod;
 
-public sealed class InstallModView : TerminalPageView, ITerminalRenderRequester
+public sealed class InstallModView : TerminalOperationPageView
 {
-    public event EventHandler? RenderRequested;
-
     protected override bool CanReturnToMainMenu => !_logic.IsWorking;
 
     private readonly LocalizedStrings _strings;
     private readonly InstallModLogic _logic;
     private readonly ScrollableContentView _form;
-    private bool _isDisposed;
 
     internal InstallModView(
         LocalizedStrings strings,
@@ -48,19 +44,15 @@ public sealed class InstallModView : TerminalPageView, ITerminalRenderRequester
 
         Initialized += async (_, _) =>
         {
-            RenderRequested?.Invoke(this, EventArgs.Empty);
+            RequestRender();
             await SelectPackageAsync();
         };
-        Disposing += (_, _) =>
-        {
-            _isDisposed = true;
-            _logic.Dispose();
-        };
+        Disposing += (_, _) => _logic.Dispose();
     }
 
-    private void RenderState()
+    protected override void RenderState()
     {
-        if (_isDisposed)
+        if (IsDisposed)
         {
             return;
         }
@@ -100,7 +92,7 @@ public sealed class InstallModView : TerminalPageView, ITerminalRenderRequester
 
     private async Task SelectPackageAsync()
     {
-        if (_logic.IsWorking || _isDisposed)
+        if (_logic.IsWorking || IsDisposed)
         {
             return;
         }
@@ -159,23 +151,6 @@ public sealed class InstallModView : TerminalPageView, ITerminalRenderRequester
             .ToArray();
 
         await RunLogicAsync(() => _logic.SubmitOptionalGroupsAsync(selectedGroups));
-    }
-
-    private async Task RunLogicAsync(Func<Task> startOperation)
-    {
-        Task operation = startOperation();
-        RenderState();
-        RenderRequested?.Invoke(this, EventArgs.Empty);
-
-        await operation;
-
-        if (_isDisposed)
-        {
-            return;
-        }
-
-        RenderState();
-        RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void RenderPackageSelection(string? error)

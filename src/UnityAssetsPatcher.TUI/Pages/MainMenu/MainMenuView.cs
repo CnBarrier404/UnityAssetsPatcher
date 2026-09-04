@@ -4,16 +4,13 @@ using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Navigation;
-using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages.MainMenu;
 
 public sealed record MainMenuItem(string Title, string Description, TerminalRoute Route);
 
-public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
+public sealed class MainMenuView : TerminalPageView
 {
-    public event EventHandler? RenderRequested;
-
     protected override bool CanReturnToMainMenu => false;
 
     private readonly List<ChoiceItemList> _choices = [];
@@ -21,7 +18,6 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
     private readonly LocalizedStrings _strings;
     private readonly MainMenuLogic _logic;
     private bool _hasUpdate;
-    private bool _isDisposed;
 
     internal MainMenuView(
         LocalizedStrings strings,
@@ -78,11 +74,7 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
         };
 
         _logic.UpdateAvailable += OnUpdateAvailable;
-        Disposing += (_, _) =>
-        {
-            _isDisposed = true;
-            _logic.UpdateAvailable -= OnUpdateAvailable;
-        };
+        Disposing += (_, _) => _logic.UpdateAvailable -= OnUpdateAvailable;
     }
 
     private void ShowAvailableUpdateIfKnown()
@@ -95,7 +87,7 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
 
     private void OnUpdateAvailable(object? sender, EventArgs eventArgs)
     {
-        if (_isDisposed || _logic.AvailableUpdate is null)
+        if (IsDisposed || _logic.AvailableUpdate is null)
         {
             return;
         }
@@ -104,7 +96,7 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
 
         application?.Invoke(() =>
         {
-            if (_isDisposed || _logic.AvailableUpdate is not { } update)
+            if (IsDisposed || _logic.AvailableUpdate is not { } update)
             {
                 return;
             }
@@ -122,7 +114,7 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
 
         AddUpdate(update);
         _hasUpdate = true;
-        RenderRequested?.Invoke(this, EventArgs.Empty);
+        RequestRender();
     }
 
     private void AddUpdate(UpdateInfo update)

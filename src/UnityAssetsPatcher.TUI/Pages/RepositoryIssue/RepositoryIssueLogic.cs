@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Recovery;
 using UnityAssetsPatcher.Application.Features.RepositoryManagement;
-using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Repository;
 
@@ -29,59 +28,23 @@ public abstract record RepositoryIssueState
         RepositoryRecoveryReport PreviousReport) : RepositoryIssueState;
 }
 
-public sealed class RepositoryIssueLogic : IDisposable
+public sealed class RepositoryIssueLogic : TerminalPageLogic<RepositoryIssueState>
 {
-    public RepositoryIssueState State
-    {
-        get
-        {
-            lock (_sync)
-            {
-                return _state;
-            }
-        }
-    }
-
-    public bool IsWorking
-    {
-        get
-        {
-            lock (_sync)
-            {
-                return _isWorking;
-            }
-        }
-    }
-
     public Task Completion => _completion.Task;
-
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly CancellationTokenSource _lifetimeCancellation;
 
     private readonly TaskCompletionSource _completion = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
 
-    private readonly Lock _sync = new();
-    private RepositoryIssueState _state = new RepositoryIssueState.Unchecked();
-    private bool _isWorking;
-    private bool _isDisposed;
-    private bool _isCancellationPending;
-
     public RepositoryIssueLogic(
         IServiceScopeFactory scopeFactory,
         CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(scopeFactory);
-
-        _scopeFactory = scopeFactory;
-        _lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-    }
+        : base(scopeFactory, new RepositoryIssueState.Unchecked(), cancellationToken) { }
 
     public Task InitializeAsync()
     {
-        lock (_sync)
+        lock (SyncRoot)
         {
-            if (_isWorking || _isDisposed)
+            if (IsUnavailable)
             {
                 return Task.CompletedTask;
             }
@@ -94,44 +57,44 @@ public sealed class RepositoryIssueLogic : IDisposable
 
     public void ShowClearConfirmation()
     {
-        lock (_sync)
+        lock (SyncRoot)
         {
             ThrowIfUnavailable();
 
-            if (_state is not RepositoryIssueState.UnsupportedFormat unsupported)
+            if (CurrentState is not RepositoryIssueState.UnsupportedFormat unsupported)
             {
                 throw new InvalidOperationException("The repository format warning is not active.");
             }
 
-            _state = new RepositoryIssueState.ClearConfirmation(unsupported);
+            CurrentState = new RepositoryIssueState.ClearConfirmation(unsupported);
         }
     }
 
     public void CancelClearConfirmation()
     {
-        lock (_sync)
+        lock (SyncRoot)
         {
             ThrowIfUnavailable();
 
-            if (_state is not RepositoryIssueState.ClearConfirmation confirmation)
+            if (CurrentState is not RepositoryIssueState.ClearConfirmation confirmation)
             {
                 throw new InvalidOperationException("The repository clear confirmation is not active.");
             }
 
-            _state = confirmation.Unsupported;
+            CurrentState = confirmation.Unsupported;
         }
     }
 
     public Task ClearAsync()
     {
-        lock (_sync)
+        lock (SyncRoot)
         {
-            if (_isWorking || _isDisposed)
+            if (IsUnavailable)
             {
                 return Task.CompletedTask;
             }
 
-            if (_state is not RepositoryIssueState.ClearConfirmation confirmation)
+            if (CurrentState is not RepositoryIssueState.ClearConfirmation confirmation)
             {
                 throw new InvalidOperationException("The repository clear operation has not been confirmed.");
             }
@@ -148,14 +111,14 @@ public sealed class RepositoryIssueLogic : IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
 
-        lock (_sync)
+        lock (SyncRoot)
         {
-            if (_isWorking || _isDisposed)
+            if (IsUnavailable)
             {
                 return Task.CompletedTask;
             }
 
-            if (_state is not RepositoryIssueState.RecoveryProblem
+            if (CurrentState is not RepositoryIssueState.RecoveryProblem
                 {
                     Report.Status: RepositoryRecoveryStatus.RecoveryRequired
                 } recovery)
@@ -171,29 +134,29 @@ public sealed class RepositoryIssueLogic : IDisposable
 
     public void BackToRecovery()
     {
-        lock (_sync)
+        lock (SyncRoot)
         {
             ThrowIfUnavailable();
 
-            if (_state is not RepositoryIssueState.RecoveryPreview preview)
+            if (CurrentState is not RepositoryIssueState.RecoveryPreview preview)
             {
                 throw new InvalidOperationException("The repository recovery preview is not active.");
             }
 
-            _state = new RepositoryIssueState.RecoveryProblem(preview.PreviousReport);
+            CurrentState = new RepositoryIssueState.RecoveryProblem(preview.PreviousReport);
         }
     }
 
     public Task RecoverAsync()
     {
-        lock (_sync)
+        lock (SyncRoot)
         {
-            if (_isWorking || _isDisposed)
+            if (IsUnavailable)
             {
                 return Task.CompletedTask;
             }
 
-            if (_state is not RepositoryIssueState.RecoveryPreview
+            if (CurrentState is not RepositoryIssueState.RecoveryPreview
                 {
                     Preview.GameDirectory: { } gameDirectory
                 })
@@ -207,82 +170,12 @@ public sealed class RepositoryIssueLogic : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        lock (_sync)
-        {
-            if (_isDisposed)
-            {
-                return;
-            }
-
-            _isDisposed = true;
-            _isCancellationPending = true;
-        }
-
-        try
-        {
-            _lifetimeCancellation.Cancel();
-        }
-        finally
-        {
-            lock (_sync)
-            {
-                _isCancellationPending = false;
-                if (!_isWorking)
-                {
-                    _lifetimeCancellation.Dispose();
-                }
-            }
-        }
-    }
-
-    private Task StartOperation<TRequest, TResult>(
-        TRequest request,
-        Action<OperationResult<TResult>> complete)
-        where TRequest : IRequest<OperationResult<TResult>>
-    {
-        _isWorking = true;
-        CancellationToken cancellationToken = _lifetimeCancellation.Token;
-
-        return RunOperationAsync(request, complete, cancellationToken);
-    }
-
-    private async Task RunOperationAsync<TRequest, TResult>(
-        TRequest request,
-        Action<OperationResult<TResult>> complete,
-        CancellationToken cancellationToken)
-        where TRequest : IRequest<OperationResult<TResult>>
-    {
-        try
-        {
-            var result = await DispatchOnWorkerAsync<TRequest, TResult>(
-                request,
-                cancellationToken).ConfigureAwait(false);
-
-            lock (_sync)
-            {
-                if (!_isDisposed)
-                {
-                    complete(result);
-                }
-            }
-        }
-        catch (OperationCanceledException exception)
-            when (cancellationToken.IsCancellationRequested &&
-                  exception.CancellationToken == cancellationToken) { }
-        finally
-        {
-            EndOperation();
-        }
-    }
-
     private void CompleteInitialization(OperationResult<RepositoryRecoveryReport> result)
     {
         if (result is OperationFailed<RepositoryRecoveryReport> failed &&
             failed.Error.Code == RepositoryErrorCodes.UnsupportedVersion)
         {
-            _state = CreateUnsupportedState(failed.Error);
+            CurrentState = CreateUnsupportedState(failed.Error);
 
             return;
         }
@@ -311,7 +204,7 @@ public sealed class RepositoryIssueLogic : IDisposable
 
         var failed = result as OperationFailed<RepositoryClearResult> ??
                      throw new ArgumentOutOfRangeException(nameof(result));
-        _state = unsupported with { ClearError = failed.Error };
+        CurrentState = unsupported with { ClearError = failed.Error };
     }
 
     private void CompleteRecoveryPreview(
@@ -328,7 +221,7 @@ public sealed class RepositoryIssueLogic : IDisposable
         RepositoryRecoveryPreview preview = succeeded.Value;
         if (preview.CanRecover)
         {
-            _state = new RepositoryIssueState.RecoveryPreview(preview, previousReport);
+            CurrentState = new RepositoryIssueState.RecoveryPreview(preview, previousReport);
 
             return;
         }
@@ -353,7 +246,7 @@ public sealed class RepositoryIssueLogic : IDisposable
     {
         if (recovery.Status is RepositoryRecoveryStatus.RecoveryRequired or RepositoryRecoveryStatus.Locked)
         {
-            _state = new RepositoryIssueState.RecoveryProblem(recovery);
+            CurrentState = new RepositoryIssueState.RecoveryProblem(recovery);
 
             return;
         }
@@ -363,7 +256,7 @@ public sealed class RepositoryIssueLogic : IDisposable
 
     private void SetReady()
     {
-        _state = new RepositoryIssueState.Ready();
+        CurrentState = new RepositoryIssueState.Ready();
         _completion.TrySetResult();
     }
 
@@ -394,37 +287,10 @@ public sealed class RepositoryIssueLogic : IDisposable
 
     private void ThrowIfUnavailable()
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
-        if (_isWorking)
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        if (IsWorking)
         {
             throw new InvalidOperationException("A repository operation is already running.");
         }
-    }
-
-    private void EndOperation()
-    {
-        lock (_sync)
-        {
-            _isWorking = false;
-            if (_isDisposed && !_isCancellationPending)
-            {
-                _lifetimeCancellation.Dispose();
-            }
-        }
-    }
-
-    private async Task<OperationResult<TResult>> DispatchOnWorkerAsync<TRequest, TResult>(
-        TRequest request,
-        CancellationToken cancellationToken)
-        where TRequest : IRequest<OperationResult<TResult>>
-    {
-        return await Task.Run(async () =>
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            return await dispatcher.DispatchAsync<TRequest, OperationResult<TResult>>(
-                request,
-                cancellationToken).ConfigureAwait(false);
-        }, cancellationToken).ConfigureAwait(false);
     }
 }

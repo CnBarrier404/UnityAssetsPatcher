@@ -5,20 +5,16 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Features.Uninstall;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
-using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages.UninstallMod;
 
-public sealed class UninstallModView : TerminalPageView, ITerminalRenderRequester
+public sealed class UninstallModView : TerminalOperationPageView
 {
-    public event EventHandler? RenderRequested;
-
     protected override bool CanReturnToMainMenu => !_logic.IsWorking;
 
     private readonly LocalizedStrings _strings;
     private readonly UninstallModLogic _logic;
     private readonly ScrollableContentView _body;
-    private bool _isDisposed;
 
     internal UninstallModView(
         LocalizedStrings strings,
@@ -45,16 +41,12 @@ public sealed class UninstallModView : TerminalPageView, ITerminalRenderRequeste
         RenderState();
 
         Initialized += async (_, _) => await RunLogicAsync(_logic.LoadInstalledModsAsync);
-        Disposing += (_, _) =>
-        {
-            _isDisposed = true;
-            _logic.Dispose();
-        };
+        Disposing += (_, _) => _logic.Dispose();
     }
 
-    private void RenderState()
+    protected override void RenderState()
     {
-        if (_isDisposed)
+        if (IsDisposed)
         {
             return;
         }
@@ -88,23 +80,6 @@ public sealed class UninstallModView : TerminalPageView, ITerminalRenderRequeste
                 RenderError(OperationErrorFormatter.Format(_strings, state.Error));
                 break;
         }
-    }
-
-    private async Task RunLogicAsync(Func<Task> startOperation)
-    {
-        Task operation = startOperation();
-        RenderState();
-        RenderRequested?.Invoke(this, EventArgs.Empty);
-
-        await operation;
-
-        if (_isDisposed)
-        {
-            return;
-        }
-
-        RenderState();
-        RenderRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void RenderInstalledMods(IReadOnlyList<InstallRecordSummary> installed)
