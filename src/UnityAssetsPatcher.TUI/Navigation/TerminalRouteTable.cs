@@ -4,6 +4,7 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
+using UnityAssetsPatcher.TUI.Pages.InspectAssets;
 using UnityAssetsPatcher.TUI.Pages.InstallMod;
 using UnityAssetsPatcher.TUI.Pages.MainMenu;
 using UnityAssetsPatcher.TUI.Pages.Settings;
@@ -69,7 +70,7 @@ public sealed class TerminalRouteTable
             [TerminalRoute.UninstallMod] = () =>
                 new UninstallModView(strings, new UninstallModLogic(_scopeFactory)),
             [TerminalRoute.InspectAssets] = () =>
-                new InspectAssetsView(strings, _scopeFactory),
+                new InspectAssetsView(strings, new InspectAssetsLogic(_scopeFactory)),
             [TerminalRoute.Settings] = () =>
                 new SettingsView(strings, new SettingsLogic(_runtimeConfig, _loggingLevelSwitch))
         };
