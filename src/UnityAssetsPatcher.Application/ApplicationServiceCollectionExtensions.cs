@@ -126,6 +126,9 @@ public static class ApplicationServiceCollectionExtensions
     private static void AddRepositoryManagementHandlers(IServiceCollection services)
     {
         services.AddScoped<
+            IRequestHandler<InitializeRepositoryRequest, OperationResult<RepositoryRecoveryReport>>,
+            InitializeRepositoryHandler>();
+        services.AddScoped<
             IRequestHandler<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>,
             RepositoryManagementHandler>();
     }
