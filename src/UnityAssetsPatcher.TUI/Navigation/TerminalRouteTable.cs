@@ -7,6 +7,7 @@ using UnityAssetsPatcher.TUI.Pages;
 using UnityAssetsPatcher.TUI.Pages.InstallMod;
 using UnityAssetsPatcher.TUI.Pages.MainMenu;
 using UnityAssetsPatcher.TUI.Pages.Settings;
+using UnityAssetsPatcher.TUI.Pages.UninstallMod;
 
 namespace UnityAssetsPatcher.TUI.Navigation;
 
@@ -64,11 +65,9 @@ public sealed class TerminalRouteTable
             [TerminalRoute.MainMenu] = () =>
                 new MainMenuView(strings, menuItems, _mainMenuLogic),
             [TerminalRoute.InstallMod] = () =>
-                new InstallModView(
-                    strings,
-                    new InstallModLogic(_scopeFactory, _runtimeConfig)),
+                new InstallModView(strings, new InstallModLogic(_scopeFactory, _runtimeConfig)),
             [TerminalRoute.UninstallMod] = () =>
-                new UninstallModView(strings, _scopeFactory),
+                new UninstallModView(strings, new UninstallModLogic(_scopeFactory)),
             [TerminalRoute.InspectAssets] = () =>
                 new InspectAssetsView(strings, _scopeFactory),
             [TerminalRoute.Settings] = () =>
