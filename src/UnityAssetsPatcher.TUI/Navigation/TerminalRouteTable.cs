@@ -4,21 +4,38 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Pages;
+using UnityAssetsPatcher.TUI.Pages.MainMenu;
 using UnityAssetsPatcher.TUI.Pages.Settings;
 
 namespace UnityAssetsPatcher.TUI.Navigation;
 
-public static class TerminalRouteTable
+public sealed class TerminalRouteTable
 {
-    public static IReadOnlyDictionary<TerminalRoute, Func<TerminalPageView>> Create(
-        CultureInfo culture,
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly AppRuntimeConfig _runtimeConfig;
+    private readonly MainMenuLogic _mainMenuLogic;
+    private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
+
+    public TerminalRouteTable(
         IServiceScopeFactory scopeFactory,
         AppRuntimeConfig runtimeConfig,
-        ILoggingLevelSwitch? loggingLevelSwitch)
+        MainMenuLogic mainMenuLogic,
+        ILoggingLevelSwitch? loggingLevelSwitch = null)
     {
-        ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(scopeFactory);
         ArgumentNullException.ThrowIfNull(runtimeConfig);
+        ArgumentNullException.ThrowIfNull(mainMenuLogic);
+
+        _scopeFactory = scopeFactory;
+        _runtimeConfig = runtimeConfig;
+        _mainMenuLogic = mainMenuLogic;
+        _loggingLevelSwitch = loggingLevelSwitch;
+    }
+
+    public IReadOnlyDictionary<TerminalRoute, Func<TerminalPageView>> Create(
+        CultureInfo culture)
+    {
+        ArgumentNullException.ThrowIfNull(culture);
 
         var strings = new LocalizedStrings(culture);
         MainMenuItem[] menuItems =
@@ -44,15 +61,15 @@ public static class TerminalRouteTable
         return new Dictionary<TerminalRoute, Func<TerminalPageView>>
         {
             [TerminalRoute.MainMenu] = () =>
-                new MainMenuView(strings, menuItems, scopeFactory),
+                new MainMenuView(strings, menuItems, _mainMenuLogic),
             [TerminalRoute.InstallMod] = () =>
-                new InstallModView(strings, scopeFactory, runtimeConfig),
+                new InstallModView(strings, _scopeFactory, _runtimeConfig),
             [TerminalRoute.UninstallMod] = () =>
-                new UninstallModView(strings, scopeFactory),
+                new UninstallModView(strings, _scopeFactory),
             [TerminalRoute.InspectAssets] = () =>
-                new InspectAssetsView(strings, scopeFactory),
+                new InspectAssetsView(strings, _scopeFactory),
             [TerminalRoute.Settings] = () =>
-                new SettingsView(strings, new SettingsLogic(runtimeConfig, loggingLevelSwitch))
+                new SettingsView(strings, new SettingsLogic(_runtimeConfig, _loggingLevelSwitch))
         };
     }
 }

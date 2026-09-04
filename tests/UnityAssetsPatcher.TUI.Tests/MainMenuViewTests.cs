@@ -1,7 +1,12 @@
+using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.ViewBase;
+using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Pages;
+using UnityAssetsPatcher.TUI.Pages.MainMenu;
+using UnityAssetsPatcher.TUI.Shell;
 using Xunit;
 
 namespace UnityAssetsPatcher.TUI.Tests;
@@ -9,15 +14,26 @@ namespace UnityAssetsPatcher.TUI.Tests;
 public sealed class MainMenuViewTests
 {
     [Fact]
-    public void MainMenuView_WhenInitialized_FocusesFirstChoice()
+    public async Task MainMenuView_WhenInitialized_FocusesFirstChoice()
     {
-        MainMenuItem[] items =
-        [
-            new("First", "First description", TerminalRoute.InstallMod),
-            new("Second", "Second description", TerminalRoute.UninstallMod)
-        ];
+        using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        await using var mainMenuLogic = new MainMenuLogic(scopeFactory);
+        using TerminalShellView shell = new("Footer");
+        var routeTable = new TerminalRouteTable(
+            scopeFactory,
+            new AppRuntimeConfig(),
+            mainMenuLogic);
+        var navigator = new TerminalNavigator(
+            shell,
+            routeTable.Create(new CultureInfo("en-US")));
 
-        using MainMenuView menu = new("Main menu", items);
+        navigator.Navigate(TerminalRoute.MainMenu);
+
+        MainMenuView menu = Assert.Single(
+            Assert.Single(shell.SubViews, view => view.GetType() == typeof(View))
+                .SubViews
+                .OfType<MainMenuView>());
         menu.CanFocus = true;
 
         menu.BeginInit();
@@ -27,7 +43,7 @@ public sealed class MainMenuViewTests
         ChoiceItemList firstChoice = menu.SubViews.OfType<ChoiceItemList>().First();
 
         Assert.True(firstChoice.Button.HasFocus);
-        Assert.Equal("› First", firstChoice.Button.Text.ToString());
+        Assert.Equal("› Install Mod", firstChoice.Button.Text.ToString());
         Assert.Same(TerminalTheme.Selected, firstChoice.Description.GetScheme());
     }
 }

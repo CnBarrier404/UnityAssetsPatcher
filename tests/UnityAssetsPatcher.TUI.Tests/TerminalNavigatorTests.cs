@@ -7,6 +7,7 @@ using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Pages;
+using UnityAssetsPatcher.TUI.Pages.MainMenu;
 using UnityAssetsPatcher.TUI.Pages.Settings;
 using UnityAssetsPatcher.TUI.Shell;
 using Xunit;
@@ -16,15 +17,17 @@ namespace UnityAssetsPatcher.TUI.Tests;
 public sealed class TerminalNavigatorTests
 {
     [Fact]
-    public void TerminalNavigator_WhenChineseCultureIsUsed_ShowsChineseHomePage()
+    public async Task TerminalNavigator_WhenChineseCultureIsUsed_ShowsChineseHomePage()
     {
-        using TerminalShellView shell = new(
-            "Footer");
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        await using var mainMenuLogic = new MainMenuLogic(scopeFactory);
+        using TerminalShellView shell = new("Footer");
         TerminalNavigator navigator = CreateNavigator(
             shell,
             new CultureInfo("zh-CN"),
-            provider.GetRequiredService<IServiceScopeFactory>());
+            scopeFactory,
+            mainMenuLogic);
 
         navigator.Navigate(TerminalRoute.MainMenu);
 
@@ -39,17 +42,19 @@ public sealed class TerminalNavigatorTests
     }
 
     [Fact]
-    public void TerminalNavigator_WhenInstallModIsSelected_ShowsInstallModPage()
+    public async Task TerminalNavigator_WhenInstallModIsSelected_ShowsInstallModPage()
     {
-        using TerminalShellView shell = new("Footer");
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        await using var mainMenuLogic = new MainMenuLogic(scopeFactory);
+        using TerminalShellView shell = new("Footer");
+        var routeTable = new TerminalRouteTable(
+            scopeFactory,
+            new AppRuntimeConfig(),
+            mainMenuLogic);
         var navigator = new TerminalNavigator(
             shell,
-            TerminalRouteTable.Create(
-                new CultureInfo("en-US"),
-                provider.GetRequiredService<IServiceScopeFactory>(),
-                new AppRuntimeConfig(),
-                null));
+            routeTable.Create(new CultureInfo("en-US")));
 
         navigator.Navigate(TerminalRoute.MainMenu);
 
@@ -61,19 +66,22 @@ public sealed class TerminalNavigatorTests
     }
 
     [Fact]
-    public void TerminalNavigator_WhenVerboseLoggingIsToggled_UpdatesRuntimeSettings()
+    public async Task TerminalNavigator_WhenVerboseLoggingIsToggled_UpdatesRuntimeSettings()
     {
-        using TerminalShellView shell = new("Footer");
         using ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        await using var mainMenuLogic = new MainMenuLogic(scopeFactory);
+        using TerminalShellView shell = new("Footer");
         var runtimeConfig = new AppRuntimeConfig();
         var loggingLevelSwitch = new StubLoggingLevelSwitch();
+        var routeTable = new TerminalRouteTable(
+            scopeFactory,
+            runtimeConfig,
+            mainMenuLogic,
+            loggingLevelSwitch);
         var navigator = new TerminalNavigator(
             shell,
-            TerminalRouteTable.Create(
-                new CultureInfo("en-US"),
-                provider.GetRequiredService<IServiceScopeFactory>(),
-                runtimeConfig,
-                loggingLevelSwitch));
+            routeTable.Create(new CultureInfo("en-US")));
 
         navigator.Navigate(TerminalRoute.MainMenu);
 
@@ -96,15 +104,17 @@ public sealed class TerminalNavigatorTests
     private static TerminalNavigator CreateNavigator(
         TerminalShellView shell,
         CultureInfo culture,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        MainMenuLogic mainMenuLogic)
     {
+        var routeTable = new TerminalRouteTable(
+            scopeFactory,
+            new AppRuntimeConfig(),
+            mainMenuLogic);
+
         return new TerminalNavigator(
             shell,
-            TerminalRouteTable.Create(
-                culture,
-                scopeFactory,
-                new AppRuntimeConfig(),
-                null));
+            routeTable.Create(culture));
     }
 
     private sealed class StubLoggingLevelSwitch : ILoggingLevelSwitch

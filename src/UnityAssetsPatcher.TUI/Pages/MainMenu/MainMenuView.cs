@@ -1,13 +1,12 @@
-using Microsoft.Extensions.DependencyInjection;
+using Terminal.Gui.App;
 using Terminal.Gui.ViewBase;
-using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Shell;
 
-namespace UnityAssetsPatcher.TUI.Pages;
+namespace UnityAssetsPatcher.TUI.Pages.MainMenu;
 
 public sealed record MainMenuItem(string Title, string Description, TerminalRoute Route);
 
@@ -19,35 +18,24 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
 
     private readonly List<ChoiceItemList> _choices = [];
     private readonly View _updateArea;
-    private readonly LocalizedStrings? _strings;
-    private readonly IServiceScopeFactory? _scopeFactory;
-    private readonly CancellationTokenSource? _updateCancellation;
+    private readonly LocalizedStrings _strings;
+    private readonly MainMenuLogic _logic;
     private bool _hasUpdate;
-
-    public MainMenuView(
-        string title,
-        IReadOnlyList<MainMenuItem> items)
-        : this(title, items, null, null) { }
+    private bool _isDisposed;
 
     internal MainMenuView(
         LocalizedStrings strings,
         IReadOnlyList<MainMenuItem> items,
-        IServiceScopeFactory scopeFactory)
-        : this(strings.MainMenu_Title, items, strings, scopeFactory) { }
-
-    private MainMenuView(
-        string title,
-        IReadOnlyList<MainMenuItem> items,
-        LocalizedStrings? strings,
-        IServiceScopeFactory? scopeFactory)
+        MainMenuLogic logic)
     {
-        ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(strings);
         ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(logic);
 
         _strings = strings;
-        _scopeFactory = scopeFactory;
+        _logic = logic;
 
-        SetHeader(title);
+        SetHeader(_strings.MainMenu_Title);
 
         _updateArea = new View
         {
@@ -82,41 +70,47 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
 
         ChoiceItemList.AlignDescriptions(_choices);
 
-        Initialized += (_, _) => firstButton?.SetFocus();
-
-        // TODO: Move update checking to page/session logic so it runs once per
-        // terminal session instead of once per MainMenuView instance.
-        if (_scopeFactory is not null)
+        Initialized += (_, _) =>
         {
-            _updateCancellation = new CancellationTokenSource();
-            Initialized += async (_, _) =>
-                await CheckForUpdateAsync(_updateCancellation.Token);
-            Disposing += (_, _) =>
-            {
-                _updateCancellation.Cancel();
-                _updateCancellation.Dispose();
-            };
+            firstButton?.SetFocus();
+            _logic.StartUpdateCheck();
+            ShowAvailableUpdateIfKnown();
+        };
+
+        _logic.UpdateAvailable += OnUpdateAvailable;
+        Disposing += (_, _) =>
+        {
+            _isDisposed = true;
+            _logic.UpdateAvailable -= OnUpdateAvailable;
+        };
+    }
+
+    private void ShowAvailableUpdateIfKnown()
+    {
+        if (_logic.AvailableUpdate is { } update)
+        {
+            ShowAvailableUpdate(update);
         }
     }
 
-    private async Task CheckForUpdateAsync(CancellationToken cancellationToken)
+    private void OnUpdateAvailable(object? sender, EventArgs eventArgs)
     {
-        try
+        if (_isDisposed || _logic.AvailableUpdate is null)
         {
-            using IServiceScope scope = _scopeFactory!.CreateScope();
-            var updateCheckModule = scope.ServiceProvider.GetRequiredService<UpdateCheckModule>();
-            var result = await updateCheckModule
-                .CheckForUpdateAsync(cancellationToken);
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (result is OperationSucceeded<UpdateInfo?> { Value: { } update })
-            {
-                ShowAvailableUpdate(update);
-            }
+            return;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        catch { }
+
+        IApplication? application = App;
+
+        application?.Invoke(() =>
+        {
+            if (_isDisposed || _logic.AvailableUpdate is not { } update)
+            {
+                return;
+            }
+
+            ShowAvailableUpdate(update);
+        });
     }
 
     private void ShowAvailableUpdate(UpdateInfo update)
@@ -134,7 +128,7 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
     private void AddUpdate(UpdateInfo update)
     {
         var available = new StyledLabel(
-            _strings!.Update_AvailableFormat(update.Version),
+            _strings.Update_AvailableFormat(update.Version),
             TextRole.Preview)
         {
             X = 0,

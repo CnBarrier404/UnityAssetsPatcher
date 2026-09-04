@@ -4,8 +4,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Terminal.Gui.App;
 using Terminal.Gui.Drivers;
-using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.TUI.Flows;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
@@ -17,24 +15,19 @@ namespace UnityAssetsPatcher.TUI.Lifecycle;
 internal sealed class TerminalSession
 {
     private readonly RepositoryInitializationFlow _repositoryInitialization;
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly AppRuntimeConfig _runtimeConfig;
-    private readonly ILoggingLevelSwitch? _loggingLevelSwitch;
+    private readonly TerminalRouteTable _routeTable;
     private readonly ILogger<TerminalSession> _logger;
 
     public TerminalSession(
         IServiceScopeFactory scopeFactory,
-        AppRuntimeConfig runtimeConfig,
-        ILoggingLevelSwitch? loggingLevelSwitch = null,
+        TerminalRouteTable routeTable,
         ILogger<TerminalSession>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
-        ArgumentNullException.ThrowIfNull(runtimeConfig);
+        ArgumentNullException.ThrowIfNull(routeTable);
 
         _repositoryInitialization = new RepositoryInitializationFlow(scopeFactory);
-        _scopeFactory = scopeFactory;
-        _runtimeConfig = runtimeConfig;
-        _loggingLevelSwitch = loggingLevelSwitch;
+        _routeTable = routeTable;
         _logger = logger ?? NullLogger<TerminalSession>.Instance;
     }
 
@@ -60,11 +53,7 @@ internal sealed class TerminalSession
 
         var navigator = new TerminalNavigator(
             shell,
-            TerminalRouteTable.Create(
-                culture,
-                _scopeFactory,
-                _runtimeConfig,
-                _loggingLevelSwitch));
+            _routeTable.Create(culture));
 
         var runState = new RunState(this, application, shell, navigator);
         var context = new TerminalFlowContext(
