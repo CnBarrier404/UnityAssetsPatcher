@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
-using Terminal.Gui.Input;
 using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -11,7 +10,6 @@ using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Domain.Assets;
 using UnityAssetsPatcher.TUI.Framework;
 using UnityAssetsPatcher.TUI.Localization;
-using UnityAssetsPatcher.TUI.Navigation;
 using UnityAssetsPatcher.TUI.Shell;
 
 namespace UnityAssetsPatcher.TUI.Pages;
@@ -20,11 +18,11 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
 {
     public event EventHandler? RenderRequested;
 
+    protected override bool CanReturnToMainMenu => !_isWorking;
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LocalizedStrings _strings;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
-    private readonly StyledLabel _heading;
-    private readonly StyledLabel _description;
     private readonly View _body;
     private bool _isWorking;
 
@@ -40,43 +38,17 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
         _strings = strings;
         _scopeFactory = scopeFactory;
 
-        KeyDown += (_, key) =>
-        {
-            if (key != Key.Esc)
-            {
-                return;
-            }
-
-            key.Handled = true;
-
-            if (_isWorking)
-            {
-                return;
-            }
-
-            RequestBack();
-        };
-
-        _heading = new StyledLabel(role: TextRole.Title)
-        {
-            X = 0, Y = 0
-        };
-
-        _description = new StyledLabel(role: TextRole.Muted)
-        {
-            X = 0, Y = 1,
-            Width = Dim.Fill()
-        };
+        SetHeader(_strings.MainMenu_InspectAssets_Title, _strings.InspectPage_Description);
 
         _body = new View
         {
-            X = 0, Y = 3,
+            X = 0, Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             CanFocus = true
         };
 
-        Add(_heading, _description, _body);
+        Add(_body);
 
         Disposing += (_, _) =>
         {
@@ -87,14 +59,11 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
         ShowActionMenu();
     }
 
-    private void RequestBack()
-    {
-        RequestNavigation(TerminalRoute.MainMenu);
-    }
-
     private void ShowActionMenu()
     {
-        SetPage(_strings.MainMenu_InspectAssets_Title, _strings.InspectPage_Description);
+        SetHeader(
+            _strings.MainMenu_InspectAssets_Title,
+            _strings.InspectPage_Description);
 
         _body.RemoveAllAndDispose();
 
@@ -130,7 +99,8 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
 
     private void ShowListPathInput()
     {
-        SetPage(_strings.InspectPage_ListAssetsTitle,
+        SetHeader(
+            _strings.InspectPage_ListAssetsTitle,
             _strings.InspectPage_ListAssetsDescription);
         ShowPathInput(ShowLimitChoices);
     }
@@ -185,7 +155,8 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
 
     private void ShowLimitChoices(string assetsFilePath)
     {
-        SetPage(_strings.InspectPage_RowsToPrintTitle,
+        SetHeader(
+            _strings.InspectPage_RowsToPrintTitle,
             _strings.InspectPage_ListAssetsDescription);
         _body.RemoveAllAndDispose();
         Button first = CreateActionButton(_strings.InspectPage_First100Choice, 0, 0);
@@ -297,7 +268,8 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
 
     private void ShowFieldsInput()
     {
-        SetPage(_strings.InspectPage_ShowFieldsTitle,
+        SetHeader(
+            _strings.InspectPage_ShowFieldsTitle,
             _strings.InspectPage_ShowFieldsDescription);
         _body.RemoveAllAndDispose();
         string pathPrompt = $"{_strings.InspectPage_AssetsFilePathPrompt}: ";
@@ -432,12 +404,6 @@ public sealed class InspectAssetsView : TerminalPageView, ITerminalRenderRequest
 
         return await dispatcher
             .DispatchAsync<TRequest, TResponse>(request, cancellationToken);
-    }
-
-    private void SetPage(string title, string description)
-    {
-        _heading.Text = title;
-        _description.Text = description;
     }
 
     private static string FormatFieldTree(AssetField root)

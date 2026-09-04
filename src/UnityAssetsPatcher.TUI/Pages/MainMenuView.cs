@@ -15,6 +15,8 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
 {
     public event EventHandler? RenderRequested;
 
+    protected override bool CanReturnToMainMenu => false;
+
     private readonly List<ChoiceItemList> _choices = [];
     private readonly View _updateArea;
     private readonly LocalizedStrings? _strings;
@@ -45,6 +47,8 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
         _strings = strings;
         _scopeFactory = scopeFactory;
 
+        SetHeader(title);
+
         _updateArea = new View
         {
             X = 0,
@@ -53,15 +57,9 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
             Height = Dim.Auto()
         };
 
-        var heading = new StyledLabel(title, TextRole.Title)
-        {
-            X = 0,
-            Y = Pos.Bottom(_updateArea)
-        };
+        Add(_updateArea);
 
-        Add(_updateArea, heading);
-
-        View previous = heading;
+        View previous = _updateArea;
         ActionButton? firstButton = null;
 
         foreach (MainMenuItem item in items)
@@ -69,7 +67,7 @@ public sealed class MainMenuView : TerminalPageView, ITerminalRenderRequester
             var choice = new ChoiceItemList(item.Title, item.Description)
             {
                 X = 0,
-                Y = Pos.Bottom(previous) + 1
+                Y = Pos.Bottom(previous) + (firstButton is null ? 0 : 1)
             };
 
             choice.Button.Accepted += (_, _) =>

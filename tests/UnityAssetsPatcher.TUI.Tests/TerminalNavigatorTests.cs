@@ -31,7 +31,8 @@ public sealed class TerminalNavigatorTests
         View contentHost = Assert.Single(shell.SubViews, view => view.GetType() == typeof(View));
         MainMenuView mainMenu = Assert.Single(contentHost.SubViews.OfType<MainMenuView>());
         ChoiceItemList firstChoice = mainMenu.SubViews.OfType<ChoiceItemList>().First();
-        StyledLabel heading = Assert.Single(mainMenu.SubViews.OfType<StyledLabel>());
+        TerminalPageHeaderView header = Assert.Single(shell.SubViews.OfType<TerminalPageHeaderView>());
+        StyledLabel heading = header.SubViews.OfType<StyledLabel>().First();
 
         Assert.Equal("主菜单", heading.Text);
         Assert.Equal("  安装 Mod", firstChoice.Button.Text);
