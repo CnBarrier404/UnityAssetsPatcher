@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.TUI.Lifecycle;
+using UnityAssetsPatcher.TUI.Navigation;
+using UnityAssetsPatcher.TUI.Pages.MainMenu;
 
 namespace UnityAssetsPatcher.TUI;
 
@@ -11,6 +13,8 @@ public static class TerminalServiceCollectionExtensions
 
         services.AddSingleton<TerminalApp>();
         services.AddScoped<TerminalSession>();
+        services.AddScoped<TerminalRouteTable>();
+        services.AddScoped<MainMenuLogic>();
 
         return services;
     }
