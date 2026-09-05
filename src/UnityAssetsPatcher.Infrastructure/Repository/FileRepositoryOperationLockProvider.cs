@@ -16,24 +16,15 @@ internal sealed class FileRepositoryOperationLockProvider : IRepositoryOperation
 
     public IRepositoryOperationLock Acquire()
     {
-        try
-        {
-            return new FileRepositoryOperationLock(
-                new FileStream(_layout.LockPath, new FileStreamOptions
-                {
-                    Mode = FileMode.CreateNew,
-                    Access = FileAccess.ReadWrite,
-                    Share = FileShare.None,
-                    Options = FileOptions.DeleteOnClose
-                }),
-                _layout.RepositoryDirectory);
-        }
-        catch (IOException exception)
-        {
-            throw new InvalidOperationException(
-                "Another install, uninstall, or recovery operation is running.",
-                exception);
-        }
+        return new FileRepositoryOperationLock(
+            new FileStream(_layout.LockPath, new FileStreamOptions
+            {
+                Mode = FileMode.CreateNew,
+                Access = FileAccess.ReadWrite,
+                Share = FileShare.None,
+                Options = FileOptions.DeleteOnClose
+            }),
+            _layout.RepositoryDirectory);
     }
 
     private sealed class FileRepositoryOperationLock : IRepositoryOperationLock

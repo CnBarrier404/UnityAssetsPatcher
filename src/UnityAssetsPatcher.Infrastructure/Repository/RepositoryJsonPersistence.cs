@@ -30,11 +30,6 @@ internal sealed class RepositoryJsonPersistence
         {
             throw new InvalidDataException($"{description} contains invalid JSON: {path}", exception);
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException
-                                              or NotSupportedException or OverflowException)
-        {
-            throw new InvalidDataException($"{description} contains invalid data: {path}", exception);
-        }
     }
 
     public void Write<T>(

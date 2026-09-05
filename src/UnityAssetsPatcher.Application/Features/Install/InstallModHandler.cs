@@ -248,7 +248,12 @@ public sealed class InstallModHandler :
         {
             return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
         }
-        catch (NotSupportedException exception)
+        catch (RepositoryOperationLockedException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, RepositoryErrorCodes.OperationAlreadyRunning,
+                exception.Message);
+        }
+        catch (UnsupportedRepositoryFormatException exception)
         {
             return ExpectedFailure<TResult>(
                 operationName,

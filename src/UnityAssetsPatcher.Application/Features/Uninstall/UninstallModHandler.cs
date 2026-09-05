@@ -181,7 +181,12 @@ public sealed class UninstallModHandler :
             return ExpectedFailure<TResult>(
                 operationName, ModOperationErrorCodes.InstallRecordNotFound, exception.Message);
         }
-        catch (NotSupportedException exception)
+        catch (RepositoryOperationLockedException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, RepositoryErrorCodes.OperationAlreadyRunning,
+                exception.Message);
+        }
+        catch (UnsupportedRepositoryFormatException exception)
         {
             return ExpectedFailure<TResult>(
                 operationName,
