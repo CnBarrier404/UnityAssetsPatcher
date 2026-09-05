@@ -25,7 +25,7 @@ internal sealed class RepositoryInitializationFlow
 
         using var logic = new RepositoryIssueLogic(_scopeFactory, cancellationToken);
 
-        await logic.InitializeAsync();
+        await logic.InitializeAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (logic.State is RepositoryIssueState.Ready)
@@ -33,11 +33,13 @@ internal sealed class RepositoryInitializationFlow
             return;
         }
 
-        context.ContentHost.ShowContent(new RepositoryIssueView(
-            _strings,
-            logic,
-            context.RequestStop));
+        await context.InvokeAsync(
+            () => context.ContentHost.ShowContent(new RepositoryIssueView(
+                _strings,
+                logic,
+                context.RequestStop)),
+            cancellationToken).ConfigureAwait(false);
 
-        await logic.Completion.WaitAsync(cancellationToken);
+        await logic.Completion.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 }
