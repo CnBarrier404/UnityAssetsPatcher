@@ -39,7 +39,11 @@ public sealed class TerminalApp
             }
             catch (Exception disposalFailure) when (runFailure is not null)
             {
-                throw new AggregateException(runFailure, disposalFailure);
+                // The menu event and scope disposal can await the same failed update task.
+                if (!ReferenceEquals(runFailure, disposalFailure))
+                {
+                    throw new AggregateException(runFailure, disposalFailure);
+                }
             }
         }
     }

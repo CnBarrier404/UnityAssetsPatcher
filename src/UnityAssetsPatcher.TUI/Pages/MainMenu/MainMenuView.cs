@@ -66,11 +66,11 @@ public sealed class MainMenuView : TerminalPageView
 
         ChoiceItemList.AlignDescriptions(_choices);
 
-        Initialized += (_, _) =>
+        Initialized += async (_, _) =>
         {
             firstButton?.SetFocus();
-            _logic.StartUpdateCheck();
             ShowAvailableUpdateIfKnown();
+            await _logic.StartUpdateCheck();
         };
 
         _logic.UpdateAvailable += OnUpdateAvailable;
