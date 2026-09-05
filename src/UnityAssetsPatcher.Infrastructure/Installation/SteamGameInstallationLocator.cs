@@ -1,4 +1,3 @@
-using System.Security;
 using System.Text.RegularExpressions;
 using UnityAssetsPatcher.Application.Installation;
 
@@ -16,24 +15,28 @@ public sealed class SteamGameInstallationLocator : IGameInstallationLocator
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        _steamRoots = options.RootDirectories
-            .Where(root => !string.IsNullOrWhiteSpace(root))
-            .Select(Path.GetFullPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        _steamRoots =
+        [
+            .. options.RootDirectories
+                .Where(root => !string.IsNullOrWhiteSpace(root))
+                .Select(Path.GetFullPath)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        ];
     }
 
     public IReadOnlyList<string> FindGameDirectories(string game)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(game);
 
-        string[] matches = _steamRoots
-            .Where(Directory.Exists)
-            .SelectMany(FindSteamLibraryDirectories)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .SelectMany(libraryDirectory => FindSteamGameDirectories(libraryDirectory, game))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        string[] matches =
+        [
+            .. _steamRoots
+                .Where(Directory.Exists)
+                .SelectMany(FindSteamLibraryDirectories)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .SelectMany(libraryDirectory => FindSteamGameDirectories(libraryDirectory, game))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        ];
 
         return matches;
     }
@@ -67,24 +70,7 @@ public sealed class SteamGameInstallationLocator : IGameInstallationLocator
             yield break;
         }
 
-        IEnumerable<string> manifestPaths;
-
-        try
-        {
-            manifestPaths = Directory.GetFiles(steamAppsDirectory, "appmanifest_*.acf");
-        }
-        catch (IOException)
-        {
-            yield break;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            yield break;
-        }
-        catch (SecurityException)
-        {
-            yield break;
-        }
+        IEnumerable<string> manifestPaths = Directory.GetFiles(steamAppsDirectory, "appmanifest_*.acf");
 
         foreach (string manifestPath in manifestPaths)
         {
@@ -116,16 +102,7 @@ public sealed class SteamGameInstallationLocator : IGameInstallationLocator
 
     private static IEnumerable<string> ReadVdfValues(string path, string key)
     {
-        string[] lines;
-        try
-        {
-            lines = File.ReadAllLines(path);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
-        {
-            // Discovery can continue through other manifests and Steam libraries.
-            return [];
-        }
+        string[] lines = File.ReadAllLines(path);
 
         return from line in lines
             select VdfKeyValuePattern.Match(line)
