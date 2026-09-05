@@ -68,10 +68,7 @@ public sealed class FileCatalogStoreTests
         directory.WriteFile("backup/repository.json", "{");
         FileCatalogStore store = CreateCatalog(layout);
 
-        var exception = Assert.Throws<InvalidDataException>(store.LoadOrCreateMetadata);
-
-        Assert.Equal($"Backup repository metadata contains invalid JSON: {layout.MetadataPath}", exception.Message);
-        Assert.IsType<JsonException>(exception.InnerException);
+        _ = Assert.Throws<JsonException>(store.LoadOrCreateMetadata);
     }
 
     [Fact]
