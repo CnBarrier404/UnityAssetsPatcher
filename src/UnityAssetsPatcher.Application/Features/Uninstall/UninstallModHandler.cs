@@ -196,12 +196,6 @@ public sealed class UninstallModHandler :
 
             return ExpectedFailure<TResult>(operationName, code, exception.Message);
         }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Uninstall operation {OperationName} failed", operationName);
-
-            throw;
-        }
     }
 
     private OperationFailed<TResult> ExpectedFailure<TResult>(

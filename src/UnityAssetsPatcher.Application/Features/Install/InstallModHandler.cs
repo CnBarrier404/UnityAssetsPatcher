@@ -255,12 +255,6 @@ public sealed class InstallModHandler :
                 RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Install operation {OperationName} failed", operationName);
-
-            throw;
-        }
     }
 
     private OperationFailed<TResult> ExpectedFailure<TResult>(

@@ -66,12 +66,6 @@ public sealed class RepositoryManagementHandler :
             return Task.FromResult<OperationResult<RepositoryClearResult>>(
                 ExpectedFailure(FileErrorCodes.SystemFailure, exception));
         }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Clearing the unsupported backup repository failed");
-
-            throw;
-        }
     }
 
     private OperationFailed<RepositoryClearResult> ExpectedFailure(

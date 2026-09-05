@@ -106,12 +106,6 @@ public sealed class RecoveryHandler :
 
             return ExpectedFailure<TResult>(operationName, code, exception.Message);
         }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Recovery operation {OperationName} failed", operationName);
-
-            throw;
-        }
     }
 
     private OperationFailed<TResult> ExpectedFailure<TResult>(

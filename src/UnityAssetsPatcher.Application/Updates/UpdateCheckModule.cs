@@ -7,7 +7,6 @@ namespace UnityAssetsPatcher.Application.Updates;
 public sealed class UpdateCheckModule
 {
     private readonly IUpdateChecker _updateChecker;
-    private readonly ILogger<UpdateCheckModule> _logger;
 
     public UpdateCheckModule(IUpdateChecker updateChecker, ILogger<UpdateCheckModule> logger)
     {
@@ -15,7 +14,6 @@ public sealed class UpdateCheckModule
         ArgumentNullException.ThrowIfNull(logger);
 
         _updateChecker = updateChecker;
-        _logger = logger;
     }
 
     public async Task<OperationResult<UpdateInfo?>> CheckForUpdateAsync(CancellationToken cancellationToken = default)
@@ -49,12 +47,6 @@ public sealed class UpdateCheckModule
         catch (OperationCanceledException exception)
         {
             return Failure(exception.Message);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Update check terminated unexpectedly");
-
-            throw;
         }
     }
 
