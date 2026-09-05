@@ -30,10 +30,6 @@ public sealed class UpdateCheckModule
 
             return new OperationSucceeded<UpdateInfo?>(update);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
         catch (HttpRequestException exception)
         {
             if (exception.StatusCode is { } statusCode)
@@ -65,8 +61,10 @@ public sealed class UpdateCheckModule
 
             return Failure(exception.Message);
         }
-        catch (OperationCanceledException exception)
+        catch (OperationCanceledException exception) when (exception.InnerException is TimeoutException)
         {
+            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
+
             return Failure(exception.Message);
         }
     }

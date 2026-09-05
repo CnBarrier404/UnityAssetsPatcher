@@ -11,5 +11,11 @@ public interface IUpdateChecker
     /// <exception cref="InvalidDataException">
     /// The manifest exceeds the size limit or contains invalid fields or an invalid version.
     /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// The check was canceled, or the HTTP request timed out. HTTP timeouts carry a
+    /// <see cref="TimeoutException"/> as the direct <see cref="Exception.InnerException"/>,
+    /// following the <see href="https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpclient.sendasync?view=net-10.0">HttpClient contract</see>.
+    /// Other cancellation exceptions must propagate to the lifetime owner unchanged.
+    /// </exception>
     public Task<UpdateInfo?> CheckForUpdateAsync(CancellationToken cancellationToken = default);
 }
