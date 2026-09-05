@@ -1,3 +1,4 @@
+using System.Security;
 using System.Text.RegularExpressions;
 using UnityAssetsPatcher.Application.Installation;
 
@@ -70,13 +71,17 @@ public sealed class SteamGameInstallationLocator : IGameInstallationLocator
 
         try
         {
-            manifestPaths = Directory.EnumerateFiles(steamAppsDirectory, "appmanifest_*.acf");
+            manifestPaths = Directory.GetFiles(steamAppsDirectory, "appmanifest_*.acf");
         }
         catch (IOException)
         {
             yield break;
         }
         catch (UnauthorizedAccessException)
+        {
+            yield break;
+        }
+        catch (SecurityException)
         {
             yield break;
         }
@@ -111,7 +116,18 @@ public sealed class SteamGameInstallationLocator : IGameInstallationLocator
 
     private static IEnumerable<string> ReadVdfValues(string path, string key)
     {
-        return from line in File.ReadLines(path)
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            // Discovery can continue through other manifests and Steam libraries.
+            return [];
+        }
+
+        return from line in lines
             select VdfKeyValuePattern.Match(line)
             into match
             where match.Success &&

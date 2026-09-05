@@ -29,20 +29,11 @@ public sealed class FileSystemOperations : IFileSystemOperations
 
         IOLog.OpeningFileForRead(_logger, fullPath);
 
-        try
-        {
-            var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-            IOLog.FileOpenedForRead(_logger, fullPath);
+        IOLog.FileOpenedForRead(_logger, fullPath);
 
-            return stream;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            IOLog.FileOpenForReadFailed(_logger, fullPath, exception);
-
-            throw;
-        }
+        return stream;
     }
 
     public FileIntegrity ComputeFileIntegrity(string path)
@@ -74,20 +65,11 @@ public sealed class FileSystemOperations : IFileSystemOperations
 
         IOLog.GettingAttributes(_logger, fullPath);
 
-        try
-        {
-            FileAttributes attributes = File.GetAttributes(fullPath);
+        FileAttributes attributes = File.GetAttributes(fullPath);
 
-            IOLog.AttributesRead(_logger, fullPath, attributes);
+        IOLog.AttributesRead(_logger, fullPath, attributes);
 
-            return attributes;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            IOLog.GetAttributesFailed(_logger, fullPath, exception);
-
-            throw;
-        }
+        return attributes;
     }
 
     public void WriteFileAtomically(string destinationPath, FileDestinationMode mode, Action<Stream> writer)

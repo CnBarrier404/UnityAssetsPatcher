@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.IO;
@@ -51,7 +52,7 @@ public sealed class RepositoryManagementHandler :
             return Task.FromResult<OperationResult<RepositoryClearResult>>(
                 ExpectedFailure(RepositoryErrorCodes.OperationAlreadyRunning, exception));
         }
-        catch (InvalidDataException exception)
+        catch (Exception exception) when (exception is InvalidDataException or JsonException)
         {
             return Task.FromResult<OperationResult<RepositoryClearResult>>(
                 ExpectedFailure(RepositoryErrorCodes.Unsafe, exception));

@@ -19,17 +19,10 @@ internal sealed class RepositoryJsonPersistence
 
     public T Read<T>(string path, JsonTypeInfo<T> typeInfo, string description)
     {
-        try
-        {
-            using Stream stream = _fileSystemOperations.OpenRead(path);
+        using Stream stream = _fileSystemOperations.OpenRead(path);
 
-            return JsonSerializer.Deserialize(stream, typeInfo) ??
-                   throw new InvalidDataException($"{description} could not be read: {path}");
-        }
-        catch (JsonException exception)
-        {
-            throw new InvalidDataException($"{description} contains invalid JSON: {path}", exception);
-        }
+        return JsonSerializer.Deserialize(stream, typeInfo) ??
+               throw new InvalidDataException($"{description} could not be read: {path}");
     }
 
     public void Write<T>(
