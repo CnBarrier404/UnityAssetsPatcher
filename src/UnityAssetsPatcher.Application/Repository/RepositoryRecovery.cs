@@ -111,17 +111,10 @@ internal sealed class RepositoryRecovery
 
     public RepositoryRecoveryReport RecoverTrusted(RepositoryTransaction transaction, string gameDirectory)
     {
-        try
-        {
-            RepositoryMetadata metadata = _repository.LoadMetadata();
-            ValidateTransaction(transaction, metadata.RepositoryId);
-            string trustedRoot = _pathResolver.ResolveExistingDirectory(gameDirectory);
-            return Apply(transaction, trustedRoot);
-        }
-        catch (Exception exception) when (IsExpectedRecoveryFailure(exception))
-        {
-            return LockedReport(exception);
-        }
+        RepositoryMetadata metadata = _repository.LoadMetadata();
+        ValidateTransaction(transaction, metadata.RepositoryId);
+        string trustedRoot = _pathResolver.ResolveExistingDirectory(gameDirectory);
+        return Apply(transaction, trustedRoot);
     }
 
     private RepositoryRecoveryReport Apply(RepositoryTransaction transaction, string trustedRoot)

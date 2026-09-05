@@ -193,7 +193,7 @@ public sealed class UninstallModHandler :
                 RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is UninstallValidationException or UninstallCompositionException)
         {
             OperationErrorCode code = operationName == nameof(UninstallAsync)
                 ? ModOperationErrorCodes.FileIntegrityMismatch
