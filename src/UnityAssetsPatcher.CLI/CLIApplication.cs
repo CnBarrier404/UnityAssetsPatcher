@@ -38,7 +38,8 @@ public sealed class CLIApplication
         _invocationConfiguration = new InvocationConfiguration
         {
             Output = output,
-            Error = error
+            Error = error,
+            EnableDefaultExceptionHandler = false
         };
     }
 
@@ -80,7 +81,8 @@ public sealed class CLIApplication
         var errorConfiguration = new InvocationConfiguration
         {
             Output = _error,
-            Error = _error
+            Error = _error,
+            EnableDefaultExceptionHandler = false
         };
 
         await parseResult.InvokeAsync(errorConfiguration, cancellationToken).ConfigureAwait(false);

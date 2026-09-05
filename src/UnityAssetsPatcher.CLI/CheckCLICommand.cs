@@ -44,32 +44,19 @@ public sealed class CheckCLICommand : ICLICommand
         string sourcePath = parseResult.GetValue(_configOption) ??
                             Path.Combine(_getCurrentDirectory(), "manifest.json");
 
-        try
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<CheckManifestRequest, OperationResult<CheckManifestResult>>(
-                    new CheckManifestRequest(sourcePath), cancellationToken)
-                .ConfigureAwait(false);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var result = await dispatcher
+            .DispatchAsync<CheckManifestRequest, OperationResult<CheckManifestResult>>(
+                new CheckManifestRequest(sourcePath), cancellationToken)
+            .ConfigureAwait(false);
 
-            return result switch
-            {
-                OperationSucceeded<CheckManifestResult> => CLIExitCodes.Success,
-                OperationFailed<CheckManifestResult> failed => WriteFailure(failed.Error),
-                _ => throw new InvalidOperationException("The check operation returned an unknown result.")
-            };
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        return result switch
         {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            CLIOutput.WriteUnexpectedFailure(_error, exception);
-
-            return CLIExitCodes.OperationFailed;
-        }
+            OperationSucceeded<CheckManifestResult> => CLIExitCodes.Success,
+            OperationFailed<CheckManifestResult> failed => WriteFailure(failed.Error),
+            _ => throw new InvalidOperationException("The check operation returned an unknown result.")
+        };
     }
 
     private int WriteFailure(OperationError error)
