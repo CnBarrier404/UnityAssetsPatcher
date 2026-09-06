@@ -157,7 +157,14 @@ public sealed class InstallExecutor
         }
         catch (Exception failure)
         {
-            HandleFailure(failure, transactionSaved, transaction, temporaryDirectory, gameDirectory);
+            try
+            {
+                RestoreAfterFailure(transactionSaved, transaction, temporaryDirectory, gameDirectory);
+            }
+            catch (Exception recoveryFailure)
+            {
+                throw new AggregateException(failure, recoveryFailure);
+            }
 
             throw;
         }
@@ -440,8 +447,7 @@ public sealed class InstallExecutor
             TrustedPath.PathComparer);
     }
 
-    private void HandleFailure(
-        Exception failure,
+    private void RestoreAfterFailure(
         bool transactionSaved,
         RepositoryTransaction? transaction,
         string temporaryDirectory,
@@ -449,8 +455,6 @@ public sealed class InstallExecutor
     {
         if (!transactionSaved)
         {
-            _logger.LogError(failure, "Install failed before the transaction was saved; temporary files removed");
-
             if (Directory.Exists(temporaryDirectory))
             {
                 _fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
@@ -459,17 +463,7 @@ public sealed class InstallExecutor
             return;
         }
 
-        _logger.LogError(failure, "Install failed after the transaction was saved; attempting automatic rollback");
-        RepositoryRecoveryReport recovery = _repositoryService.RecoverTrustedUnderLock(transaction!, gameDirectory);
-
-        if (recovery.Status != RepositoryRecoveryStatus.Locked)
-        {
-            return;
-        }
-
-        _logger.LogWarning("Automatic rollback was unsafe; manual recovery is required");
-
-        throw new RepositoryRecoveryException("Install failed and automatic rollback was unsafe.", recovery, failure);
+        _repositoryService.RecoverTrustedUnderLock(transaction!, gameDirectory);
     }
 
     private void ApplyPreparedFiles(RepositoryTransaction transaction, string temporaryDirectory, string gameDirectory)

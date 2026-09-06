@@ -30,31 +30,42 @@ public sealed class UpdateCheckModule
 
             return new OperationSucceeded<UpdateInfo?>(update);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
         catch (HttpRequestException exception)
         {
+            if (exception.StatusCode is { } statusCode)
+            {
+                UpdateLog.UpdateRequestRejected(_logger, exception, (int)statusCode);
+            }
+            else
+            {
+                UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
+            }
+
             return Failure(exception.Message);
         }
         catch (JsonException exception)
         {
+            UpdateLog.UpdateManifestRejectedAsInvalidJson(_logger, exception);
+
+            return Failure(exception.Message);
+        }
+        catch (InvalidDataException exception)
+        {
+            UpdateLog.UpdateManifestRejected(_logger, exception, exception.Message);
+
             return Failure(exception.Message);
         }
         catch (IOException exception)
         {
-            return Failure(exception.Message);
-        }
-        catch (OperationCanceledException exception)
-        {
-            return Failure(exception.Message);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Update check terminated unexpectedly");
+            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
 
-            throw;
+            return Failure(exception.Message);
+        }
+        catch (OperationCanceledException exception) when (exception.InnerException is TimeoutException)
+        {
+            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
+
+            return Failure(exception.Message);
         }
     }
 

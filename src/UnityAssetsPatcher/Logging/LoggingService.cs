@@ -15,32 +15,40 @@ public static class LoggingService
     private const string OutputTemplate =
         "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}";
 
-    public static IServiceCollection AddUnityAssetsPatcherLogging(
-        this IServiceCollection services,
+    public static Logger CreateUnityAssetsPatcherLogger(
+        out LoggingLevelSwitch levelSwitch,
         string? logDirectory = null,
         LoggingLevel minimumLevel = LoggingLevel.Information)
     {
-        ArgumentNullException.ThrowIfNull(services);
-
         logDirectory ??= AppConfig.LogDirectory;
         ArgumentException.ThrowIfNullOrWhiteSpace(logDirectory);
 
         PruneOldLogFiles(logDirectory);
 
-        var levelSwitch = new LoggingLevelSwitch(ToSerilogLevel(minimumLevel));
+        levelSwitch = new LoggingLevelSwitch(ToSerilogLevel(minimumLevel));
 
-        Serilog.ILogger logger = new LoggerConfiguration()
+        return new LoggerConfiguration()
             .MinimumLevel.ControlledBy(levelSwitch)
             .WriteTo.File(
                 Path.Combine(logDirectory, $"log-{DateTime.Now:yyyyMMddHHmmss}.log"),
                 outputTemplate: OutputTemplate)
             .CreateLogger();
+    }
+
+    public static IServiceCollection AddUnityAssetsPatcherLogging(
+        this IServiceCollection services,
+        Serilog.ILogger logger,
+        LoggingLevelSwitch levelSwitch)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(levelSwitch);
 
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
             builder.SetMinimumLevel(LogLevel.Trace);
-            builder.AddSerilog(logger, true);
+            builder.AddSerilog(logger, false);
         });
 
         services.AddSingleton<ILoggingLevelSwitch>(new SerilogLoggingLevelSwitch(levelSwitch));

@@ -181,26 +181,25 @@ public sealed class UninstallModHandler :
             return ExpectedFailure<TResult>(
                 operationName, ModOperationErrorCodes.InstallRecordNotFound, exception.Message);
         }
-        catch (NotSupportedException exception)
+        catch (RepositoryOperationLockedException exception)
+        {
+            return ExpectedFailure<TResult>(operationName, RepositoryErrorCodes.OperationAlreadyRunning,
+                exception.Message);
+        }
+        catch (UnsupportedRepositoryFormatException exception)
         {
             return ExpectedFailure<TResult>(
                 operationName,
                 RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is UninstallValidationException or UninstallCompositionException)
         {
             OperationErrorCode code = operationName == nameof(UninstallAsync)
                 ? ModOperationErrorCodes.FileIntegrityMismatch
                 : RepositoryErrorCodes.Unsafe;
 
             return ExpectedFailure<TResult>(operationName, code, exception.Message);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Uninstall operation {OperationName} failed", operationName);
-
-            throw;
         }
     }
 

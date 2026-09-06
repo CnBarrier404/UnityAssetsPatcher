@@ -1,3 +1,5 @@
+using System.Security;
+using System.Text.Json;
 using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Domain.Integrity;
 using UnityAssetsPatcher.Application.Contracts;
@@ -33,7 +35,7 @@ internal sealed class RepositoryRecovery
                 ? new RepositoryRecoveryReport(RepositoryRecoveryStatus.RecoveryRequired, [], [])
                 : RepositoryRecoveryReport.Clean;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (IsExpectedRecoveryFailure(exception))
         {
             return LockedReport(exception);
         }
@@ -51,7 +53,7 @@ internal sealed class RepositoryRecovery
                     []);
             }
         }
-        catch (Exception exception)
+        catch (Exception exception) when (IsExpectedRecoveryFailure(exception))
         {
             return new RepositoryRecoveryPreview(
                 RepositoryRecoveryStatus.Locked, null, null, null, null, false, [],
@@ -74,7 +76,7 @@ internal sealed class RepositoryRecovery
                     .ToArray(),
                 []);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (IsExpectedRecoveryFailure(exception))
         {
             return new RepositoryRecoveryPreview(
                 RepositoryRecoveryStatus.RecoveryRequired,
@@ -101,7 +103,7 @@ internal sealed class RepositoryRecovery
             string trustedRoot = _pathResolver.ResolveExistingDirectory(gameDirectory);
             return Apply(transaction, trustedRoot);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (IsExpectedRecoveryFailure(exception))
         {
             return LockedReport(exception);
         }
@@ -109,17 +111,10 @@ internal sealed class RepositoryRecovery
 
     public RepositoryRecoveryReport RecoverTrusted(RepositoryTransaction transaction, string gameDirectory)
     {
-        try
-        {
-            RepositoryMetadata metadata = _repository.LoadMetadata();
-            ValidateTransaction(transaction, metadata.RepositoryId);
-            string trustedRoot = _pathResolver.ResolveExistingDirectory(gameDirectory);
-            return Apply(transaction, trustedRoot);
-        }
-        catch (Exception exception)
-        {
-            return LockedReport(exception);
-        }
+        RepositoryMetadata metadata = _repository.LoadMetadata();
+        ValidateTransaction(transaction, metadata.RepositoryId);
+        string trustedRoot = _pathResolver.ResolveExistingDirectory(gameDirectory);
+        return Apply(transaction, trustedRoot);
     }
 
     private RepositoryRecoveryReport Apply(RepositoryTransaction transaction, string trustedRoot)
@@ -161,7 +156,7 @@ internal sealed class RepositoryRecovery
                 transaction.GameInstanceFingerprint,
                 StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("The selected game directory does not match the pending transaction.");
+            throw new InvalidDataException("The selected game directory does not match the pending transaction.");
         }
 
         _ = _repository.LoadMetadata();
@@ -185,7 +180,7 @@ internal sealed class RepositoryRecovery
             {
                 if (state != FileState.After)
                 {
-                    throw new InvalidOperationException(
+                    throw new InvalidDataException(
                         $"Committed transaction target has an unknown state: {file.RelativePath}");
                 }
 
@@ -199,7 +194,7 @@ internal sealed class RepositoryRecovery
             }
             else if (state != FileState.After)
             {
-                throw new InvalidOperationException($"Transaction target has an unknown state: {file.RelativePath}");
+                throw new InvalidDataException($"Transaction target has an unknown state: {file.RelativePath}");
             }
             else if (file.Before is null)
             {
@@ -236,7 +231,7 @@ internal sealed class RepositoryRecovery
 
         if (hasUnknown)
         {
-            throw new InvalidOperationException("Transaction target has an unknown state.");
+            throw new InvalidDataException("Transaction target has an unknown state.");
         }
 
         return transaction.Kind switch
@@ -246,7 +241,7 @@ internal sealed class RepositoryRecovery
             RepositoryOperationKind.Uninstall when layerLocation == LayerLocation.Removed && allAfter => true,
             RepositoryOperationKind.Uninstall when layerLocation == LayerLocation.Active => false,
             RepositoryOperationKind.Uninstall when layerLocation == LayerLocation.Removed && hasBefore => false,
-            _ => throw new InvalidOperationException("Layer state does not match the interrupted transaction.")
+            _ => throw new InvalidDataException("Layer state does not match the interrupted transaction.")
         };
     }
 
@@ -258,7 +253,7 @@ internal sealed class RepositoryRecovery
 
         if (active && removed)
         {
-            throw new InvalidOperationException("The active and removed layer directories both exist.");
+            throw new InvalidDataException("The active and removed layer directories both exist.");
         }
 
         if (active)
@@ -289,12 +284,12 @@ internal sealed class RepositoryRecovery
                 return;
             }
 
-            throw new InvalidOperationException("The removed layer directory is missing.");
+            throw new InvalidDataException("The removed layer directory is missing.");
         }
 
         if (TryGetRealDirectory(layerDirectory, "Layer directory"))
         {
-            throw new InvalidOperationException("The active and removed layer directories both exist.");
+            throw new InvalidDataException("The active and removed layer directories both exist.");
         }
 
         _fileSystemOperations.EnsureDirectory(_repositoryStore.Layers.LayersDirectory);
@@ -303,9 +298,16 @@ internal sealed class RepositoryRecovery
         {
             _ = _repositoryStore.Layers.ReadLayer(transaction.InstallId);
         }
-        catch
+        catch (Exception failure)
         {
-            _fileSystemOperations.MoveDirectory(layerDirectory, removedDirectory);
+            try
+            {
+                _fileSystemOperations.MoveDirectory(layerDirectory, removedDirectory);
+            }
+            catch (Exception recoveryFailure)
+            {
+                throw new AggregateException(failure, recoveryFailure);
+            }
 
             throw;
         }
@@ -323,7 +325,7 @@ internal sealed class RepositoryRecovery
             FileAttributes attributes = _fileSystemOperations.GetAttributes(path);
             if (!attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
             {
-                throw new InvalidOperationException($"{description} is not trusted: {path}");
+                throw new InvalidDataException($"{description} is not trusted: {path}");
             }
 
             return true;
@@ -351,12 +353,13 @@ internal sealed class RepositoryRecovery
     {
         if (!string.Equals(transaction.RepositoryId, repositoryId, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("Transaction does not belong to this repository.");
+            throw new InvalidDataException("Transaction does not belong to this repository.");
         }
 
-        if (string.IsNullOrWhiteSpace(transaction.InstallId))
+        if (!TrustedPath.TryNormalizeRelativePath(transaction.InstallId, out string installId) ||
+            installId.IndexOfAny(['\\', '/', Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0)
         {
-            throw new InvalidOperationException("Transaction install ID is missing.");
+            throw new InvalidDataException("Transaction install ID is invalid.");
         }
 
         if (string.IsNullOrWhiteSpace(transaction.GameInstanceFingerprint) ||
@@ -364,18 +367,24 @@ internal sealed class RepositoryRecovery
             transaction.GameInstanceFingerprint.Any(character =>
                 character is not (>= '0' and <= '9') and not (>= 'a' and <= 'f')))
         {
-            throw new InvalidOperationException("Transaction game fingerprint is invalid.");
+            throw new InvalidDataException("Transaction game fingerprint is invalid.");
         }
 
         var targets = new HashSet<string>(PathComparer);
         var rollbacks = new HashSet<string>(PathComparer);
         var prepared = new HashSet<string>(PathComparer);
+        if (!Enum.IsDefined(transaction.Kind) || transaction.Files is null ||
+            transaction.Files.Any(file => file is null))
+        {
+            throw new InvalidDataException("Transaction kind or file collection is invalid.");
+        }
+
         foreach (RepositoryTransactionFile file in transaction.Files)
         {
             ValidateRelativePath(file.RelativePath, "target");
             if (!targets.Add(Normalize(file.RelativePath)))
             {
-                throw new InvalidOperationException("Transaction contains duplicate target paths.");
+                throw new InvalidDataException("Transaction contains duplicate target paths.");
             }
 
             ValidateIntegrity(file.Before);
@@ -400,7 +409,7 @@ internal sealed class RepositoryRecovery
             };
             if (!valid)
             {
-                throw new InvalidOperationException($"Transaction file shape is invalid: {file.RelativePath}");
+                throw new InvalidDataException($"Transaction file shape is invalid: {file.RelativePath}");
             }
 
             if (file.RollbackRelativePath is not null)
@@ -408,7 +417,7 @@ internal sealed class RepositoryRecovery
                 ValidateRelativePath(file.RollbackRelativePath, "rollback");
                 if (!rollbacks.Add(Normalize(file.RollbackRelativePath)))
                 {
-                    throw new InvalidOperationException("Transaction contains duplicate rollback paths.");
+                    throw new InvalidDataException("Transaction contains duplicate rollback paths.");
                 }
             }
 
@@ -418,7 +427,7 @@ internal sealed class RepositoryRecovery
 
                 if (!prepared.Add(Normalize(file.PreparedRelativePath)))
                 {
-                    throw new InvalidOperationException("Transaction contains duplicate prepared paths.");
+                    throw new InvalidDataException("Transaction contains duplicate prepared paths.");
                 }
             }
         }
@@ -427,26 +436,26 @@ internal sealed class RepositoryRecovery
     private void ValidateRollback(RepositoryTransactionFile file)
     {
         string rollback = _pathResolver.ResolveWithinDirectory(_repository.TransactionDirectory,
-            file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
+            file.RollbackRelativePath ?? throw new InvalidDataException("Transaction rollback path is missing."));
         if (!file.Before!.Matches(_fileSystemOperations.ComputeFileIntegrity(rollback)))
         {
-            throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
+            throw new InvalidDataException($"Transaction rollback file is damaged: {rollback}");
         }
     }
 
     private void RestoreOriginalFile(RepositoryTransactionFile file, string target)
     {
         string rollback = _pathResolver.ResolveWithinDirectory(_repository.TransactionDirectory,
-            file.RollbackRelativePath ?? throw new InvalidOperationException("Transaction rollback path is missing."));
+            file.RollbackRelativePath ?? throw new InvalidDataException("Transaction rollback path is missing."));
         if (!file.Before!.Matches(_fileSystemOperations.ComputeFileIntegrity(rollback)))
         {
-            throw new InvalidOperationException($"Transaction rollback file is damaged: {rollback}");
+            throw new InvalidDataException($"Transaction rollback file is damaged: {rollback}");
         }
 
         _fileSystemOperations.CopyFileAtomically(rollback, target, FileDestinationMode.CreateOrReplace);
         if (!file.Before!.Matches(_fileSystemOperations.ComputeFileIntegrity(target)))
         {
-            throw new InvalidOperationException($"Transaction rollback verification failed: {target}");
+            throw new InvalidDataException($"Transaction rollback verification failed: {target}");
         }
     }
 
@@ -457,7 +466,12 @@ internal sealed class RepositoryRecovery
 
     private FileState Inspect(string path, FileIntegrity? before, FileIntegrity? after)
     {
-        if (!File.Exists(path))
+        FileAttributes attributes;
+        try
+        {
+            attributes = _fileSystemOperations.GetAttributes(path);
+        }
+        catch (FileNotFoundException)
         {
             if (before is null)
             {
@@ -465,6 +479,20 @@ internal sealed class RepositoryRecovery
             }
 
             return after is null ? FileState.After : FileState.Unknown;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            if (before is null)
+            {
+                return FileState.Before;
+            }
+
+            return after is null ? FileState.After : FileState.Unknown;
+        }
+
+        if (attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new InvalidDataException($"Transaction target is not a regular file: {path}");
         }
 
         if (before is not null && before.Matches(_fileSystemOperations.ComputeFileIntegrity(path)))
@@ -487,21 +515,25 @@ internal sealed class RepositoryRecovery
             return;
         }
 
-        if (integrity.Length < 0 || integrity.Sha256.Length != 64 ||
+        if (integrity.Length < 0 || integrity.Sha256 is null || integrity.Sha256.Length != 64 ||
             integrity.Sha256.Any(character => character is not (>= '0' and <= '9') and not (>= 'a' and <= 'f')))
         {
-            throw new InvalidOperationException("Transaction file integrity is invalid.");
+            throw new InvalidDataException("Transaction file integrity is invalid.");
         }
     }
 
     private static void ValidateRelativePath(string path, string description)
     {
-        if (string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path) ||
-            path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries).Any(segment => segment is "." or ".."))
+        if (!TrustedPath.TryNormalizeRelativePath(path, out _))
         {
-            throw new InvalidOperationException($"Transaction {description} path is not trusted: {path}");
+            throw new InvalidDataException($"Transaction {description} path is not trusted: {path}");
         }
+    }
+
+    private static bool IsExpectedRecoveryFailure(Exception exception)
+    {
+        return exception is IOException or UnauthorizedAccessException or SecurityException
+            or InvalidDataException or JsonException or UnsupportedRepositoryFormatException;
     }
 
     private RepositoryRecoveryReport LockedReport(Exception exception)

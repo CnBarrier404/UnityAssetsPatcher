@@ -65,23 +65,16 @@ public sealed class RecoveryCLICommand : ICLICommand
         string gameDirectory,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
-                    new PreviewRecoveryRequest(Path.GetFullPath(gameDirectory)),
-                    cancellationToken)
-                .ConfigureAwait(false);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var result = await dispatcher
+            .DispatchAsync<PreviewRecoveryRequest, OperationResult<RepositoryRecoveryPreview>>(
+                new PreviewRecoveryRequest(Path.GetFullPath(gameDirectory)),
+                cancellationToken)
+            .ConfigureAwait(false);
 
-            return CLIOutput.WriteResult(parseResult, _options, "recovery.preview", result,
-                CLIOutput.RecoveryPreview, CLIOutput.WriteRecoveryPreviewText);
-        }
-        catch (Exception exception)
-        {
-            return CLIOutput.WriteFailure(parseResult, _options, "recovery.preview", exception);
-        }
+        return CLIOutput.WriteResult(parseResult, _options, "recovery.preview", result,
+            CLIOutput.RecoveryPreview, CLIOutput.WriteRecoveryPreviewText);
     }
 
     private async Task<int> ExecuteApply(
@@ -89,23 +82,16 @@ public sealed class RecoveryCLICommand : ICLICommand
         string gameDirectory,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
-                    new RecoverRecoveryRequest(Path.GetFullPath(gameDirectory)),
-                    cancellationToken)
-                .ConfigureAwait(false);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var result = await dispatcher
+            .DispatchAsync<RecoverRecoveryRequest, OperationResult<RepositoryRecoveryReport>>(
+                new RecoverRecoveryRequest(Path.GetFullPath(gameDirectory)),
+                cancellationToken)
+            .ConfigureAwait(false);
 
-            return CLIOutput.WriteResult(parseResult, _options, "recovery.apply", result,
-                CLIOutput.RecoveryReport, CLIOutput.WriteRecoveryReportText);
-        }
-        catch (Exception exception)
-        {
-            return CLIOutput.WriteFailure(parseResult, _options, "recovery.apply", exception);
-        }
+        return CLIOutput.WriteResult(parseResult, _options, "recovery.apply", result,
+            CLIOutput.RecoveryReport, CLIOutput.WriteRecoveryReportText);
     }
 
     private static Option<string> GameDirectoryOption()

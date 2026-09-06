@@ -1,3 +1,5 @@
+using System.Security;
+using System.Text.Json;
 using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
@@ -54,22 +56,20 @@ public sealed class InitializeRepositoryHandler :
             return Task.FromResult<OperationResult<RepositoryRecoveryReport>>(
                 new OperationFailed<RepositoryRecoveryReport>(error));
         }
-        catch (NotSupportedException exception)
+        catch (RepositoryOperationLockedException exception)
         {
             var error = new OperationError(
-                RepositoryErrorCodes.UnsupportedVersion,
+                RepositoryErrorCodes.OperationAlreadyRunning,
                 new Dictionary<string, object?> { ["detail"] = exception.Message });
 
             return Task.FromResult<OperationResult<RepositoryRecoveryReport>>(
                 new OperationFailed<RepositoryRecoveryReport>(error));
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                                              or SecurityException or InvalidDataException or JsonException)
         {
-            OperationErrorCode code = exception.InnerException is IOException
-                ? RepositoryErrorCodes.OperationAlreadyRunning
-                : RepositoryErrorCodes.Unsafe;
             var error = new OperationError(
-                code,
+                RepositoryErrorCodes.Unsafe,
                 new Dictionary<string, object?> { ["detail"] = exception.Message });
 
             return Task.FromResult<OperationResult<RepositoryRecoveryReport>>(

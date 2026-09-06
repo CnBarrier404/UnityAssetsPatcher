@@ -4,6 +4,7 @@ namespace UnityAssetsPatcher.Infrastructure.AssetsTools;
 
 internal static class ResourceCleanup
 {
+    // Kept for callers that inspect the former diagnostic format. Failures now propagate together.
     internal const string CleanupExceptionsDataKey = "UnityAssetsPatcher.CleanupExceptions";
 
     public static IReadOnlyList<Exception> RunAll(IEnumerable<Action> cleanups)
@@ -27,7 +28,7 @@ internal static class ResourceCleanup
         return exceptions;
     }
 
-    public static void ThrowOrAttach(Exception? primaryException, IReadOnlyList<Exception> cleanupExceptions)
+    public static void ThrowIfFailed(Exception? primaryException, IReadOnlyList<Exception> cleanupExceptions)
     {
         ArgumentNullException.ThrowIfNull(cleanupExceptions);
 
@@ -35,7 +36,7 @@ internal static class ResourceCleanup
         {
             if (cleanupExceptions.Count > 0)
             {
-                Attach(primaryException, cleanupExceptions);
+                throw new AggregateException([primaryException, .. cleanupExceptions]);
             }
 
             ExceptionDispatchInfo.Capture(primaryException).Throw();
@@ -53,33 +54,5 @@ internal static class ResourceCleanup
             default:
                 throw new AggregateException(cleanupExceptions);
         }
-    }
-
-    public static void Attach(
-        Exception primaryException,
-        IReadOnlyList<Exception> cleanupExceptions)
-    {
-        ArgumentNullException.ThrowIfNull(primaryException);
-        ArgumentNullException.ThrowIfNull(cleanupExceptions);
-
-        if (cleanupExceptions.Count == 0)
-        {
-            return;
-        }
-
-        var allCleanupExceptions = new List<Exception>();
-
-        switch (primaryException.Data[CleanupExceptionsDataKey])
-        {
-            case AggregateException previous:
-                allCleanupExceptions.AddRange(previous.InnerExceptions);
-                break;
-            case Exception previousException:
-                allCleanupExceptions.Add(previousException);
-                break;
-        }
-
-        allCleanupExceptions.AddRange(cleanupExceptions);
-        primaryException.Data[CleanupExceptionsDataKey] = new AggregateException(allCleanupExceptions);
     }
 }

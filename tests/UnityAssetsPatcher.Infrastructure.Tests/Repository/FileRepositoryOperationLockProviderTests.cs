@@ -14,10 +14,7 @@ public sealed class FileRepositoryOperationLockProviderTests
         FileRepositoryOperationLockProvider provider = CreateProvider(repositoryPath);
         using IRepositoryOperationLock operationLock = provider.Acquire();
 
-        var exception = Assert.Throws<InvalidOperationException>(provider.Acquire);
-
-        Assert.Equal("Another install, uninstall, or recovery operation is running.", exception.Message);
-        Assert.IsType<IOException>(exception.InnerException);
+        _ = Assert.Throws<IOException>(provider.Acquire);
     }
 
     [Fact]

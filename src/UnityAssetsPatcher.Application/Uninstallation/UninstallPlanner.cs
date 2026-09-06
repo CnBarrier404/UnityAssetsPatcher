@@ -55,6 +55,7 @@ public sealed class UninstallPlanner
         string gameDirectory = ResolveGameDirectory(request.GameDirectory, layer);
         ValidateLayer(layer, gameDirectory);
         string workingDirectory = CreateWorkingDirectory();
+        Exception? operationFailure = null;
 
         try
         {
@@ -94,9 +95,21 @@ public sealed class UninstallPlanner
                 [],
                 changedFiles);
         }
+        catch (Exception failure)
+        {
+            operationFailure = failure;
+            throw;
+        }
         finally
         {
-            DeleteWorkingDirectory(workingDirectory);
+            try
+            {
+                DeleteWorkingDirectory(workingDirectory);
+            }
+            catch (Exception cleanupFailure) when (operationFailure is not null)
+            {
+                throw new AggregateException(operationFailure, cleanupFailure);
+            }
         }
     }
 
@@ -113,6 +126,7 @@ public sealed class UninstallPlanner
         string gameDirectory = ResolveGameDirectory(request.GameDirectory, layer);
         ValidateLayer(layer, gameDirectory);
         string workingDirectory = CreateWorkingDirectory();
+        Exception? operationFailure = null;
 
         try
         {
@@ -139,16 +153,28 @@ public sealed class UninstallPlanner
                     .Where(file => !IsCurrentStateSafe(analysis, file))
                     .Select(file => file.RelativePath)
                     .ToArray();
-                throw new InvalidOperationException(
+                throw new UninstallValidationException(
                     "Cannot uninstall because the current game files differ from the composed active layers: " +
                     string.Join(", ", modifiedFiles));
             }
 
             return new UninstallPlan(entry.LayerDirectory, gameDirectory, layer);
         }
+        catch (Exception failure)
+        {
+            operationFailure = failure;
+            throw;
+        }
         finally
         {
-            DeleteWorkingDirectory(workingDirectory);
+            try
+            {
+                DeleteWorkingDirectory(workingDirectory);
+            }
+            catch (Exception cleanupFailure) when (operationFailure is not null)
+            {
+                throw new AggregateException(operationFailure, cleanupFailure);
+            }
         }
     }
 
@@ -255,7 +281,7 @@ public sealed class UninstallPlanner
 
         if (matches.Length > 1)
         {
-            throw new InvalidOperationException($"Multiple layers use ID '{layerId}'.");
+            throw new UninstallValidationException($"Multiple layers use ID '{layerId}'.");
         }
 
         throw new KeyNotFoundException($"Install record not found: {layerId}");
@@ -274,7 +300,7 @@ public sealed class UninstallPlanner
 
         if (!string.Equals(layer.GameInstanceFingerprint, fingerprint, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException(
+            throw new UninstallValidationException(
                 "The selected game directory does not match the install record game instance.");
         }
     }
@@ -332,7 +358,7 @@ public sealed class UninstallPlanner
         ];
     }
 
-    private static InvalidOperationException CreateDependencyException(
+    private static UninstallValidationException CreateDependencyException(
         LayerRecord targetLayer,
         IReadOnlyList<UninstallCompositionFailure> failures)
     {
@@ -342,7 +368,7 @@ public sealed class UninstallPlanner
                 $"{failure.Layer.ModName} {failure.Layer.ModVersion} at {failure.RelativePath} " +
                 $"({failure.Diagnostic.Code})"));
 
-        return new InvalidOperationException(
+        return new UninstallValidationException(
             $"Cannot uninstall {targetLayer.ModName} because remaining layers have real patch dependencies: " +
             details);
     }

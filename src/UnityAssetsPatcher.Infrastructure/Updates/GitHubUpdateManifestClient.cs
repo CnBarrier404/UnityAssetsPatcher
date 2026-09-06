@@ -1,5 +1,4 @@
 using System.Net.Http.Headers;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Updates;
@@ -29,40 +28,9 @@ internal sealed class GitHubUpdateManifestClient
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        try
-        {
-            return await FetchLatestManifestAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (HttpRequestException exception)
-        {
-            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
+        UpdateLog.UpdateCheckStarted(_logger);
 
-            throw;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            UpdateLog.UpdateCheckCanceled(_logger);
-
-            throw;
-        }
-        catch (OperationCanceledException exception)
-        {
-            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
-
-            throw;
-        }
-        catch (IOException exception)
-        {
-            UpdateLog.UpdateRequestFailed(_logger, exception, exception.Message);
-
-            throw;
-        }
-        catch (JsonException exception)
-        {
-            UpdateLog.UpdateManifestRejectedAsInvalidJson(_logger, exception);
-
-            throw;
-        }
+        return await FetchLatestManifestAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<UpdateInfo> FetchLatestManifestAsync(CancellationToken cancellationToken)
@@ -73,18 +41,12 @@ internal sealed class GitHubUpdateManifestClient
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken).ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            UpdateLog.UpdateRequestRejected(_logger, (int)response.StatusCode);
-
-            response.EnsureSuccessStatusCode();
-        }
+        response.EnsureSuccessStatusCode();
 
         if (response.Content.Headers.ContentLength is > MaximumManifestSize)
         {
-            UpdateLog.UpdateManifestRejectedAsTooLarge(_logger, MaximumManifestSize);
-
-            throw new InvalidDataException("The update manifest exceeds the maximum size.");
+            throw new InvalidDataException(
+                $"The update manifest exceeds the maximum size of {MaximumManifestSize} bytes.");
         }
 
         await using Stream contentStream = await response.Content
@@ -99,10 +61,9 @@ internal sealed class GitHubUpdateManifestClient
         switch (readResult.Status)
         {
             case UpdateManifestReadStatus.TooLarge:
-                UpdateLog.UpdateManifestRejectedAsTooLarge(_logger, MaximumManifestSize);
-                throw new InvalidDataException("The update manifest exceeds the maximum size.");
+                throw new InvalidDataException(
+                    $"The update manifest exceeds the maximum size of {MaximumManifestSize} bytes.");
             case UpdateManifestReadStatus.Invalid:
-                UpdateLog.UpdateManifestRejected(_logger);
                 throw new InvalidDataException("The update manifest does not match the expected format.");
             case UpdateManifestReadStatus.Success:
                 break;
@@ -110,7 +71,7 @@ internal sealed class GitHubUpdateManifestClient
                 throw new ArgumentOutOfRangeException();
         }
 
-        return readResult.Manifest ?? throw new InvalidDataException(
+        return readResult.Manifest ?? throw new InvalidOperationException(
             "The update manifest reader returned no manifest for a successful result.");
     }
 

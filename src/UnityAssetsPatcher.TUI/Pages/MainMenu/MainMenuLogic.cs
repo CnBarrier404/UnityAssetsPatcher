@@ -1,6 +1,5 @@
+using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Application.Updates;
 
@@ -22,35 +21,26 @@ public sealed class MainMenuLogic : IAsyncDisposable
     }
 
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<MainMenuLogic> _logger;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly Lock _sync = new();
     private Task? _updateCheckTask;
     private UpdateInfo? _availableUpdate;
-    private bool _isStarted;
     private bool _isDisposed;
 
-    public MainMenuLogic(
-        IServiceScopeFactory scopeFactory,
-        ILogger<MainMenuLogic>? logger = null)
+    public MainMenuLogic(IServiceScopeFactory scopeFactory)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
 
         _scopeFactory = scopeFactory;
-        _logger = logger ?? NullLogger<MainMenuLogic>.Instance;
     }
 
-    public void StartUpdateCheck()
+    public Task StartUpdateCheck()
     {
         lock (_sync)
         {
-            if (_isStarted || _isDisposed)
-            {
-                return;
-            }
+            ObjectDisposedException.ThrowIf(_isDisposed, this);
 
-            _isStarted = true;
-            _updateCheckTask = CheckForUpdateAsync(_lifetimeCancellation.Token);
+            return _updateCheckTask ??= CheckForUpdateAsync(_lifetimeCancellation.Token);
         }
     }
 
@@ -69,23 +59,46 @@ public sealed class MainMenuLogic : IAsyncDisposable
             updateCheckTask = _updateCheckTask;
         }
 
-        await _lifetimeCancellation.CancelAsync().ConfigureAwait(false);
-
-        if (updateCheckTask is not null)
+        try
         {
-            await updateCheckTask.ConfigureAwait(false);
-        }
+            Exception? cancellationFailure = null;
+            try
+            {
+                await _lifetimeCancellation.CancelAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                cancellationFailure = exception;
+            }
 
-        _lifetimeCancellation.Dispose();
+            try
+            {
+                if (updateCheckTask is not null)
+                {
+                    await updateCheckTask.ConfigureAwait(false);
+                }
+            }
+            catch (Exception operationFailure) when (cancellationFailure is not null)
+            {
+                throw new AggregateException(operationFailure, cancellationFailure);
+            }
+
+            if (cancellationFailure is not null)
+            {
+                ExceptionDispatchInfo.Capture(cancellationFailure).Throw();
+            }
+        }
+        finally
+        {
+            _lifetimeCancellation.Dispose();
+        }
     }
 
     private async Task CheckForUpdateAsync(CancellationToken cancellationToken)
     {
         try
         {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var updateCheckModule = scope.ServiceProvider.GetRequiredService<UpdateCheckModule>();
-            var result = await updateCheckModule.CheckForUpdateAsync(cancellationToken);
+            var result = await DispatchUpdateCheckAsync(cancellationToken).ConfigureAwait(false);
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -94,10 +107,34 @@ public sealed class MainMenuLogic : IAsyncDisposable
                 PublishAvailableUpdate(update);
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested &&
+                                                           exception.CancellationToken == cancellationToken) { }
+    }
+
+    private async Task<OperationResult<UpdateInfo?>> DispatchUpdateCheckAsync(CancellationToken cancellationToken)
+    {
+        AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        Exception? operationFailure = null;
+        try
+        {
+            var updateCheckModule = scope.ServiceProvider.GetRequiredService<UpdateCheckModule>();
+            return await updateCheckModule.CheckForUpdateAsync(cancellationToken).ConfigureAwait(false);
+        }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "Main menu update check terminated unexpectedly");
+            operationFailure = exception;
+            throw;
+        }
+        finally
+        {
+            try
+            {
+                await scope.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception disposalFailure) when (operationFailure is not null)
+            {
+                throw new AggregateException(operationFailure, disposalFailure);
+            }
         }
     }
 

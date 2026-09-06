@@ -124,12 +124,6 @@ public sealed class InspectAssetsHandler :
         {
             return ExpectedFailure<TResult>(operationName, AssetErrorCodes.NotFound, exception.Message);
         }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Inspect operation {OperationName} failed", operationName);
-
-            throw;
-        }
     }
 
     private OperationFailed<TResult> ExpectedFailure<TResult>(

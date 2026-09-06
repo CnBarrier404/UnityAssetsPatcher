@@ -1,3 +1,5 @@
+using System.Security;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Contracts;
@@ -91,26 +93,21 @@ public sealed class RecoveryHandler :
         {
             return ExpectedFailure<TResult>(operationName, FileErrorCodes.SystemFailure, exception.Message);
         }
-        catch (NotSupportedException exception)
+        catch (UnsupportedRepositoryFormatException exception)
         {
             return ExpectedFailure<TResult>(
                 operationName,
                 RepositoryErrorCodes.UnsupportedVersion,
                 exception.Message);
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is InvalidDataException or JsonException or SecurityException)
         {
-            OperationErrorCode code = exception.InnerException is IOException
-                ? RepositoryErrorCodes.OperationAlreadyRunning
-                : RepositoryErrorCodes.Unsafe;
-
-            return ExpectedFailure<TResult>(operationName, code, exception.Message);
+            return ExpectedFailure<TResult>(operationName, RepositoryErrorCodes.Unsafe, exception.Message);
         }
-        catch (Exception exception)
+        catch (RepositoryOperationLockedException exception)
         {
-            _logger.LogError(exception, "Recovery operation {OperationName} failed", operationName);
-
-            throw;
+            return ExpectedFailure<TResult>(operationName, RepositoryErrorCodes.OperationAlreadyRunning,
+                exception.Message);
         }
     }
 

@@ -120,14 +120,10 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
         _disposed = true;
         var cleanupExceptions = CloseReadSessions();
 
-        if (_lastOperationException is not null)
+        if (cleanupExceptions.Count > 0)
         {
-            ResourceCleanup.Attach(_lastOperationException, cleanupExceptions);
-
-            return;
+            ResourceCleanup.ThrowIfFailed(_lastOperationException, cleanupExceptions);
         }
-
-        ResourceCleanup.ThrowOrAttach(null, cleanupExceptions);
     }
 
     private IAssetFileSession GetReadSession(string assetsFilePath)
@@ -154,7 +150,7 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
 
         try
         {
-            ResourceCleanup.ThrowOrAttach(null, CloseReadSessions());
+            ResourceCleanup.ThrowIfFailed(null, CloseReadSessions());
         }
         catch (Exception exception)
         {
@@ -188,20 +184,15 @@ internal sealed class AssetFileAccessScope : IAssetsAccessScope, IAssetsFileRead
             _disposed = true;
         }
 
-        if (primaryException is not null && cleanupExceptions.Count > 0)
-        {
-            _lastOperationException = primaryException;
-        }
-
         try
         {
-            ResourceCleanup.ThrowOrAttach(primaryException, cleanupExceptions);
+            ResourceCleanup.ThrowIfFailed(primaryException, cleanupExceptions);
         }
         catch (Exception exception)
         {
             if (cleanupExceptions.Count > 0)
             {
-                _lastOperationException ??= exception;
+                _lastOperationException = exception;
             }
 
             throw;
