@@ -466,7 +466,12 @@ internal sealed class RepositoryRecovery
 
     private FileState Inspect(string path, FileIntegrity? before, FileIntegrity? after)
     {
-        if (!File.Exists(path))
+        FileAttributes attributes;
+        try
+        {
+            attributes = _fileSystemOperations.GetAttributes(path);
+        }
+        catch (FileNotFoundException)
         {
             if (before is null)
             {
@@ -474,6 +479,20 @@ internal sealed class RepositoryRecovery
             }
 
             return after is null ? FileState.After : FileState.Unknown;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            if (before is null)
+            {
+                return FileState.Before;
+            }
+
+            return after is null ? FileState.After : FileState.Unknown;
+        }
+
+        if (attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new InvalidDataException($"Transaction target is not a regular file: {path}");
         }
 
         if (before is not null && before.Matches(_fileSystemOperations.ComputeFileIntegrity(path)))
