@@ -60,5 +60,6 @@ nunit-*.xml
 .idea/
 
 # Agent tool files
+.agents/
 .codex/
 .claude/

@@ -1,0 +1,9 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UnityAssetsPatcher.GUI.ViewModels"
+        x:Class="UnityAssetsPatcher.GUI.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Title}"
+        Icon="/Assets/icon.ico"
+        Width="960"
+        Height="640" />

@@ -78,7 +78,8 @@ public sealed class UninstallCompositionService
 
         if (!TrustedPath.PathComparer.Equals(targetLayer.GameInstanceFingerprint, fingerprint))
         {
-            throw new UninstallValidationException("The selected game directory does not match the layer game instance.");
+            throw new UninstallValidationException(
+                "The selected game directory does not match the layer game instance.");
         }
 
         string normalizedWorkingDirectory = _pathResolver.ResolveExistingDirectory(workingDirectory);

@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <OutputType>Exe</OutputType>
+        <OutputType>WinExe</OutputType>
+        <ApplicationIcon>..\UnityAssetsPatcher.GUI\Assets\icon.ico</ApplicationIcon>
         <TargetFramework>net10.0</TargetFramework>
         <RootNamespace>UnityAssetsPatcher</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -22,9 +23,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
-        <ProjectReference Include="..\UnityAssetsPatcher.CLI\UnityAssetsPatcher.CLI.csproj"/>
+        <ProjectReference Include="..\UnityAssetsPatcher.GUI\UnityAssetsPatcher.GUI.csproj"/>
         <ProjectReference Include="..\UnityAssetsPatcher.Infrastructure\UnityAssetsPatcher.Infrastructure.csproj"/>
-        <ProjectReference Include="..\UnityAssetsPatcher.TUI\UnityAssetsPatcher.TUI.csproj"/>
     </ItemGroup>
 
 </Project>
