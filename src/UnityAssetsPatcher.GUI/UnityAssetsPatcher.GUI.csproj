@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <GenerateSatelliteAssembliesForCore>true</GenerateSatelliteAssembliesForCore>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.1.2"/>
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.2"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2"/>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2"/>
+        <PackageReference Include="ResXLocalization.Avalonia" Version="1.1.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\icon.ico"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="..\..\localization\Strings.resx" Link="Localization\Strings.resx">
+            <Generator>PublicResXFileCodeGenerator</Generator>
+            <LastGenOutput>Strings.Designer.cs</LastGenOutput>
+            <CustomToolNamespace>UnityAssetsPatcher.GUI.Localization</CustomToolNamespace>
+            <StronglyTypedFileName>$(MSBuildProjectDirectory)\..\..\localization\Strings.Designer.cs</StronglyTypedFileName>
+            <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+            <StronglyTypedNamespace>UnityAssetsPatcher.GUI.Localization</StronglyTypedNamespace>
+            <StronglyTypedClassName>Strings</StronglyTypedClassName>
+            <PublicClass>true</PublicClass>
+        </EmbeddedResource>
+        <EmbeddedResource Include="..\..\localization\Strings.zh-CN.resx" Link="Localization\Strings.zh-CN.resx"/>
+        <Compile Include="..\..\localization\Strings.Designer.cs"
+                 Link="Localization\Strings.Designer.cs"
+                 Condition="'$(DesignTimeBuild)' == 'true'">
+            <AutoGen>true</AutoGen>
+            <DesignTime>true</DesignTime>
+            <DependentUpon>Strings.resx</DependentUpon>
+        </Compile>
+        <Compile Update="Views\AboutPage.axaml.cs">
+            <DependentUpon>AboutPage.axaml</DependentUpon>
+        </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
+    </ItemGroup>
+</Project>

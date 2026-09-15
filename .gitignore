@@ -20,6 +20,7 @@ x86/
 bld/
 [Bb]in/
 [Oo]bj/
+/localization/*.Designer.cs
 [Ll]og/
 [Ll]ogs/
 
@@ -60,5 +61,6 @@ nunit-*.xml
 .idea/
 
 # Agent tool files
+.agents/
 .codex/
 .claude/

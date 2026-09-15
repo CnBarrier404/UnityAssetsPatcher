@@ -81,7 +81,7 @@ internal sealed class GitHubUpdateManifestClient
 
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        request.Headers.UserAgent.ParseAdd(AppConfig.Identifier);
+        request.Headers.UserAgent.ParseAdd(AppConfig.Name);
 
         return request;
     }
