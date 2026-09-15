@@ -2,19 +2,13 @@
     <Folder Name="/src/">
         <Project Path="src/UnityAssetsPatcher/UnityAssetsPatcher.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Application/UnityAssetsPatcher.Application.csproj"/>
-        <Project Path="src/UnityAssetsPatcher.CLI/UnityAssetsPatcher.CLI.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Domain/UnityAssetsPatcher.Domain.csproj"/>
+        <Project Path="src/UnityAssetsPatcher.GUI/UnityAssetsPatcher.GUI.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Infrastructure/UnityAssetsPatcher.Infrastructure.csproj"/>
-        <Project Path="src/UnityAssetsPatcher.LocalizationGenerator/UnityAssetsPatcher.LocalizationGenerator.csproj"/>
-        <Project Path="src/UnityAssetsPatcher.TUI/UnityAssetsPatcher.TUI.csproj"/>
     </Folder>
     <Folder Name="/tests/">
         <Project Path="tests/UnityAssetsPatcher.Application.Tests/UnityAssetsPatcher.Application.Tests.csproj"/>
-        <Project Path="tests/UnityAssetsPatcher.CLI.Tests/UnityAssetsPatcher.CLI.Tests.csproj"/>
         <Project Path="tests/UnityAssetsPatcher.Domain.Tests/UnityAssetsPatcher.Domain.Tests.csproj"/>
         <Project Path="tests/UnityAssetsPatcher.Infrastructure.Tests/UnityAssetsPatcher.Infrastructure.Tests.csproj"/>
-        <Project
-            Path="tests/UnityAssetsPatcher.LocalizationGenerator.Tests/UnityAssetsPatcher.LocalizationGenerator.Tests.csproj"/>
-        <Project Path="tests/UnityAssetsPatcher.TUI.Tests/UnityAssetsPatcher.TUI.Tests.csproj"/>
     </Folder>
 </Solution>

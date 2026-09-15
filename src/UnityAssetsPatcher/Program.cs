@@ -1,17 +1,24 @@
+using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog.Core;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.CLI;
+using UnityAssetsPatcher.GUI;
+using UnityAssetsPatcher.GUI.ViewModels;
 using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Logging;
-using UnityAssetsPatcher.TUI;
 
 namespace UnityAssetsPatcher;
 
 public sealed class Program
 {
-    public static async Task<int> Main(string[] args)
+    [STAThread]
+    public static int Main(string[] args)
+    {
+        return RunAsync(args).GetAwaiter().GetResult();
+    }
+
+    private static async Task<int> RunAsync(string[] args)
     {
         Logger rootLogger;
         LoggingLevelSwitch loggingLevelSwitch;
@@ -43,9 +50,8 @@ public sealed class Program
                     .AddUnityAssetsPatcherApplication()
                     .AddUnityAssetsPatcherUpdates()
                     .AddUnityAssetsPatcherOperations()
-                    .AddUnityAssetsPatcherCli()
-                    .AddUnityAssetsPatcherOperationalCommands()
-                    .AddUnityAssetsPatcherTUI()
+                    .AddSingleton<MainWindowViewModel>()
+                    .AddSingleton<App>()
                     .BuildServiceProvider(new ServiceProviderOptions
                     {
                         ValidateOnBuild = true,
@@ -56,18 +62,9 @@ public sealed class Program
 
                 logger.LogInformation("Application started.");
 
-                if (args.Length > 0)
-                {
-                    var cliApplication = serviceProvider.GetRequiredService<CLIApplication>();
-
-                    exitCode = await cliApplication.RunAsync(args).ConfigureAwait(false);
-                }
-                else
-                {
-                    var terminalApp = serviceProvider.GetRequiredService<TerminalApp>();
-
-                    exitCode = await terminalApp.RunAsync().ConfigureAwait(false);
-                }
+                exitCode = AppBuilder.Configure(() => serviceProvider.GetRequiredService<App>())
+                    .UsePlatformDetect()
+                    .StartWithClassicDesktopLifetime(args);
             }
             catch (Exception exception)
             {

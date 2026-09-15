@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <data name="MainMenu_InstallMod_Title" xml:space="preserve">
+    <value>Install Mod</value>
+  </data>
+    <data name="MainMenu_Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+    <data name="Navigation_ManageMods" xml:space="preserve">
+    <value>Manage Mods</value>
+  </data>
+    <data name="Navigation_About" xml:space="preserve">
+    <value>About</value>
+  </data>
+    <data name="InstallPage_DropDescription" xml:space="preserve">
+    <value>Drag a mod package into the area below, or click to select a file.</value>
+  </data>
+    <data name="InstallPage_DropPrompt" xml:space="preserve">
+    <value>Drop a mod package here</value>
+  </data>
+    <data name="InstallPage_SelectFilePrompt" xml:space="preserve">
+    <value>or click to select a file</value>
+  </data>
+    <data name="InstallPage_SupportedFormats" xml:space="preserve">
+    <value>Supports .zip mod packages</value>
+  </data>
+</root>

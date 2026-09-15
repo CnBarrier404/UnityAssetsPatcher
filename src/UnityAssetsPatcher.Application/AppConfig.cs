@@ -4,12 +4,11 @@ namespace UnityAssetsPatcher.Application;
 
 public static class AppConfig
 {
-    public const string Name = "Unity Assets Patcher";
-    public const string Identifier = "UnityAssetsPatcher";
+    public const string Name = "UnityAssetsPatcher";
     public static string DisplayVersion { get; } = GetVersion();
 
     public static string ApplicationDataDirectory { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Identifier);
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name);
 
     public static string LogDirectory { get; } = Path.Combine(ApplicationDataDirectory, "logs");
     public static string RepositoryDirectory { get; } = Path.Combine(ApplicationDataDirectory, "backup");

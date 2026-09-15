@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <data name="MainMenu_InstallMod_Title" xml:space="preserve">
+    <value>安装 Mod</value>
+  </data>
+    <data name="MainMenu_Settings_Title" xml:space="preserve">
+    <value>设置</value>
+  </data>
+    <data name="Navigation_ManageMods" xml:space="preserve">
+    <value>管理 Mod</value>
+  </data>
+    <data name="Navigation_About" xml:space="preserve">
+    <value>关于</value>
+  </data>
+    <data name="InstallPage_DropDescription" xml:space="preserve">
+    <value>拖拽 Mod 包到下方区域，或点击选择文件。</value>
+  </data>
+    <data name="InstallPage_DropPrompt" xml:space="preserve">
+    <value>拖拽 Mod 包到这里</value>
+  </data>
+    <data name="InstallPage_SelectFilePrompt" xml:space="preserve">
+    <value>或点击选择文件</value>
+  </data>
+    <data name="InstallPage_SupportedFormats" xml:space="preserve">
+    <value>支持 .zip 格式的 Mod 包</value>
+  </data>
+</root>
