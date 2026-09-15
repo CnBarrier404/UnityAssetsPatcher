@@ -106,49 +106,6 @@ internal static class CLIOutput
         OperationErrorText.WriteTextFailure(error, operationError, true);
     }
 
-    public static void WriteUnexpectedFailure(TextWriter error, Exception exception)
-    {
-        ArgumentNullException.ThrowIfNull(error);
-        ArgumentNullException.ThrowIfNull(exception);
-
-        error.WriteLine($"Error [application.unexpected_failure]: {exception.Message}");
-    }
-
-    public static int WriteFailure(
-        ParseResult parseResult,
-        CLIOptions options,
-        string command,
-        Exception exception)
-    {
-        TextWriter error = parseResult.InvocationConfiguration.Error;
-
-        if (parseResult.GetValue(options.Format) == CLIOutputFormat.Json)
-        {
-            JsonObject envelope = ErrorEnvelope(command, "command_failed", exception.Message, Flatten(exception));
-            RepositoryRecoveryException? recovery = EnumerateExceptions(exception).OfType<RepositoryRecoveryException>()
-                .FirstOrDefault();
-            if (recovery is not null)
-            {
-                envelope["recovery"] = Recovery(recovery.Recovery);
-            }
-
-            WriteJson(error, envelope);
-        }
-        else
-        {
-            RepositoryRecoveryException? recovery = EnumerateExceptions(exception).OfType<RepositoryRecoveryException>()
-                .FirstOrDefault();
-            if (recovery is not null)
-            {
-                WriteRecoveryText(error, recovery.Recovery);
-            }
-
-            WriteException(error, exception);
-        }
-
-        return 1;
-    }
-
     public static void WriteUsageFailure(TextWriter error, string command, IEnumerable<string> messages)
     {
         string[] details = messages.ToArray();
@@ -512,51 +469,6 @@ internal static class CLIOutput
                 ["causes"] = new JsonArray(causes.ToArray())
             }
         };
-    }
-
-    private static IEnumerable<JsonNode?> Flatten(Exception exception)
-    {
-        foreach (Exception current in EnumerateExceptions(exception).Skip(1))
-        {
-            yield return new JsonObject
-            {
-                ["type"] = current.GetType().Name,
-                ["message"] = current.Message
-            };
-        }
-    }
-
-    private static IEnumerable<Exception> EnumerateExceptions(Exception exception)
-    {
-        yield return exception;
-
-        if (exception is AggregateException aggregate)
-        {
-            foreach (Exception inner in aggregate.InnerExceptions)
-            {
-                foreach (Exception nested in EnumerateExceptions(inner))
-                {
-                    yield return nested;
-                }
-            }
-        }
-        else if (exception.InnerException is { } inner)
-        {
-            foreach (Exception nested in EnumerateExceptions(inner))
-            {
-                yield return nested;
-            }
-        }
-    }
-
-    private static void WriteException(TextWriter error, Exception exception)
-    {
-        bool first = true;
-        foreach (Exception current in EnumerateExceptions(exception))
-        {
-            error.WriteLine($"{(first ? string.Empty : "Caused by ")}{current.GetType().Name}: {current.Message}");
-            first = false;
-        }
     }
 
     private static void WriteJson(TextWriter output, JsonObject value)

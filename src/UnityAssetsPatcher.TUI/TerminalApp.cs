@@ -1,8 +1,4 @@
-using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.TUI.Localization;
 using UnityAssetsPatcher.TUI.Lifecycle;
 
 namespace UnityAssetsPatcher.TUI;
@@ -10,24 +6,20 @@ namespace UnityAssetsPatcher.TUI;
 public sealed class TerminalApp
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<TerminalApp> _logger;
 
-    public TerminalApp(
-        IServiceScopeFactory scopeFactory,
-        ILogger<TerminalApp> logger)
+    public TerminalApp(IServiceScopeFactory scopeFactory)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
-        ArgumentNullException.ThrowIfNull(logger);
 
         _scopeFactory = scopeFactory;
-        _logger = logger;
     }
 
     public async Task<int> RunAsync()
     {
+        AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        Exception? runFailure = null;
         try
         {
-            await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
             var session = scope.ServiceProvider.GetRequiredService<TerminalSession>();
 
             await session.RunAsync().ConfigureAwait(false);
@@ -36,12 +28,23 @@ public sealed class TerminalApp
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "Terminal application terminated unexpectedly");
-
-            var strings = new LocalizedStrings(CultureInfo.CurrentUICulture);
-            Console.Error.WriteLine(strings.Error_UnexpectedFormat(AppConfig.LogDirectory));
-
-            return 1;
+            runFailure = exception;
+            throw;
+        }
+        finally
+        {
+            try
+            {
+                await scope.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception disposalFailure) when (runFailure is not null)
+            {
+                // The menu event and scope disposal can await the same failed update task.
+                if (!ReferenceEquals(runFailure, disposalFailure))
+                {
+                    throw new AggregateException(runFailure, disposalFailure);
+                }
+            }
         }
     }
 }

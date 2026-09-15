@@ -56,13 +56,13 @@ public sealed class UninstallExecutor
         RepositoryMetadata repository = _repositoryService.RequireWritableMetadata();
         string temporaryDirectory = _repositoryService.CreateTransactionDirectory();
         string rollbackDirectory = Path.Combine(temporaryDirectory, "rollback");
-        _fileSystemOperations.EnsureDirectory(rollbackDirectory);
         var transactionFiles = new List<RepositoryTransactionFile>();
         bool transactionSaved = false;
         RepositoryTransaction? transaction = null;
 
         try
         {
+            _fileSystemOperations.EnsureDirectory(rollbackDirectory);
             UninstallCompositionAnalysis analysis = await _compositionService.AnalyzeAsync(
                 plan.Layer,
                 gameDirectory,
@@ -97,7 +97,14 @@ public sealed class UninstallExecutor
         }
         catch (Exception failure)
         {
-            HandleFailure(failure, transactionSaved, transaction, temporaryDirectory, gameDirectory);
+            try
+            {
+                RestoreAfterFailure(transactionSaved, transaction, temporaryDirectory, gameDirectory);
+            }
+            catch (Exception recoveryFailure)
+            {
+                throw new AggregateException(failure, recoveryFailure);
+            }
 
             throw;
         }
@@ -233,8 +240,7 @@ public sealed class UninstallExecutor
         }
     }
 
-    private void HandleFailure(
-        Exception failure,
+    private void RestoreAfterFailure(
         bool transactionSaved,
         RepositoryTransaction? transaction,
         string temporaryDirectory,
@@ -242,10 +248,6 @@ public sealed class UninstallExecutor
     {
         if (!transactionSaved)
         {
-            _logger.LogError(
-                failure,
-                "Uninstall failed before the transaction was saved; temporary files removed");
-
             if (Directory.Exists(temporaryDirectory))
             {
                 _fileSystemOperations.DeleteDirectoryTree(temporaryDirectory);
@@ -254,22 +256,7 @@ public sealed class UninstallExecutor
             return;
         }
 
-        _logger.LogError(
-            failure,
-            "Uninstall failed after the transaction was saved; attempting automatic rollback");
-        RepositoryRecoveryReport recovery = _repositoryService.RecoverTrustedUnderLock(transaction!, gameDirectory);
-
-        if (recovery.Status != RepositoryRecoveryStatus.Locked)
-        {
-            return;
-        }
-
-        _logger.LogWarning("Automatic rollback was unsafe; manual recovery is required");
-
-        throw new RepositoryRecoveryException(
-            "Uninstall failed and automatic rollback was unsafe.",
-            recovery,
-            failure);
+        _repositoryService.RecoverTrustedUnderLock(transaction!, gameDirectory);
     }
 
     private FileIntegrity? GetPreparedIntegrity(CompositionFileResult result)
@@ -286,7 +273,7 @@ public sealed class UninstallExecutor
     {
         if (!MatchesIntegrity(actual, expected))
         {
-            throw new InvalidOperationException(
+            throw new UninstallValidationException(
                 $"Cannot uninstall because the current game file differs from the composed active layers: {targetPath}");
         }
     }

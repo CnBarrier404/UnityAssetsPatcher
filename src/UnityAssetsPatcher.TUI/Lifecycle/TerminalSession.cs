@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -33,74 +34,94 @@ internal sealed class TerminalSession
 
     public async Task RunAsync()
     {
-        using IApplication application = Terminal.Gui.App.Application.Create();
+        IApplication application = Terminal.Gui.App.Application.Create();
+        TerminalShellView? shell = null;
+        Exception? runFailure = null;
+        try
+        {
+            application.Init(OperatingSystem.IsWindows() ? DriverRegistry.Names.WINDOWS : null);
 
-        application.Init(OperatingSystem.IsWindows() ? DriverRegistry.Names.WINDOWS : null);
+            bool isLegacyConsole = application.Driver?.IsLegacyConsole == true;
 
-        bool isLegacyConsole = application.Driver?.IsLegacyConsole == true;
+            TerminalTheme.Initialize(isLegacyConsole);
 
-        TerminalTheme.Initialize(isLegacyConsole);
+            CultureInfo culture = CultureInfo.CurrentUICulture;
+            var strings = new LocalizedStrings(culture);
+            string? warningText = isLegacyConsole ? strings.Layout_LegacyConsoleWarning : null;
 
-        CultureInfo culture = CultureInfo.CurrentUICulture;
-        var strings = new LocalizedStrings(culture);
-        string? warningText = isLegacyConsole ? strings.Layout_LegacyConsoleWarning : null;
+            var renderer = new ApplicationRenderer(application);
+            shell = new TerminalShellView(
+                strings.Layout_ShortcutHint,
+                warningText,
+                renderer.Render);
 
-        var renderer = new ApplicationRenderer(application);
-        using TerminalShellView shell = new(
-            strings.Layout_ShortcutHint,
-            warningText,
-            renderer.Render);
+            var navigator = new TerminalNavigator(
+                shell,
+                _routeTable.Create(culture));
 
-        var navigator = new TerminalNavigator(
-            shell,
-            _routeTable.Create(culture));
+            var runState = new RunState(this, application, shell, navigator);
+            var context = new TerminalFlowContext(
+                shell,
+                runState.RequestStop,
+                runState.InvokeAsync);
 
-        var runState = new RunState(this, application, shell, navigator);
-        var context = new TerminalFlowContext(
-            shell,
-            runState.RequestStop);
+            await runState.RunAsync(context);
+        }
+        catch (Exception exception)
+        {
+            runFailure = exception;
+            throw;
+        }
+        finally
+        {
+            List<Exception> cleanupFailures = [];
+            IDisposable[] resources = shell is null ? [application] : [shell, application];
+            foreach (IDisposable resource in resources)
+            {
+                try
+                {
+                    resource.Dispose();
+                }
+                catch (Exception exception)
+                {
+                    cleanupFailures.Add(exception);
+                }
+            }
 
-        await runState.RunAsync(context);
+            ThrowCleanupFailures(runFailure, cleanupFailures);
+        }
     }
 
     private async Task RunStartupAsync(
         TerminalFlowContext context,
         TerminalNavigator navigator,
-        IApplication application,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            await _repositoryInitialization.RunAsync(context, cancellationToken);
+        await _repositoryInitialization.RunAsync(context, cancellationToken).ConfigureAwait(false);
 
-            cancellationToken.ThrowIfCancellationRequested();
-            application.Invoke(() =>
-            {
-                if (!cancellationToken.IsCancellationRequested)
-                {
-                    navigator.Navigate(TerminalRoute.MainMenu);
-                }
-            });
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Terminal startup failed.");
+        await context.InvokeAsync(
+            () => navigator.Navigate(TerminalRoute.MainMenu),
+            cancellationToken).ConfigureAwait(false);
+    }
 
-            try
-            {
-                context.RequestStop();
-            }
-            catch (Exception stopException)
-            {
-                _logger.LogError(stopException, "Terminal session could not request stop.");
-            }
-
-            throw;
+    private static void ThrowCleanupFailures(Exception? runFailure, List<Exception> cleanupFailures)
+    {
+        if (cleanupFailures.Count == 0)
+        {
+            return;
         }
+
+        if (runFailure is not null)
+        {
+            throw new AggregateException([runFailure, .. cleanupFailures]);
+        }
+
+        if (cleanupFailures.Count == 1)
+        {
+            ExceptionDispatchInfo.Capture(cleanupFailures[0]).Throw();
+        }
+
+        throw new AggregateException(cleanupFailures);
     }
 
     private sealed class ApplicationRenderer(IApplication application)
@@ -134,24 +155,49 @@ internal sealed class TerminalSession
 
             session._logger.LogInformation("Terminal application started");
 
+            Exception? runFailure = null;
             try
             {
-                await application.RunAsync(shell, sessionCancellation.Token);
+                // RunState owns cancellation and stopping; preserve exceptions from the loop unchanged.
+                await application.RunAsync(shell, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                runFailure = exception;
+                throw;
             }
             finally
             {
                 shell.Initialized -= StartSession;
                 shell.IsRunningChanging -= CancelStartupBeforeStopping;
-                await sessionCancellation.CancelAsync().ConfigureAwait(false);
+                List<Exception> cleanupFailures = [];
+                try
+                {
+                    sessionCancellation.Cancel();
+                }
+                catch (Exception exception)
+                {
+                    cleanupFailures.Add(exception);
+                }
 
                 if (_startupTask is not null)
                 {
                     try
                     {
-                        await _startupTask.ConfigureAwait(false);
+                        // The loop has ended. Startup continuations do not require the UI thread,
+                        // and queued UI work is canceled, so drain before disposing UI resources here.
+                        _startupTask.GetAwaiter().GetResult();
                     }
-                    catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested) { }
+                    catch (Exception exception)
+                    {
+                        if (!ReferenceEquals(exception, runFailure))
+                        {
+                            cleanupFailures.Add(exception);
+                        }
+                    }
                 }
+
+                ThrowCleanupFailures(runFailure, cleanupFailures);
             }
         }
 
@@ -160,19 +206,72 @@ internal sealed class TerminalSession
             application.RequestStop(shell);
         }
 
-        private void StartSession(object? sender, EventArgs eventArgs)
+        public async Task InvokeAsync(Action action, CancellationToken cancellationToken)
         {
-            shell.Initialized -= StartSession;
-            _startupTask = session.RunStartupAsync(
-                _context!,
-                navigator,
-                application,
-                _sessionCancellation!.Token);
+            cancellationToken.ThrowIfCancellationRequested();
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Lock gate = new();
+            bool started = false;
+            using CancellationTokenRegistration registration = cancellationToken.Register(() =>
+            {
+                lock (gate)
+                {
+                    if (!started)
+                    {
+                        completion.TrySetCanceled(cancellationToken);
+                    }
+                }
+            });
+
+            application.Invoke(() =>
+            {
+                lock (gate)
+                {
+                    if (completion.Task.IsCompleted)
+                    {
+                        return;
+                    }
+
+                    started = true;
+                    try
+                    {
+                        action();
+                        completion.TrySetResult();
+                    }
+                    catch (Exception exception)
+                    {
+                        completion.TrySetException(exception);
+                    }
+                }
+            });
+
+            await completion.Task.ConfigureAwait(false);
         }
 
-        private void CancelStartupBeforeStopping(
+        private async void StartSession(object? sender, EventArgs eventArgs)
+        {
+            shell.Initialized -= StartSession;
+            await (_startupTask = RunStartupAsync(_sessionCancellation!.Token));
+        }
+
+        private async Task RunStartupAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await session.RunStartupAsync(_context!, navigator, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested &&
+                                                               exception.CancellationToken == cancellationToken) { }
+        }
+
+        private async void CancelStartupBeforeStopping(
             object? sender,
             CancelEventArgs<bool> eventArgs)
+        {
+            await StopAfterStartupAsync(eventArgs);
+        }
+
+        private async Task StopAfterStartupAsync(CancelEventArgs<bool> eventArgs)
         {
             if (eventArgs.NewValue || _canStop)
             {
@@ -194,21 +293,13 @@ internal sealed class TerminalSession
             }
 
             _isStopPending = true;
-            _ = RequestStopAfterStartupAsync(_startupTask);
-        }
-
-        private async Task RequestStopAfterStartupAsync(Task task)
-        {
-            try
+            // StartSession propagates startup failures; this handler waits only for completion
+            // so a normal stop keeps the loop alive while startup acknowledges cancellation.
+            await Task.WhenAny(_startupTask);
+            if (_startupTask.IsCompletedSuccessfully)
             {
-                await task;
+                application.AddTimeout(TimeSpan.Zero, StopAfterStartup);
             }
-            catch
-            {
-                // RunStartupAsync logs failures; RunAsync observes them after Run returns.
-            }
-
-            application.AddTimeout(TimeSpan.Zero, StopAfterStartup);
         }
 
         private bool StopAfterStartup()

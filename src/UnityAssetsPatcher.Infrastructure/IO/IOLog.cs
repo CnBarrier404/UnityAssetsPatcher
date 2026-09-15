@@ -110,12 +110,6 @@ internal static partial class IOLog
     public static partial void AttributesRead(ILogger logger, string filePath, FileAttributes attributes);
 
     [LoggerMessage(
-        EventId = 2020,
-        Level = LogLevel.Debug,
-        Message = "Failed to read file attributes of {FilePath}")]
-    public static partial void GetAttributesFailed(ILogger logger, string filePath, Exception exception);
-
-    [LoggerMessage(
         EventId = 2030,
         Level = LogLevel.Debug,
         Message = "Compressing stream with Brotli")]
@@ -138,22 +132,4 @@ internal static partial class IOLog
         Level = LogLevel.Debug,
         Message = "Decompressed Brotli stream in {ElapsedMilliseconds} ms")]
     public static partial void Decompressed(ILogger logger, double elapsedMilliseconds);
-
-    [LoggerMessage(
-        EventId = 2090,
-        Level = LogLevel.Warning,
-        Message = "Failed to delete temporary file {TemporaryPath} after a failed write")]
-    public static partial void TemporaryFileCleanupFailed(ILogger logger, string temporaryPath, Exception exception);
-
-    [LoggerMessage(
-        EventId = 2091,
-        Level = LogLevel.Warning,
-        Message = "Committed file but failed to delete recovery file {RecoveryPath}")]
-    public static partial void RecoveryFileCleanupFailed(ILogger logger, string recoveryPath, Exception exception);
-
-    [LoggerMessage(
-        EventId = 2092,
-        Level = LogLevel.Debug,
-        Message = "Failed to open file {FilePath} for reading")]
-    public static partial void FileOpenForReadFailed(ILogger logger, string filePath, Exception exception);
 }

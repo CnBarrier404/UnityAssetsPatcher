@@ -6,6 +6,12 @@ public sealed record RepositoryMetadata(int FormatVersion, string RepositoryId);
 
 public sealed record RepositoryClearResult(int PreviousFormatVersion, int FormatVersion);
 
+public sealed class RepositoryOperationLockedException : InvalidOperationException
+{
+    public RepositoryOperationLockedException(IOException innerException)
+        : base("Another install, uninstall, or recovery operation is running.", innerException) { }
+}
+
 public sealed class UnsupportedRepositoryFormatException : NotSupportedException
 {
     public int ActualVersion { get; }

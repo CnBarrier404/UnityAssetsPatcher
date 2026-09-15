@@ -150,22 +150,21 @@ public sealed class AssetFileAccessScopeTests
     [Fact]
     public void WriteFieldPatches_WhenWriteAndDisposeFail_PreservesWriteExceptionAndRetriesCleanup()
     {
+        var writeException = new InvalidOperationException("write failure");
         var session = new RecordingAssetFileSession(CreateAssetField())
         {
-            WriteException = new InvalidOperationException("write failure")
+            WriteException = writeException
         };
         var cleanupException = new InvalidOperationException("cleanup failure");
         session.DisposeFailures.Enqueue(cleanupException);
         IAssetsAccessScope scope = new AssetFileAccessScopeFactory(
             new RecordingAssetFileSessionFactory(session)).CreateScope();
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<AggregateException>(() =>
             scope.Writer.WriteFieldPatches("input.assets", "output.assets", CreateFieldPatch()));
 
-        Assert.Same(session.WriteException, exception);
-        var attachedCleanup = Assert.IsType<AggregateException>(
-            exception.Data[ResourceCleanup.CleanupExceptionsDataKey]);
-        Assert.Contains(cleanupException, attachedCleanup.InnerExceptions);
+        Assert.Contains(writeException, exception.InnerExceptions);
+        Assert.Contains(cleanupException, exception.InnerExceptions);
         Assert.Equal(1, session.DisposeCount);
 
         scope.Dispose();

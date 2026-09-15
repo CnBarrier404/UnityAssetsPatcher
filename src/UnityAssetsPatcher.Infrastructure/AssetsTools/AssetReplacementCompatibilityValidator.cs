@@ -142,24 +142,9 @@ internal static class AssetReplacementCompatibilityValidator
 
     private static bool AreHashesEqual(Hash128 left, Hash128 right)
     {
-        string? leftText = TryGetHashText(left);
-        string? rightText = TryGetHashText(right);
-
-        return leftText is null || rightText is null
-            ? leftText is null && rightText is null
-            : string.Equals(leftText, rightText, StringComparison.Ordinal);
-    }
-
-    private static string? TryGetHashText(Hash128 hash)
-    {
-        try
-        {
-            return hash.ToString();
-        }
-        catch (NullReferenceException)
-        {
-            return null;
-        }
+        return left.data is null || right.data is null
+            ? left.data is null && right.data is null
+            : left.data.SequenceEqual(right.data);
     }
 
     private static bool AreDependenciesEqual(int[]? left, int[]? right)

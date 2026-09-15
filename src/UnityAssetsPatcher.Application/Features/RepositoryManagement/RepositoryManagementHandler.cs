@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.IO;
@@ -46,12 +47,12 @@ public sealed class RepositoryManagementHandler :
             return Task.FromResult<OperationResult<RepositoryClearResult>>(
                 ExpectedFailure(RepositoryErrorCodes.ClearNotAllowed, exception));
         }
-        catch (InvalidOperationException exception) when (exception.InnerException is IOException)
+        catch (RepositoryOperationLockedException exception)
         {
             return Task.FromResult<OperationResult<RepositoryClearResult>>(
                 ExpectedFailure(RepositoryErrorCodes.OperationAlreadyRunning, exception));
         }
-        catch (InvalidDataException exception)
+        catch (Exception exception) when (exception is InvalidDataException or JsonException)
         {
             return Task.FromResult<OperationResult<RepositoryClearResult>>(
                 ExpectedFailure(RepositoryErrorCodes.Unsafe, exception));
@@ -65,12 +66,6 @@ public sealed class RepositoryManagementHandler :
         {
             return Task.FromResult<OperationResult<RepositoryClearResult>>(
                 ExpectedFailure(FileErrorCodes.SystemFailure, exception));
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Clearing the unsupported backup repository failed");
-
-            throw;
         }
     }
 

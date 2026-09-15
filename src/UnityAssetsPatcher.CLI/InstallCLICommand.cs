@@ -74,28 +74,21 @@ public sealed class InstallCLICommand : ICLICommand
         IReadOnlyList<string> optionalGroups,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
-                    new PreviewInstallRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
-                    cancellationToken)
-                .ConfigureAwait(false);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var result = await dispatcher
+            .DispatchAsync<PreviewInstallRequest, OperationResult<InstallPreviewResult>>(
+                new PreviewInstallRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
+                cancellationToken)
+            .ConfigureAwait(false);
 
-            return CLIOutput.WriteResult(
-                parseResult,
-                _options,
-                "install.preview",
-                result,
-                CLIOutput.InstallPreview,
-                CLIOutput.WriteInstallPreviewText);
-        }
-        catch (Exception exception)
-        {
-            return CLIOutput.WriteFailure(parseResult, _options, "install.preview", exception);
-        }
+        return CLIOutput.WriteResult(
+            parseResult,
+            _options,
+            "install.preview",
+            result,
+            CLIOutput.InstallPreview,
+            CLIOutput.WriteInstallPreviewText);
     }
 
     private async Task<int> ExecuteApply(
@@ -105,28 +98,21 @@ public sealed class InstallCLICommand : ICLICommand
         IReadOnlyList<string> optionalGroups,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
-                    new InstallModRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
-                    cancellationToken)
-                .ConfigureAwait(false);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var result = await dispatcher
+            .DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(
+                new InstallModRequest(CreateRequest(packagePath, gameDirectory, optionalGroups)),
+                cancellationToken)
+            .ConfigureAwait(false);
 
-            return CLIOutput.WriteResult(
-                parseResult,
-                _options,
-                "install.apply",
-                result,
-                CLIOutput.InstallResult,
-                CLIOutput.WriteInstallResultText);
-        }
-        catch (Exception exception)
-        {
-            return CLIOutput.WriteFailure(parseResult, _options, "install.apply", exception);
-        }
+        return CLIOutput.WriteResult(
+            parseResult,
+            _options,
+            "install.apply",
+            result,
+            CLIOutput.InstallResult,
+            CLIOutput.WriteInstallResultText);
     }
 
     private static InstallRequest CreateRequest(

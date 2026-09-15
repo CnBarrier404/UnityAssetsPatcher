@@ -144,16 +144,27 @@ internal sealed class LayerStore : ILayerStore
 
         _fileSystemOperations.CopyFileAtomically(source, destination, FileDestinationMode.CreateNew);
 
-        FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(destination);
-
-        if (package.Integrity.Matches(actual))
+        try
         {
-            return actual;
+            FileIntegrity actual = _fileSystemOperations.ComputeFileIntegrity(destination);
+
+            return package.Integrity.Matches(actual)
+                ? actual
+                : throw new IOException($"Layer package verification failed: {source}");
         }
+        catch (Exception failure)
+        {
+            try
+            {
+                _fileSystemOperations.DeleteFile(destination);
+            }
+            catch (Exception cleanupFailure)
+            {
+                throw new AggregateException(failure, cleanupFailure);
+            }
 
-        _fileSystemOperations.DeleteFile(destination);
-
-        throw new IOException($"Layer package verification failed: {source}");
+            throw;
+        }
     }
 
     public void WritePreparedLayer(LayerRecord record, string preparedLayerDirectory)

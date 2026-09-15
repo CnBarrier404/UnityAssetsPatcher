@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Repository;
@@ -65,10 +66,7 @@ public sealed class CompositionStoreTests
             Path.Combine(repositoryPath, "games", "game-fingerprint", "base", "catalog.json"),
             "{not-json");
 
-        var exception =
-            Assert.Throws<InvalidDataException>(() => store.ReadCatalog("game-fingerprint"));
-
-        Assert.Contains("contains invalid", exception.Message);
+        _ = Assert.Throws<JsonException>(() => store.ReadCatalog("game-fingerprint"));
     }
 
     [Fact]
@@ -174,9 +172,7 @@ public sealed class CompositionStoreTests
         File.WriteAllText(Path.Combine(layerDirectory, "layer.json"), "{not-json");
         LayerStore store = CreateLayerStore(repositoryPath, CreateFileSystem());
 
-        var exception = Assert.Throws<InvalidDataException>(() => store.ReadLayer("layer-1"));
-
-        Assert.Contains("contains invalid", exception.Message);
+        _ = Assert.Throws<JsonException>(() => store.ReadLayer("layer-1"));
     }
 
     [Fact]
@@ -274,9 +270,9 @@ public sealed class CompositionStoreTests
             """);
         LayerStore store = CreateLayerStore(repositoryPath, CreateFileSystem());
 
-        var exception = Assert.Throws<InvalidDataException>(() => store.ReadLayer("layer-1"));
+        var exception = Assert.Throws<ArgumentException>(() => store.ReadLayer("layer-1"));
 
-        Assert.Contains("invalid data", exception.Message);
+        Assert.Contains("relative path is not trusted", exception.Message);
     }
 
     [Fact]

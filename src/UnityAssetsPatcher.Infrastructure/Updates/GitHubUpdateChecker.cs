@@ -27,8 +27,6 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        UpdateLog.UpdateCheckStarted(_logger);
-
         if (!SemanticVersion.TryParse(_currentVersion, out SemanticVersion currentVersion))
         {
             UpdateLog.UpdateCheckSkipped(_logger);
@@ -42,8 +40,6 @@ internal sealed class GitHubUpdateChecker : IUpdateChecker
 
         if (!SemanticVersion.TryParse(manifest.Version, out SemanticVersion latestVersion))
         {
-            UpdateLog.UpdateManifestRejected(_logger);
-
             throw new InvalidDataException("The update manifest contains an invalid version.");
         }
 

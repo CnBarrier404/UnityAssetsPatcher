@@ -174,11 +174,18 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
 
             return actual;
         }
-        catch
+        catch (Exception failure)
         {
             if (destinationCreated)
             {
-                TryDeleteSnapshot(destination);
+                try
+                {
+                    _fileSystemOperations.DeleteFile(destination);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException(failure, cleanupFailure);
+                }
             }
 
             throw;
@@ -241,14 +248,5 @@ internal sealed class BaseSnapshotStore : IBaseSnapshotStore
         return !TrustedPath.TryNormalizeRelativePath(relativePath, out string normalizedPath)
             ? throw new IOException($"The relative path is not trusted: '{relativePath}'.")
             : normalizedPath;
-    }
-
-    private void TryDeleteSnapshot(string path)
-    {
-        try
-        {
-            _fileSystemOperations.DeleteFile(path);
-        }
-        catch { }
     }
 }

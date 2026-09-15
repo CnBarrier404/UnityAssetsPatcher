@@ -98,18 +98,13 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
             DisposeSessions
         ]);
 
-        if (cleanupExceptions.Count > 0)
-        {
-            _lastOperationException = primaryException;
-        }
-
         try
         {
-            ResourceCleanup.ThrowOrAttach(primaryException, cleanupExceptions);
+            ResourceCleanup.ThrowIfFailed(primaryException, cleanupExceptions);
         }
         catch (Exception exception)
         {
-            _lastOperationException ??= exception;
+            _lastOperationException = exception;
             throw;
         }
     }
@@ -124,13 +119,10 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
             DisposeSessions
         ]);
 
-        if (_lastOperationException is not null)
+        if (cleanupExceptions.Count > 0)
         {
-            ResourceCleanup.Attach(_lastOperationException, cleanupExceptions);
-            return;
+            ResourceCleanup.ThrowIfFailed(_lastOperationException, cleanupExceptions);
         }
-
-        ResourceCleanup.ThrowOrAttach(null, cleanupExceptions);
     }
 
     private IReadOnlyList<AssetInfo> ReadSessionAssets()
@@ -184,7 +176,7 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
                 }))
         ]);
 
-        ResourceCleanup.ThrowOrAttach(null, cleanupExceptions);
+        ResourceCleanup.ThrowIfFailed(null, cleanupExceptions);
     }
 
     private void DisposeTargetSession()
@@ -266,7 +258,7 @@ internal sealed class AssetsToolsAssetFileSession : IAssetFileSession
             _pendingSourceSessions[sourcePath] = sourceSession;
         }
 
-        ResourceCleanup.ThrowOrAttach(primaryException, cleanupExceptions);
+        ResourceCleanup.ThrowIfFailed(primaryException, cleanupExceptions);
     }
 
     private void ApplyFieldPatch(

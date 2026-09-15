@@ -49,13 +49,25 @@ public sealed class UpdateCheckModuleTests
     }
 
     [Fact]
-    public async Task CheckForUpdateAsync_WhenNonCallerCancellationIsThrown_ReturnsFailure()
+    public async Task CheckForUpdateAsync_WhenNonCallerCancellationIsThrown_PropagatesCancellation()
     {
         UpdateCheckModule module = CreateOperation(new StubUpdateChecker(new OperationCanceledException()));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => Check(module));
+    }
+
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenRequestTimesOut_ReturnsFailure()
+    {
+        var exception = new OperationCanceledException(
+            "Request timed out.",
+            new TimeoutException("Request timed out."));
+        UpdateCheckModule module = CreateOperation(new StubUpdateChecker(exception));
 
         var result = Assert.IsType<OperationFailed<UpdateInfo?>>(await Check(module));
 
         Assert.Equal(UpdateErrorCodes.CheckFailed, result.Error.Code);
+        Assert.Equal(exception.Message, result.Error.Parameters["detail"]);
     }
 
     [Fact]

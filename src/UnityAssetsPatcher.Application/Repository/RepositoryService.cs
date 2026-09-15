@@ -38,7 +38,7 @@ public sealed class RepositoryService
     {
         _repositoryStore.LoadOrCreateMetadata();
 
-        return _operationLockProvider.Acquire();
+        return AcquireOperationLock();
     }
 
     public RepositoryMetadata LoadMetadata()
@@ -53,9 +53,31 @@ public sealed class RepositoryService
 
     public RepositoryClearResult ClearUnsupportedRepository()
     {
-        using IRepositoryOperationLock operationLock = _operationLockProvider.Acquire();
+        using IRepositoryOperationLock operationLock = AcquireOperationLock();
 
         return _repositoryStore.ClearUnsupportedRepository(operationLock);
+    }
+
+    private IRepositoryOperationLock AcquireOperationLock()
+    {
+        try
+        {
+            return _operationLockProvider.Acquire();
+        }
+        catch (IOException exception) when (IsLockContention(exception))
+        {
+            throw new RepositoryOperationLockedException(exception);
+        }
+    }
+
+    private static bool IsLockContention(IOException exception)
+    {
+        // FileMode.CreateNew reports Win32 file-exists/sharing errors on Windows,
+        // and raw EEXIST (17) on Unix. Other I/O failures are not lock contention.
+        return OperatingSystem.IsWindows()
+            ? exception.HResult is unchecked((int)0x80070050) or unchecked((int)0x800700B7)
+                or unchecked((int)0x80070020) or unchecked((int)0x80070021)
+            : exception.HResult == 17;
     }
 
     public string CreateTransactionDirectory()

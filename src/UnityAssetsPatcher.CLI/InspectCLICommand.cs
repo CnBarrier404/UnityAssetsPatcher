@@ -92,29 +92,22 @@ public sealed class InspectCLICommand : ICLICommand
         int? limit,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            string fullPath = Path.GetFullPath(assetsFilePath);
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
-                    new InspectListRequest(fullPath, limit),
-                    cancellationToken)
-                .ConfigureAwait(false);
+        string fullPath = Path.GetFullPath(assetsFilePath);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var result = await dispatcher
+            .DispatchAsync<InspectListRequest, OperationResult<InspectListResult>>(
+                new InspectListRequest(fullPath, limit),
+                cancellationToken)
+            .ConfigureAwait(false);
 
-            return CLIOutput.WriteResult(
-                parseResult,
-                _options,
-                "inspect.list",
-                result,
-                value => CLIOutput.InspectList(fullPath, value),
-                CLIOutput.WriteInspectListText);
-        }
-        catch (Exception exception)
-        {
-            return CLIOutput.WriteFailure(parseResult, _options, "inspect.list", exception);
-        }
+        return CLIOutput.WriteResult(
+            parseResult,
+            _options,
+            "inspect.list",
+            result,
+            value => CLIOutput.InspectList(fullPath, value),
+            CLIOutput.WriteInspectListText);
     }
 
     private async Task<int> ExecuteFields(
@@ -123,29 +116,22 @@ public sealed class InspectCLICommand : ICLICommand
         long pathId,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            string fullPath = Path.GetFullPath(assetsFilePath);
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
-                    new InspectFieldsRequest(fullPath, pathId),
-                    cancellationToken)
-                .ConfigureAwait(false);
+        string fullPath = Path.GetFullPath(assetsFilePath);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var result = await dispatcher
+            .DispatchAsync<InspectFieldsRequest, OperationResult<AssetField>>(
+                new InspectFieldsRequest(fullPath, pathId),
+                cancellationToken)
+            .ConfigureAwait(false);
 
-            return CLIOutput.WriteResult(
-                parseResult,
-                _options,
-                "inspect.fields",
-                result,
-                value => CLIOutput.InspectFields(fullPath, pathId, value),
-                CLIOutput.WriteInspectFieldsText);
-        }
-        catch (Exception exception)
-        {
-            return CLIOutput.WriteFailure(parseResult, _options, "inspect.fields", exception);
-        }
+        return CLIOutput.WriteResult(
+            parseResult,
+            _options,
+            "inspect.fields",
+            result,
+            value => CLIOutput.InspectFields(fullPath, pathId, value),
+            CLIOutput.WriteInspectFieldsText);
     }
 
     private static Argument<string> AssetsFileArgument()

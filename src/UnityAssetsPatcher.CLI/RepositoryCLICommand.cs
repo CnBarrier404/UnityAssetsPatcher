@@ -50,27 +50,20 @@ public sealed class RepositoryCLICommand : ICLICommand
 
     private async Task<int> ExecuteClear(ParseResult parseResult, CancellationToken cancellationToken)
     {
-        try
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-            var result = await dispatcher
-                .DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
-                    new ClearUnsupportedRepositoryRequest(),
-                    cancellationToken)
-                .ConfigureAwait(false);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        var result = await dispatcher
+            .DispatchAsync<ClearUnsupportedRepositoryRequest, OperationResult<RepositoryClearResult>>(
+                new ClearUnsupportedRepositoryRequest(),
+                cancellationToken)
+            .ConfigureAwait(false);
 
-            return CLIOutput.WriteResult(
-                parseResult,
-                _options,
-                "repository.clear",
-                result,
-                CLIOutput.RepositoryClear,
-                CLIOutput.WriteRepositoryClearText);
-        }
-        catch (Exception exception)
-        {
-            return CLIOutput.WriteFailure(parseResult, _options, "repository.clear", exception);
-        }
+        return CLIOutput.WriteResult(
+            parseResult,
+            _options,
+            "repository.clear",
+            result,
+            CLIOutput.RepositoryClear,
+            CLIOutput.WriteRepositoryClearText);
     }
 }

@@ -51,7 +51,7 @@ internal sealed class AssetsFileSession : IDisposable
             [
                 () => manager.UnloadAll(true)
             ]);
-            ResourceCleanup.ThrowOrAttach(exception, cleanupExceptions);
+            ResourceCleanup.ThrowIfFailed(exception, cleanupExceptions);
 
             throw;
         }
