@@ -4,5 +4,7 @@
              RequestedThemeVariant="Default">
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://UnityAssetsPatcher.GUI/Styles/DesignTokens.axaml" />
+        <StyleInclude Source="avares://UnityAssetsPatcher.GUI/Styles/Typography.axaml" />
     </Application.Styles>
 </Application>

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-UnityAssetsPatcher is a .NET 10 desktop application evolving into an alternative mod manager for Unity games with special modding requirements, particularly where runtime mod frameworks such as `BepInEx` are impractical. The application uses an Avalonia-based graphical interface for managing mod installation and uninstallation. It supports mod installation through file copies and direct Unity asset modifications described by a `manifest.json` inside each zip-based mod package.
+UnityAssetsPatcher is a .NET 10 desktop application evolving into an alternative mod manager for Unity games with special modding requirements, particularly where runtime mod frameworks such as `BepInEx` are impractical.
 
 ## Commands
 
@@ -17,18 +17,16 @@ UnityAssetsPatcher is a .NET 10 desktop application evolving into an alternative
 
 ## Repository Structure
 
-| Directory                                       | Responsibility                                                                                       |
-| :---------------------------------------------- | :--------------------------------------------------------------------------------------------------- |
-| `docs/`                                         | User and mod author documentation                                                                    |
-| `schema/`                                       | Mod manifest schema                                                                                  |
-| `src/UnityAssetsPatcher/`                       | Executable entry point and composition root; owns dependency registration and concrete logging setup |
-| `src/UnityAssetsPatcher.Application/`           | Use cases, workflow orchestration, DTOs, and infrastructure abstractions                             |
-| `src/UnityAssetsPatcher.CLI/`                   | Non-interactive command parsing and text/JSON presentation                                           |
-| `src/UnityAssetsPatcher.Domain/`                | Domain models, value objects, validation rules, and domain errors                                    |
-| `src/UnityAssetsPatcher.Infrastructure/`        | File system, compression, persistence, backup, package, and AssetsTools.NET implementations          |
-| `src/UnityAssetsPatcher.LocalizationGenerator/` | Roslyn source generator for strongly typed localized strings                                         |
-| `src/UnityAssetsPatcher.TUI/`                   | Interactive terminal UI and localization inputs                                                      |
-| `tests/`                                        | Unit and integration tests                                                                           |
+| Directory                                | Responsibility                                                                                       |
+| :--------------------------------------- | :--------------------------------------------------------------------------------------------------- |
+| `docs/`                                  | User and mod author documentation                                                                    |
+| `schema/`                                | Mod manifest schema                                                                                  |
+| `src/UnityAssetsPatcher/`                | Executable entry point and composition root; owns dependency registration and concrete logging setup |
+| `src/UnityAssetsPatcher.Application/`    | Use cases, workflow orchestration, DTOs, and infrastructure abstractions                             |
+| `src/UnityAssetsPatcher.Domain/`         | Domain models, value objects, validation rules, and domain errors                                    |
+| `src/UnityAssetsPatcher.Infrastructure/` | File system, compression, persistence, backup, package, and AssetsTools.NET implementations          |
+| `src/UnityAssetsPatcher.GUI/`            | Avalonia-based UI                                                                                    |
+| `tests/`                                 | Unit and integration tests                                                                           |
 
 ## Workflows
 

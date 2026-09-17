@@ -1,5 +1,7 @@
+using System.Globalization;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using RentADeveloper.ResXLocalization;
 using UnityAssetsPatcher.GUI.ViewModels;
 using UnityAssetsPatcher.GUI.Views;
 
@@ -18,6 +20,7 @@ public partial class App : Avalonia.Application
 
     public override void Initialize()
     {
+        Localizer.Current.CurrentCulture = CultureInfo.CurrentUICulture;
         AvaloniaXamlLoader.Load(this);
     }
 

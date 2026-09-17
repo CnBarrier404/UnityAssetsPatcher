@@ -1,9 +1,144 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:UnityAssetsPatcher.GUI.ViewModels"
+        xmlns:pages="using:UnityAssetsPatcher.GUI.ViewModels.Pages"
+        xmlns:views="using:UnityAssetsPatcher.GUI.Views"
+        xmlns:application="using:UnityAssetsPatcher.Application"
         x:Class="UnityAssetsPatcher.GUI.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
         Icon="/Assets/icon.ico"
         Width="960"
-        Height="640" />
+        Height="600"
+        WindowStartupLocation="CenterScreen"
+        MinWidth="800"
+        MinHeight="560"
+        Background="{DynamicResource ColorSurfacePage}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <DataTemplate x:Key="NavigationItemTemplate" DataType="vm:NavigationItemViewModel">
+                <Grid>
+                    <Border Classes="indicator"
+                            Width="{StaticResource NavigationIndicatorWidth}"
+                            Height="{StaticResource NavigationIndicatorHeight}"
+                            CornerRadius="{StaticResource CornerRadiusMedium}"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False" />
+                    <TextBlock Classes="body"
+                               Margin="{StaticResource NavigationTextMargin}"
+                               Text="{Binding Title}"
+                               TextWrapping="Wrap"
+                               ToolTip.Tip="{Binding Title}"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Window.DataTemplates>
+        <DataTemplate DataType="pages:InstallModPageViewModel">
+            <views:InstallModPage />
+        </DataTemplate>
+        <DataTemplate DataType="pages:ManageModsPageViewModel">
+            <views:ManageModsPage />
+        </DataTemplate>
+        <DataTemplate DataType="pages:SettingsPageViewModel">
+            <views:SettingsPage />
+        </DataTemplate>
+        <DataTemplate DataType="pages:AboutPageViewModel">
+            <views:AboutPage />
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <Window.Styles>
+        <Style Selector="ListBox.navigation">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.navigation ListBoxItem">
+            <Setter Property="Padding" Value="{StaticResource NavigationItemPadding}" />
+            <Setter Property="Margin" Value="{StaticResource NavigationItemMargin}" />
+            <Setter Property="MinHeight" Value="{StaticResource NavigationItemMinHeight}" />
+            <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusMedium}" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.navigation ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ColorSurfaceHover}" />
+        </Style>
+        <Style Selector="ListBox.navigation ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ColorSurfaceSelected}" />
+        </Style>
+        <Style Selector="ListBox.navigation ListBoxItem:selected TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource ColorTextPrimary}" />
+        </Style>
+        <Style Selector="ListBox.navigation ListBoxItem Border.indicator">
+            <Setter Property="Background" Value="{DynamicResource ColorBrandForeground}" />
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <Style Selector="ListBox.navigation ListBoxItem:selected Border.indicator">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="ListBox.navigation ListBoxItem:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ColorSurfaceSelected}" />
+        </Style>
+        <Style Selector="ListBox.navigation ListBoxItem:disabled TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource ColorTextDisabled}" />
+        </Style>
+    </Window.Styles>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{StaticResource SidebarWidthExpanded}" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Background="{DynamicResource ColorSurfaceSidebar}"
+                BorderBrush="{DynamicResource ColorStrokeDivider}"
+                BorderThickness="0,0,1,0"
+                AutomationProperties.AutomationId="MainNavigation">
+            <Grid RowDefinitions="Auto,*,Auto,Auto"
+                  Margin="{StaticResource SidebarContentMargin}">
+                <StackPanel Margin="{StaticResource BrandHeaderMargin}"
+                            Spacing="{StaticResource Size40}">
+                    <TextBlock Classes="subtitle"
+                               Text="Unity Assets Patcher"
+                               TextWrapping="Wrap" />
+                    <TextBlock Classes="caption secondary"
+                               Text="{x:Static application:AppConfig.DisplayVersion}" />
+                </StackPanel>
+
+                <ListBox Grid.Row="1"
+                         x:Name="PrimaryNavigationList"
+                         Classes="navigation"
+                         AutomationProperties.AutomationId="PrimaryNavigation"
+                         VerticalAlignment="Top"
+                         ItemsSource="{Binding PrimaryItems}"
+                         ItemTemplate="{StaticResource NavigationItemTemplate}"
+                         SelectedItem="{Binding PrimarySelection, Mode=TwoWay}" />
+
+                <Border Grid.Row="2"
+                        Height="{StaticResource DividerThickness}"
+                        Margin="{StaticResource NavigationDividerMargin}"
+                        Background="{DynamicResource ColorStrokeDivider}" />
+
+                <ListBox Grid.Row="3"
+                         x:Name="PinnedNavigationList"
+                         Classes="navigation"
+                         AutomationProperties.AutomationId="PinnedNavigation"
+                         ItemsSource="{Binding PinnedItems}"
+                         ItemTemplate="{StaticResource NavigationItemTemplate}"
+                         SelectedItem="{Binding PinnedSelection, Mode=TwoWay}" />
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Column="1"
+                      Padding="{StaticResource PageContentPadding}"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <ContentControl Content="{Binding CurrentPage}" />
+        </ScrollViewer>
+    </Grid>
+</Window>

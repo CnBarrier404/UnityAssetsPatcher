@@ -5,13 +5,10 @@
         <Project Path="src/UnityAssetsPatcher.Domain/UnityAssetsPatcher.Domain.csproj"/>
         <Project Path="src/UnityAssetsPatcher.GUI/UnityAssetsPatcher.GUI.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Infrastructure/UnityAssetsPatcher.Infrastructure.csproj"/>
-        <Project Path="src/UnityAssetsPatcher.LocalizationGenerator/UnityAssetsPatcher.LocalizationGenerator.csproj"/>
     </Folder>
     <Folder Name="/tests/">
         <Project Path="tests/UnityAssetsPatcher.Application.Tests/UnityAssetsPatcher.Application.Tests.csproj"/>
         <Project Path="tests/UnityAssetsPatcher.Domain.Tests/UnityAssetsPatcher.Domain.Tests.csproj"/>
         <Project Path="tests/UnityAssetsPatcher.Infrastructure.Tests/UnityAssetsPatcher.Infrastructure.Tests.csproj"/>
-        <Project
-            Path="tests/UnityAssetsPatcher.LocalizationGenerator.Tests/UnityAssetsPatcher.LocalizationGenerator.Tests.csproj"/>
     </Folder>
 </Solution>

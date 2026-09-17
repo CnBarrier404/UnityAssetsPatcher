@@ -1,0 +1,87 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <x:Double x:Key="Size40">4</x:Double>
+            <x:Double x:Key="Size60">6</x:Double>
+            <x:Double x:Key="Size80">8</x:Double>
+            <x:Double x:Key="Size120">12</x:Double>
+            <x:Double x:Key="Size160">16</x:Double>
+            <x:Double x:Key="Size200">20</x:Double>
+            <x:Double x:Key="Size240">24</x:Double>
+
+            <GridLength x:Key="SidebarWidthExpanded">232</GridLength>
+            <Thickness x:Key="PageContentPadding">32,24</Thickness>
+            <Thickness x:Key="SidebarContentMargin">12,20,12,16</Thickness>
+            <Thickness x:Key="BrandHeaderMargin">10,0,0,16</Thickness>
+            <Thickness x:Key="NavigationTextMargin">12,0,0,0</Thickness>
+            <Thickness x:Key="NavigationItemPadding">12,8</Thickness>
+            <Thickness x:Key="NavigationItemMargin">0,0,0,2</Thickness>
+            <Thickness x:Key="NavigationDividerMargin">4,8</Thickness>
+            <Thickness x:Key="DropZoneContentMargin">20</Thickness>
+
+            <x:Double x:Key="NavigationItemMinHeight">40</x:Double>
+            <x:Double x:Key="NavigationIndicatorWidth">3</x:Double>
+            <x:Double x:Key="NavigationIndicatorHeight">20</x:Double>
+            <x:Double x:Key="DividerThickness">1</x:Double>
+            <x:Double x:Key="RadiusLarge">12</x:Double>
+            <CornerRadius x:Key="CornerRadiusMedium">6</CornerRadius>
+
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <!-- Atom One Light palette -->
+                    <SolidColorBrush x:Key="ColorSurfacePage" Color="#FAFAFA" />
+                    <SolidColorBrush x:Key="ColorSurfaceSidebar" Color="#EAEAEB" />
+                    <SolidColorBrush x:Key="ColorSurfaceCard" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ColorSurfaceOverlay" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ColorSurfaceHover" Color="#E5E5E6" />
+                    <SolidColorBrush x:Key="ColorSurfaceSelected" Color="#DADADD" />
+
+                    <SolidColorBrush x:Key="ColorTextPrimary" Color="#383A42" />
+                    <SolidColorBrush x:Key="ColorTextSecondary" Color="#696C77" />
+                    <SolidColorBrush x:Key="ColorTextDisabled" Color="#A0A1A7" />
+
+                    <SolidColorBrush x:Key="ColorBrandForeground" Color="#4078F2" />
+                    <SolidColorBrush x:Key="ColorBrandBackground" Color="#4078F2" />
+                    <SolidColorBrush x:Key="ColorStrokeDivider" Color="#D9D9DE" />
+                    <SolidColorBrush x:Key="ColorStrokeControl" Color="#A0A1A7" />
+                    <SolidColorBrush x:Key="ColorStrokeFocus" Color="#4078F2" />
+                    <SolidColorBrush x:Key="ColorStrokeDragOver" Color="#4078F2" />
+                    <SolidColorBrush x:Key="DropBorderBrush" Color="#4078F2" />
+
+                    <SolidColorBrush x:Key="ColorStatusSuccess" Color="#50A14F" />
+                    <SolidColorBrush x:Key="ColorStatusWarning" Color="#C18401" />
+                    <SolidColorBrush x:Key="ColorStatusDanger" Color="#E45649" />
+                    <SolidColorBrush x:Key="ColorStatusInfo" Color="#0184BC" />
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Dark">
+                    <!-- Atom One Dark palette -->
+                    <SolidColorBrush x:Key="ColorSurfacePage" Color="#282C34" />
+                    <SolidColorBrush x:Key="ColorSurfaceSidebar" Color="#21252B" />
+                    <SolidColorBrush x:Key="ColorSurfaceCard" Color="#2C313A" />
+                    <SolidColorBrush x:Key="ColorSurfaceOverlay" Color="#353A42" />
+                    <SolidColorBrush x:Key="ColorSurfaceHover" Color="#2C313A" />
+                    <SolidColorBrush x:Key="ColorSurfaceSelected" Color="#3E4451" />
+
+                    <SolidColorBrush x:Key="ColorTextPrimary" Color="#ABB2BF" />
+                    <SolidColorBrush x:Key="ColorTextSecondary" Color="#9DA5B4" />
+                    <SolidColorBrush x:Key="ColorTextDisabled" Color="#5C6370" />
+
+                    <SolidColorBrush x:Key="ColorBrandForeground" Color="#61AFEF" />
+                    <SolidColorBrush x:Key="ColorBrandBackground" Color="#61AFEF" />
+                    <SolidColorBrush x:Key="ColorStrokeDivider" Color="#181A1F" />
+                    <SolidColorBrush x:Key="ColorStrokeControl" Color="#3E4451" />
+                    <SolidColorBrush x:Key="ColorStrokeFocus" Color="#61AFEF" />
+                    <SolidColorBrush x:Key="ColorStrokeDragOver" Color="#61AFEF" />
+                    <SolidColorBrush x:Key="DropBorderBrush" Color="#61AFEF" />
+
+                    <SolidColorBrush x:Key="ColorStatusSuccess" Color="#98C379" />
+                    <SolidColorBrush x:Key="ColorStatusWarning" Color="#E5C07B" />
+                    <SolidColorBrush x:Key="ColorStatusDanger" Color="#E06C75" />
+                    <SolidColorBrush x:Key="ColorStatusInfo" Color="#61AFEF" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+</Styles>
