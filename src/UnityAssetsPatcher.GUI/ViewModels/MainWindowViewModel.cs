@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.GUI.Localization;
 using UnityAssetsPatcher.GUI.ViewModels.Pages;
@@ -13,11 +14,13 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private NavigationItemViewModel _selected;
 
-    public MainWindowViewModel()
+    public MainWindowViewModel(IServiceScopeFactory? scopeFactory = null)
     {
         PrimaryItems =
         [
-            new NavigationItemViewModel(StringsKeys.MainMenu_InstallMod_Title, new InstallModPageViewModel()),
+            new NavigationItemViewModel(
+                StringsKeys.MainMenu_InstallMod_Title,
+                new InstallModPageViewModel(scopeFactory)),
             new NavigationItemViewModel(StringsKeys.Navigation_ManageMods, new ManageModsPageViewModel()),
             new NavigationItemViewModel(StringsKeys.MainMenu_Settings_Title, new SettingsPageViewModel())
         ];

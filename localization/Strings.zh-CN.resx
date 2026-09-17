@@ -24,10 +24,109 @@
     <data name="InstallPage_DropPrompt" xml:space="preserve">
     <value>拖拽 Mod 包到这里</value>
   </data>
+    <data name="InstallPage_DragOverPrompt" xml:space="preserve">
+    <value>松开鼠标以预览此 Mod 包</value>
+  </data>
+    <data name="InstallPage_DropZoneName" xml:space="preserve">
+    <value>Mod 包拖放区域</value>
+  </data>
     <data name="InstallPage_SelectFilePrompt" xml:space="preserve">
     <value>或点击选择文件</value>
   </data>
     <data name="InstallPage_SupportedFormats" xml:space="preserve">
     <value>支持 .zip 格式的 Mod 包</value>
+  </data>
+    <data name="InstallPage_PreviewDescription" xml:space="preserve">
+    <value>确认 Mod 信息。</value>
+  </data>
+    <data name="InstallPage_AuthorLabel" xml:space="preserve">
+    <value>作者</value>
+  </data>
+    <data name="InstallPage_TargetGameLabel" xml:space="preserve">
+    <value>目标游戏</value>
+  </data>
+    <data name="InstallPage_ChangeButton" xml:space="preserve">
+    <value>更改</value>
+  </data>
+    <data name="InstallPage_OptionalContentLabel" xml:space="preserve">
+    <value>可选内容</value>
+  </data>
+    <data name="InstallPage_ReselectButton" xml:space="preserve">
+    <value>重新选择</value>
+  </data>
+    <data name="InstallPage_StartInstallButton" xml:space="preserve">
+    <value>开始安装</value>
+  </data>
+    <data name="InstallPage_SelectFileTitle" xml:space="preserve">
+    <value>选择 Mod 包</value>
+  </data>
+    <data name="InstallPage_ModPackageFileType" xml:space="preserve">
+    <value>Mod 包</value>
+  </data>
+    <data name="InstallPage_SelectFolderTitle" xml:space="preserve">
+    <value>选择游戏目录</value>
+  </data>
+    <data name="InstallPage_Loading" xml:space="preserve">
+    <value>正在读取 Mod 包…</value>
+  </data>
+    <data name="InstallPage_CustomGameDirectory" xml:space="preserve">
+    <value>自定义游戏目录</value>
+  </data>
+    <data name="InstallPage_ErrorInvalidFile" xml:space="preserve">
+    <value>请选择单个 .zip Mod 包。</value>
+  </data>
+    <data name="InstallPage_ErrorNoService" xml:space="preserve">
+    <value>安装服务不可用。</value>
+  </data>
+    <data name="InstallPage_ErrorInvalidArchive" xml:space="preserve">
+    <value>所选文件不是有效的 ZIP 压缩包。</value>
+  </data>
+    <data name="InstallPage_ErrorMissingManifest" xml:space="preserve">
+    <value>Mod 包中没有 manifest。</value>
+  </data>
+    <data name="InstallPage_ErrorMultipleManifests" xml:space="preserve">
+    <value>Mod 包中包含多个 manifest。</value>
+  </data>
+    <data name="InstallPage_ErrorUnsafeEntry" xml:space="preserve">
+    <value>Mod 包中包含不安全的文件路径。</value>
+  </data>
+    <data name="InstallPage_ErrorDuplicateEntry" xml:space="preserve">
+    <value>Mod 包中包含重复文件。</value>
+  </data>
+    <data name="InstallPage_ErrorPackageTooLarge" xml:space="preserve">
+    <value>Mod 包过大。</value>
+  </data>
+    <data name="InstallPage_ErrorManifestTooLarge" xml:space="preserve">
+    <value>Mod manifest 过大。</value>
+  </data>
+    <data name="InstallPage_ErrorMissingEntry" xml:space="preserve">
+    <value>Mod 包声明的文件缺失。</value>
+  </data>
+    <data name="InstallPage_ErrorFileNotFound" xml:space="preserve">
+    <value>找不到所选 Mod 包。</value>
+  </data>
+    <data name="InstallPage_ErrorAccessDenied" xml:space="preserve">
+    <value>无法访问所选文件或游戏目录。</value>
+  </data>
+    <data name="InstallPage_ErrorFileFailure" xml:space="preserve">
+    <value>无法读取所选文件或游戏目录。</value>
+  </data>
+    <data name="InstallPage_ErrorGameDirectory" xml:space="preserve">
+    <value>找不到游戏目录，请手动选择。</value>
+  </data>
+    <data name="InstallPage_ErrorPatchPlanning" xml:space="preserve">
+    <value>此 Mod 无法应用于当前游戏安装。</value>
+  </data>
+    <data name="InstallPage_ErrorOperationRunning" xml:space="preserve">
+    <value>已有安装操作正在进行。</value>
+  </data>
+    <data name="InstallPage_ErrorRecoveryRequired" xml:space="preserve">
+    <value>上一次安装需要恢复后才能继续。</value>
+  </data>
+    <data name="InstallPage_ErrorPreviewStale" xml:space="preserve">
+    <value>Mod 包或游戏文件已变化，请重新预览安装内容。</value>
+  </data>
+    <data name="InstallPage_ErrorGeneric" xml:space="preserve">
+    <value>无法完成 Mod 操作。</value>
   </data>
 </root>

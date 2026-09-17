@@ -24,10 +24,109 @@
     <data name="InstallPage_DropPrompt" xml:space="preserve">
     <value>Drop a mod package here</value>
   </data>
+    <data name="InstallPage_DragOverPrompt" xml:space="preserve">
+    <value>Release to preview this mod package</value>
+  </data>
+    <data name="InstallPage_DropZoneName" xml:space="preserve">
+    <value>Mod package drop area</value>
+  </data>
     <data name="InstallPage_SelectFilePrompt" xml:space="preserve">
     <value>or click to select a file</value>
   </data>
     <data name="InstallPage_SupportedFormats" xml:space="preserve">
     <value>Supports .zip mod packages</value>
+  </data>
+    <data name="InstallPage_PreviewDescription" xml:space="preserve">
+    <value>Review the mod details.</value>
+  </data>
+    <data name="InstallPage_AuthorLabel" xml:space="preserve">
+    <value>Author</value>
+  </data>
+    <data name="InstallPage_TargetGameLabel" xml:space="preserve">
+    <value>Target game</value>
+  </data>
+    <data name="InstallPage_ChangeButton" xml:space="preserve">
+    <value>Change</value>
+  </data>
+    <data name="InstallPage_OptionalContentLabel" xml:space="preserve">
+    <value>Optional content</value>
+  </data>
+    <data name="InstallPage_ReselectButton" xml:space="preserve">
+    <value>Choose another</value>
+  </data>
+    <data name="InstallPage_StartInstallButton" xml:space="preserve">
+    <value>Start install</value>
+  </data>
+    <data name="InstallPage_SelectFileTitle" xml:space="preserve">
+    <value>Select a mod package</value>
+  </data>
+    <data name="InstallPage_ModPackageFileType" xml:space="preserve">
+    <value>Mod packages</value>
+  </data>
+    <data name="InstallPage_SelectFolderTitle" xml:space="preserve">
+    <value>Select the game directory</value>
+  </data>
+    <data name="InstallPage_Loading" xml:space="preserve">
+    <value>Reading mod package…</value>
+  </data>
+    <data name="InstallPage_CustomGameDirectory" xml:space="preserve">
+    <value>Custom game directory</value>
+  </data>
+    <data name="InstallPage_ErrorInvalidFile" xml:space="preserve">
+    <value>Select a single .zip mod package.</value>
+  </data>
+    <data name="InstallPage_ErrorNoService" xml:space="preserve">
+    <value>The install service is not available.</value>
+  </data>
+    <data name="InstallPage_ErrorInvalidArchive" xml:space="preserve">
+    <value>The selected file is not a valid ZIP archive.</value>
+  </data>
+    <data name="InstallPage_ErrorMissingManifest" xml:space="preserve">
+    <value>The Mod package does not contain a manifest.</value>
+  </data>
+    <data name="InstallPage_ErrorMultipleManifests" xml:space="preserve">
+    <value>The Mod package contains more than one manifest.</value>
+  </data>
+    <data name="InstallPage_ErrorUnsafeEntry" xml:space="preserve">
+    <value>The Mod package contains an unsafe file path.</value>
+  </data>
+    <data name="InstallPage_ErrorDuplicateEntry" xml:space="preserve">
+    <value>The Mod package contains duplicate files.</value>
+  </data>
+    <data name="InstallPage_ErrorPackageTooLarge" xml:space="preserve">
+    <value>The Mod package is too large.</value>
+  </data>
+    <data name="InstallPage_ErrorManifestTooLarge" xml:space="preserve">
+    <value>The Mod manifest is too large.</value>
+  </data>
+    <data name="InstallPage_ErrorMissingEntry" xml:space="preserve">
+    <value>A file declared by the Mod package is missing.</value>
+  </data>
+    <data name="InstallPage_ErrorFileNotFound" xml:space="preserve">
+    <value>The selected Mod package could not be found.</value>
+  </data>
+    <data name="InstallPage_ErrorAccessDenied" xml:space="preserve">
+    <value>The selected file or game directory cannot be accessed.</value>
+  </data>
+    <data name="InstallPage_ErrorFileFailure" xml:space="preserve">
+    <value>The selected file or game directory could not be read.</value>
+  </data>
+    <data name="InstallPage_ErrorGameDirectory" xml:space="preserve">
+    <value>The game directory could not be found. Choose it manually.</value>
+  </data>
+    <data name="InstallPage_ErrorPatchPlanning" xml:space="preserve">
+    <value>The Mod cannot be applied to this game installation.</value>
+  </data>
+    <data name="InstallPage_ErrorOperationRunning" xml:space="preserve">
+    <value>Another installation operation is already running.</value>
+  </data>
+    <data name="InstallPage_ErrorRecoveryRequired" xml:space="preserve">
+    <value>The previous installation needs recovery before continuing.</value>
+  </data>
+    <data name="InstallPage_ErrorPreviewStale" xml:space="preserve">
+    <value>The package or game files changed. Preview the installation again.</value>
+  </data>
+    <data name="InstallPage_ErrorGeneric" xml:space="preserve">
+    <value>The Mod operation could not be completed.</value>
   </data>
 </root>

@@ -37,6 +37,10 @@ public sealed record InstallPreviewResult(
     IReadOnlyList<(string Name, string? Description)> OptionalGroups,
     TimingSnapshot Timing)
 {
+    public string? ModDescription { get; init; }
+    public string? TargetGameName { get; init; }
+    public string TargetGameDirectory { get; init; } = string.Empty;
+
     [JsonIgnore]
     public PreparedInstall? PreparedInstall { get; init; }
 }

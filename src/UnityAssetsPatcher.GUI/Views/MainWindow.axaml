@@ -137,8 +137,12 @@
         <ScrollViewer Grid.Column="1"
                       Padding="{StaticResource PageContentPadding}"
                       HorizontalScrollBarVisibility="Disabled"
+                      HorizontalContentAlignment="Stretch"
                       VerticalScrollBarVisibility="Auto">
-            <ContentControl Content="{Binding CurrentPage}" />
+            <ContentControl Content="{Binding CurrentPage}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Stretch"
+                            VerticalContentAlignment="Stretch" />
         </ScrollViewer>
     </Grid>
 </Window>

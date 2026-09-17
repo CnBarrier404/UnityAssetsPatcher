@@ -29,7 +29,12 @@ internal static class InstallResultMapper
             analysis.OptionalGroups
                 .Select(group => (group.Name, group.Description))
                 .ToArray(),
-            timing);
+            timing)
+        {
+            ModDescription = analysis.Manifest.Description,
+            TargetGameName = analysis.Manifest.Game,
+            TargetGameDirectory = analysis.GameDirectory
+        };
     }
 
     public static InstallModResult ToInstallResult(
