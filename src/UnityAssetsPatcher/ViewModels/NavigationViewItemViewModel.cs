@@ -1,6 +1,6 @@
 using RentADeveloper.ResXLocalization;
 
-namespace UnityAssetsPatcher.GUI.ViewModels;
+namespace UnityAssetsPatcher.ViewModels;
 
 public sealed class NavigationViewItemViewModel : ViewModelBase
 {

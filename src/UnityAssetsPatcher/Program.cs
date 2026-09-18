@@ -3,8 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog.Core;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.GUI;
-using UnityAssetsPatcher.GUI.ViewModels;
+using UnityAssetsPatcher.ViewModels;
 using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Logging;
 
@@ -60,7 +59,7 @@ public sealed class Program
 
                 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
-                logger.LogInformation("Application started.");
+                logger.LogInformation("Application started");
 
                 exitCode = AppBuilder.Configure(() => serviceProvider.GetRequiredService<App>())
                     .UsePlatformDetect()
@@ -95,7 +94,7 @@ public sealed class Program
 
             rootLogger
                 .ForContext<Program>()
-                .Fatal(unexpectedException, "Application terminated unexpectedly.");
+                .Fatal(unexpectedException, "Application terminated unexpectedly");
 
             await Console.Error.WriteLineAsync("An unexpected error occurred.");
 

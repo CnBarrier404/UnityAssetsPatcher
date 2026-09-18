@@ -1,9 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
-             xmlns:res="using:UnityAssetsPatcher.GUI.Localization"
-             xmlns:pages="using:UnityAssetsPatcher.GUI.ViewModels.Pages"
-             x:Class="UnityAssetsPatcher.GUI.Views.InstallModPage"
+             xmlns:res="using:UnityAssetsPatcher.Localization"
+             xmlns:pages="using:UnityAssetsPatcher.ViewModels.Pages"
+             x:Class="UnityAssetsPatcher.Views.InstallModPage"
              x:DataType="pages:InstallModPageViewModel">
     <Grid>
         <Grid IsVisible="{Binding IsDropZoneVisible}"

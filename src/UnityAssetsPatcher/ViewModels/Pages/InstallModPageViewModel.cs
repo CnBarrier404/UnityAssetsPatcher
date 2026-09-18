@@ -4,9 +4,9 @@ using RentADeveloper.ResXLocalization;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Operations;
-using UnityAssetsPatcher.GUI.Localization;
+using UnityAssetsPatcher.Localization;
 
-namespace UnityAssetsPatcher.GUI.ViewModels.Pages;
+namespace UnityAssetsPatcher.ViewModels.Pages;
 
 public sealed class InstallModPageViewModel : ViewModelBase
 {
