@@ -2,16 +2,16 @@ using System.Globalization;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using RentADeveloper.ResXLocalization;
-using UnityAssetsPatcher.GUI.ViewModels;
-using UnityAssetsPatcher.GUI.Views;
+using UnityAssetsPatcher.ViewModels;
+using UnityAssetsPatcher.Views;
 
-namespace UnityAssetsPatcher.GUI;
+namespace UnityAssetsPatcher;
 
 public partial class App : Avalonia.Application
 {
-    private readonly MainWindowViewModel _mainWindowViewModel;
+    private readonly MainWindowViewModel? _mainWindowViewModel;
 
-    public App() : this(new MainWindowViewModel()) { }
+    public App() { }
 
     public App(MainWindowViewModel mainWindowViewModel)
     {
@@ -30,7 +30,9 @@ public partial class App : Avalonia.Application
         {
             desktop.MainWindow = new MainWindow
             {
-                DataContext = _mainWindowViewModel
+                DataContext = _mainWindowViewModel ??
+                              throw new InvalidOperationException(
+                                  "The application must be created by dependency injection.")
             };
         }
 

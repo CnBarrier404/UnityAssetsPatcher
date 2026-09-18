@@ -1,5 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace UnityAssetsPatcher.GUI.ViewModels;
+namespace UnityAssetsPatcher.ViewModels;
 
 public abstract class ViewModelBase : ObservableObject { }

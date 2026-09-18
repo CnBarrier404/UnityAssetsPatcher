@@ -2,15 +2,43 @@
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
-        <ApplicationIcon>..\UnityAssetsPatcher.GUI\Assets\icon.ico</ApplicationIcon>
+        <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
         <TargetFramework>net10.0</TargetFramework>
         <RootNamespace>UnityAssetsPatcher</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <GenerateSatelliteAssembliesForCore>true</GenerateSatelliteAssembliesForCore>
     </PropertyGroup>
 
     <ItemGroup>
+        <AvaloniaResource Include="Assets\icon.ico"/>
+        <AvaloniaResource Include="Assets\Fonts\*.otf"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <EmbeddedResource Include="Assets\resources.tpk" LogicalName="resources.tpk"/>
+        <EmbeddedResource Include="..\..\localization\Strings.resx" Link="Localization\Strings.resx">
+            <Generator>PublicResXFileCodeGenerator</Generator>
+            <LastGenOutput>Strings.Designer.cs</LastGenOutput>
+            <CustomToolNamespace>UnityAssetsPatcher.Localization</CustomToolNamespace>
+            <StronglyTypedFileName>$(MSBuildProjectDirectory)\..\..\localization\Strings.Designer.cs</StronglyTypedFileName>
+            <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+            <StronglyTypedNamespace>UnityAssetsPatcher.Localization</StronglyTypedNamespace>
+            <StronglyTypedClassName>Strings</StronglyTypedClassName>
+            <PublicClass>true</PublicClass>
+        </EmbeddedResource>
+        <EmbeddedResource Include="..\..\localization\Strings.zh-CN.resx" Link="Localization\Strings.zh-CN.resx"/>
+        <Compile Include="..\..\localization\Strings.Designer.cs"
+                 Link="Localization\Strings.Designer.cs"
+                 Condition="'$(DesignTimeBuild)' == 'true'">
+            <AutoGen>true</AutoGen>
+            <DesignTime>true</DesignTime>
+            <DependentUpon>Strings.resx</DependentUpon>
+        </Compile>
+        <Compile Update="Views\AboutPage.axaml.cs">
+            <DependentUpon>AboutPage.axaml</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>
@@ -19,11 +47,15 @@
         <PackageReference Include="Serilog" Version="4.4.1-dev-02447"/>
         <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0"/>
         <PackageReference Include="Serilog.Sinks.File" Version="8.0.0-nblumhardt-02322"/>
+        <PackageReference Include="Avalonia" Version="12.1.2"/>
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.2"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2"/>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2"/>
+        <PackageReference Include="ResXLocalization.Avalonia" Version="1.1.0"/>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\UnityAssetsPatcher.Application\UnityAssetsPatcher.Application.csproj"/>
-        <ProjectReference Include="..\UnityAssetsPatcher.GUI\UnityAssetsPatcher.GUI.csproj"/>
         <ProjectReference Include="..\UnityAssetsPatcher.Infrastructure\UnityAssetsPatcher.Infrastructure.csproj"/>
     </ItemGroup>
 
