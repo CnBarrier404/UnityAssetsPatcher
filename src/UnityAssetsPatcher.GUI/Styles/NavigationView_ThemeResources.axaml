@@ -1,0 +1,178 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <GridLength x:Key="NavigationViewOpenPaneLength">232</GridLength>
+            <Thickness x:Key="NavigationViewPaneContentMargin">12,20,12,16</Thickness>
+            <Thickness x:Key="NavigationViewPaneHeaderMargin">10,0,0,16</Thickness>
+            <Thickness x:Key="NavigationViewItemContentMargin">12,0,0,0</Thickness>
+            <Thickness x:Key="NavigationViewItemPadding">12,8</Thickness>
+            <Thickness x:Key="NavigationViewItemMargin">0,0,0,2</Thickness>
+            <Thickness x:Key="NavigationViewFooterSeparatorMargin">4,8</Thickness>
+            <Thickness x:Key="NavigationViewItemBorderThickness">1</Thickness>
+            <CornerRadius x:Key="NavigationViewContentCornerRadius">12,0,0,0</CornerRadius>
+            <CornerRadius x:Key="NavigationViewSelectionIndicatorCornerRadius">2</CornerRadius>
+            <x:Double x:Key="NavigationViewItemMinHeight">40</x:Double>
+            <x:Double x:Key="NavigationViewSelectionIndicatorWidth">3</x:Double>
+            <x:Double x:Key="NavigationViewSelectionIndicatorHeight">20</x:Double>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="Window.appShell">
+        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundChromeLowBrush}" />
+    </Style>
+
+    <Style Selector="Border.navigationViewPane">
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
+    </Style>
+
+    <Style Selector="Border.navigationViewContent">
+        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundChromeLowBrush}" />
+        <Setter Property="CornerRadius" Value="{StaticResource NavigationViewContentCornerRadius}" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <Style Selector="StackPanel.navigationViewPaneHeader">
+        <Setter Property="Margin" Value="{StaticResource NavigationViewPaneHeaderMargin}" />
+        <Setter Property="Spacing" Value="{StaticResource Size40}" />
+    </Style>
+
+    <Style Selector="TextBlock.navigationViewItemContent">
+        <Setter Property="Margin" Value="{StaticResource NavigationViewItemContentMargin}" />
+    </Style>
+
+    <Style Selector="Border.navigationViewSelectionIndicator">
+        <Setter Property="Width" Value="{StaticResource NavigationViewSelectionIndicatorWidth}" />
+        <Setter Property="Height" Value="{StaticResource NavigationViewSelectionIndicatorHeight}" />
+        <Setter Property="CornerRadius" Value="{StaticResource NavigationViewSelectionIndicatorCornerRadius}" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.navigationViewFooterSeparator">
+        <Setter Property="Height" Value="{StaticResource StrokeThicknessThin}" />
+        <Setter Property="Margin" Value="{StaticResource NavigationViewFooterSeparatorMargin}" />
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransientBorderBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem">
+        <Setter Property="Padding" Value="{StaticResource NavigationViewItemPadding}" />
+        <Setter Property="Margin" Value="{StaticResource NavigationViewItemMargin}" />
+        <Setter Property="MinHeight" Value="{StaticResource NavigationViewItemMinHeight}" />
+        <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusMedium}" />
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="{StaticResource NavigationViewItemBorderThickness}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style
+        Selector="ListBox.navigationViewItems ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:pointerover TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListMediumBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:pressed TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightBaseHighBrush}" />
+    </Style>
+
+    <Style
+        Selector="ListBox.navigationViewItems ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:selected TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style
+        Selector="ListBox.navigationViewItems ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListMediumBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:selected:pointerover TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style
+        Selector="ListBox.navigationViewItems ListBoxItem:selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:selected:pressed TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightBaseHighBrush}" />
+    </Style>
+
+    <Style
+        Selector="ListBox.navigationViewItems ListBoxItem:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledChromeDisabledLowBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:disabled TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledChromeDisabledLowBrush}" />
+    </Style>
+
+    <Style
+        Selector="ListBox.navigationViewItems ListBoxItem:selected:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledChromeDisabledLowBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:selected:disabled TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledChromeDisabledLowBrush}" />
+    </Style>
+
+    <Style
+        Selector="ListBox.navigationViewItems ListBoxItem:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlRevealFocusVisualBrush}" />
+        <Setter Property="BorderThickness" Value="{StaticResource BorderThicknessFocus}" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem Border.navigationViewSelectionIndicator">
+        <Setter Property="Background" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:selected Border.navigationViewSelectionIndicator">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="ListBox.navigationViewItems ListBoxItem:selected:disabled Border.navigationViewSelectionIndicator">
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+</Styles>

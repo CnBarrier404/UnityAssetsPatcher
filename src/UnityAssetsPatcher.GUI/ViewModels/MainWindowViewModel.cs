@@ -8,34 +8,34 @@ namespace UnityAssetsPatcher.GUI.ViewModels;
 public sealed class MainWindowViewModel : ViewModelBase
 {
     public static string Title => AppConfig.Name;
-    public ViewModelBase CurrentPage => _selected.Page;
-    public IReadOnlyList<NavigationItemViewModel> PrimaryItems { get; }
-    public IReadOnlyList<NavigationItemViewModel> PinnedItems { get; }
+    public ViewModelBase CurrentPage => _selectedItem.Page;
+    public IReadOnlyList<NavigationViewItemViewModel> MenuItems { get; }
+    public IReadOnlyList<NavigationViewItemViewModel> FooterMenuItems { get; }
 
-    private NavigationItemViewModel _selected;
+    private NavigationViewItemViewModel _selectedItem;
 
     public MainWindowViewModel(IServiceScopeFactory? scopeFactory = null)
     {
-        PrimaryItems =
+        MenuItems =
         [
-            new NavigationItemViewModel(
+            new NavigationViewItemViewModel(
                 StringsKeys.MainMenu_InstallMod_Title,
                 new InstallModPageViewModel(scopeFactory)),
-            new NavigationItemViewModel(StringsKeys.Navigation_ManageMods, new ManageModsPageViewModel()),
-            new NavigationItemViewModel(StringsKeys.MainMenu_Settings_Title, new SettingsPageViewModel())
+            new NavigationViewItemViewModel(StringsKeys.Navigation_ManageMods, new ManageModsPageViewModel()),
+            new NavigationViewItemViewModel(StringsKeys.MainMenu_Settings_Title, new SettingsPageViewModel())
         ];
 
-        PinnedItems =
+        FooterMenuItems =
         [
-            new NavigationItemViewModel(StringsKeys.Navigation_About, new AboutPageViewModel(), true)
+            new NavigationViewItemViewModel(StringsKeys.Navigation_About, new AboutPageViewModel(), true)
         ];
 
-        _selected = PrimaryItems[0];
+        _selectedItem = MenuItems[0];
     }
 
-    public NavigationItemViewModel? PrimarySelection
+    public NavigationViewItemViewModel? SelectedMenuItem
     {
-        get => _selected.IsPinned ? null : _selected;
+        get => _selectedItem.IsFooterItem ? null : _selectedItem;
         set
         {
             if (value is null)
@@ -44,14 +44,14 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
             else
             {
-                Select(value);
+                SelectItem(value);
             }
         }
     }
 
-    public NavigationItemViewModel? PinnedSelection
+    public NavigationViewItemViewModel? SelectedFooterMenuItem
     {
-        get => _selected.IsPinned ? _selected : null;
+        get => _selectedItem.IsFooterItem ? _selectedItem : null;
         set
         {
             if (value is null)
@@ -60,22 +60,22 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
             else
             {
-                Select(value);
+                SelectItem(value);
             }
         }
     }
 
-    private void Select(NavigationItemViewModel item)
+    private void SelectItem(NavigationViewItemViewModel item)
     {
-        if (ReferenceEquals(_selected, item))
+        if (ReferenceEquals(_selectedItem, item))
         {
             return;
         }
 
-        _selected = item;
+        _selectedItem = item;
 
-        OnPropertyChanged(nameof(PrimarySelection));
-        OnPropertyChanged(nameof(PinnedSelection));
+        OnPropertyChanged(nameof(SelectedMenuItem));
+        OnPropertyChanged(nameof(SelectedFooterMenuItem));
         OnPropertyChanged(nameof(CurrentPage));
     }
 }

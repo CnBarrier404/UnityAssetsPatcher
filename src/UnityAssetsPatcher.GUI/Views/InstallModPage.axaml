@@ -5,119 +5,11 @@
              xmlns:pages="using:UnityAssetsPatcher.GUI.ViewModels.Pages"
              x:Class="UnityAssetsPatcher.GUI.Views.InstallModPage"
              x:DataType="pages:InstallModPageViewModel">
-    <UserControl.Styles>
-        <Style Selector="Button.dropZone">
-            <Setter Property="Background" Value="{DynamicResource ColorSurfaceCard}" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="VerticalContentAlignment" Value="Stretch" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.18" />
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.dropZone:pointerover">
-            <Setter Property="Background" Value="{DynamicResource ColorSurfaceHover}" />
-        </Style>
-        <Style Selector="Button.dropZone:pressed">
-            <Setter Property="Background" Value="{DynamicResource ColorSurfaceSelected}" />
-        </Style>
-        <Style Selector="Button.dropZone.drag-over">
-            <Setter Property="Background" Value="{DynamicResource ColorSurfaceHover}" />
-        </Style>
-        <Style Selector="Button.dropZone:focus-visible">
-            <Setter Property="BorderBrush" Value="{DynamicResource ColorStrokeFocus}" />
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-        <Style Selector="TextBlock.dropPrompt">
-            <Setter Property="IsVisible" Value="True" />
-        </Style>
-        <Style Selector="TextBlock.dragPrompt">
-            <Setter Property="IsVisible" Value="False" />
-        </Style>
-        <Style Selector="TextBlock.selectFilePrompt">
-            <Setter Property="IsVisible" Value="True" />
-        </Style>
-        <Style Selector="Button.dropZone.drag-over TextBlock.dropPrompt">
-            <Setter Property="IsVisible" Value="False" />
-        </Style>
-        <Style Selector="Button.dropZone.drag-over TextBlock.dragPrompt">
-            <Setter Property="IsVisible" Value="True" />
-        </Style>
-        <Style Selector="Button.dropZone.drag-over TextBlock.selectFilePrompt">
-            <Setter Property="IsVisible" Value="False" />
-        </Style>
-        <Style Selector="Rectangle.dropBorder">
-            <Setter Property="StrokeThickness" Value="1" />
-        </Style>
-        <Style Selector="Border.loadingSpinner">
-            <Style.Animations>
-                <Animation Duration="0:0:0.9" IterationCount="INFINITE">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="RotateTransform.Angle" Value="0" />
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="RotateTransform.Angle" Value="360" />
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
-        <Style Selector="Button.installAction">
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="Padding" Value="{StaticResource InstallActionPadding}" />
-            <Setter Property="MinHeight" Value="44" />
-            <Setter Property="CornerRadius" Value="8" />
-        </Style>
-        <Style Selector="Button.cardAction">
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Padding" Value="{StaticResource InstallCardButtonPadding}" />
-            <Setter Property="MinHeight" Value="36" />
-            <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusMedium}" />
-        </Style>
-        <Style Selector="Button.installAction.outline">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="{DynamicResource ColorStrokeControl}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{DynamicResource ColorBrandForeground}" />
-        </Style>
-        <Style Selector="Button.installAction.outline:pointerover">
-            <Setter Property="Background" Value="{DynamicResource ColorSurfaceHover}" />
-        </Style>
-        <Style Selector="Button.installAction.outline:pressed">
-            <Setter Property="Background" Value="{DynamicResource ColorSurfaceSelected}" />
-        </Style>
-        <Style Selector="Button.installAction.outline:focus-visible">
-            <Setter Property="BorderBrush" Value="{DynamicResource ColorStrokeFocus}" />
-            <Setter Property="BorderThickness" Value="2" />
-        </Style>
-        <Style Selector="Button.installAction.primary">
-            <Setter Property="Background" Value="{DynamicResource ColorBrandBackground}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource ColorBrandBackground}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{DynamicResource ColorTextOnBrand}" />
-        </Style>
-        <Style Selector="Button.installAction.primary:pointerover">
-            <Setter Property="Opacity" Value="0.9" />
-        </Style>
-        <Style Selector="Button.installAction.primary:pressed">
-            <Setter Property="Opacity" Value="0.8" />
-        </Style>
-        <Style Selector="Button.installAction.primary:focus-visible">
-            <Setter Property="BorderBrush" Value="{DynamicResource ColorStrokeFocus}" />
-            <Setter Property="BorderThickness" Value="2" />
-        </Style>
-        <Style Selector="Button.installAction:disabled">
-            <Setter Property="Opacity" Value="0.5" />
-        </Style>
-    </UserControl.Styles>
-
     <Grid>
         <Grid IsVisible="{Binding IsDropZoneVisible}"
-              RowDefinitions="Auto,*,Auto"
-              RowSpacing="{StaticResource Size200}">
-            <StackPanel Spacing="{StaticResource Size60}">
+              RowDefinitions="Auto,*"
+              RowSpacing="{StaticResource PageSectionSpacing}">
+            <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
                 <TextBlock Classes="pageTitle"
                            AutomationProperties.HeadingLevel="1"
                            Text="{l:Localize {x:Static res:StringsKeys.MainMenu_InstallMod_Title}}" />
@@ -125,12 +17,9 @@
                            Text="{l:Localize {x:Static res:StringsKeys.InstallPage_DropDescription}}" />
             </StackPanel>
 
-            <Button x:Name="DropZone"
+            <Border x:Name="DropZone"
                     Grid.Row="1"
                     Classes="dropZone"
-                    Padding="{StaticResource DropZoneContentMargin}"
-                    CornerRadius="{StaticResource CornerRadiusLarge}"
-                    Click="OnSelectFileClick"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"
                     DragDrop.AllowDrop="True"
@@ -139,59 +28,56 @@
                     DragDrop.DragOver="OnDragOver"
                     DragDrop.Drop="OnDrop"
                     IsHitTestVisible="{Binding IsNotBusy}"
+                    AutomationProperties.AccessibilityView="Control"
                     AutomationProperties.AutomationId="InstallModDropZone"
                     AutomationProperties.HelpText="{l:Localize {x:Static res:StringsKeys.InstallPage_DropDescription}}"
                     AutomationProperties.Name="{l:Localize {x:Static res:StringsKeys.InstallPage_DropZoneName}}">
-                <Grid MinHeight="{StaticResource InstallDropZoneMinHeight}">
-                    <Rectangle x:Name="DropBorder"
-                               Classes="dropBorder"
-                               Margin="{StaticResource InstallDropBorderMargin}"
-                               IsHitTestVisible="False"
-                               RadiusX="{StaticResource RadiusLarge}"
-                               RadiusY="{StaticResource RadiusLarge}"
-                               Stroke="{DynamicResource DropBorderBrush}"
-                               StrokeDashArray="5,4" />
+                <Grid Classes="dropZoneContent">
                     <StackPanel HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding IsNotBusy}"
-                                Spacing="{StaticResource Size80}">
-                        <TextBlock Classes="bodyLarge dropPrompt"
-                                   TextAlignment="Center"
-                                   TextWrapping="Wrap"
-                                   Text="{l:Localize {x:Static res:StringsKeys.InstallPage_DropPrompt}}" />
-                        <TextBlock Classes="bodyLarge dragPrompt"
-                                   AutomationProperties.LiveSetting="Polite"
-                                   TextAlignment="Center"
-                                   TextWrapping="Wrap"
-                                   Text="{l:Localize {x:Static res:StringsKeys.InstallPage_DragOverPrompt}}" />
-                        <TextBlock Classes="body secondary selectFilePrompt"
-                                   TextAlignment="Center"
-                                   Text="{l:Localize {x:Static res:StringsKeys.InstallPage_SelectFilePrompt}}" />
-                        <TextBlock Classes="caption secondary"
-                                   TextAlignment="Center"
-                                   Text="{l:Localize {x:Static res:StringsKeys.InstallPage_SupportedFormats}}" />
+                                Spacing="{StaticResource ControlGroupSpacing}">
+                        <StackPanel Classes="dropDefaultContent"
+                                    Spacing="{StaticResource ControlGroupSpacing}">
+                            <TextBlock Classes="bodyLarge"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       Text="{l:Localize {x:Static res:StringsKeys.InstallPage_DropPrompt}}" />
+                            <Button AutomationProperties.AutomationId="InstallModSelectFileButton"
+                                    Classes="accent"
+                                    Click="OnSelectFileClick"
+                                    Content="{l:Localize {x:Static res:StringsKeys.InstallPage_SelectFileButton}}"
+                                    HorizontalAlignment="Center" />
+                            <TextBlock Classes="caption secondary"
+                                       TextAlignment="Center"
+                                       Text="{l:Localize {x:Static res:StringsKeys.InstallPage_SupportedFormats}}" />
+                        </StackPanel>
                     </StackPanel>
+                    <TextBlock Classes="bodyLarge dragPrompt"
+                               AutomationProperties.LiveSetting="Polite"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="{l:Localize {x:Static res:StringsKeys.InstallPage_DragOverPrompt}}" />
+                    <TextBlock Classes="bodyLarge danger invalidDragPrompt"
+                               AutomationProperties.LiveSetting="Assertive"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="{l:Localize {x:Static res:StringsKeys.InstallPage_InvalidDragPrompt}}" />
                     <StackPanel HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding IsBusy}"
-                                Spacing="{StaticResource Size120}">
-                        <Border Width="{StaticResource InstallSpinnerSize}"
-                                Height="{StaticResource InstallSpinnerSize}"
-                                Classes="loadingSpinner"
-                                HorizontalAlignment="Center"
-                                RenderTransformOrigin="50%,50%">
+                                Spacing="{StaticResource ContentGroupSpacing}">
+                        <Border Classes="loadingIndicator"
+                                HorizontalAlignment="Center">
                             <Border.RenderTransform>
                                 <RotateTransform Angle="0" />
                             </Border.RenderTransform>
-                            <Path Width="{StaticResource InstallSpinnerPathSize}"
-                                  Height="{StaticResource InstallSpinnerPathSize}"
-                                  Data="M21,3 A18,18 0 1 1 8.27,8.27"
-                                  HorizontalAlignment="Center"
-                                  Stretch="Uniform"
-                                  Stroke="{DynamicResource ColorBrandForeground}"
-                                  StrokeLineCap="Round"
-                                  StrokeThickness="3"
-                                  VerticalAlignment="Center" />
+                            <Path Classes="loadingIndicatorGlyph"
+                                  AutomationProperties.AccessibilityView="Raw" />
                         </Border>
                         <TextBlock Classes="body secondary"
                                    AutomationProperties.LiveSetting="Polite"
@@ -199,23 +85,14 @@
                                    TextAlignment="Center" />
                     </StackPanel>
                 </Grid>
-            </Button>
+            </Border>
 
-            <StackPanel Grid.Row="2" Spacing="{StaticResource Size80}">
-                <TextBlock Classes="body"
-                           AutomationProperties.AutomationId="InstallModDropError"
-                           AutomationProperties.LiveSetting="Assertive"
-                           Foreground="{DynamicResource ColorStatusDanger}"
-                           IsVisible="{Binding HasError}"
-                           Text="{Binding ErrorMessage}"
-                           TextWrapping="Wrap" />
-            </StackPanel>
         </Grid>
 
         <Grid IsVisible="{Binding IsPreviewVisible}"
               RowDefinitions="Auto,Auto,Auto"
-              RowSpacing="{StaticResource Size120}">
-            <StackPanel Spacing="{StaticResource Size60}">
+              RowSpacing="{StaticResource ContentGroupSpacing}">
+            <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
                 <TextBlock Classes="pageTitle"
                            AutomationProperties.HeadingLevel="1"
                            Text="{l:Localize {x:Static res:StringsKeys.MainMenu_InstallMod_Title}}" />
@@ -224,136 +101,122 @@
                            Text="{l:Localize {x:Static res:StringsKeys.InstallPage_PreviewDescription}}" />
             </StackPanel>
 
-            <Border Grid.Row="1"
-                    Background="{DynamicResource ColorSurfaceCard}"
-                    BorderBrush="{DynamicResource ColorStrokeDivider}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource CornerRadiusLarge}"
-                    Padding="{StaticResource InstallCardPadding}">
-                <StackPanel Spacing="{StaticResource Size120}">
+            <Border Grid.Row="1" Classes="card">
+                <StackPanel Spacing="{StaticResource ContentGroupSpacing}">
+                    <TextBlock Classes="bodyStrong"
+                               AutomationProperties.HeadingLevel="2"
+                               Text="{l:Localize {x:Static res:StringsKeys.InstallPage_ModInfoLabel}}" />
                     <Grid RowDefinitions="Auto,Auto,Auto"
-                          RowSpacing="{StaticResource Size40}"
+                          RowSpacing="{StaticResource TightContentSpacing}"
                           ColumnDefinitions="*,Auto"
-                          ColumnSpacing="{StaticResource Size60}">
-                        <TextBlock Classes="bodyLarge"
+                          ColumnSpacing="{StaticResource MetadataColumnSpacing}">
+                        <TextBlock Classes="subtitle"
                                    Text="{Binding ModName}"
                                    TextWrapping="Wrap" />
-                        <Border Grid.Column="1"
-                                Background="{DynamicResource ColorSurfaceSelected}"
-                                CornerRadius="{StaticResource CornerRadiusMedium}"
-                                Padding="{StaticResource InstallVersionPadding}"
+                        <Border Grid.Row="0" Grid.Column="1"
+                                Classes="badge"
                                 VerticalAlignment="Center">
                             <TextBlock Classes="caption"
-                                       Foreground="{DynamicResource ColorBrandForeground}"
                                        Text="{Binding ModVersion}" />
                         </Border>
                         <Grid Grid.Row="1"
-                              Grid.ColumnSpan="2"
+                              Grid.ColumnSpan="2" Grid.Column="0"
                               ColumnDefinitions="Auto,*"
-                              ColumnSpacing="{StaticResource Size60}">
-                            <TextBlock Classes="caption secondary"
+                              ColumnSpacing="{StaticResource LabelValueSpacing}">
+                            <TextBlock Classes="body secondary"
                                        Text="{l:Localize {x:Static res:StringsKeys.InstallPage_AuthorLabel}}" />
                             <TextBlock Grid.Column="1"
-                                       Classes="caption"
+                                       Classes="body"
                                        Text="{Binding ModAuthor}"
                                        TextWrapping="Wrap" />
                         </Grid>
                         <TextBlock Grid.Row="2"
-                                   Grid.ColumnSpan="2"
-                                   Classes="caption secondary"
+                                   Grid.ColumnSpan="2" Grid.Column="0"
+                                   Classes="body secondary"
                                    IsVisible="{Binding HasModDescription}"
                                    Text="{Binding ModDescription}"
                                    TextWrapping="Wrap" />
                     </Grid>
 
-                    <TextBlock Classes="caption secondary"
+                    <TextBlock Classes="body secondary"
                                Text="{Binding PackageFileName}"
                                TextWrapping="Wrap" />
 
-                    <Border Height="1" Background="{DynamicResource ColorStrokeDivider}" />
+                    <Border Classes="divider" />
 
-                    <TextBlock Classes="bodyLarge"
+                    <TextBlock Classes="bodyStrong"
                                AutomationProperties.HeadingLevel="2"
                                Text="{l:Localize {x:Static res:StringsKeys.InstallPage_TargetGameLabel}}" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Size100}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource ActionColumnSpacing}">
                         <StackPanel
-                            Spacing="{StaticResource InstallTargetTextSpacing}"
+                            Spacing="{StaticResource TightContentSpacing}"
                             VerticalAlignment="Center">
                             <TextBlock Classes="body"
                                        Text="{Binding TargetGameName}"
                                        TextWrapping="Wrap" />
-                            <TextBlock Classes="caption secondary"
+                            <TextBlock Classes="body secondary"
                                        Text="{Binding TargetGameDirectory}"
                                        TextWrapping="Wrap" />
                         </StackPanel>
                         <Button Grid.Column="1"
                                 AutomationProperties.AutomationId="InstallModChangeGameDirectoryButton"
-                                Classes="installAction cardAction outline"
+                                Classes="subtle"
                                 Click="OnChangeGameDirectoryClick"
                                 Content="{l:Localize {x:Static res:StringsKeys.InstallPage_ChangeButton}}"
+                                IsEnabled="{Binding IsNotBusy}"
                                 VerticalAlignment="Center" />
                     </Grid>
 
-                    <StackPanel IsVisible="{Binding HasOptionalGroups}" Spacing="{StaticResource Size80}">
-                        <Border Height="1" Background="{DynamicResource ColorStrokeDivider}" />
-                        <TextBlock Classes="bodyLarge"
-                                   AutomationProperties.HeadingLevel="2"
-                                   Text="{l:Localize {x:Static res:StringsKeys.InstallPage_OptionalContentLabel}}" />
-                        <ItemsControl ItemsSource="{Binding OptionalGroups}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="pages:InstallOptionalGroupViewModel">
-                                    <Border Padding="{StaticResource InstallOptionalItemPadding}">
-                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Size80}">
+                    <StackPanel IsVisible="{Binding HasOptionalGroups}" Spacing="{StaticResource ContentGroupSpacing}">
+                        <Border Classes="divider" />
+                        <StackPanel Spacing="{StaticResource SectionHeadingToContentSpacing}">
+                            <TextBlock Classes="bodyStrong"
+                                       AutomationProperties.HeadingLevel="2"
+                                       Text="{l:Localize {x:Static res:StringsKeys.InstallPage_OptionalContentLabel}}" />
+                            <ItemsControl ItemsSource="{Binding OptionalGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="pages:InstallOptionalGroupViewModel">
+                                        <Border Classes="listItem">
                                             <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                                       Click="OnOptionalGroupClick"
-                                                      IsEnabled="{Binding $parent[ItemsControl].((pages:InstallModPageViewModel)DataContext).IsNotBusy}" />
-                                            <StackPanel Grid.Column="1"
-                                                        Spacing="{StaticResource InstallOptionalDescriptionSpacing}">
-                                                <TextBlock Classes="body"
-                                                           Text="{Binding Name}"
-                                                           TextWrapping="Wrap" />
-                                                <TextBlock Classes="caption secondary"
-                                                           IsVisible="{Binding HasDescription}"
-                                                           Text="{Binding Description}"
-                                                           TextWrapping="Wrap" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                                                      IsEnabled="{Binding $parent[ItemsControl].((pages:InstallModPageViewModel)DataContext).IsNotBusy}">
+                                                <StackPanel Margin="{StaticResource CheckBoxContentMargin}"
+                                                            Spacing="{StaticResource TightContentSpacing}">
+                                                    <TextBlock Classes="body"
+                                                               Text="{Binding Name}"
+                                                               TextWrapping="Wrap" />
+                                                    <TextBlock Classes="body secondary"
+                                                               IsVisible="{Binding HasDescription}"
+                                                               Text="{Binding Description}"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </CheckBox>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
-            <Grid Grid.Row="2" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource Size120}">
-                <StackPanel Spacing="{StaticResource Size80}">
-                    <ProgressBar IsIndeterminate="True"
-                                 AutomationProperties.AutomationId="InstallModProgress"
-                                 IsVisible="{Binding IsBusy}"
-                                 Height="4" />
+            <Grid Grid.Row="2" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource ContentGroupSpacing}">
+                <StackPanel Spacing="{StaticResource ControlGroupSpacing}">
                     <TextBlock Classes="body secondary"
                                AutomationProperties.LiveSetting="Polite"
                                IsVisible="{Binding IsBusy}"
                                Text="{l:Localize {x:Static res:StringsKeys.InstallPage_Loading}}" />
-                    <TextBlock Classes="body"
-                               AutomationProperties.AutomationId="InstallModPreviewError"
-                               AutomationProperties.LiveSetting="Assertive"
-                               Foreground="{DynamicResource ColorStatusDanger}"
-                               IsVisible="{Binding HasError}"
-                               Text="{Binding ErrorMessage}"
-                               TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Row="1"
                             HorizontalAlignment="Right"
                             Orientation="Horizontal"
-                            Spacing="{StaticResource Size80}">
+                            Spacing="{StaticResource ControlGroupSpacing}">
                     <Button AutomationProperties.AutomationId="InstallModReselectButton"
-                            Classes="installAction outline"
+                            Classes="subtle"
                             Click="OnReselectClick"
                             Content="{l:Localize {x:Static res:StringsKeys.InstallPage_ReselectButton}}" />
                     <Button AutomationProperties.AutomationId="InstallModStartButton"
-                            Classes="installAction primary"
+                            Classes="accent"
                             Content="{l:Localize {x:Static res:StringsKeys.InstallPage_StartInstallButton}}" />
                 </StackPanel>
             </Grid>
