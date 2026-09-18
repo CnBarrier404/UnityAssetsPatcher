@@ -3,10 +3,10 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using RentADeveloper.ResXLocalization;
-using UnityAssetsPatcher.GUI.Localization;
-using UnityAssetsPatcher.GUI.ViewModels.Pages;
+using UnityAssetsPatcher.Localization;
+using UnityAssetsPatcher.ViewModels.Pages;
 
-namespace UnityAssetsPatcher.GUI.Views;
+namespace UnityAssetsPatcher.Views;
 
 public partial class InstallModPage : UserControl
 {

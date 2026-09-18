@@ -3,7 +3,6 @@
         <Project Path="src/UnityAssetsPatcher/UnityAssetsPatcher.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Application/UnityAssetsPatcher.Application.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Domain/UnityAssetsPatcher.Domain.csproj"/>
-        <Project Path="src/UnityAssetsPatcher.GUI/UnityAssetsPatcher.GUI.csproj"/>
         <Project Path="src/UnityAssetsPatcher.Infrastructure/UnityAssetsPatcher.Infrastructure.csproj"/>
     </Folder>
     <Folder Name="/tests/">

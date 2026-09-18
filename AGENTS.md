@@ -17,16 +17,15 @@ UnityAssetsPatcher is a .NET 10 desktop application evolving into an alternative
 
 ## Repository Structure
 
-| Directory                                | Responsibility                                                                                       |
-| :--------------------------------------- | :--------------------------------------------------------------------------------------------------- |
-| `docs/`                                  | User and mod author documentation                                                                    |
-| `schema/`                                | Mod manifest schema                                                                                  |
-| `src/UnityAssetsPatcher/`                | Executable entry point and composition root; owns dependency registration and concrete logging setup |
-| `src/UnityAssetsPatcher.Application/`    | Use cases, workflow orchestration, DTOs, and infrastructure abstractions                             |
-| `src/UnityAssetsPatcher.Domain/`         | Domain models, value objects, validation rules, and domain errors                                    |
-| `src/UnityAssetsPatcher.Infrastructure/` | File system, compression, persistence, backup, package, and AssetsTools.NET implementations          |
-| `src/UnityAssetsPatcher.GUI/`            | Avalonia-based UI                                                                                    |
-| `tests/`                                 | Unit and integration tests                                                                           |
+| Directory                                | Responsibility                                                                                                     |
+| :--------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| `docs/`                                  | User and mod author documentation                                                                                  |
+| `schema/`                                | Mod manifest schema                                                                                                |
+| `src/UnityAssetsPatcher/`                | Executable entry point, composition root, and Avalonia UI; owns dependency registration and concrete logging setup |
+| `src/UnityAssetsPatcher.Application/`    | Use cases, workflow orchestration, DTOs, and infrastructure abstractions                                           |
+| `src/UnityAssetsPatcher.Domain/`         | Domain models, value objects, validation rules, and domain errors                                                  |
+| `src/UnityAssetsPatcher.Infrastructure/` | File system, compression, persistence, backup, package, and AssetsTools.NET implementations                        |
+| `tests/`                                 | Unit and integration tests                                                                                         |
 
 ## Workflows
 
@@ -66,9 +65,9 @@ The exception policy follows the [.NET best practices for exceptions](https://le
 #### Unexpected Exceptions
 
 - Lower layers must allow unexpected exceptions to propagate unchanged. They must not swallow them, convert them into `OperationFailed`, or log and rethrow them.
-- `Program.Main` is the single process-level unexpected-exception boundary. Its protected execution includes bootstrap and dependency composition, CLI or TUI execution, and asynchronous disposal. An unexpected exception reaching this boundary is recorded once, receives generic user-facing output, selects a non-zero exit code, and terminates the application. The application must not attempt to continue.
+- `Program.Main` is the single process-level unexpected-exception boundary. Its protected execution includes bootstrap and dependency composition, GUI execution, and asynchronous disposal. An unexpected exception reaching this boundary is recorded once, receives generic user-facing output, selects a non-zero exit code, and terminates the application. The application must not attempt to continue.
 - The logging implementation used by this boundary must be owned outside the dependency container lifetime it reports on, so failures from host execution or asynchronous container disposal can still be recorded before logging is flushed and disposed.
-- `CLIApplication`, `TerminalApp`, sessions, commands, views, page logic, application handlers, and infrastructure services are not final unexpected-exception boundaries. They must not log, present, or convert an unexpected exception merely because they are the outermost type in their project or feature.
+- GUI views, view models, page logic, application handlers, and infrastructure services are not final unexpected-exception boundaries. They must not log, present, or convert an unexpected exception merely because they are the outermost type in their project or feature.
 - A general `catch (Exception)` below `Program.Main` is permitted only when it is necessary to restore an invariant or roll back, perform best-effort cleanup before rethrowing, or transfer the same failure into an awaited completion mechanism such as `TaskCompletionSource`. Such a catch must not classify the failure as expected, continue normal execution, or create a duplicate log entry. When an exception must cross a callback boundary, preserve its traceback with `throw;` or [`ExceptionDispatchInfo`](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.exceptionservices.exceptiondispatchinfo).
 - `Program.Main` may consume an `OperationCanceledException` as normal process cancellation only if the entry point owns the matching process-lifetime token. Otherwise an escaped cancellation exception is handled by the unexpected-exception boundary.
 - User-facing unexpected-error output must not expose stack traces, exception messages, paths, or other internal details. Complete diagnostic detail belongs only in the single boundary log entry.
@@ -79,7 +78,6 @@ The exception policy follows the [.NET best practices for exceptions](https://le
 - Every asynchronous operation that can fail must return a `Task` or `Task<T>` and must be awaited or otherwise explicitly observed by the component that owns its lifetime. Exceptions from asynchronous methods are stored in their tasks and propagate when those tasks are awaited. See [asynchronous exception handling](https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/#handle-asynchronous-exceptions).
 - Fire-and-forget tasks that can fault are prohibited. Keeping a task in a field is sufficient only when the owning lifecycle reliably awaits it and propagates its failure. Waiting only for eventual disposal is insufficient when an unexpected failure is required to terminate the currently running application; the failure must be connected promptly to that lifecycle.
 - `async void` is permitted only for genuine event handlers. The handler must contain minimal adapter code and await a `Task`-returning operation that holds the testable workflow. A caller cannot await an `async void` method or catch exceptions from it directly; those exceptions are raised through the current `SynchronizationContext`. See the guidance for [async return types](https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/async-return-types#void-return-type).
-- For the pinned Terminal.Gui `2.4.18-develop.53` version, `MainLoopSyncContext` posts asynchronous continuations back through the application loop, and `IApplication.RunAsync` with no error handler rethrows an unhandled loop exception through its returned task. The session must await that task, and no error handler may resume the loop after an unexpected exception. See the package's pinned commit sources for [`MainLoopSyncContext`](https://github.com/tui-cs/Terminal.Gui/blob/48efa0c5c005763de035f2ee4afed28b7df98db3/Terminal.Gui/App/MainLoop/MainLoopSyncContext.cs) and [`ApplicationImpl.RunAsync`](https://github.com/tui-cs/Terminal.Gui/blob/48efa0c5c005763de035f2ee4afed28b7df98db3/Terminal.Gui/App/ApplicationImpl.Run.cs).
 - Every callback-to-task bridge must complete for success, cancellation, and failure. Transferring an unexpected exception into an awaited `TaskCompletionSource` is propagation, not handling; the receiving lifecycle must still terminate and pass it to `Program.Main`.
 - An unexpected exception from background work must be connected to the awaited application lifecycle and ultimately reach `Program.Main`. Catching and swallowing it merely to keep the UI or command running violates this policy.
 

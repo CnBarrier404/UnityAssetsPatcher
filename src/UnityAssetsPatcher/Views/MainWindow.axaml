@@ -1,12 +1,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:UnityAssetsPatcher.GUI.ViewModels"
-        xmlns:pages="using:UnityAssetsPatcher.GUI.ViewModels.Pages"
-        xmlns:views="using:UnityAssetsPatcher.GUI.Views"
+        xmlns:vm="using:UnityAssetsPatcher.ViewModels"
+        xmlns:pages="using:UnityAssetsPatcher.ViewModels.Pages"
+        xmlns:views="using:UnityAssetsPatcher.Views"
         xmlns:application="using:UnityAssetsPatcher.Application"
         xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
-        xmlns:res="using:UnityAssetsPatcher.GUI.Localization"
-        x:Class="UnityAssetsPatcher.GUI.Views.MainWindow"
+        xmlns:res="using:UnityAssetsPatcher.Localization"
+        x:Class="UnityAssetsPatcher.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
         Icon="/Assets/icon.ico"
@@ -33,7 +33,7 @@
     </Window.Resources>
 
     <Window.Styles>
-        <StyleInclude Source="avares://UnityAssetsPatcher.GUI/Styles/NavigationView_ThemeResources.axaml" />
+        <StyleInclude Source="avares://UnityAssetsPatcher/Styles/NavigationView_ThemeResources.axaml" />
     </Window.Styles>
 
     <Window.DataTemplates>

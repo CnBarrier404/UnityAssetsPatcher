@@ -1,11 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
-             xmlns:res="using:UnityAssetsPatcher.GUI.Localization"
-             x:Class="UnityAssetsPatcher.GUI.Views.AboutPage">
+             xmlns:res="using:UnityAssetsPatcher.Localization"
+             x:Class="UnityAssetsPatcher.Views.ManageModsPage">
     <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
         <TextBlock Classes="pageTitle"
                    AutomationProperties.HeadingLevel="1"
-                   Text="{l:Localize {x:Static res:StringsKeys.Navigation_About}}" />
+                   Text="{l:Localize {x:Static res:StringsKeys.Navigation_ManageMods}}" />
     </StackPanel>
 </UserControl>

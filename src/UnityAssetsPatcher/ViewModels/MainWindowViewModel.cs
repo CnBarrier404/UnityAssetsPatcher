@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
-using UnityAssetsPatcher.GUI.Localization;
-using UnityAssetsPatcher.GUI.ViewModels.Pages;
+using UnityAssetsPatcher.Localization;
+using UnityAssetsPatcher.ViewModels.Pages;
 
-namespace UnityAssetsPatcher.GUI.ViewModels;
+namespace UnityAssetsPatcher.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase
 {
@@ -14,8 +14,10 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private NavigationViewItemViewModel _selectedItem;
 
-    public MainWindowViewModel(IServiceScopeFactory? scopeFactory = null)
+    public MainWindowViewModel(IServiceScopeFactory scopeFactory)
     {
+        ArgumentNullException.ThrowIfNull(scopeFactory);
+
         MenuItems =
         [
             new NavigationViewItemViewModel(

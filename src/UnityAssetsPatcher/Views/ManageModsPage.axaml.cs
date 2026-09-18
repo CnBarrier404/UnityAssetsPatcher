@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace UnityAssetsPatcher.GUI.Views;
+namespace UnityAssetsPatcher.Views;
 
 public partial class ManageModsPage : UserControl
 {
