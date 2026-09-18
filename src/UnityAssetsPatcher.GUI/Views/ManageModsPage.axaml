@@ -3,7 +3,7 @@
              xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
              xmlns:res="using:UnityAssetsPatcher.GUI.Localization"
              x:Class="UnityAssetsPatcher.GUI.Views.ManageModsPage">
-    <StackPanel Spacing="6">
+    <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
         <TextBlock Classes="pageTitle"
                    AutomationProperties.HeadingLevel="1"
                    Text="{l:Localize {x:Static res:StringsKeys.Navigation_ManageMods}}" />

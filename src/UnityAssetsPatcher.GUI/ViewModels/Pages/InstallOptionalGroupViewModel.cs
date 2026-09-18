@@ -1,5 +1,3 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-
 namespace UnityAssetsPatcher.GUI.ViewModels.Pages;
 
 public sealed class InstallOptionalGroupViewModel : ViewModelBase

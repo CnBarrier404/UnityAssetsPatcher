@@ -2,38 +2,63 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Style Selector="TextBlock.caption">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="{DynamicResource ColorTextPrimary}" />
+        <Setter Property="LineHeight" Value="16" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
     </Style>
 
     <Style Selector="TextBlock.body">
         <Setter Property="FontSize" Value="14" />
-        <Setter Property="Foreground" Value="{DynamicResource ColorTextPrimary}" />
+        <Setter Property="LineHeight" Value="20" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
     </Style>
 
     <Style Selector="TextBlock.bodyStrong">
+        <Setter Property="FontFamily" Value="{DynamicResource StrongTextFontFamily}" />
         <Setter Property="FontSize" Value="14" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{DynamicResource ColorTextPrimary}" />
+        <Setter Property="LineHeight" Value="20" />
+        <Setter Property="FontWeight" Value="{StaticResource StrongTextFontWeight}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
     </Style>
 
     <Style Selector="TextBlock.bodyLarge">
         <Setter Property="FontSize" Value="18" />
-        <Setter Property="Foreground" Value="{DynamicResource ColorTextPrimary}" />
+        <Setter Property="LineHeight" Value="24" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.brandTitle">
+        <Setter Property="FontFamily" Value="{DynamicResource StrongTextFontFamily}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="LineHeight" Value="24" />
+        <Setter Property="FontWeight" Value="{StaticResource StrongTextFontWeight}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
     </Style>
 
     <Style Selector="TextBlock.subtitle">
+        <Setter Property="FontFamily" Value="{DynamicResource StrongTextFontFamily}" />
         <Setter Property="FontSize" Value="20" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{DynamicResource ColorTextPrimary}" />
+        <Setter Property="LineHeight" Value="28" />
+        <Setter Property="FontWeight" Value="{StaticResource StrongTextFontWeight}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
     </Style>
 
     <Style Selector="TextBlock.pageTitle">
+        <Setter Property="FontFamily" Value="{DynamicResource StrongTextFontFamily}" />
         <Setter Property="FontSize" Value="28" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{DynamicResource ColorTextPrimary}" />
+        <Setter Property="LineHeight" Value="36" />
+        <Setter Property="FontWeight" Value="{StaticResource StrongTextFontWeight}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlPageTextBaseHighBrush}" />
     </Style>
 
     <Style Selector="TextBlock.secondary">
-        <Setter Property="Foreground" Value="{DynamicResource ColorTextSecondary}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDescriptionTextForegroundBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.brand">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.danger">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
     </Style>
 </Styles>

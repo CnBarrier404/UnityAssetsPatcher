@@ -2,18 +2,18 @@ using RentADeveloper.ResXLocalization;
 
 namespace UnityAssetsPatcher.GUI.ViewModels;
 
-public sealed class NavigationItemViewModel : ViewModelBase
+public sealed class NavigationViewItemViewModel : ViewModelBase
 {
     public string Title => Localizer.Current.Get(_titleKey);
     public ViewModelBase Page { get; }
-    public bool IsPinned { get; }
+    public bool IsFooterItem { get; }
 
     private readonly ResourceKey _titleKey;
 
-    public NavigationItemViewModel(ResourceKey titleKey, ViewModelBase page, bool isPinned = false)
+    public NavigationViewItemViewModel(ResourceKey titleKey, ViewModelBase page, bool isFooterItem = false)
     {
         _titleKey = titleKey;
         Page = page;
-        IsPinned = isPinned;
+        IsFooterItem = isFooterItem;
     }
 }
