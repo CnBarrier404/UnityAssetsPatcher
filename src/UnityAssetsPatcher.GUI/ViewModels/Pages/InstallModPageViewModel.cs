@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using RentADeveloper.ResXLocalization;
 using UnityAssetsPatcher.Application.Features.Install;
 using UnityAssetsPatcher.Application.Messaging;
-using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.GUI.Localization;
 
@@ -11,14 +10,6 @@ namespace UnityAssetsPatcher.GUI.ViewModels.Pages;
 
 public sealed class InstallModPageViewModel : ViewModelBase
 {
-    private readonly IServiceScopeFactory? _scopeFactory;
-    private CancellationTokenSource? _operationCancellation;
-    private InstallPreviewResult? _preview;
-    private string? _packagePath;
-    private string? _requestedGameDirectory;
-    private bool _isBusy;
-    private string? _errorMessage;
-
     public ObservableCollection<InstallOptionalGroupViewModel> OptionalGroups { get; } = [];
 
     public bool IsDropZoneVisible => _preview is null;
@@ -55,19 +46,13 @@ public sealed class InstallModPageViewModel : ViewModelBase
             : _preview.TargetGameName!;
 
     public string TargetGameDirectory => _preview?.TargetGameDirectory ?? string.Empty;
-    public string? ErrorMessage
-    {
-        get => _errorMessage;
-        private set
-        {
-            if (SetProperty(ref _errorMessage, value))
-            {
-                OnPropertyChanged(nameof(HasError));
-            }
-        }
-    }
 
-    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+    private readonly IServiceScopeFactory? _scopeFactory;
+    private CancellationTokenSource? _operationCancellation;
+    private InstallPreviewResult? _preview;
+    private string? _packagePath;
+    private string? _requestedGameDirectory;
+    private bool _isBusy;
 
     public InstallModPageViewModel(IServiceScopeFactory? scopeFactory = null)
     {
@@ -80,7 +65,6 @@ public sealed class InstallModPageViewModel : ViewModelBase
 
         if (!string.Equals(Path.GetExtension(packagePath), ".zip", StringComparison.OrdinalIgnoreCase))
         {
-            SetError(StringsKeys.InstallPage_ErrorInvalidFile);
             return Task.CompletedTask;
         }
 
@@ -95,11 +79,6 @@ public sealed class InstallModPageViewModel : ViewModelBase
             null,
             [],
             true);
-    }
-
-    public void ReportInvalidPackageSelection()
-    {
-        SetError(StringsKeys.InstallPage_ErrorInvalidFile);
     }
 
     public Task SelectGameDirectoryAsync(string gameDirectory)
@@ -144,7 +123,6 @@ public sealed class InstallModPageViewModel : ViewModelBase
         OnPropertyChanged(nameof(PackageFileName));
         OnPropertyChanged(nameof(HasOptionalGroups));
         IsBusy = false;
-        ErrorMessage = null;
     }
 
     private async Task PreviewPackageAsync(
@@ -155,7 +133,6 @@ public sealed class InstallModPageViewModel : ViewModelBase
     {
         if (_scopeFactory is null)
         {
-            SetError(StringsKeys.InstallPage_ErrorNoService);
             return;
         }
 
@@ -181,13 +158,12 @@ public sealed class InstallModPageViewModel : ViewModelBase
                 case OperationSucceeded<InstallPreviewResult> succeeded:
                     ApplyPreview(succeeded.Value, gameDirectory, selectedOptionalGroups);
                     break;
-                case OperationFailed<InstallPreviewResult> failed:
+                case OperationFailed<InstallPreviewResult>:
                     if (clearPreviewOnFailure)
                     {
                         SetPreview(null);
                     }
 
-                    SetError(LocalizeError(failed.Error));
                     break;
                 default:
                     throw new InvalidOperationException("The install preview returned an unknown result.");
@@ -219,7 +195,6 @@ public sealed class InstallModPageViewModel : ViewModelBase
         var operation = new CancellationTokenSource();
         _operationCancellation = operation;
         IsBusy = true;
-        ErrorMessage = null;
 
         return operation;
     }
@@ -292,42 +267,5 @@ public sealed class InstallModPageViewModel : ViewModelBase
             .Where(group => group.IsSelected)
             .Select(group => group.Name)
             .ToArray();
-    }
-
-    private void SetError(ResourceKey key)
-    {
-        ErrorMessage = Localizer.Current.Get(key);
-    }
-
-    private void SetError(string message)
-    {
-        ErrorMessage = message;
-    }
-
-    private static string LocalizeError(OperationError error)
-    {
-        ResourceKey key = error.Code.Value switch
-        {
-            "mod_package.invalid_archive" => StringsKeys.InstallPage_ErrorInvalidArchive,
-            "mod_package.missing_manifest" => StringsKeys.InstallPage_ErrorMissingManifest,
-            "mod_package.multiple_manifests" => StringsKeys.InstallPage_ErrorMultipleManifests,
-            "mod_package.unsafe_entry_path" => StringsKeys.InstallPage_ErrorUnsafeEntry,
-            "mod_package.duplicate_entry" => StringsKeys.InstallPage_ErrorDuplicateEntry,
-            "mod_package.package_too_large" => StringsKeys.InstallPage_ErrorPackageTooLarge,
-            "mod_package.manifest_too_large" => StringsKeys.InstallPage_ErrorManifestTooLarge,
-            "mod_package.missing_entry" => StringsKeys.InstallPage_ErrorMissingEntry,
-            "file.not_found" => StringsKeys.InstallPage_ErrorFileNotFound,
-            "file.access_denied" => StringsKeys.InstallPage_ErrorAccessDenied,
-            "file.read_failed" or "file.system_failure" => StringsKeys.InstallPage_ErrorFileFailure,
-            "game_directory.required" or "game_directory.not_found" => StringsKeys.InstallPage_ErrorGameDirectory,
-            "patch.planning_failed" => StringsKeys.InstallPage_ErrorPatchPlanning,
-            "operation.already_running" => StringsKeys.InstallPage_ErrorOperationRunning,
-            "backup.recovery_required" => StringsKeys.InstallPage_ErrorRecoveryRequired,
-            "install.preview_stale" or "install.file_integrity_mismatch" =>
-                StringsKeys.InstallPage_ErrorPreviewStale,
-            _ => StringsKeys.InstallPage_ErrorGeneric
-        };
-
-        return Localizer.Current.Get(key);
     }
 }
