@@ -3,9 +3,8 @@
              x:Class="UnityAssetsPatcher.App"
              RequestedThemeVariant="Default">
     <Application.Resources>
-        <FontFamily x:Key="ContentControlThemeFontFamily">avares://UnityAssetsPatcher/Assets/Fonts/MiSans-Normal.otf#MiSans</FontFamily>
-        <FontFamily x:Key="StrongTextFontFamily">avares://UnityAssetsPatcher/Assets/Fonts/MiSans-Normal.otf#MiSans</FontFamily>
-        <FontWeight x:Key="StrongTextFontWeight">305</FontWeight>
+        <FontFamily x:Key="ContentControlThemeFontFamily">avares://UnityAssetsPatcher/Assets/Fonts/MiSans-Regular.otf#MiSans</FontFamily>
+        <FontFamily x:Key="MediumTextFontFamily">avares://UnityAssetsPatcher/Assets/Fonts/MiSans-Medium.otf#MiSans</FontFamily>
     </Application.Resources>
     <Application.Styles>
         <FluentTheme />
