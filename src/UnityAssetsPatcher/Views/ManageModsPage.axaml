@@ -2,10 +2,92 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
              xmlns:res="using:UnityAssetsPatcher.Localization"
-             x:Class="UnityAssetsPatcher.Views.ManageModsPage">
-    <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
-        <TextBlock Classes="pageTitle"
-                   AutomationProperties.HeadingLevel="1"
-                   Text="{l:Localize {x:Static res:StringsKeys.Navigation_ManageMods}}" />
+             xmlns:pages="using:UnityAssetsPatcher.ViewModels.Pages"
+             x:Class="UnityAssetsPatcher.Views.ManageModsPage"
+             x:DataType="pages:ManageModsPageViewModel"
+             Loaded="OnLoaded">
+    <StackPanel Spacing="{StaticResource PageSectionSpacing}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource ActionColumnSpacing}">
+            <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
+                <TextBlock Classes="pageTitle"
+                           AutomationProperties.HeadingLevel="1"
+                           Text="{l:Localize {x:Static res:StringsKeys.Navigation_ManageMods}}" />
+                <TextBlock Classes="body secondary" TextWrapping="Wrap"
+                           Text="{l:Localize {x:Static res:StringsKeys.ManageModsPage_Description}}" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    AutomationProperties.AutomationId="ManageModsRefreshButton"
+                    VerticalAlignment="Top"
+                    IsEnabled="{Binding IsNotBusy}"
+                    Click="OnRefreshClick"
+                    Content="{l:Localize {x:Static res:StringsKeys.ManageModsPage_RefreshButton}}" />
+        </Grid>
+
+        <StackPanel IsVisible="{Binding IsBusy}" Spacing="{StaticResource ControlGroupSpacing}">
+            <ProgressBar IsIndeterminate="{Binding IsBusy}"
+                         AutomationProperties.Name="{Binding BusyMessage}" />
+            <TextBlock Classes="body secondary" TextWrapping="Wrap"
+                       AutomationProperties.LiveSetting="Polite" Text="{Binding BusyMessage}" />
+        </StackPanel>
+
+        <Border Classes="card" IsVisible="{Binding HasLoadFailed}">
+            <StackPanel Spacing="{StaticResource ControlGroupSpacing}">
+                <TextBlock Classes="bodyStrong" TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Polite"
+                           Text="{l:Localize {x:Static res:StringsKeys.ManageModsPage_RefreshFailedTitle}}" />
+                <TextBlock Classes="body secondary" TextWrapping="Wrap"
+                           Text="{l:Localize {x:Static res:StringsKeys.ManageModsPage_RefreshFailedDescription}}" />
+            </StackPanel>
+        </Border>
+
+        <Border Classes="card" IsVisible="{Binding IsEmpty}">
+            <StackPanel Spacing="{StaticResource ControlGroupSpacing}">
+                <TextBlock Classes="bodyStrong"
+                           AutomationProperties.LiveSetting="Polite"
+                           Text="{l:Localize {x:Static res:StringsKeys.ManageModsPage_EmptyTitle}}" />
+                <TextBlock Classes="body secondary" TextWrapping="Wrap"
+                           Text="{l:Localize {x:Static res:StringsKeys.ManageModsPage_EmptyDescription}}" />
+            </StackPanel>
+        </Border>
+
+        <ItemsControl ItemsSource="{Binding Mods}" IsEnabled="{Binding IsNotBusy}"
+                      AutomationProperties.AutomationId="InstalledModsList">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="{StaticResource ControlGroupSpacing}" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="pages:InstalledModViewModel">
+                    <Border Classes="card">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource LabelValueSpacing}">
+                            <StackPanel Spacing="{StaticResource ControlGroupSpacing}">
+                                <Grid ColumnDefinitions="*,Auto"
+                                      HorizontalAlignment="Left"
+                                      ColumnSpacing="{StaticResource MetadataColumnSpacing}">
+                                    <TextBlock Classes="bodyStrong" Text="{Binding ModName}" TextWrapping="Wrap"
+                                               AutomationProperties.HeadingLevel="2" />
+                                    <Border Grid.Column="1" Classes="badge" VerticalAlignment="Top">
+                                        <TextBlock Classes="caption" Text="{Binding ModVersion}" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Classes="body secondary" Text="{Binding GameName}" TextWrapping="Wrap" />
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource LabelValueSpacing}">
+                                    <TextBlock Classes="caption secondary"
+                                               Text="{l:Localize {x:Static res:StringsKeys.ManageModsPage_InstalledAtLabel}}" />
+                                    <TextBlock Grid.Column="1" Classes="caption secondary"
+                                               Text="{Binding InstalledAt}" TextWrapping="Wrap" />
+                                </Grid>
+                            </StackPanel>
+                            <Button Grid.Column="1" Classes="subtle"
+                                    AutomationProperties.AutomationId="UninstallModButton"
+                                    AutomationProperties.HelpText="{Binding ModName}"
+                                    Click="OnUninstallClick"
+                                    Content="{l:Localize {x:Static res:StringsKeys.ManageModsPage_UninstallButton}}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </StackPanel>
 </UserControl>

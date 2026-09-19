@@ -32,7 +32,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             new NavigationViewItemViewModel(
                 StringsKeys.MainMenu_InstallMod_Title,
                 new InstallModPageViewModel(scopeFactory, notifications)),
-            new NavigationViewItemViewModel(StringsKeys.Navigation_ManageMods, new ManageModsPageViewModel()),
+            new NavigationViewItemViewModel(StringsKeys.Navigation_ManageMods,
+                new ManageModsPageViewModel(scopeFactory, notifications)),
             new NavigationViewItemViewModel(StringsKeys.MainMenu_Settings_Title,
                 new SettingsPageViewModel(runtimeConfig, loggingLevelSwitch))
         ];
