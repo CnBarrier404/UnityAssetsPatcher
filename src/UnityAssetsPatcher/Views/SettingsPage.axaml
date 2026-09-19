@@ -41,7 +41,7 @@
                         <Grid ColumnDefinitions="*,Auto"
                               RowDefinitions="Auto,Auto"
                               ColumnSpacing="{StaticResource ActionColumnSpacing}"
-                              RowSpacing="{StaticResource TightContentSpacing}">
+                              RowSpacing="{StaticResource ControlGroupSpacing}">
                             <TextBlock Classes="body"
                                        Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_LogPathLabel}}" />
                             <TextBox Grid.Row="1" Grid.Column="0"

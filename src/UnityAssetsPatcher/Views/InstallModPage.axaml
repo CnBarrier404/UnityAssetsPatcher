@@ -84,7 +84,7 @@
 
         <Grid IsVisible="{Binding IsPreviewVisible}"
               RowDefinitions="Auto,Auto,Auto"
-              RowSpacing="{StaticResource ContentGroupSpacing}">
+              RowSpacing="{StaticResource PageSectionSpacing}">
             <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
                 <TextBlock Classes="pageTitle"
                            AutomationProperties.HeadingLevel="1"
@@ -99,66 +99,64 @@
                     <TextBlock Classes="bodyStrong"
                                AutomationProperties.HeadingLevel="2"
                                Text="{l:Localize {x:Static res:StringsKeys.InstallPage_ModInfoLabel}}" />
-                    <Grid RowDefinitions="Auto,Auto,Auto"
-                          RowSpacing="{StaticResource TightContentSpacing}"
-                          ColumnDefinitions="*,Auto"
-                          ColumnSpacing="{StaticResource MetadataColumnSpacing}">
-                        <TextBlock Classes="subtitle"
-                                   Text="{Binding ModName}"
-                                   TextWrapping="Wrap" />
-                        <Border Grid.Row="0" Grid.Column="1"
-                                Classes="badge"
-                                VerticalAlignment="Center">
-                            <TextBlock Classes="caption"
-                                       Text="{Binding ModVersion}" />
-                        </Border>
-                        <Grid Grid.Row="1"
-                              Grid.ColumnSpan="2" Grid.Column="0"
-                              ColumnDefinitions="Auto,*"
+                    <StackPanel Spacing="{StaticResource ControlGroupSpacing}">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="{StaticResource MetadataColumnSpacing}">
+                            <TextBlock Classes="subtitle"
+                                       Text="{Binding ModName}"
+                                       TextWrapping="Wrap" />
+                            <Border Grid.Column="1"
+                                    Classes="badge"
+                                    VerticalAlignment="Top"
+                                    Margin="0,4,0,0">
+                                <TextBlock Classes="caption"
+                                           Text="{Binding ModVersion}" />
+                            </Border>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*"
                               ColumnSpacing="{StaticResource LabelValueSpacing}">
                             <TextBlock Classes="body secondary"
                                        Text="{l:Localize {x:Static res:StringsKeys.InstallPage_AuthorLabel}}" />
                             <TextBlock Grid.Column="1"
-                                       Classes="body"
+                                       Classes="body secondary"
                                        Text="{Binding ModAuthor}"
                                        TextWrapping="Wrap" />
                         </Grid>
-                        <TextBlock Grid.Row="2"
-                                   Grid.ColumnSpan="2" Grid.Column="0"
-                                   Classes="body secondary"
+                        <TextBlock Classes="body secondary"
                                    IsVisible="{Binding HasModDescription}"
                                    Text="{Binding ModDescription}"
                                    TextWrapping="Wrap" />
-                    </Grid>
-
-                    <TextBlock Classes="body secondary"
-                               Text="{Binding PackageFileName}"
-                               TextWrapping="Wrap" />
+                        <TextBlock Classes="caption secondary"
+                                   Text="{Binding PackageFileName}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
 
                     <Border Classes="divider" />
 
-                    <TextBlock Classes="bodyStrong"
-                               AutomationProperties.HeadingLevel="2"
-                               Text="{l:Localize {x:Static res:StringsKeys.InstallPage_TargetGameLabel}}" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource ActionColumnSpacing}">
-                        <StackPanel
-                            Spacing="{StaticResource TightContentSpacing}"
-                            VerticalAlignment="Center">
-                            <TextBlock Classes="body"
-                                       Text="{Binding TargetGameName}"
-                                       TextWrapping="Wrap" />
-                            <TextBlock Classes="body secondary"
-                                       Text="{Binding TargetGameDirectory}"
-                                       TextWrapping="Wrap" />
-                        </StackPanel>
-                        <Button Grid.Column="1"
-                                AutomationProperties.AutomationId="InstallModChangeGameDirectoryButton"
-                                Classes="subtle"
-                                Click="OnChangeGameDirectoryClick"
-                                Content="{l:Localize {x:Static res:StringsKeys.InstallPage_ChangeButton}}"
-                                IsEnabled="{Binding IsNotBusy}"
-                                VerticalAlignment="Center" />
-                    </Grid>
+                    <StackPanel Spacing="{StaticResource ControlGroupSpacing}">
+                        <TextBlock Classes="bodyStrong"
+                                   AutomationProperties.HeadingLevel="2"
+                                   Text="{l:Localize {x:Static res:StringsKeys.InstallPage_TargetGameLabel}}" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource ActionColumnSpacing}">
+                            <StackPanel
+                                Spacing="{StaticResource TightContentSpacing}"
+                                VerticalAlignment="Center">
+                                <TextBlock Classes="body"
+                                           Text="{Binding TargetGameName}"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Classes="body secondary"
+                                           Text="{Binding TargetGameDirectory}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    AutomationProperties.AutomationId="InstallModChangeGameDirectoryButton"
+                                    Classes="subtle"
+                                    Click="OnChangeGameDirectoryClick"
+                                    Content="{l:Localize {x:Static res:StringsKeys.InstallPage_ChangeButton}}"
+                                    IsEnabled="{Binding IsNotBusy}"
+                                    VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
 
                     <StackPanel IsVisible="{Binding HasOptionalGroups}" Spacing="{StaticResource ContentGroupSpacing}">
                         <Border Classes="divider" />
@@ -178,7 +176,7 @@
                                                     <TextBlock Classes="body"
                                                                Text="{Binding Name}"
                                                                TextWrapping="Wrap" />
-                                                    <TextBlock Classes="body secondary"
+                                                    <TextBlock Classes="caption secondary"
                                                                IsVisible="{Binding HasDescription}"
                                                                Text="{Binding Description}"
                                                                TextWrapping="Wrap" />
@@ -193,14 +191,12 @@
                 </StackPanel>
             </Border>
 
-            <Grid Grid.Row="2" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource ContentGroupSpacing}">
-                <StackPanel Spacing="{StaticResource ControlGroupSpacing}">
-                    <TextBlock Classes="body secondary"
-                               AutomationProperties.LiveSetting="Polite"
-                               IsVisible="{Binding IsBusy}"
-                               Text="{l:Localize {x:Static res:StringsKeys.InstallPage_Loading}}" />
-                </StackPanel>
-                <StackPanel Grid.Row="1"
+            <StackPanel Grid.Row="2" Spacing="{StaticResource ContentGroupSpacing}">
+                <TextBlock Classes="body secondary"
+                           AutomationProperties.LiveSetting="Polite"
+                           IsVisible="{Binding IsBusy}"
+                           Text="{l:Localize {x:Static res:StringsKeys.InstallPage_Loading}}" />
+                <StackPanel
                             HorizontalAlignment="Right"
                             Orientation="Horizontal"
                             Spacing="{StaticResource ControlGroupSpacing}">
@@ -212,7 +208,7 @@
                             Classes="accent"
                             Content="{l:Localize {x:Static res:StringsKeys.InstallPage_StartInstallButton}}" />
                 </StackPanel>
-            </Grid>
+            </StackPanel>
         </Grid>
     </Grid>
 </UserControl>
