@@ -36,9 +36,6 @@
             <DesignTime>true</DesignTime>
             <DependentUpon>Strings.resx</DependentUpon>
         </Compile>
-        <Compile Update="Views\AboutPage.axaml.cs">
-            <DependentUpon>AboutPage.axaml</DependentUpon>
-        </Compile>
         <Compile Update="Views\NotificationView.axaml.cs">
             <DependentUpon>NotificationView.axaml</DependentUpon>
         </Compile>
