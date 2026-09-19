@@ -3,7 +3,6 @@
     <Styles.Resources>
         <ResourceDictionary>
             <Thickness x:Key="PageContentPadding">32,24</Thickness>
-            <Thickness x:Key="CardPadding">16</Thickness>
             <Thickness x:Key="ListItemPadding">8,4</Thickness>
             <Thickness x:Key="CheckBoxContentMargin">8,0,0,0</Thickness>
             <Thickness x:Key="BadgePadding">7,2</Thickness>
@@ -40,13 +39,6 @@
     <Style Selector="ToggleSwitch">
         <Setter Property="OffContent" Value="" />
         <Setter Property="OnContent" Value="" />
-    </Style>
-    <Style Selector="Border.card">
-        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransientBorderBrush}" />
-        <Setter Property="BorderThickness" Value="{StaticResource BorderThicknessThin}" />
-        <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
-        <Setter Property="Padding" Value="{StaticResource CardPadding}" />
     </Style>
     <Style Selector="Border.badge">
         <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListMediumBrush}" />

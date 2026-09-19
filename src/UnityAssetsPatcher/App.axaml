@@ -11,6 +11,7 @@
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/DesignTokens.axaml" />
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Typography.axaml" />
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Button_ThemeResources.axaml" />
+        <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Card_ThemeResources.axaml" />
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Components.axaml" />
     </Application.Styles>
 </Application>
