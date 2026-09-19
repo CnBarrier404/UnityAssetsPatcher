@@ -1,0 +1,25 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <Thickness x:Key="CardPadding">16</Thickness>
+            <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransientBorderBrush}" />
+        <Setter Property="BorderThickness" Value="{StaticResource BorderThicknessThin}" />
+        <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+        <Setter Property="Padding" Value="{StaticResource CardPadding}" />
+    </Style>
+
+    <Style Selector="Border.card.grouped">
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="Border.card.grouped > StackPanel > Border.cardRow">
+        <Setter Property="Padding" Value="{StaticResource CardPadding}" />
+    </Style>
+</Styles>
