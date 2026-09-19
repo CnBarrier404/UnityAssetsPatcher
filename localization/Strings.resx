@@ -108,4 +108,19 @@
     <data name="Notification_Close" xml:space="preserve">
     <value>Close notification</value>
   </data>
+    <data name="SettingsPage_LoggingSectionTitle" xml:space="preserve">
+    <value>Logging</value>
+  </data>
+    <data name="SettingsPage_VerboseLogging" xml:space="preserve">
+    <value>Verbose logging</value>
+  </data>
+    <data name="SettingsPage_VerboseLoggingDescription" xml:space="preserve">
+    <value>Enable verbose logging; recommended only when assisting developers with debugging</value>
+  </data>
+    <data name="SettingsPage_LogPathLabel" xml:space="preserve">
+    <value>Log path</value>
+  </data>
+    <data name="SettingsPage_OpenLogDirectoryButton" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
 </root>
