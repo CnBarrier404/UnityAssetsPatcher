@@ -132,6 +132,75 @@
     <data name="InstallPage_InstallFailedRecovery" xml:space="preserve">
     <value>游戏文件需要恢复，请先从备份恢复文件，再尝试安装</value>
   </data>
+    <data name="ManageModsPage_Description" xml:space="preserve">
+    <value>查看已安装的 Mod，卸载不再需要的内容。</value>
+  </data>
+    <data name="ManageModsPage_RefreshButton" xml:space="preserve">
+    <value>刷新</value>
+  </data>
+    <data name="ManageModsPage_UninstallButton" xml:space="preserve">
+    <value>卸载</value>
+  </data>
+    <data name="ManageModsPage_InstalledAtLabel" xml:space="preserve">
+    <value>安装时间</value>
+  </data>
+    <data name="ManageModsPage_Loading" xml:space="preserve">
+    <value>正在读取已安装的 Mod…</value>
+  </data>
+    <data name="ManageModsPage_CheckingUninstall" xml:space="preserve">
+    <value>正在检查是否可以卸载此 Mod…</value>
+  </data>
+    <data name="ManageModsPage_Uninstalling" xml:space="preserve">
+    <value>正在卸载 Mod，请保持应用程序开启</value>
+  </data>
+    <data name="ManageModsPage_EmptyTitle" xml:space="preserve">
+    <value>暂无已安装的 Mod</value>
+  </data>
+    <data name="ManageModsPage_EmptyDescription" xml:space="preserve">
+    <value>通过本应用安装的 Mod 将显示在这里。</value>
+  </data>
+    <data name="ManageModsPage_RefreshFailedTitle" xml:space="preserve">
+    <value>无法刷新已安装的 Mod</value>
+  </data>
+    <data name="ManageModsPage_RefreshFailedDescription" xml:space="preserve">
+    <value>未能更新列表，请解决问题后点击“刷新”重试。</value>
+  </data>
+    <data name="ManageModsPage_UninstallFailedTitle" xml:space="preserve">
+    <value>无法卸载 Mod</value>
+  </data>
+    <data name="ManageModsPage_UninstallSucceededTitle" xml:space="preserve">
+    <value>Mod 已卸载</value>
+  </data>
+    <data name="ManageModsPage_DependencyFailure" xml:space="preserve">
+    <value>卸载此 Mod 会导致以下 Mod 无法正常工作，请先卸载依赖它的 Mod：</value>
+  </data>
+    <data name="ManageModsPage_FilesChanged" xml:space="preserve">
+    <value>游戏文件已被修改、缺失或无法读取，请恢复文件并检查访问权限后重试</value>
+  </data>
+    <data name="ManageModsPage_OperationLocked" xml:space="preserve">
+    <value>其他操作正在使用 Mod 仓库，请等待操作完成后重试</value>
+  </data>
+    <data name="ManageModsPage_RecoveryRequired" xml:space="preserve">
+    <value>中断的操作需要恢复，请先从备份恢复游戏文件，再重试</value>
+  </data>
+    <data name="ManageModsPage_UnsupportedRepository" xml:space="preserve">
+    <value>Mod 仓库使用了不支持的格式，请使用兼容的应用版本</value>
+  </data>
+    <data name="ManageModsPage_RecordMissing" xml:space="preserve">
+    <value>此 Mod 的安装记录已不存在，请点击“刷新”更新列表</value>
+  </data>
+    <data name="ManageModsPage_IntegrityFailure" xml:space="preserve">
+    <value>游戏文件或保存的 Mod 数据与安装记录不一致，或其他 Mod 依赖此 Mod，请检查文件和 Mod 依赖关系后重试</value>
+  </data>
+    <data name="ManageModsPage_AccessDenied" xml:space="preserve">
+    <value>没有权限访问游戏文件或 Mod 仓库，请检查文件访问权限后重试</value>
+  </data>
+    <data name="ManageModsPage_GameDirectoryMissing" xml:space="preserve">
+    <value>找不到游戏目录，请将其恢复到原来的位置后重试</value>
+  </data>
+    <data name="ManageModsPage_OperationFailed" xml:space="preserve">
+    <value>无法完成操作，请检查游戏文件及 Mod 仓库后重试</value>
+  </data>
     <data name="Notification_Close" xml:space="preserve">
     <value>关闭通知</value>
   </data>
