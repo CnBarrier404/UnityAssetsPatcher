@@ -194,21 +194,94 @@
             <StackPanel Grid.Row="2" Spacing="{StaticResource ContentGroupSpacing}">
                 <TextBlock Classes="body secondary"
                            AutomationProperties.LiveSetting="Polite"
-                           IsVisible="{Binding IsBusy}"
+                           IsVisible="{Binding IsPreviewBusy}"
                            Text="{l:Localize {x:Static res:StringsKeys.InstallPage_Loading}}" />
+                <StackPanel IsVisible="{Binding IsInstalling}" Spacing="{StaticResource ControlGroupSpacing}">
+                    <ProgressBar IsIndeterminate="{Binding IsInstalling}"
+                                 AutomationProperties.Name="{l:Localize {x:Static res:StringsKeys.InstallPage_Installing}}" />
+                    <TextBlock Classes="body secondary"
+                               AutomationProperties.LiveSetting="Polite"
+                               TextWrapping="Wrap"
+                               Text="{l:Localize {x:Static res:StringsKeys.InstallPage_Installing}}" />
+                </StackPanel>
                 <StackPanel
-                            HorizontalAlignment="Right"
-                            Orientation="Horizontal"
-                            Spacing="{StaticResource ControlGroupSpacing}">
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal"
+                    Spacing="{StaticResource ControlGroupSpacing}">
                     <Button AutomationProperties.AutomationId="InstallModReselectButton"
                             Classes="subtle"
+                            IsEnabled="{Binding CanReselect}"
                             Click="OnReselectClick"
                             Content="{l:Localize {x:Static res:StringsKeys.InstallPage_ReselectButton}}" />
                     <Button AutomationProperties.AutomationId="InstallModStartButton"
                             Classes="accent"
+                            Click="OnStartInstallClick"
+                            IsEnabled="{Binding IsNotBusy}"
                             Content="{l:Localize {x:Static res:StringsKeys.InstallPage_StartInstallButton}}" />
                 </StackPanel>
             </StackPanel>
+        </Grid>
+
+        <Grid IsVisible="{Binding IsCompleteVisible}"
+              RowDefinitions="Auto,Auto,Auto"
+              RowSpacing="{StaticResource PageSectionSpacing}">
+            <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
+                <TextBlock Classes="pageTitle"
+                           AutomationProperties.HeadingLevel="1"
+                           AutomationProperties.LiveSetting="Polite"
+                           Text="{l:Localize {x:Static res:StringsKeys.InstallPage_CompleteTitle}}" />
+                <TextBlock Classes="body secondary"
+                           TextWrapping="Wrap"
+                           Text="{l:Localize {x:Static res:StringsKeys.InstallPage_CompleteDescription}}" />
+            </StackPanel>
+
+            <Border Grid.Row="1" Classes="card">
+                <StackPanel Spacing="{StaticResource ContentGroupSpacing}">
+                    <TextBlock Classes="bodyStrong"
+                               AutomationProperties.HeadingLevel="2"
+                               Text="{l:Localize {x:Static res:StringsKeys.InstallPage_ModInfoLabel}}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource MetadataColumnSpacing}">
+                        <TextBlock Classes="subtitle" Text="{Binding ModName}" TextWrapping="Wrap" />
+                        <Border Grid.Column="1" Classes="badge" VerticalAlignment="Top" Margin="0,4,0,0">
+                            <TextBlock Classes="caption" Text="{Binding ModVersion}" />
+                        </Border>
+                    </Grid>
+                    <Border Classes="divider" />
+                    <StackPanel Spacing="{StaticResource ControlGroupSpacing}">
+                        <TextBlock Classes="bodyStrong"
+                                   AutomationProperties.HeadingLevel="2"
+                                   Text="{l:Localize {x:Static res:StringsKeys.InstallPage_TargetGameLabel}}" />
+                        <StackPanel Spacing="{StaticResource TightContentSpacing}">
+                            <TextBlock Classes="body" Text="{Binding TargetGameName}" TextWrapping="Wrap" />
+                            <TextBlock Classes="body secondary" Text="{Binding TargetGameDirectory}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel IsVisible="{Binding HasInstalledOptionalGroups}"
+                                Spacing="{StaticResource ContentGroupSpacing}">
+                        <Border Classes="divider" />
+                        <TextBlock Classes="bodyStrong"
+                                   AutomationProperties.HeadingLevel="2"
+                                   Text="{l:Localize {x:Static res:StringsKeys.InstallPage_InstalledOptionalContentLabel}}" />
+                        <ItemsControl ItemsSource="{Binding InstalledOptionalGroups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Border Classes="listItem">
+                                        <TextBlock Classes="body" Text="{Binding}" TextWrapping="Wrap" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Button Grid.Row="2"
+                    AutomationProperties.AutomationId="InstallModContinueButton"
+                    Classes="accent"
+                    HorizontalAlignment="Right"
+                    Click="OnReselectClick"
+                    Content="{l:Localize {x:Static res:StringsKeys.InstallPage_ContinueButton}}" />
         </Grid>
     </Grid>
 </UserControl>

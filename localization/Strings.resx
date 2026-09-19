@@ -105,6 +105,33 @@
     <data name="InstallPage_PreviewFailedGeneric" xml:space="preserve">
     <value>Check the mod package and try again</value>
   </data>
+    <data name="InstallPage_Installing" xml:space="preserve">
+    <value>Installing the mod. Please keep the application open</value>
+  </data>
+    <data name="InstallPage_CompleteTitle" xml:space="preserve">
+    <value>Installation complete</value>
+  </data>
+    <data name="InstallPage_CompleteDescription" xml:space="preserve">
+    <value>The mod has been installed successfully. You can now start the game</value>
+  </data>
+    <data name="InstallPage_InstalledOptionalContentLabel" xml:space="preserve">
+    <value>Installed optional content</value>
+  </data>
+    <data name="InstallPage_ContinueButton" xml:space="preserve">
+    <value>Install another mod</value>
+  </data>
+    <data name="InstallPage_InstallFailedTitle" xml:space="preserve">
+    <value>Installation failed</value>
+  </data>
+    <data name="InstallPage_InstallFailedGeneric" xml:space="preserve">
+    <value>Check the mod package, game directory and file access permissions, then try again</value>
+  </data>
+    <data name="InstallPage_InstallFailedStale" xml:space="preserve">
+    <value>The mod package or game files have changed since the preview. Select the mod package again to refresh the preview</value>
+  </data>
+    <data name="InstallPage_InstallFailedRecovery" xml:space="preserve">
+    <value>The game files require recovery. Restore them from a backup before trying again</value>
+  </data>
     <data name="Notification_Close" xml:space="preserve">
     <value>Close notification</value>
   </data>

@@ -105,6 +105,33 @@
     <data name="InstallPage_PreviewFailedGeneric" xml:space="preserve">
     <value>请检查 Mod 包后重试</value>
   </data>
+    <data name="InstallPage_Installing" xml:space="preserve">
+    <value>正在安装 Mod，请保持应用程序开启</value>
+  </data>
+    <data name="InstallPage_CompleteTitle" xml:space="preserve">
+    <value>安装完成</value>
+  </data>
+    <data name="InstallPage_CompleteDescription" xml:space="preserve">
+    <value>Mod 已成功安装，现在可以启动游戏</value>
+  </data>
+    <data name="InstallPage_InstalledOptionalContentLabel" xml:space="preserve">
+    <value>已安装的可选内容</value>
+  </data>
+    <data name="InstallPage_ContinueButton" xml:space="preserve">
+    <value>继续安装</value>
+  </data>
+    <data name="InstallPage_InstallFailedTitle" xml:space="preserve">
+    <value>安装失败</value>
+  </data>
+    <data name="InstallPage_InstallFailedGeneric" xml:space="preserve">
+    <value>请检查 Mod 包、游戏目录及文件的访问权限，然后重试</value>
+  </data>
+    <data name="InstallPage_InstallFailedStale" xml:space="preserve">
+    <value>Mod 包或游戏文件在预览后发生了变化，请重新选择模组包以刷新预览</value>
+  </data>
+    <data name="InstallPage_InstallFailedRecovery" xml:space="preserve">
+    <value>游戏文件需要恢复，请先从备份恢复文件，再尝试安装</value>
+  </data>
     <data name="Notification_Close" xml:space="preserve">
     <value>关闭通知</value>
   </data>

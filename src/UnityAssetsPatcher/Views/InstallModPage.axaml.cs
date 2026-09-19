@@ -120,6 +120,15 @@ public partial class InstallModPage : UserControl
         (DataContext as InstallModPageViewModel)?.ResetSelection();
     }
 
+    private async void OnStartInstallClick(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (DataContext is InstallModPageViewModel viewModel)
+        {
+            await viewModel.InstallAsync();
+        }
+    }
+
     private void SetDropZoneState(bool isDragOver)
     {
         DropZone.Classes.Set("drag-over", isDragOver);
