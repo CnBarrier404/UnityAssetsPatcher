@@ -67,9 +67,6 @@
     <Style Selector="Border.dropZone.drag-over">
         <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
     </Style>
-    <Style Selector="Border.dropZone.drag-invalid">
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
-    </Style>
     <Style Selector="Grid.dropZoneContent">
         <Setter Property="MinHeight" Value="{StaticResource DropZoneMinHeight}" />
     </Style>
@@ -79,19 +76,10 @@
     <Style Selector="TextBlock.dragPrompt">
         <Setter Property="IsVisible" Value="False" />
     </Style>
-    <Style Selector="TextBlock.invalidDragPrompt">
-        <Setter Property="IsVisible" Value="False" />
-    </Style>
     <Style Selector="Border.dropZone.drag-over StackPanel.dropDefaultContent">
         <Setter Property="IsVisible" Value="False" />
     </Style>
     <Style Selector="Border.dropZone.drag-over TextBlock.dragPrompt">
-        <Setter Property="IsVisible" Value="True" />
-    </Style>
-    <Style Selector="Border.dropZone.drag-invalid StackPanel.dropDefaultContent">
-        <Setter Property="IsVisible" Value="False" />
-    </Style>
-    <Style Selector="Border.dropZone.drag-invalid TextBlock.invalidDragPrompt">
         <Setter Property="IsVisible" Value="True" />
     </Style>
 
@@ -120,5 +108,58 @@
         <Setter Property="StrokeLineCap" Value="Round" />
         <Setter Property="StrokeThickness" Value="3" />
         <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.notification">
+        <Setter Property="Width" Value="340" />
+        <Setter Property="MaxWidth" Value="340" />
+        <Setter Property="Padding" Value="{StaticResource CardPadding}" />
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransientBorderBrush}" />
+        <Setter Property="BorderThickness" Value="{StaticResource BorderThicknessThin}" />
+        <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+    </Style>
+    <Style Selector="Border.notificationSignal">
+        <Setter Property="Background" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+        <Setter Property="CornerRadius" Value="2" />
+    </Style>
+    <Style Selector="Border.notification.success Border.notificationSignal">
+        <Setter Property="Background" Value="#0F7B0F" />
+    </Style>
+    <Style Selector="Border.notification.warning Border.notificationSignal">
+        <Setter Property="Background" Value="#C87900" />
+    </Style>
+    <Style Selector="Border.notification.error Border.notificationSignal">
+        <Setter Property="Background" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+    </Style>
+    <Style Selector="Button.notificationClose">
+        <Setter Property="MinWidth" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.notificationClose /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.notificationClose:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.notificationClose:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.notificationClose:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
     </Style>
 </Styles>

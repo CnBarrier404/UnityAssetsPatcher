@@ -60,13 +60,6 @@
                                TextAlignment="Center"
                                TextWrapping="Wrap"
                                Text="{l:Localize {x:Static res:StringsKeys.InstallPage_DragOverPrompt}}" />
-                    <TextBlock Classes="bodyLarge danger invalidDragPrompt"
-                               AutomationProperties.LiveSetting="Assertive"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               TextAlignment="Center"
-                               TextWrapping="Wrap"
-                               Text="{l:Localize {x:Static res:StringsKeys.InstallPage_InvalidDragPrompt}}" />
                     <StackPanel HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding IsBusy}"
