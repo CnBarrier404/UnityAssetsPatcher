@@ -6,6 +6,7 @@ using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
 using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
+using UnityAssetsPatcher.Application.Repository;
 using UnityAssetsPatcher.Localization;
 using UnityAssetsPatcher.Notifications;
 
@@ -15,8 +16,14 @@ public sealed class InstallModPageViewModel : ViewModelBase
 {
     public ObservableCollection<InstallOptionalGroupViewModel> OptionalGroups { get; } = [];
 
-    public bool IsDropZoneVisible => _preview is null;
-    public bool IsPreviewVisible => _preview is not null;
+    public bool IsDropZoneVisible => _preview is null && _installResult is null;
+    public bool IsPreviewVisible => _preview is not null && _installResult is null;
+    public bool IsCompleteVisible => _installResult is not null;
+    public bool IsInstalling { get; private set; }
+    public bool IsPreviewBusy => IsBusy && !IsInstalling;
+    public bool CanReselect => !IsInstalling;
+    public IReadOnlyList<string> InstalledOptionalGroups => _installResult?.OptionalGroups ?? [];
+    public bool HasInstalledOptionalGroups => InstalledOptionalGroups.Count > 0;
 
     public bool IsBusy
     {
@@ -26,6 +33,7 @@ public sealed class InstallModPageViewModel : ViewModelBase
             if (SetProperty(ref _isBusy, value))
             {
                 OnPropertyChanged(nameof(IsNotBusy));
+                OnPropertyChanged(nameof(IsPreviewBusy));
             }
         }
     }
@@ -34,8 +42,8 @@ public sealed class InstallModPageViewModel : ViewModelBase
 
     public bool HasOptionalGroups => OptionalGroups.Count > 0;
 
-    public string ModName => _preview?.ModName ?? string.Empty;
-    public string ModVersion => _preview?.ModVersion ?? string.Empty;
+    public string ModName => _installResult?.ModName ?? _preview?.ModName ?? string.Empty;
+    public string ModVersion => _installResult?.ModVersion ?? _preview?.ModVersion ?? string.Empty;
     public string ModAuthor => _preview?.ModAuthor ?? string.Empty;
     public string? ModDescription => _preview?.ModDescription;
     public bool HasModDescription => !string.IsNullOrWhiteSpace(ModDescription);
@@ -54,6 +62,7 @@ public sealed class InstallModPageViewModel : ViewModelBase
     private readonly INotificationService? _notifications;
     private CancellationTokenSource? _operationCancellation;
     private InstallPreviewResult? _preview;
+    private InstallModResult? _installResult;
     private string? _packagePath;
     private string? _requestedGameDirectory;
     private bool _isBusy;
@@ -70,12 +79,18 @@ public sealed class InstallModPageViewModel : ViewModelBase
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packagePath);
 
+        if (IsInstalling)
+        {
+            return Task.CompletedTask;
+        }
+
         if (!string.Equals(Path.GetExtension(packagePath), ".zip", StringComparison.OrdinalIgnoreCase))
         {
             return Task.CompletedTask;
         }
 
         _packagePath = packagePath;
+        SetInstallResult(null);
         _requestedGameDirectory = null;
         SetPreview(null);
         OptionalGroups.Clear();
@@ -120,9 +135,15 @@ public sealed class InstallModPageViewModel : ViewModelBase
 
     public void ResetSelection()
     {
+        if (IsInstalling)
+        {
+            return;
+        }
+
         _operationCancellation?.Cancel();
         _operationCancellation = null;
 
+        SetInstallResult(null);
         SetPreview(null);
         _packagePath = null;
         _requestedGameDirectory = null;
@@ -138,6 +159,79 @@ public sealed class InstallModPageViewModel : ViewModelBase
             Localizer.Current.Get(StringsKeys.InstallPage_InvalidDropTitle),
             Localizer.Current.Get(StringsKeys.InstallPage_InvalidDragPrompt),
             NotificationKind.Error);
+    }
+
+    public async Task InstallAsync()
+    {
+        if (_scopeFactory is null || _preview is null || string.IsNullOrWhiteSpace(_packagePath) ||
+            IsBusy || IsCompleteVisible)
+        {
+            return;
+        }
+
+        var request = new InstallModRequest(new InstallRequest(_packagePath, _requestedGameDirectory)
+        {
+            SelectedOptionalGroups = GetSelectedOptionalGroups(),
+            PreparedInstall = _preview.PreparedInstall
+        });
+
+        IsInstalling = true;
+        OnPropertyChanged(nameof(IsInstalling));
+        OnPropertyChanged(nameof(CanReselect));
+        CancellationTokenSource operation = BeginOperation();
+        CancellationToken cancellationToken = operation.Token;
+
+        try
+        {
+            // Package analysis and asset writes also perform synchronous work.
+            var result = await Task.Run(
+                () => DispatchAsync<InstallModRequest, OperationResult<InstallModResult>>(request, cancellationToken),
+                cancellationToken);
+
+            switch (result)
+            {
+                case OperationSucceeded<InstallModResult> succeeded:
+                    SetInstallResult(succeeded.Value);
+                    break;
+                case OperationFailed<InstallModResult> failed:
+                    ResourceKey messageKey = failed.Error.Code switch
+                    {
+                        var code when code == ModOperationErrorCodes.InstallPreviewStale =>
+                            StringsKeys.InstallPage_InstallFailedStale,
+                        var code when code == RepositoryErrorCodes.RecoveryRequired =>
+                            StringsKeys.InstallPage_InstallFailedRecovery,
+                        _ => StringsKeys.InstallPage_InstallFailedGeneric
+                    };
+                    _notifications?.Show(
+                        Localizer.Current.Get(StringsKeys.InstallPage_InstallFailedTitle),
+                        Localizer.Current.Get(messageKey),
+                        NotificationKind.Error);
+                    break;
+                default:
+                    throw new InvalidOperationException("The install operation returned an unknown result.");
+            }
+        }
+        catch (OperationCanceledException exception)
+            when (cancellationToken.IsCancellationRequested && exception.CancellationToken == cancellationToken) { }
+        finally
+        {
+            IsInstalling = false;
+            OnPropertyChanged(nameof(IsInstalling));
+            OnPropertyChanged(nameof(CanReselect));
+            EndOperation(operation);
+        }
+    }
+
+    private void SetInstallResult(InstallModResult? result)
+    {
+        _installResult = result;
+        OnPropertyChanged(nameof(IsDropZoneVisible));
+        OnPropertyChanged(nameof(IsPreviewVisible));
+        OnPropertyChanged(nameof(IsCompleteVisible));
+        OnPropertyChanged(nameof(ModName));
+        OnPropertyChanged(nameof(ModVersion));
+        OnPropertyChanged(nameof(InstalledOptionalGroups));
+        OnPropertyChanged(nameof(HasInstalledOptionalGroups));
     }
 
     private async Task PreviewPackageAsync(
