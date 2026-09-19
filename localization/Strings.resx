@@ -15,14 +15,8 @@
     <data name="Navigation_ManageMods" xml:space="preserve">
     <value>Manage Mods</value>
   </data>
-    <data name="Navigation_About" xml:space="preserve">
-    <value>About</value>
-  </data>
     <data name="NavigationView_MenuItemsName" xml:space="preserve">
     <value>Navigation menu items</value>
-  </data>
-    <data name="NavigationView_FooterMenuItemsName" xml:space="preserve">
-    <value>Navigation footer menu items</value>
   </data>
     <data name="InstallPage_DropDescription" xml:space="preserve">
     <value>Drag a mod package into the area below, or use Select file.</value>

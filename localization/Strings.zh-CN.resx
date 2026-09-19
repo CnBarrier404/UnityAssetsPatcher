@@ -15,14 +15,8 @@
     <data name="Navigation_ManageMods" xml:space="preserve">
     <value>管理 Mod</value>
   </data>
-    <data name="Navigation_About" xml:space="preserve">
-    <value>关于</value>
-  </data>
     <data name="NavigationView_MenuItemsName" xml:space="preserve">
     <value>导航菜单项</value>
-  </data>
-    <data name="NavigationView_FooterMenuItemsName" xml:space="preserve">
-    <value>导航页脚菜单项</value>
   </data>
     <data name="InstallPage_DropDescription" xml:space="preserve">
     <value>拖拽 Mod 包到下方区域，或使用“选择文件”按钮。</value>
