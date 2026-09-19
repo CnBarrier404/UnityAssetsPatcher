@@ -5,9 +5,62 @@
              xmlns:vm="using:UnityAssetsPatcher.ViewModels.Pages"
              x:Class="UnityAssetsPatcher.Views.SettingsPage"
              x:DataType="vm:SettingsPageViewModel">
-    <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
-        <TextBlock Classes="pageTitle"
-                   AutomationProperties.HeadingLevel="1"
-                   Text="{l:Localize {x:Static res:StringsKeys.MainMenu_Settings_Title}}" />
+    <StackPanel Spacing="{StaticResource PageSectionSpacing}">
+        <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
+            <TextBlock Classes="pageTitle"
+                       AutomationProperties.HeadingLevel="1"
+                       Text="{l:Localize {x:Static res:StringsKeys.MainMenu_Settings_Title}}" />
+        </StackPanel>
+
+        <StackPanel Spacing="{StaticResource SectionHeadingToContentSpacing}">
+            <TextBlock Classes="bodyStrong"
+                       AutomationProperties.HeadingLevel="2"
+                       Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_LoggingSectionTitle}}" />
+            <Border Classes="card" Padding="0">
+                <StackPanel Spacing="0">
+                    <Border Padding="{StaticResource CardPadding}">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="{StaticResource ActionColumnSpacing}">
+                            <StackPanel Spacing="{StaticResource TightContentSpacing}"
+                                        VerticalAlignment="Center">
+                                <TextBlock Classes="body"
+                                           Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_VerboseLogging}}"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Classes="caption secondary"
+                                           Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_VerboseLoggingDescription}}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          AutomationProperties.AutomationId="SettingsVerboseLoggingToggleSwitch"
+                                          IsChecked="{Binding VerboseLogging, Mode=TwoWay}"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="divider" />
+                    <Border Padding="{StaticResource CardPadding}">
+                        <Grid ColumnDefinitions="*,Auto"
+                              RowDefinitions="Auto,Auto"
+                              ColumnSpacing="{StaticResource ActionColumnSpacing}"
+                              RowSpacing="{StaticResource TightContentSpacing}">
+                            <TextBlock Classes="body"
+                                       Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_LogPathLabel}}" />
+                            <TextBox Grid.Row="1" Grid.Column="0"
+                                     AutomationProperties.AutomationId="SettingsLogDirectoryTextBox"
+                                     AutomationProperties.Name="{l:Localize {x:Static res:StringsKeys.SettingsPage_LogPathLabel}}"
+                                     HorizontalAlignment="Stretch"
+                                     IsEnabled="False"
+                                     IsReadOnly="True"
+                                     Text="{Binding LogDirectory}" />
+                            <Button Grid.Row="1"
+                                    Grid.Column="1"
+                                    AutomationProperties.AutomationId="SettingsOpenLogDirectoryButton"
+                                    Classes="subtle"
+                                    Command="{Binding OpenLogDirectoryCommand}"
+                                    Content="{l:Localize {x:Static res:StringsKeys.SettingsPage_OpenLogDirectoryButton}}" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </StackPanel>
     </StackPanel>
 </UserControl>

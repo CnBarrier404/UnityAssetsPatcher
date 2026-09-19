@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
+using UnityAssetsPatcher.Application.Contracts;
 using UnityAssetsPatcher.Localization;
 using UnityAssetsPatcher.Notifications;
 using UnityAssetsPatcher.ViewModels.Pages;
@@ -15,10 +16,16 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private NavigationViewItemViewModel _selectedItem;
 
-    public MainWindowViewModel(IServiceScopeFactory scopeFactory, NotificationService notifications)
+    public MainWindowViewModel(
+        IServiceScopeFactory scopeFactory,
+        NotificationService notifications,
+        AppRuntimeConfig runtimeConfig,
+        ILoggingLevelSwitch loggingLevelSwitch)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
         Notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
+        ArgumentNullException.ThrowIfNull(runtimeConfig);
+        ArgumentNullException.ThrowIfNull(loggingLevelSwitch);
 
         MenuItems =
         [
@@ -27,7 +34,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 new InstallModPageViewModel(scopeFactory, notifications)),
             new NavigationViewItemViewModel(StringsKeys.Navigation_ManageMods, new ManageModsPageViewModel()),
             new NavigationViewItemViewModel(StringsKeys.MainMenu_Settings_Title,
-                new SettingsPageViewModel())
+                new SettingsPageViewModel(runtimeConfig, loggingLevelSwitch))
         ];
 
         _selectedItem = MenuItems[0];
