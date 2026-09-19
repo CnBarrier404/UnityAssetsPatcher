@@ -1,9 +1,55 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Styles.Resources>
-        <Thickness x:Key="ButtonPadding">11,5,11,6</Thickness>
-        <Thickness x:Key="ButtonBorderThemeThickness">1</Thickness>
-        <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="ButtonBackground" Color="#B3FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#80F9F9F9" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#4DF9F9F9" />
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#4DF9F9F9" />
+                    <SolidColorBrush x:Key="ButtonForeground" Color="#E4000000" />
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#E4000000" />
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#9E000000" />
+                    <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#5C000000" />
+                    <LinearGradientBrush x:Key="ButtonBorderBrush" StartPoint="0,0" EndPoint="0,3"
+                                         TransformOrigin="50%,50%">
+                        <LinearGradientBrush.Transform>
+                            <ScaleTransform ScaleY="-1" />
+                        </LinearGradientBrush.Transform>
+                        <GradientStop Offset="0.33" Color="#29000000" />
+                        <GradientStop Offset="1" Color="#0F000000" />
+                    </LinearGradientBrush>
+                    <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="ButtonBorderBrush" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#0F000000" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#0F000000" />
+                    <SolidColorBrush x:Key="ButtonFocusOuterBrush" Color="#E4000000" />
+                    <SolidColorBrush x:Key="ButtonFocusInnerBrush" Color="#B3FFFFFF" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="ButtonBackground" Color="#0FFFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#15FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#08FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#0BFFFFFF" />
+                    <SolidColorBrush x:Key="ButtonForeground" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#C5FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#5DFFFFFF" />
+                    <LinearGradientBrush x:Key="ButtonBorderBrush" StartPoint="0,0" EndPoint="0,3">
+                        <GradientStop Offset="0.33" Color="#18FFFFFF" />
+                        <GradientStop Offset="1" Color="#12FFFFFF" />
+                    </LinearGradientBrush>
+                    <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="ButtonBorderBrush" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#12FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#12FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonFocusOuterBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="ButtonFocusInnerBrush" Color="#B3000000" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <Thickness x:Key="ButtonPadding">11,5,11,6</Thickness>
+            <Thickness x:Key="ButtonBorderThemeThickness">1</Thickness>
+            <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+        </ResourceDictionary>
     </Styles.Resources>
 
     <Style Selector="Button">
@@ -21,6 +67,16 @@
         <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}" />
         <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
+        <Setter Property="FocusAdorner">
+            <Template>
+                <Border Margin="-3" BorderThickness="2" CornerRadius="7"
+                        BorderBrush="{DynamicResource ButtonFocusOuterBrush}"
+                        IsHitTestVisible="False">
+                    <Border BorderThickness="1" CornerRadius="5"
+                            BorderBrush="{DynamicResource ButtonFocusInnerBrush}" />
+                </Border>
+            </Template>
+        </Setter>
         <Setter Property="Template">
             <ControlTemplate>
                 <ContentPresenter x:Name="PART_ContentPresenter"
@@ -42,9 +98,6 @@
 
     <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="RecognizesAccessKey" Value="True" />
-        <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource ButtonForeground}" />
     </Style>
 
     <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -70,7 +123,6 @@
         <Setter Property="Background" Value="{DynamicResource AccentButtonBackground}" />
         <Setter Property="Foreground" Value="{DynamicResource AccentButtonForeground}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AccentButtonBorderBrush}" />
-        <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
     </Style>
 
     <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter">
@@ -99,17 +151,8 @@
 
     <Style Selector="Button.subtle">
         <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
-        <Setter Property="BackgroundSizing" Value="InnerBorderEdge" />
         <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
-        <Setter Property="BorderThickness" Value="{DynamicResource ButtonBorderThemeThickness}" />
-        <Setter Property="Padding" Value="{StaticResource ButtonPadding}" />
-        <Setter Property="HorizontalAlignment" Value="Left" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}" />
-        <Setter Property="FontWeight" Value="Normal" />
-        <Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}" />
-        <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
     </Style>
 
     <Style Selector="Button.subtle /template/ ContentPresenter#PART_ContentPresenter">
