@@ -53,7 +53,7 @@ public partial class InstallModPage : UserControl
 
     private void OnDragLeave(object? sender, DragEventArgs e)
     {
-        SetDropZoneState(false, false);
+        SetDropZoneState(false);
     }
 
     private void OnDragOver(object? sender, DragEventArgs e)
@@ -64,7 +64,7 @@ public partial class InstallModPage : UserControl
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        SetDropZoneState(false, false);
+        SetDropZoneState(false);
         e.Handled = true;
 
         if (DataContext is not InstallModPageViewModel viewModel)
@@ -76,6 +76,7 @@ public partial class InstallModPage : UserControl
         if (!TryGetZipPath(e.DataTransfer, out string path))
         {
             e.DragEffects = DragDropEffects.None;
+            viewModel.ReportInvalidDrop();
             return;
         }
 
@@ -119,17 +120,15 @@ public partial class InstallModPage : UserControl
         (DataContext as InstallModPageViewModel)?.ResetSelection();
     }
 
-    private void SetDropZoneState(bool isDragOver, bool isDragInvalid)
+    private void SetDropZoneState(bool isDragOver)
     {
         DropZone.Classes.Set("drag-over", isDragOver);
-        DropZone.Classes.Set("drag-invalid", isDragInvalid);
     }
 
     private void UpdateDragState(DragEventArgs e)
     {
-        bool canAccept = TryGetZipPath(e.DataTransfer, out _);
-        e.DragEffects = canAccept ? DragDropEffects.Copy : DragDropEffects.None;
-        SetDropZoneState(canAccept, !canAccept);
+        e.DragEffects = DragDropEffects.Copy;
+        SetDropZoneState(true);
     }
 
     private static bool TryGetZipPath(IDataTransfer dataTransfer, out string path)

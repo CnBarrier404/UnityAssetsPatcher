@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Localization;
+using UnityAssetsPatcher.Notifications;
 using UnityAssetsPatcher.ViewModels.Pages;
 
 namespace UnityAssetsPatcher.ViewModels;
@@ -11,20 +12,23 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ViewModelBase CurrentPage => _selectedItem.Page;
     public IReadOnlyList<NavigationViewItemViewModel> MenuItems { get; }
     public IReadOnlyList<NavigationViewItemViewModel> FooterMenuItems { get; }
+    public NotificationService Notifications { get; }
 
     private NavigationViewItemViewModel _selectedItem;
 
-    public MainWindowViewModel(IServiceScopeFactory scopeFactory)
+    public MainWindowViewModel(IServiceScopeFactory scopeFactory, NotificationService notifications)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
+        Notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
 
         MenuItems =
         [
             new NavigationViewItemViewModel(
                 StringsKeys.MainMenu_InstallMod_Title,
-                new InstallModPageViewModel(scopeFactory)),
+                new InstallModPageViewModel(scopeFactory, notifications)),
             new NavigationViewItemViewModel(StringsKeys.Navigation_ManageMods, new ManageModsPageViewModel()),
-            new NavigationViewItemViewModel(StringsKeys.MainMenu_Settings_Title, new SettingsPageViewModel())
+            new NavigationViewItemViewModel(StringsKeys.MainMenu_Settings_Title,
+                new SettingsPageViewModel())
         ];
 
         FooterMenuItems =

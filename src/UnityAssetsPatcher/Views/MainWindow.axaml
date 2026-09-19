@@ -4,6 +4,7 @@
         xmlns:pages="using:UnityAssetsPatcher.ViewModels.Pages"
         xmlns:views="using:UnityAssetsPatcher.Views"
         xmlns:application="using:UnityAssetsPatcher.Application"
+        xmlns:notifications="using:UnityAssetsPatcher.Notifications"
         xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
         xmlns:res="using:UnityAssetsPatcher.Localization"
         x:Class="UnityAssetsPatcher.Views.MainWindow"
@@ -28,6 +29,9 @@
                                ToolTip.Tip="{Binding Title}"
                                VerticalAlignment="Center" />
                 </Grid>
+            </DataTemplate>
+            <DataTemplate x:Key="NotificationTemplate" DataType="notifications:NotificationItem">
+                <views:NotificationView />
             </DataTemplate>
         </ResourceDictionary>
     </Window.Resources>
@@ -102,5 +106,18 @@
                 <ContentControl Classes="pageContent" Content="{Binding CurrentPage}" />
             </ScrollViewer>
         </Border>
+
+        <ItemsControl Grid.ColumnSpan="2" Grid.Column="0"
+                      ItemsSource="{Binding Notifications.Items}"
+                      ItemTemplate="{StaticResource NotificationTemplate}"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Stretch"
+                      Margin="16">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <notifications:NotificationPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
     </Grid>
 </Window>

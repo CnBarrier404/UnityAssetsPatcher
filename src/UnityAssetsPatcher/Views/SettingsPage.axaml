@@ -2,7 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
              xmlns:res="using:UnityAssetsPatcher.Localization"
-             x:Class="UnityAssetsPatcher.Views.SettingsPage">
+             xmlns:vm="using:UnityAssetsPatcher.ViewModels.Pages"
+             x:Class="UnityAssetsPatcher.Views.SettingsPage"
+             x:DataType="vm:SettingsPageViewModel">
     <StackPanel Spacing="{StaticResource PageHeaderSpacing}">
         <TextBlock Classes="pageTitle"
                    AutomationProperties.HeadingLevel="1"

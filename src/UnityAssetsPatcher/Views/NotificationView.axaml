@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:notifications="using:UnityAssetsPatcher.Notifications"
+             xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
+             xmlns:res="using:UnityAssetsPatcher.Localization"
+             x:Class="UnityAssetsPatcher.Views.NotificationView"
+             x:DataType="notifications:NotificationItem"
+             Opacity="0">
+    <Border Classes="notification"
+            Classes.information="{Binding IsInformation}"
+            Classes.success="{Binding IsSuccess}"
+            Classes.warning="{Binding IsWarning}"
+            Classes.error="{Binding IsError}">
+        <Grid ColumnDefinitions="4,*,Auto" RowDefinitions="Auto,*"
+              ColumnSpacing="{StaticResource ContentGroupSpacing}"
+              RowSpacing="{StaticResource ContentGroupSpacing}">
+            <Border Grid.RowSpan="2" Classes="notificationSignal" />
+            <TextBlock x:Name="NotificationTitle" Grid.Column="1"
+                       Classes="bodyStrong" Text="{Binding Title}" TextWrapping="Wrap"
+                       VerticalAlignment="Center"
+                       AutomationProperties.LiveSetting="{Binding LiveSetting}"
+                       AutomationProperties.Name="{Binding Title}"
+                       AutomationProperties.HelpText="{Binding Message}" />
+            <ScrollViewer Grid.Row="1" Grid.Column="1"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <TextBlock Classes="body" Text="{Binding Message}" TextWrapping="Wrap" />
+            </ScrollViewer>
+            <Button Grid.Column="2"
+                    Classes="notificationClose"
+                    Content="×"
+                    AutomationProperties.Name="{l:Localize {x:Static res:StringsKeys.Notification_Close}}"
+                    ToolTip.Tip="{l:Localize {x:Static res:StringsKeys.Notification_Close}}"
+                    Click="OnCloseClick" />
+        </Grid>
+    </Border>
+</UserControl>

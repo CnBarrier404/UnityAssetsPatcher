@@ -42,6 +42,9 @@
     <data name="InstallPage_InvalidDragPrompt" xml:space="preserve">
     <value>Drop a single .zip mod package</value>
   </data>
+    <data name="InstallPage_InvalidDropTitle" xml:space="preserve">
+    <value>Unsupported drop</value>
+  </data>
     <data name="InstallPage_SupportedFormats" xml:space="preserve">
     <value>Supports .zip mod packages</value>
   </data>
@@ -83,5 +86,32 @@
   </data>
     <data name="InstallPage_CustomGameDirectory" xml:space="preserve">
     <value>Custom game directory</value>
+  </data>
+    <data name="InstallPage_PreviewFailedTitle" xml:space="preserve">
+    <value>Could not read mod package</value>
+  </data>
+    <data name="InstallPage_PreviewFailedMissingManifest" xml:space="preserve">
+    <value>The package has no manifest.json file</value>
+  </data>
+    <data name="InstallPage_PreviewFailedInvalidArchive" xml:space="preserve">
+    <value>The ZIP archive is invalid or damaged</value>
+  </data>
+    <data name="InstallPage_PreviewFailedUnsupportedSchema" xml:space="preserve">
+    <value>The mod manifest uses an unsupported schema version</value>
+  </data>
+    <data name="InstallPage_PreviewFailedInvalidPackage" xml:space="preserve">
+    <value>The mod package or its manifest is invalid</value>
+  </data>
+    <data name="InstallPage_PreviewFailedFileMissing" xml:space="preserve">
+    <value>The mod package file could not be found</value>
+  </data>
+    <data name="InstallPage_PreviewFailedAccessDenied" xml:space="preserve">
+    <value>Access to the mod package was denied</value>
+  </data>
+    <data name="InstallPage_PreviewFailedGeneric" xml:space="preserve">
+    <value>Check the mod package and try again</value>
+  </data>
+    <data name="Notification_Close" xml:space="preserve">
+    <value>Close notification</value>
   </data>
 </root>

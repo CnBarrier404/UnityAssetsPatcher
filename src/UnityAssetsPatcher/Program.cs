@@ -6,6 +6,7 @@ using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.ViewModels;
 using UnityAssetsPatcher.Infrastructure;
 using UnityAssetsPatcher.Logging;
+using UnityAssetsPatcher.Notifications;
 
 namespace UnityAssetsPatcher;
 
@@ -49,6 +50,8 @@ public sealed class Program
                     .AddUnityAssetsPatcherApplication()
                     .AddUnityAssetsPatcherUpdates()
                     .AddUnityAssetsPatcherOperations()
+                    .AddSingleton<NotificationService>()
+                    .AddSingleton<INotificationService>(provider => provider.GetRequiredService<NotificationService>())
                     .AddSingleton<MainWindowViewModel>()
                     .AddSingleton<App>()
                     .BuildServiceProvider(new ServiceProviderOptions

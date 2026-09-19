@@ -2,9 +2,12 @@ using System.Collections.ObjectModel;
 using Microsoft.Extensions.DependencyInjection;
 using RentADeveloper.ResXLocalization;
 using UnityAssetsPatcher.Application.Features.Install;
+using UnityAssetsPatcher.Application.IO;
 using UnityAssetsPatcher.Application.Messaging;
+using UnityAssetsPatcher.Application.Mods;
 using UnityAssetsPatcher.Application.Operations;
 using UnityAssetsPatcher.Localization;
+using UnityAssetsPatcher.Notifications;
 
 namespace UnityAssetsPatcher.ViewModels.Pages;
 
@@ -48,15 +51,19 @@ public sealed class InstallModPageViewModel : ViewModelBase
     public string TargetGameDirectory => _preview?.TargetGameDirectory ?? string.Empty;
 
     private readonly IServiceScopeFactory? _scopeFactory;
+    private readonly INotificationService? _notifications;
     private CancellationTokenSource? _operationCancellation;
     private InstallPreviewResult? _preview;
     private string? _packagePath;
     private string? _requestedGameDirectory;
     private bool _isBusy;
 
-    public InstallModPageViewModel(IServiceScopeFactory? scopeFactory = null)
+    public InstallModPageViewModel(
+        IServiceScopeFactory? scopeFactory = null,
+        INotificationService? notifications = null)
     {
         _scopeFactory = scopeFactory;
+        _notifications = notifications;
     }
 
     public Task LoadPackageAsync(string packagePath)
@@ -125,6 +132,14 @@ public sealed class InstallModPageViewModel : ViewModelBase
         IsBusy = false;
     }
 
+    public void ReportInvalidDrop()
+    {
+        _notifications?.Show(
+            Localizer.Current.Get(StringsKeys.InstallPage_InvalidDropTitle),
+            Localizer.Current.Get(StringsKeys.InstallPage_InvalidDragPrompt),
+            NotificationKind.Error);
+    }
+
     private async Task PreviewPackageAsync(
         string packagePath,
         string? gameDirectory,
@@ -158,11 +173,16 @@ public sealed class InstallModPageViewModel : ViewModelBase
                 case OperationSucceeded<InstallPreviewResult> succeeded:
                     ApplyPreview(succeeded.Value, gameDirectory, selectedOptionalGroups);
                     break;
-                case OperationFailed<InstallPreviewResult>:
+                case OperationFailed<InstallPreviewResult> failed:
                     if (clearPreviewOnFailure)
                     {
                         SetPreview(null);
                     }
+
+                    _notifications?.Show(
+                        Localizer.Current.Get(StringsKeys.InstallPage_PreviewFailedTitle),
+                        GetPreviewFailureMessage(failed.Error.Code),
+                        NotificationKind.Error);
 
                     break;
                 default:
@@ -267,5 +287,28 @@ public sealed class InstallModPageViewModel : ViewModelBase
             .Where(group => group.IsSelected)
             .Select(group => group.Name)
             .ToArray();
+    }
+
+    private static string GetPreviewFailureMessage(OperationErrorCode code)
+    {
+        ResourceKey key = code switch
+        {
+            _ when code == ModPackageErrorCodes.MissingManifest =>
+                StringsKeys.InstallPage_PreviewFailedMissingManifest,
+            _ when code == ModPackageErrorCodes.InvalidArchive =>
+                StringsKeys.InstallPage_PreviewFailedInvalidArchive,
+            _ when code == ManifestErrorCodes.UnsupportedSchema =>
+                StringsKeys.InstallPage_PreviewFailedUnsupportedSchema,
+            _ when code.Value.StartsWith("mod_package.", StringComparison.Ordinal) ||
+                   code.Value.StartsWith("manifest.", StringComparison.Ordinal) =>
+                StringsKeys.InstallPage_PreviewFailedInvalidPackage,
+            _ when code == FileErrorCodes.NotFound || code == FileErrorCodes.DirectoryNotFound =>
+                StringsKeys.InstallPage_PreviewFailedFileMissing,
+            _ when code == FileErrorCodes.AccessDenied =>
+                StringsKeys.InstallPage_PreviewFailedAccessDenied,
+            _ => StringsKeys.InstallPage_PreviewFailedGeneric
+        };
+
+        return Localizer.Current.Get(key);
     }
 }
