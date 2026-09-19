@@ -132,6 +132,75 @@
     <data name="InstallPage_InstallFailedRecovery" xml:space="preserve">
     <value>The game files require recovery. Restore them from a backup before trying again</value>
   </data>
+    <data name="ManageModsPage_Description" xml:space="preserve">
+    <value>View installed mods and uninstall those you no longer need.</value>
+  </data>
+    <data name="ManageModsPage_RefreshButton" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+    <data name="ManageModsPage_UninstallButton" xml:space="preserve">
+    <value>Uninstall</value>
+  </data>
+    <data name="ManageModsPage_InstalledAtLabel" xml:space="preserve">
+    <value>Installed on</value>
+  </data>
+    <data name="ManageModsPage_Loading" xml:space="preserve">
+    <value>Loading installed mods…</value>
+  </data>
+    <data name="ManageModsPage_CheckingUninstall" xml:space="preserve">
+    <value>Checking whether the mod can be uninstalled…</value>
+  </data>
+    <data name="ManageModsPage_Uninstalling" xml:space="preserve">
+    <value>Uninstalling the mod. Please keep the application open</value>
+  </data>
+    <data name="ManageModsPage_EmptyTitle" xml:space="preserve">
+    <value>No installed mods</value>
+  </data>
+    <data name="ManageModsPage_EmptyDescription" xml:space="preserve">
+    <value>Mods installed with this application will appear here.</value>
+  </data>
+    <data name="ManageModsPage_RefreshFailedTitle" xml:space="preserve">
+    <value>Could not refresh installed mods</value>
+  </data>
+    <data name="ManageModsPage_RefreshFailedDescription" xml:space="preserve">
+    <value>The list could not be updated. Resolve the issue and select Refresh to try again.</value>
+  </data>
+    <data name="ManageModsPage_UninstallFailedTitle" xml:space="preserve">
+    <value>Could not uninstall the mod</value>
+  </data>
+    <data name="ManageModsPage_UninstallSucceededTitle" xml:space="preserve">
+    <value>Mod uninstalled</value>
+  </data>
+    <data name="ManageModsPage_DependencyFailure" xml:space="preserve">
+    <value>Uninstalling this mod would prevent the following mods from working. Uninstall the dependent mods first:</value>
+  </data>
+    <data name="ManageModsPage_FilesChanged" xml:space="preserve">
+    <value>The game files have changed, are missing or cannot be read. Restore the expected files and check access permissions before trying again</value>
+  </data>
+    <data name="ManageModsPage_OperationLocked" xml:space="preserve">
+    <value>Another operation is using the mod repository. Wait for it to finish and try again</value>
+  </data>
+    <data name="ManageModsPage_RecoveryRequired" xml:space="preserve">
+    <value>An interrupted operation requires recovery. Restore the game files from a backup before trying again</value>
+  </data>
+    <data name="ManageModsPage_UnsupportedRepository" xml:space="preserve">
+    <value>The mod repository uses an unsupported format. Use a compatible version of the application</value>
+  </data>
+    <data name="ManageModsPage_RecordMissing" xml:space="preserve">
+    <value>This mod is no longer in the installed list. Select Refresh to update the list</value>
+  </data>
+    <data name="ManageModsPage_IntegrityFailure" xml:space="preserve">
+    <value>The game files or saved mod data do not match the installation, or another mod depends on it. Check the files and mod dependencies before trying again</value>
+  </data>
+    <data name="ManageModsPage_AccessDenied" xml:space="preserve">
+    <value>Access to the game files or mod repository was denied. Check file access permissions and try again</value>
+  </data>
+    <data name="ManageModsPage_GameDirectoryMissing" xml:space="preserve">
+    <value>The game directory could not be found. Restore it to its original location and try again</value>
+  </data>
+    <data name="ManageModsPage_OperationFailed" xml:space="preserve">
+    <value>The operation could not be completed. Check the game files and mod repository, then try again</value>
+  </data>
     <data name="Notification_Close" xml:space="preserve">
     <value>Close notification</value>
   </data>
