@@ -50,9 +50,6 @@
         <DataTemplate DataType="pages:SettingsPageViewModel">
             <views:SettingsPage />
         </DataTemplate>
-        <DataTemplate DataType="pages:AboutPageViewModel">
-            <views:AboutPage />
-        </DataTemplate>
     </Window.DataTemplates>
 
     <Grid>
@@ -66,7 +63,7 @@
                 AutomationProperties.AccessibilityView="Control"
                 AutomationProperties.AutomationId="NavigationView"
                 AutomationProperties.LandmarkType="Navigation">
-            <Grid RowDefinitions="Auto,*,Auto,Auto"
+            <Grid RowDefinitions="Auto,*"
                   Margin="{StaticResource NavigationViewPaneContentMargin}">
                 <StackPanel Classes="navigationViewPaneHeader">
                     <TextBlock Classes="brandTitle"
@@ -86,16 +83,6 @@
                          ItemTemplate="{StaticResource NavigationViewItemTemplate}"
                          SelectedItem="{Binding SelectedMenuItem, Mode=TwoWay}" />
 
-                <Border Grid.Row="2" Classes="navigationViewFooterSeparator" />
-
-                <ListBox Grid.Row="3"
-                         x:Name="NavigationViewFooterMenuItems"
-                         Classes="navigationViewItems"
-                         AutomationProperties.Name="{l:Localize {x:Static res:StringsKeys.NavigationView_FooterMenuItemsName}}"
-                         AutomationProperties.AutomationId="NavigationViewFooterMenuItems"
-                         ItemsSource="{Binding FooterMenuItems}"
-                         ItemTemplate="{StaticResource NavigationViewItemTemplate}"
-                         SelectedItem="{Binding SelectedFooterMenuItem, Mode=TwoWay}" />
             </Grid>
         </Border>
 

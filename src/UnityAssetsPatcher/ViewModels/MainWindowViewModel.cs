@@ -11,7 +11,6 @@ public sealed class MainWindowViewModel : ViewModelBase
     public static string Title => AppConfig.Name;
     public ViewModelBase CurrentPage => _selectedItem.Page;
     public IReadOnlyList<NavigationViewItemViewModel> MenuItems { get; }
-    public IReadOnlyList<NavigationViewItemViewModel> FooterMenuItems { get; }
     public NotificationService Notifications { get; }
 
     private NavigationViewItemViewModel _selectedItem;
@@ -31,33 +30,12 @@ public sealed class MainWindowViewModel : ViewModelBase
                 new SettingsPageViewModel())
         ];
 
-        FooterMenuItems =
-        [
-            new NavigationViewItemViewModel(StringsKeys.Navigation_About, new AboutPageViewModel(), true)
-        ];
-
         _selectedItem = MenuItems[0];
     }
 
     public NavigationViewItemViewModel? SelectedMenuItem
     {
-        get => _selectedItem.IsFooterItem ? null : _selectedItem;
-        set
-        {
-            if (value is null)
-            {
-                OnPropertyChanged();
-            }
-            else
-            {
-                SelectItem(value);
-            }
-        }
-    }
-
-    public NavigationViewItemViewModel? SelectedFooterMenuItem
-    {
-        get => _selectedItem.IsFooterItem ? _selectedItem : null;
+        get => _selectedItem;
         set
         {
             if (value is null)
@@ -81,7 +59,6 @@ public sealed class MainWindowViewModel : ViewModelBase
         _selectedItem = item;
 
         OnPropertyChanged(nameof(SelectedMenuItem));
-        OnPropertyChanged(nameof(SelectedFooterMenuItem));
         OnPropertyChanged(nameof(CurrentPage));
     }
 }
