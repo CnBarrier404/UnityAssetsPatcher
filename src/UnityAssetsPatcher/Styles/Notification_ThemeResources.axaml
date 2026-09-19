@@ -1,0 +1,78 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <x:Double x:Key="NotificationWidth">340</x:Double>
+            <Thickness x:Key="NotificationPadding">16</Thickness>
+            <CornerRadius x:Key="NotificationCornerRadius">8</CornerRadius>
+            <CornerRadius x:Key="NotificationSignalCornerRadius">2</CornerRadius>
+            <x:Double x:Key="NotificationCloseMinSize">28</x:Double>
+            <x:Double x:Key="NotificationCloseFontSize">18</x:Double>
+            <SolidColorBrush x:Key="NotificationSuccessBrush" Color="#0F7B0F" />
+            <SolidColorBrush x:Key="NotificationWarningBrush" Color="#C87900" />
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="Border.notification">
+        <Setter Property="Width" Value="{StaticResource NotificationWidth}" />
+        <Setter Property="MaxWidth" Value="{StaticResource NotificationWidth}" />
+        <Setter Property="Padding" Value="{StaticResource NotificationPadding}" />
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransientBorderBrush}" />
+        <Setter Property="BorderThickness" Value="{StaticResource BorderThicknessThin}" />
+        <Setter Property="CornerRadius" Value="{StaticResource NotificationCornerRadius}" />
+    </Style>
+
+    <Style Selector="Border.notificationSignal">
+        <Setter Property="Background" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+        <Setter Property="CornerRadius" Value="{StaticResource NotificationSignalCornerRadius}" />
+    </Style>
+
+    <Style Selector="Border.notification.success Border.notificationSignal">
+        <Setter Property="Background" Value="{DynamicResource NotificationSuccessBrush}" />
+    </Style>
+
+    <Style Selector="Border.notification.warning Border.notificationSignal">
+        <Setter Property="Background" Value="{DynamicResource NotificationWarningBrush}" />
+    </Style>
+
+    <Style Selector="Border.notification.error Border.notificationSignal">
+        <Setter Property="Background" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+    </Style>
+
+    <Style Selector="Button.notificationClose">
+        <Setter Property="MinWidth" Value="{StaticResource NotificationCloseMinSize}" />
+        <Setter Property="MinHeight" Value="{StaticResource NotificationCloseMinSize}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="{StaticResource NotificationCloseFontSize}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="Button.notificationClose /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Button.notificationClose:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Button.notificationClose:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Button.notificationClose:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+</Styles>

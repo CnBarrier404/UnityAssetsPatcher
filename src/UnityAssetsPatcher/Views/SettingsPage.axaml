@@ -16,9 +16,9 @@
             <TextBlock Classes="bodyStrong"
                        AutomationProperties.HeadingLevel="2"
                        Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_LoggingSectionTitle}}" />
-            <Border Classes="card" Padding="0">
+            <Border Classes="card grouped">
                 <StackPanel Spacing="0">
-                    <Border Padding="{StaticResource CardPadding}">
+                    <Border Classes="cardRow">
                         <Grid ColumnDefinitions="*,Auto"
                               ColumnSpacing="{StaticResource ActionColumnSpacing}">
                             <StackPanel Spacing="{StaticResource TightContentSpacing}"
@@ -37,7 +37,7 @@
                         </Grid>
                     </Border>
                     <Border Classes="divider" />
-                    <Border Padding="{StaticResource CardPadding}">
+                    <Border Classes="cardRow">
                         <Grid ColumnDefinitions="*,Auto"
                               RowDefinitions="Auto,Auto"
                               ColumnSpacing="{StaticResource ActionColumnSpacing}"

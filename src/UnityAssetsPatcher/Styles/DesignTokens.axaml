@@ -33,7 +33,6 @@
             <CornerRadius x:Key="CornerRadiusSmall">4</CornerRadius>
             <CornerRadius x:Key="CornerRadiusMedium">6</CornerRadius>
             <CornerRadius x:Key="CornerRadiusLarge">12</CornerRadius>
-            <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
 
         </ResourceDictionary>
     </Styles.Resources>
