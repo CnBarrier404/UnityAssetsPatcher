@@ -37,6 +37,10 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Stretch" />
     </Style>
+    <Style Selector="ToggleSwitch">
+        <Setter Property="OffContent" Value="" />
+        <Setter Property="OnContent" Value="" />
+    </Style>
     <Style Selector="Border.card">
         <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransientBorderBrush}" />
