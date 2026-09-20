@@ -15,6 +15,23 @@
         <StackPanel Spacing="{StaticResource SectionHeadingToContentSpacing}">
             <TextBlock Classes="bodyStrong"
                        AutomationProperties.HeadingLevel="2"
+                       Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_UpdatesSectionTitle}}" />
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource ActionColumnSpacing}">
+                    <TextBlock Classes="body" VerticalAlignment="Center" TextWrapping="Wrap"
+                               Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_UpdatesDescription}}" />
+                    <Button Grid.Column="1" Classes="subtle"
+                            AutomationProperties.AutomationId="SettingsCheckForUpdatesButton"
+                            IsEnabled="{Binding CanCheckForUpdates}"
+                            Click="OnCheckForUpdatesClick"
+                            Content="{l:Localize {x:Static res:StringsKeys.SettingsPage_CheckForUpdates}}" />
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <StackPanel Spacing="{StaticResource SectionHeadingToContentSpacing}">
+            <TextBlock Classes="bodyStrong"
+                       AutomationProperties.HeadingLevel="2"
                        Text="{l:Localize {x:Static res:StringsKeys.SettingsPage_LoggingSectionTitle}}" />
             <Border Classes="card grouped">
                 <StackPanel Spacing="0">

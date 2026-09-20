@@ -231,4 +231,31 @@
     <data name="ContentDialog_Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
+    <data name="SettingsPage_UpdatesSectionTitle" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+    <data name="SettingsPage_UpdatesDescription" xml:space="preserve">
+    <value>Check for a new version</value>
+  </data>
+    <data name="SettingsPage_CheckForUpdates" xml:space="preserve">
+    <value>Check for updates</value>
+  </data>
+    <data name="Updates_DevelopmentVersion" xml:space="preserve">
+    <value>Update checks are unavailable in development builds.</value>
+  </data>
+    <data name="Updates_CheckFailed" xml:space="preserve">
+    <value>Could not check for updates. Please try again later</value>
+  </data>
+    <data name="Updates_NoUpdate" xml:space="preserve">
+    <value>You are using the latest version</value>
+  </data>
+    <data name="Updates_AvailableTitle" xml:space="preserve">
+    <value>Update available</value>
+  </data>
+    <data name="Updates_DialogMessage" xml:space="preserve">
+    <value>Version {0} is available. Open the release page to download it?</value>
+  </data>
+    <data name="Updates_OpenRelease" xml:space="preserve">
+    <value>Open release page</value>
+  </data>
 </root>
