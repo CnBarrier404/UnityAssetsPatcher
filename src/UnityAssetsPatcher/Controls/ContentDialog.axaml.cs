@@ -19,7 +19,8 @@ public partial class ContentDialog : UserControl
     }
 
     public async Task<bool> ShowAsync(
-        Panel host, Control background, string title, string message, string primaryText, string closeText)
+        Panel host, Control background, string title, string message, string primaryText, string closeText,
+        CancellationToken cancellationToken = default)
     {
         Dispatcher.UIThread.VerifyAccess();
 
@@ -35,6 +36,8 @@ public partial class ContentDialog : UserControl
 
         bool wasEnabled = background.IsEnabled;
         var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using CancellationTokenRegistration registration =
+            cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
         var window = topLevel as Window;
 
         void OnHostClosed(object? sender, EventArgs e)

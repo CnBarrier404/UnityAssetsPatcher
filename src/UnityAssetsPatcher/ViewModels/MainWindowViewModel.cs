@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
+using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Localization;
 using UnityAssetsPatcher.Notifications;
 using UnityAssetsPatcher.ViewModels.Pages;
@@ -13,6 +14,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ViewModelBase CurrentPage => _selectedItem.Page;
     public IReadOnlyList<NavigationViewItemViewModel> MenuItems { get; }
     public NotificationService Notifications { get; }
+    public SettingsPageViewModel Settings { get; }
 
     private NavigationViewItemViewModel _selectedItem;
 
@@ -20,13 +22,15 @@ public sealed class MainWindowViewModel : ViewModelBase
         IServiceScopeFactory scopeFactory,
         NotificationService notifications,
         AppRuntimeConfig runtimeConfig,
-        ILoggingLevelSwitch loggingLevelSwitch)
+        ILoggingLevelSwitch loggingLevelSwitch,
+        UpdateCheckModule updates)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
         Notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
         ArgumentNullException.ThrowIfNull(runtimeConfig);
         ArgumentNullException.ThrowIfNull(loggingLevelSwitch);
 
+        Settings = new SettingsPageViewModel(runtimeConfig, loggingLevelSwitch, updates, notifications);
         MenuItems =
         [
             new NavigationViewItemViewModel(
@@ -35,7 +39,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             new NavigationViewItemViewModel(StringsKeys.Navigation_ManageMods,
                 new ManageModsPageViewModel(scopeFactory, notifications)),
             new NavigationViewItemViewModel(StringsKeys.MainMenu_Settings_Title,
-                new SettingsPageViewModel(runtimeConfig, loggingLevelSwitch))
+                Settings)
         ];
 
         _selectedItem = MenuItems[0];
