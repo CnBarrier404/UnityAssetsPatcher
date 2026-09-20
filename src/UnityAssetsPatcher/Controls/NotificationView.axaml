@@ -3,7 +3,7 @@
              xmlns:notifications="using:UnityAssetsPatcher.Notifications"
              xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
              xmlns:res="using:UnityAssetsPatcher.Localization"
-             x:Class="UnityAssetsPatcher.Views.NotificationView"
+             x:Class="UnityAssetsPatcher.Controls.NotificationView"
              x:DataType="notifications:NotificationItem"
              Opacity="0">
     <Border Classes="notification"

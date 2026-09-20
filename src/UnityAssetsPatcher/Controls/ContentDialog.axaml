@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="UnityAssetsPatcher.Views.ContentDialog"
+             x:Class="UnityAssetsPatcher.Controls.ContentDialog"
              KeyboardNavigation.TabNavigation="Cycle"
              Background="{DynamicResource ContentDialogSmokeFill}">
     <Border Classes="contentDialog" Margin="24" ClipToBounds="True">

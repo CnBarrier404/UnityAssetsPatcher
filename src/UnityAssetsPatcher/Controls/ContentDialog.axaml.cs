@@ -3,7 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 
-namespace UnityAssetsPatcher.Views;
+namespace UnityAssetsPatcher.Controls;
 
 public partial class ContentDialog : UserControl
 {
