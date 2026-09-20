@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="UnityAssetsPatcher.Views.ContentDialog"
+             KeyboardNavigation.TabNavigation="Cycle"
+             Background="{DynamicResource ContentDialogSmokeFill}">
+    <Border Classes="contentDialog" Margin="24" ClipToBounds="True">
+        <Grid RowDefinitions="*,Auto">
+            <Border Classes="contentDialogContent">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock x:Name="DialogTitle" Classes="contentDialogTitle" TextWrapping="Wrap" />
+                        <TextBlock x:Name="DialogMessage" Classes="contentDialogMessage" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+            <Grid Grid.Row="1" Classes="contentDialogCommands" ColumnDefinitions="*,Auto,*">
+                <Button x:Name="PrimaryButton" Classes="contentDialogButton" Click="OnPrimaryClick" />
+                <Border Grid.Column="1" Width="{StaticResource ContentDialogButtonSpacing}" />
+                <Button x:Name="CloseButton" Grid.Column="2" Classes="contentDialogButton accent" Click="OnCloseClick" />
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

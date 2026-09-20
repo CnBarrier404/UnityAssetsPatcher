@@ -12,6 +12,7 @@
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Typography.axaml" />
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Button_ThemeResources.axaml" />
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Card_ThemeResources.axaml" />
+        <StyleInclude Source="avares://UnityAssetsPatcher/Styles/ContentDialog_ThemeResources.axaml" />
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Components.axaml" />
         <StyleInclude Source="avares://UnityAssetsPatcher/Styles/Notification_ThemeResources.axaml" />
     </Application.Styles>

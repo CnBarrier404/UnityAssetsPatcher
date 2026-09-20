@@ -219,4 +219,16 @@
     <data name="SettingsPage_OpenLogDirectoryButton" xml:space="preserve">
     <value>打开文件夹</value>
   </data>
+    <data name="ManageModsPage_ConfirmUninstallTitle" xml:space="preserve">
+    <value>卸载 Mod？</value>
+  </data>
+    <data name="ManageModsPage_ConfirmUninstallMessage" xml:space="preserve">
+    <value>确定卸载“{0}”（{1}）吗？游戏文件将更新，以移除此 Mod 的修改。该操作无法撤销！</value>
+  </data>
+    <data name="ManageModsPage_AwaitingConfirmation" xml:space="preserve">
+    <value>等待确认</value>
+  </data>
+    <data name="ContentDialog_Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
 </root>

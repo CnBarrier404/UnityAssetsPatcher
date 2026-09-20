@@ -219,4 +219,16 @@
     <data name="SettingsPage_OpenLogDirectoryButton" xml:space="preserve">
     <value>Open folder</value>
   </data>
+    <data name="ManageModsPage_ConfirmUninstallTitle" xml:space="preserve">
+    <value>Uninstall mod?</value>
+  </data>
+    <data name="ManageModsPage_ConfirmUninstallMessage" xml:space="preserve">
+    <value>Uninstall “{0}” ({1})? The game files will be updated to remove this mod’s changes. This action cannot be undone!</value>
+  </data>
+    <data name="ManageModsPage_AwaitingConfirmation" xml:space="preserve">
+    <value>Waiting for confirmation</value>
+  </data>
+    <data name="ContentDialog_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
 </root>
