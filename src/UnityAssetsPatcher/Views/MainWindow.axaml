@@ -52,59 +52,61 @@
         </DataTemplate>
     </Window.DataTemplates>
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="{StaticResource NavigationViewOpenPaneLength}" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+    <Grid x:Name="DialogHost">
+        <Grid x:Name="MainContent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource NavigationViewOpenPaneLength}" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0"
-                Classes="navigationViewPane"
-                AutomationProperties.AccessibilityView="Control"
-                AutomationProperties.AutomationId="NavigationView"
-                AutomationProperties.LandmarkType="Navigation">
-            <Grid RowDefinitions="Auto,*"
-                  Margin="{StaticResource NavigationViewPaneContentMargin}">
-                <StackPanel Classes="navigationViewPaneHeader">
-                    <TextBlock Classes="brandTitle"
-                               Text="Unity Assets Patcher"
-                               TextWrapping="Wrap" />
-                    <TextBlock Classes="caption secondary"
-                               Text="{x:Static application:AppConfig.DisplayVersion}" />
-                </StackPanel>
+            <Border Grid.Column="0"
+                    Classes="navigationViewPane"
+                    AutomationProperties.AccessibilityView="Control"
+                    AutomationProperties.AutomationId="NavigationView"
+                    AutomationProperties.LandmarkType="Navigation">
+                <Grid RowDefinitions="Auto,*"
+                      Margin="{StaticResource NavigationViewPaneContentMargin}">
+                    <StackPanel Classes="navigationViewPaneHeader">
+                        <TextBlock Classes="brandTitle"
+                                   Text="Unity Assets Patcher"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Classes="caption secondary"
+                                   Text="{x:Static application:AppConfig.DisplayVersion}" />
+                    </StackPanel>
 
-                <ListBox Grid.Row="1"
-                         x:Name="NavigationViewMenuItems"
-                         Classes="navigationViewItems"
-                         AutomationProperties.Name="{l:Localize {x:Static res:StringsKeys.NavigationView_MenuItemsName}}"
-                         AutomationProperties.AutomationId="NavigationViewMenuItems"
-                         VerticalAlignment="Top"
-                         ItemsSource="{Binding MenuItems}"
-                         ItemTemplate="{StaticResource NavigationViewItemTemplate}"
-                         SelectedItem="{Binding SelectedMenuItem, Mode=TwoWay}" />
+                    <ListBox Grid.Row="1"
+                             x:Name="NavigationViewMenuItems"
+                             Classes="navigationViewItems"
+                             AutomationProperties.Name="{l:Localize {x:Static res:StringsKeys.NavigationView_MenuItemsName}}"
+                             AutomationProperties.AutomationId="NavigationViewMenuItems"
+                             VerticalAlignment="Top"
+                             ItemsSource="{Binding MenuItems}"
+                             ItemTemplate="{StaticResource NavigationViewItemTemplate}"
+                             SelectedItem="{Binding SelectedMenuItem, Mode=TwoWay}" />
 
-            </Grid>
-        </Border>
+                </Grid>
+            </Border>
 
-        <Border Grid.Column="1" Classes="navigationViewContent">
-            <ScrollViewer Classes="pageHost"
-                          AutomationProperties.AccessibilityView="Control"
-                          AutomationProperties.LandmarkType="Main">
-                <ContentControl Classes="pageContent" Content="{Binding CurrentPage}" />
-            </ScrollViewer>
-        </Border>
+            <Border Grid.Column="1" Classes="navigationViewContent">
+                <ScrollViewer Classes="pageHost"
+                              AutomationProperties.AccessibilityView="Control"
+                              AutomationProperties.LandmarkType="Main">
+                    <ContentControl Classes="pageContent" Content="{Binding CurrentPage}" />
+                </ScrollViewer>
+            </Border>
 
-        <ItemsControl Grid.ColumnSpan="2" Grid.Column="0"
-                      ItemsSource="{Binding Notifications.Items}"
-                      ItemTemplate="{StaticResource NotificationTemplate}"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Stretch"
-                      Margin="16">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <notifications:NotificationPanel />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-        </ItemsControl>
+            <ItemsControl Grid.ColumnSpan="2" Grid.Column="0"
+                          ItemsSource="{Binding Notifications.Items}"
+                          ItemTemplate="{StaticResource NotificationTemplate}"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Stretch"
+                          Margin="16">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <notifications:NotificationPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </Grid>
     </Grid>
 </Window>

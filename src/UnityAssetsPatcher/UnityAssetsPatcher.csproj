@@ -39,6 +39,9 @@
         <Compile Update="Views\NotificationView.axaml.cs">
             <DependentUpon>NotificationView.axaml</DependentUpon>
         </Compile>
+        <Compile Update="Views\ContentDialog.axaml.cs">
+            <DependentUpon>ContentDialog.axaml</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

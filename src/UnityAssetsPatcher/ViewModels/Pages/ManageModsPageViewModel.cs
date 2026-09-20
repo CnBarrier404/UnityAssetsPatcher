@@ -51,9 +51,11 @@ public sealed class ManageModsPageViewModel : ViewModelBase
         }
     }
 
-    public async Task UninstallAsync(InstalledModViewModel mod)
+    public async Task UninstallAsync(
+        InstalledModViewModel mod, Func<UninstallPreviewResult, Task<bool>> confirmUninstallAsync)
     {
         ArgumentNullException.ThrowIfNull(mod);
+        ArgumentNullException.ThrowIfNull(confirmUninstallAsync);
         if (IsBusy || !Mods.Contains(mod))
         {
             return;
@@ -87,6 +89,12 @@ public sealed class ManageModsPageViewModel : ViewModelBase
                     Localizer.Current.Get(StringsKeys.ManageModsPage_UninstallFailedTitle),
                     message,
                     NotificationKind.Error);
+                return;
+            }
+
+            SetBusy(true, StringsKeys.ManageModsPage_AwaitingConfirmation);
+            if (!await confirmUninstallAsync(preview))
+            {
                 return;
             }
 
