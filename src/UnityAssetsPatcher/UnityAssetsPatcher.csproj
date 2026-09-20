@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
@@ -36,10 +36,10 @@
             <DesignTime>true</DesignTime>
             <DependentUpon>Strings.resx</DependentUpon>
         </Compile>
-        <Compile Update="Views\NotificationView.axaml.cs">
+        <Compile Update="Controls\NotificationView.axaml.cs">
             <DependentUpon>NotificationView.axaml</DependentUpon>
         </Compile>
-        <Compile Update="Views\ContentDialog.axaml.cs">
+        <Compile Update="Controls\ContentDialog.axaml.cs">
             <DependentUpon>ContentDialog.axaml</DependentUpon>
         </Compile>
     </ItemGroup>

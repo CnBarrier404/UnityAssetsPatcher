@@ -10,7 +10,7 @@ using Avalonia.Styling;
 using Avalonia.VisualTree;
 using UnityAssetsPatcher.Notifications;
 
-namespace UnityAssetsPatcher.Views;
+namespace UnityAssetsPatcher.Controls;
 
 public partial class NotificationView : UserControl
 {

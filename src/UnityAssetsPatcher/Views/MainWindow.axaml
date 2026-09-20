@@ -3,6 +3,7 @@
         xmlns:vm="using:UnityAssetsPatcher.ViewModels"
         xmlns:pages="using:UnityAssetsPatcher.ViewModels.Pages"
         xmlns:views="using:UnityAssetsPatcher.Views"
+        xmlns:controls="using:UnityAssetsPatcher.Controls"
         xmlns:application="using:UnityAssetsPatcher.Application"
         xmlns:notifications="using:UnityAssetsPatcher.Notifications"
         xmlns:l="clr-namespace:RentADeveloper.ResXLocalization.Avalonia;assembly=ResXLocalization.Avalonia"
@@ -31,7 +32,7 @@
                 </Grid>
             </DataTemplate>
             <DataTemplate x:Key="NotificationTemplate" DataType="notifications:NotificationItem">
-                <views:NotificationView />
+                <controls:NotificationView />
             </DataTemplate>
         </ResourceDictionary>
     </Window.Resources>
