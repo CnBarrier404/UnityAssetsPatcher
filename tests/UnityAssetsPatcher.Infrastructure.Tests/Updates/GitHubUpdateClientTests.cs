@@ -1,62 +1,43 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.Extensions.Logging.Abstractions;
 using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Infrastructure.Updates;
 using Xunit;
 
 namespace UnityAssetsPatcher.Infrastructure.Tests.Updates;
 
-public sealed class GitHubUpdateManifestClientTests
+public sealed class GitHubUpdateClientTests
 {
-    private const string Sha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-
     [Fact]
-    public async Task FetchAsync_WhenManifestIsValid_ReturnsManifestAndSendsExpectedRequest()
+    public async Task FetchAsync_WhenReleaseIsValid_ReturnsReleaseAndSendsExpectedRequest()
     {
-        var handler = new StubHttpMessageHandler(_ => CreateJsonResponse(Manifest("v1.3.0")));
+        var handler = new StubHttpMessageHandler(_ => CreateJsonResponse(Release("v1.3.0")));
         using HttpClient httpClient = new(handler);
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
-        UpdateInfo manifest = await Fetch(client);
+        UpdateInfo release = await Fetch(client);
 
-        Assert.NotNull(manifest);
-        Assert.Equal("v1.3.0", manifest.Version);
-        Assert.Equal("https://example.com/releases/v1.3.0", manifest.ReleaseUrl.AbsoluteUri);
-        Assert.Equal(
-            "https://example.com/download/UnityAssetsPatcher-v1.3.0-win-x64.exe",
-            manifest.DownloadUrl.AbsoluteUri);
-        Assert.Equal(Sha256, manifest.Sha256);
+        Assert.NotNull(release);
+        Assert.Equal("v1.3.0", release.Version);
+        Assert.Equal("https://example.com/releases/v1.3.0", release.ReleaseUrl.AbsoluteUri);
         Assert.Equal(1, handler.RequestCount);
-        Assert.Equal(GitHubUpdateManifestClient.UpdateManifestUrl, handler.LastRequestUri?.AbsoluteUri);
+        Assert.Equal(GitHubUpdateClient.LatestReleaseUrl, handler.LastRequestUri?.AbsoluteUri);
         Assert.Contains("UnityAssetsPatcher", handler.LastUserAgent ?? string.Empty);
-        Assert.Contains("application/json", handler.LastAccept ?? string.Empty);
+        Assert.Contains("application/vnd.github+json", handler.LastAccept ?? string.Empty);
+        Assert.Equal("2022-11-28", handler.LastApiVersion);
     }
 
     [Fact]
-    public async Task FetchAsync_WhenSha256ContainsUppercase_NormalizesSha256ToLowercase()
-    {
-        using HttpClient httpClient = new(new StubHttpMessageHandler(_ =>
-            CreateJsonResponse(Manifest("v1.3.0", Sha256.ToUpperInvariant()))));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
-
-        UpdateInfo manifest = await Fetch(client);
-
-        Assert.NotNull(manifest);
-        Assert.Equal(Sha256, manifest.Sha256);
-    }
-
-    [Fact]
-    public async Task FetchAsync_WhenVersionIsNotSemantic_ReturnsManifestForApplicationEvaluation()
+    public async Task FetchAsync_WhenVersionIsNotSemantic_ReturnsReleaseForApplicationEvaluation()
     {
         using HttpClient httpClient = new(
-            new StubHttpMessageHandler(_ => CreateJsonResponse(Manifest("invalid"))));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+            new StubHttpMessageHandler(_ => CreateJsonResponse(Release("invalid"))));
+        GitHubUpdateClient client = CreateClient(httpClient);
 
-        UpdateInfo manifest = await Fetch(client);
+        UpdateInfo release = await Fetch(client);
 
-        Assert.NotNull(manifest);
-        Assert.Equal("invalid", manifest.Version);
+        Assert.NotNull(release);
+        Assert.Equal("invalid", release.Version);
     }
 
     [Theory]
@@ -64,58 +45,32 @@ public sealed class GitHubUpdateManifestClientTests
     [InlineData(
         """
         {
-          "schemaVersion": 2,
-          "version": "v1.3.0",
-          "releaseUrl": "https://example.com",
-          "downloadUrl": "https://example.com/file.exe",
-          "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          "tag_name": 1,
+          "html_url": "https://example.com"
         }
         """)]
     [InlineData(
         """
         {
-          "schemaVersion": 1,
-          "version": "v1.3.0",
-          "releaseUrl": "http://example.com",
-          "downloadUrl": "https://example.com/file.exe",
-          "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          "tag_name": "v1.3.0",
+          "html_url": "http://example.com"
         }
         """)]
-    [InlineData(
-        """
-        {
-          "schemaVersion": 1,
-          "version": "v1.3.0",
-          "releaseUrl": "https://example.com",
-          "downloadUrl": "http://example.com/file.exe",
-          "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-        }
-        """)]
-    [InlineData(
-        """
-        {
-          "schemaVersion": 1,
-          "version": "v1.3.0",
-          "releaseUrl": "https://example.com",
-          "downloadUrl": "https://example.com/file.exe",
-          "sha256": "invalid"
-        }
-        """)]
-    public async Task FetchAsync_WhenManifestDoesNotMatchWireFormat_ThrowsInvalidDataException(string json)
+    public async Task FetchAsync_WhenReleaseDoesNotMatchWireFormat_ThrowsInvalidDataException(string json)
     {
         using HttpClient httpClient = new(
             new StubHttpMessageHandler(_ => CreateJsonResponse(json)));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
         await Assert.ThrowsAsync<InvalidDataException>(() => Fetch(client));
     }
 
     [Fact]
-    public async Task FetchAsync_WhenManifestIsNotJson_PropagatesJsonException()
+    public async Task FetchAsync_WhenReleaseIsNotJson_PropagatesJsonException()
     {
         using HttpClient httpClient = new(
             new StubHttpMessageHandler(_ => CreateJsonResponse("not-json")));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
         await Assert.ThrowsAnyAsync<JsonException>(() => Fetch(client));
     }
@@ -126,11 +81,11 @@ public sealed class GitHubUpdateManifestClientTests
         using HttpClient httpClient = new(new StubHttpMessageHandler(_ =>
         {
             HttpResponseMessage response = CreateJsonResponse("{}");
-            response.Content.Headers.ContentLength = GitHubUpdateManifestClient.MaximumManifestSize + 1;
+            response.Content.Headers.ContentLength = GitHubUpdateClient.MaximumResponseSize + 1;
 
             return response;
         }));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
         await Assert.ThrowsAsync<InvalidDataException>(() => Fetch(client));
     }
@@ -138,7 +93,7 @@ public sealed class GitHubUpdateManifestClientTests
     [Fact]
     public async Task FetchAsync_WhenStreamExceedsLimitWithoutContentLength_ThrowsInvalidDataException()
     {
-        string json = new(' ', GitHubUpdateManifestClient.MaximumManifestSize + 1);
+        string json = new(' ', GitHubUpdateClient.MaximumResponseSize + 1);
         using HttpClient httpClient = new(new StubHttpMessageHandler(_ =>
         {
             HttpResponseMessage response = CreateJsonResponse(json);
@@ -146,7 +101,7 @@ public sealed class GitHubUpdateManifestClientTests
 
             return response;
         }));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
         await Assert.ThrowsAsync<InvalidDataException>(() => Fetch(client));
     }
@@ -158,7 +113,7 @@ public sealed class GitHubUpdateManifestClientTests
     {
         using HttpClient httpClient = new(
             new StubHttpMessageHandler(_ => new HttpResponseMessage(statusCode)));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
         await Assert.ThrowsAsync<HttpRequestException>(() => Fetch(client));
     }
@@ -168,7 +123,7 @@ public sealed class GitHubUpdateManifestClientTests
     {
         using HttpClient httpClient = new(
             new StubHttpMessageHandler(_ => throw new HttpRequestException("Offline")));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
         await Assert.ThrowsAsync<HttpRequestException>(() => Fetch(client));
     }
@@ -178,7 +133,7 @@ public sealed class GitHubUpdateManifestClientTests
     {
         using HttpClient httpClient = new(
             new StubHttpMessageHandler(_ => throw new IOException("Read failed")));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
         await Assert.ThrowsAsync<IOException>(() => Fetch(client));
     }
@@ -188,7 +143,7 @@ public sealed class GitHubUpdateManifestClientTests
     {
         using HttpClient httpClient = new(
             new StubHttpMessageHandler(_ => throw new OperationCanceledException()));
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Fetch(client));
     }
@@ -198,32 +153,28 @@ public sealed class GitHubUpdateManifestClientTests
     {
         var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException());
         using HttpClient httpClient = new(handler);
-        GitHubUpdateManifestClient client = CreateClient(httpClient);
+        GitHubUpdateClient client = CreateClient(httpClient);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            client.FetchAsync(cancellation.Token));
+            client.CheckForUpdateAsync(cancellation.Token));
 
         Assert.Equal(0, handler.RequestCount);
     }
 
-    private static GitHubUpdateManifestClient CreateClient(HttpClient httpClient)
+    private static GitHubUpdateClient CreateClient(HttpClient httpClient)
     {
-        return new GitHubUpdateManifestClient(
-            httpClient,
-            NullLogger<GitHubUpdateManifestClient>.Instance);
+        return new GitHubUpdateClient(
+            httpClient);
     }
 
-    private static string Manifest(string version, string sha256 = Sha256)
+    private static string Release(string version)
     {
         return $$"""
                  {
-                   "schemaVersion": 1,
-                   "version": "{{version}}",
-                   "releaseUrl": "https://example.com/releases/{{version}}",
-                   "downloadUrl": "https://example.com/download/UnityAssetsPatcher-{{version}}-win-x64.exe",
-                   "sha256": "{{sha256}}",
+                   "tag_name": "{{version}}",
+                   "html_url": "https://example.com/releases/{{version}}",
                    "ignored": true
                  }
                  """;
@@ -237,9 +188,9 @@ public sealed class GitHubUpdateManifestClientTests
         };
     }
 
-    private static Task<UpdateInfo> Fetch(GitHubUpdateManifestClient client)
+    private static Task<UpdateInfo> Fetch(GitHubUpdateClient client)
     {
-        return client.FetchAsync(TestContext.Current.CancellationToken);
+        return client.CheckForUpdateAsync(TestContext.Current.CancellationToken);
     }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler
@@ -254,6 +205,8 @@ public sealed class GitHubUpdateManifestClientTests
 
         public string? LastAccept { get; private set; }
 
+        public string? LastApiVersion { get; private set; }
+
         public StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
         {
             _handler = handler;
@@ -267,6 +220,7 @@ public sealed class GitHubUpdateManifestClientTests
             LastRequestUri = request.RequestUri;
             LastUserAgent = request.Headers.UserAgent.ToString();
             LastAccept = request.Headers.Accept.ToString();
+            LastApiVersion = request.Headers.GetValues("X-GitHub-Api-Version").Single();
 
             return Task.FromResult(_handler(request));
         }

@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: pages-${{ github.event.pull_request.number || github.ref }}
+  group: pages-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'deployment' }}
   cancel-in-progress: false
 
 jobs:
