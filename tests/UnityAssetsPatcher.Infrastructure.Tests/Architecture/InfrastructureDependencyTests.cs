@@ -21,8 +21,7 @@ public sealed class InfrastructureDependencyTests
         string[] forbiddenTypes = referencedTypes
             .Where(type =>
                 type is "UnityAssetsPatcher.Application.Operations.OperationResult`1" or
-                    "UnityAssetsPatcher.Application.Operations.OperationError" or
-                    "UnityAssetsPatcher.Application.Updates.UpdateErrorCodes" ||
+                    "UnityAssetsPatcher.Application.Operations.OperationError" ||
                 (type.StartsWith("UnityAssetsPatcher.Application.Mods.", StringComparison.Ordinal) &&
                  type.EndsWith("ErrorCodes", StringComparison.Ordinal)))
             .ToArray();

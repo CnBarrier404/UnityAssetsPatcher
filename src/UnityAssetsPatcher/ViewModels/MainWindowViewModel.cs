@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using UnityAssetsPatcher.Application;
 using UnityAssetsPatcher.Application.Contracts;
-using UnityAssetsPatcher.Application.Updates;
 using UnityAssetsPatcher.Localization;
 using UnityAssetsPatcher.Notifications;
 using UnityAssetsPatcher.ViewModels.Pages;
@@ -22,15 +21,15 @@ public sealed class MainWindowViewModel : ViewModelBase
         IServiceScopeFactory scopeFactory,
         NotificationService notifications,
         AppRuntimeConfig runtimeConfig,
-        ILoggingLevelSwitch loggingLevelSwitch,
-        UpdateCheckModule updates)
+        ILoggingLevelSwitch loggingLevelSwitch)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
         Notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
         ArgumentNullException.ThrowIfNull(runtimeConfig);
         ArgumentNullException.ThrowIfNull(loggingLevelSwitch);
 
-        Settings = new SettingsPageViewModel(runtimeConfig, loggingLevelSwitch, updates, notifications);
+        Settings = new SettingsPageViewModel(runtimeConfig, loggingLevelSwitch);
+
         MenuItems =
         [
             new NavigationViewItemViewModel(

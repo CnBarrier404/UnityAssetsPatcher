@@ -93,44 +93,12 @@ jobs:
           "executable_path=$executablePath" >> $env:GITHUB_OUTPUT
 
       - name: Generate checksum
-        id: checksum
         shell: pwsh
         run: |
           $executablePath = "${{ steps.executable.outputs.executable_path }}"
           $hash = (Get-FileHash -Path $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()
           $checksumFile = "artifacts/SHA256"
           "$hash  $(Split-Path $executablePath -Leaf)" | Set-Content -Path $checksumFile -Encoding utf8
-          "sha256=$hash" >> $env:GITHUB_OUTPUT
-          "checksum_path=$checksumFile" >> $env:GITHUB_OUTPUT
-
-      - name: Generate update manifest
-        shell: pwsh
-        run: |
-          $tag = "$env:TAG_NAME"
-          $executableFilename = "${{ steps.release.outputs.artifact_name }}.exe"
-          $sha256 = "${{ steps.checksum.outputs.sha256 }}"
-          $repositoryUrl = "https://github.com/${{ github.repository }}"
-          $manifestPath = "artifacts/update.json"
-
-          $manifest = [ordered]@{
-            schemaVersion = 1
-            version = $tag
-            releaseUrl = "$repositoryUrl/releases/tag/$tag"
-            downloadUrl = "$repositoryUrl/releases/download/$tag/$executableFilename"
-            sha256 = $sha256
-          }
-
-          $manifest | ConvertTo-Json | Set-Content -Path $manifestPath -Encoding utf8
-
-          $parsed = Get-Content -Raw -Path $manifestPath | ConvertFrom-Json
-
-          if ($parsed.schemaVersion -ne 1 -or
-              $parsed.version -ne $tag -or
-              $parsed.downloadUrl -notlike "*/$executableFilename" -or
-              $parsed.sha256 -ne $sha256 -or
-              $parsed.sha256 -notmatch '^[0-9a-f]{64}$') {
-            throw "Generated update manifest failed validation."
-          }
 
       - name: Prepare release notes
         id: notes
@@ -204,7 +172,6 @@ jobs:
           path: |
             artifacts/${{ steps.release.outputs.artifact_name }}.exe
             artifacts/SHA256
-            artifacts/update.json
             artifacts/release-notes.md
           if-no-files-found: error
 
@@ -232,4 +199,3 @@ jobs:
           files: |
             artifacts/${{ needs.build.outputs.executable_filename }}
             artifacts/SHA256
-            artifacts/update.json

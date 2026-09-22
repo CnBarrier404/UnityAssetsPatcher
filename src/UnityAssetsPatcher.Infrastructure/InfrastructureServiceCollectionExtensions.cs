@@ -23,11 +23,9 @@ public static class InfrastructureServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddHttpClient<GitHubUpdateManifestClient>(client => { client.Timeout = TimeSpan.FromSeconds(10); });
-        services.AddTransient<IUpdateChecker>(provider => new GitHubUpdateChecker(
-            provider.GetRequiredService<GitHubUpdateManifestClient>(),
-            AppConfig.DisplayVersion,
-            provider.GetRequiredService<ILogger<GitHubUpdateChecker>>()));
+        services.AddHttpClient<GitHubUpdateClient>(client => { client.Timeout = TimeSpan.FromSeconds(10); });
+        services.AddTransient<IUpdateChecker>(provider =>
+            provider.GetRequiredService<GitHubUpdateClient>());
 
         return services;
     }
