@@ -23,7 +23,7 @@ Manifest 用来描述 Mod 元数据、目标游戏、需要复制的 payload 文
 }
 ```
 
-Schema 主要用于结构、类型和基础值的校验；为保持兼容性，当前 Schema 允许额外字段，因此不要依赖它发现所有拼写错误。路径安全、操作组合、文件是否存在、需要唯一匹配的 asset 以及可选内容冲突等规则由 Unity Assets Patcher 的运行时验证，因此发布 Mod 前仍应使用 `check` 命令验证，并执行安装预览。
+Schema 主要用于结构、类型和基础值的校验；为保持兼容性，当前 Schema 允许额外字段，因此不要依赖它发现所有拼写错误。路径安全、操作组合、文件是否存在、需要唯一匹配的 asset 以及可选内容冲突等规则由 Unity Assets Patcher 的运行时验证，因此发布 Mod 前仍应在安装页面加载 Mod 包进行验证。
 
 ### Mod 包结构
 
@@ -112,26 +112,11 @@ Mod.zip
 
 ### 发布前检查
 
-可以直接检查 JSON manifest，也可以检查 ZIP Mod 包中的 manifest：
+先在支持 JSON Schema 的编辑器中校验 manifest，再打开**安装 Mod**页面，通过拖放或**选择文件**加载 ZIP 包。加载时会验证 manifest 并准备安装预览，不会修改游戏文件。
 
-```powershell
-.\UnityAssetsPatcher.exe check --config .\manifest.json
-.\UnityAssetsPatcher.exe check --config .\Mod.zip
-```
+确认 Mod 信息和目标游戏目录，勾选需要的可选内容以验证对应组合。首次预览会根据 `game` 查找 Steam 安装目录；预览打开后，可以点击**更改**选择其他游戏目录。
 
-检查通过后，建议先执行安装预览。CLI 中 `install preview` 不会修改游戏文件，`install apply` 必须显式传入 `--yes` 才会执行安装：
-
-```powershell
-.\UnityAssetsPatcher.exe install preview --package .\Mod.zip --game-directory "C:\Games\Game"
-.\UnityAssetsPatcher.exe install apply --package .\Mod.zip --game-directory "C:\Games\Game" --yes
-```
-
-如果要启用可选内容，重复传入 `--optional-group`；交互式界面则会逐组询问是否应用：
-
-```powershell
-.\UnityAssetsPatcher.exe install preview --package .\Mod.zip --game-directory "C:\Games\Game" `
-  --optional-group "高清贴图" --optional-group "额外音效"
-```
+发布前，请用 UABEA 检查 asset 匹配范围和字段值，并在测试用游戏副本上验证安装结果。点击**开始安装**才会应用 Mod，点击**重新选择**则返回文件选择页面。
 
 ## Manifest 结构
 
@@ -149,7 +134,7 @@ Mod.zip
 | `targets`     | 是   | 要处理的目标 `.assets` 文件分组。                                                                         |
 | `optional`    | 否   | 附加内容分组。用户安装时可逐个选择是否应用，互不依赖、可自由组合。                                        |
 
-旧 manifest 中的 `schemaVersion: 1` 可以暂时保留，但当前运行时不会读取它，也不会用它选择格式；新 manifest 不需要再添加该字段。CLI JSON 响应中的 `schemaVersion` 是输出协议版本，与 manifest 字段无关。
+旧 manifest 中的 `schemaVersion: 1` 可以暂时保留，但当前运行时不会读取它，也不会用它选择格式；新 manifest 不需要再添加该字段。
 
 ### copyFiles
 
@@ -169,7 +154,7 @@ Mod.zip
 - 安装时只使用 `source` 的文件名部分（如 `resources/modassets.resource` → `modassets.resource`）。
 - payload 文件会复制到目标 assets 文件所在目录。
 - 如果声明了 `copyFiles`，所有目标 assets 文件必须位于同一个目录。
-- payload 目标文件已存在时，安装不会覆盖该文件并会拒绝继续；预览只列出计划复制的目标，不会写入文件。
+- payload 目标文件已存在时，安装不会覆盖该文件并会拒绝继续；预览不会写入文件。
 
 ### targets
 
@@ -281,7 +266,7 @@ Mod.zip
 
 如果需要 OR 关系，写多条结构相同的 patch，每条用不同的 `match` 值。匹配值支持字符串、数字、布尔值、对象和数组；数字按数值比较，字符串区分大小写，数组要求长度和元素都匹配。
 
-`match` 至少要包含一个字段。字段级 `set`/`add` 可以应用到所有匹配的 asset；`copyAsset` 要求来源和目标各自唯一，`replaceAsset` 还要求用于对应的 `matchField` 值在目标和源文件中都能唯一对应。发布前应通过安装预览确认匹配范围。
+`match` 至少要包含一个字段。字段级 `set`/`add` 可以应用到所有匹配的 asset；`copyAsset` 要求来源和目标各自唯一，`replaceAsset` 还要求用于对应的 `matchField` 值在目标和源文件中都能唯一对应。发布前应使用 UABEA 检查匹配范围，并在测试用游戏副本上验证安装结果。
 
 #### componentType
 
@@ -330,7 +315,7 @@ Mod.zip
 
 - `set` 的 key 是要写入的字段路径。
 - 每个字段必须包含 `from` 和 `to`。
-- 写入前，当前字段值必须匹配 `from`；不匹配时预览会标记为 skipped，安装会拒绝继续。
+- 写入前，当前字段值必须匹配 `from`；不匹配时安装会拒绝继续。
 - `to` 支持字符串、数字、布尔值。
 - `to` 可以是标量数组，用于写入数组字段。
 - `to` 可以是对象，此时会写入目标字段的直接子字段。
@@ -534,25 +519,25 @@ Mod.zip
 
 1. 读取 zip 中唯一的 `manifest.json`。
 2. 如果没有手动选择游戏目录，尝试使用 `game` 从 Steam 安装信息中解析游戏目录。
-3. 如果声明了 `optional`，逐个展示分组的 `name` 和 `description`，由用户选择是否应用；被选中的分组会与主体内容合并。在该确认环节按 Esc 会放弃整个安装。
-4. 根据 `targets[].file`（含被选中分组的目标）在游戏目录下定位目标 assets 文件。
-5. 生成 dry run 预览，展示目标文件、命中的 asset、将执行的变更和 payload 文件状态。
-6. 用户确认后，在备份仓库的 `.temp` 中预生成全部补丁输出、payload 和回滚快照，并记录变更前后的 SHA-256。
+3. 根据 `targets[].file` 在游戏目录下定位目标 assets 文件，准备安装预览。
+4. 桌面预览展示 Mod 信息、游戏目录和可选内容。如果声明了 `optional`，使用复选框展示各分组的 `name` 和 `description`，默认不勾选。
+5. 用户更改游戏目录或勾选可选内容时，重新生成安装预览；被选中的分组会与主体内容合并，并定位对应的目标 assets 文件。
+6. 用户点击**开始安装**后，在备份仓库的 `.temp` 中预生成全部补丁输出、payload 和回滚快照，并记录变更前后的 SHA-256。
 7. 所有目标仍符合预期状态后，使用同目录临时文件原子替换 assets，并以无覆盖方式创建 payload。
 8. 验证全部结果后，将层记录和原始 Mod 包原子提交到 `layers/<install-id>`。
 
 预览不会写入 assets 文件，也不会复制 payload 文件。
 
-本次应用的附加内容分组名会写入层记录 `layer.json`（未选择时不写该字段），安装结果输出中也会列出，便于事后确认这次安装包含了哪些附加内容。
+本次应用的附加内容分组名会写入层记录 `layer.json`（未选择时不写该字段），安装完成页面也会列出，便于事后确认这次安装包含了哪些附加内容。
 
 ### Mod 卸载
 
-工具支持 Mod 卸载功能。备份仓库默认位于 `%LocalAppData%\UnityAssetsPatcher\backup`，其中 `base/` 保存首次触碰路径的基础快照，`layers/<install-id>/` 保存层记录和不可变的原始 Mod 包；`.temp` 仅在安装、卸载或中断恢复期间存在。旧程序目录中的 `backup` 不受支持且不会自动迁移。记录包含游戏目录实例指纹和该实例内的安装序号。多个 Mod 修改同一个 assets 文件时，工具会重放剩余层并恢复正确结果；卸载预览会列出需要重建、恢复基础或删除的文件，以及真实的补丁依赖。格式不受支持的仓库不会被读取、写入或自动迁移；用户只能在明确确认后清空仓库并初始化当前格式。清空不会还原游戏文件，并会永久失去原仓库提供的卸载和恢复能力。卸载时，工具会：
+在**管理 Mod**页面点击**卸载**，程序会先检查文件完整性和剩余 Mod 的依赖，再通过对话框请求确认。备份仓库默认位于 `%LocalAppData%\UnityAssetsPatcher\backup`，其中 `base/` 保存首次触碰路径的基础快照，`layers/<install-id>/` 保存层记录和不可变的原始 Mod 包；`.temp` 用于保存事务的临时文件。记录包含游戏目录实例指纹和该实例内的安装序号。多个 Mod 修改同一个 assets 文件时，工具会重放剩余层并恢复正确结果。卸载时，工具会：
 
 1. 按基础快照和剩余层重新合成被修改的 assets 文件。
 2. 按基础快照恢复或删除安装时复制的 payload 文件。
 
-卸载功能需要层记录、原始 Mod 包和基础快照完整。如果其中任一项损坏或丢失，合成将停止并提示用户处理。恢复多个 assets 文件时，工具会在 `.temp` 创建临时回滚快照；卸载提交时，层目录会被原子移入 `.temp` 后清理。程序启动或下一次变更前会根据事务记录的前后哈希恢复中断操作；遇到无法判定的文件状态时不会覆盖或删除文件，并将仓库保持为只读。
+卸载功能需要层记录、原始 Mod 包和基础快照完整。如果其中任一项损坏或丢失，合成将停止并提示用户处理。恢复多个 assets 文件时，工具会在 `.temp` 创建临时回滚快照；卸载提交时，层目录会被原子移入 `.temp` 后清理。卸载成功后，管理页面会刷新已安装 Mod 列表。
 
 ## 安全限制
 
@@ -591,7 +576,7 @@ Unity 不同版本、不同游戏版本、不同导出方式下的字段名和�
 
 ### 用多条 patch 表达 OR
 
-如果多个目标 asset 需要同样修改，写多条 patch。这样预览输出和错误定位更清楚。
+如果多个目标 asset 需要同样修改，写多条 patch。这样规则和错误定位更清楚。
 
 ### 显式声明 payload
 

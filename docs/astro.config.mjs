@@ -7,7 +7,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Unity Assets Patcher',
-      description: 'Inspect Unity assets files and install or uninstall mods.',
+      description: 'Install and manage Unity assets mods.',
       defaultLocale: 'root',
       locales: {
         root: { label: 'English', lang: 'en' },

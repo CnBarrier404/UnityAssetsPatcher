@@ -1,39 +1,43 @@
 ---
 title: 开始使用
-description: 下载并运行 Unity Assets Patcher。
+description: 下载 Unity Assets Patcher，通过桌面界面安装和管理 Mod。
 sidebar:
   order: 1
 ---
 
 ## 系统要求
 
-当前发布包支持 `win-x64`，采用包含运行组件的自包含单文件形式，无需另外安装 .NET 运行时。
+Windows 构建支持 `win-x64`，采用包含运行组件的自包含单文件形式，无需另外安装 .NET 运行时。
 
 ## 下载
 
-从 [GitHub Releases](https://github.com/CnBarrier404/UnityAssetsPatcher/releases) 下载最新版本。
+从 [GitHub Releases](https://github.com/CnBarrier404/UnityAssetsPatcher/releases) 下载可执行文件，双击即可打开桌面界面。
 
-## 打开交互式界面
+## 安装 Mod
 
-直接运行程序：
+1. 打开**安装 Mod**页面，将一个 `.zip` Mod 包拖入窗口，或点击**选择文件**。
+2. 预览加载成功后，确认 Mod 名称、版本、作者、说明和目标游戏目录。如需选择其他游戏目录，点击**更改**。
+3. 勾选需要安装的可选内容。每次勾选都会更新安装预览；可选内容默认不勾选。
+4. 点击**开始安装**。完成页面会显示已安装的 Mod 和本次选择的可选内容。
 
-```powershell
-.\UnityAssetsPatcher.exe
-```
+加载 Mod 包和调整预览不会修改游戏文件。安装前可以点击**重新选择**返回文件选择页面；安装完成后，点击**继续安装**即可选择下一个 Mod 包。
 
-交互式界面可用于浏览 assets 文件，并引导完成 Mod 安装、卸载和恢复。建议使用 [Windows Terminal](https://aka.ms/terminal) 等现代终端。
+首次预览会根据 manifest 的 `game` 字段查找 Steam 安装目录，需要唯一定位游戏目录并找到目标 assets 文件才能打开预览。Mod 包无法加载时，请参阅[常见问题](/zh-cn/faq)。
 
-## 使用 CLI
+## 管理已安装的 Mod
 
-传入命令即可使用非交互式界面：
+打开**管理 Mod**页面，可查看已安装 Mod 的名称、版本、目标游戏和安装时间。点击**刷新**可以重新加载列表。
 
-```powershell
-.\UnityAssetsPatcher.exe --help
-.\UnityAssetsPatcher.exe install --help
-```
+点击 Mod 旁的**卸载**后，程序会先检查文件完整性以及剩余 Mod 能否重新合成，再请求确认。卸载成功后会刷新列表。如果存在依赖该 Mod 的其他 Mod，提示中会列出受影响的 Mod。
+
+## 设置与更新
+
+遇到问题时，可以在**设置**中开启**详细日志**，或点击**打开文件夹**查看日志目录。详细日志开关会立即对本次运行生效，重启程序后恢复默认状态。
+
+程序启动时会检查 GitHub 上最新的稳定版本，也可以在**设置**中点击**检查更新**。发现新版本后，点击**前往发布页**会在浏览器中打开对应页面，由你下载可执行文件。
 
 ## 数据与备份
 
 安装记录和分层备份默认保存在 `%LOCALAPPDATA%\UnityAssetsPatcher\backup`。日志保存在 `%LOCALAPPDATA%\UnityAssetsPatcher\logs`，最多保留最近五个文件。
 
-请保留备份目录，以便安全卸载 Mod 或恢复中断的操作。
+请保留备份目录，以便安全卸载 Mod。
