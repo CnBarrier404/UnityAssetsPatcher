@@ -83,13 +83,13 @@ The manifest may be at the ZIP root or in a subdirectory, although the root is r
 }
 ```
 
-Validate the JSON file or complete package before publishing:
+### Check before publishing
 
-```powershell
-.\UnityAssetsPatcher.exe check --config .\manifest.json
-.\UnityAssetsPatcher.exe check --config .\Mod.zip
-.\UnityAssetsPatcher.exe install preview --package .\Mod.zip --game-directory "C:\Games\Game"
-```
+Validate the manifest in an editor with JSON Schema support, then load the ZIP in **Install Mod**. Loading the package validates the manifest and prepares an installation preview without modifying game files.
+
+Review the mod information and target game directory, then select any optional content to validate the selected combination. The initial preview resolves a Steam installation using `game`; once the preview opens, **Change** lets you select another game directory.
+
+Use UABEA to check asset matches and field values, and verify installation results on a test copy of the game before publishing. Click **Start install** to apply the mod, or **Choose another** to return to package selection.
 
 ## Top-level fields
 
@@ -105,7 +105,7 @@ Validate the JSON file or complete package before publishing:
 | `targets` | Yes | Groups of target `.assets` files and patches. |
 | `optional` | No | Independently selectable optional-content groups. |
 
-The old top-level `schemaVersion: 1` may remain in existing manifests, but the current runtime does not use it. The `schemaVersion` in CLI JSON responses belongs to the output protocol and is unrelated.
+The old top-level `schemaVersion: 1` may remain in existing manifests, but the current runtime does not use it. New manifests do not need this field.
 
 ## Payload files
 
@@ -267,9 +267,11 @@ Selected groups are merged with the main content before preview and installation
 
 ## Installation and uninstall behavior
 
-Installation first validates the package, resolves the game and target files, and produces a dry-run preview. After confirmation, it prepares patched outputs, payloads, rollback snapshots, and hashes in the backup repository’s `.temp` directory. It then replaces assets atomically, creates payloads without overwriting existing files, verifies the results, and commits an immutable layer record.
+Installation first validates the package, resolves the game and target files, and prepares a preview. The desktop preview shows mod metadata, the game directory, and optional-content checkboxes. Optional groups are initially unchecked and are merged with the main content when selected.
 
-Uninstall reconstructs modified assets by replaying remaining layers over base snapshots. It also restores or removes payloads according to their snapshots. Missing or damaged layer records, original packages, or snapshots stop the operation instead of risking an incorrect result.
+After **Start install**, the application prepares patched outputs, payloads, rollback snapshots, and hashes in the backup repository’s `.temp` directory. It then replaces assets atomically, creates payloads without overwriting existing files, verifies the results, and commits an immutable layer record. Selected optional-group names are saved in `layer.json` and shown on the completion page.
+
+In **Manage Mods**, **Uninstall** checks file integrity and dependencies before asking for confirmation. Uninstall reconstructs modified assets by replaying remaining layers over base snapshots. It also restores or removes payloads according to their snapshots. Missing or damaged layer records, original packages, or snapshots stop the operation instead of risking an incorrect result.
 
 ## Safety limits
 

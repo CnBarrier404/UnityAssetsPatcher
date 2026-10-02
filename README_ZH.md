@@ -2,15 +2,17 @@
 
 [文档](https://uap.cnbarrier.com/zh-cn) · [English](README.md)
 
-Unity Assets Patcher 是一款用于浏览 Unity assets 文件及安装、卸载 assets Mod 的终端工具。它适用于不便接入 `BepInEx` 等运行时 Mod 框架的游戏，通过 Mod 包中的 `manifest.json` 描述文件复制与 assets 修改。
+Unity Assets Patcher 是一款基于 .NET 10 和 Avalonia 的桌面应用，用于安装和管理 Unity assets Mod。它适用于不便接入 `BepInEx` 等运行时 Mod 框架的游戏，通过 Mod 包中的 `manifest.json` 描述文件复制与 assets 修改。
 
 ## 功能
 
-- 提供交互式终端界面，用于浏览 assets 文件以及安装和卸载 zip 格式的 Mod 包。
-- 提供支持文本和 JSON 输出的非交互式 CLI。
+- 提供桌面界面，可通过拖放文件或文件选择器安装 ZIP Mod 包。
+- 安装预览展示 Mod 信息、目标游戏目录，并支持勾选可选内容。
+- 管理已安装的 Mod，支持刷新列表、依赖检查和卸载确认。
 - 使用 JSON Schema 和语义规则校验 manifest。
-- 通过备份和安装记录支持安全卸载与中断操作恢复。
+- 通过分层备份和安装记录支持安全卸载，并在变更前检查中断事务。
 - 对 Mod ZIP 条目、文件路径、目录穿越和不安全文件操作进行校验。
+- 支持启动时和手动检查更新，可在设置中切换详细日志并打开日志目录。
 
 ## 文档
 
@@ -20,11 +22,7 @@ Unity Assets Patcher 是一款用于浏览 Unity assets 文件及安装、卸载
 
 ## 下载
 
-从 [GitHub Releases](https://github.com/CnBarrier404/UnityAssetsPatcher/releases) 下载最新的 Windows 可执行文件。当前发布包支持 `win-x64`，采用自包含单文件形式。
-
-```powershell
-.\UnityAssetsPatcher.exe
-```
+从 [GitHub Releases](https://github.com/CnBarrier404/UnityAssetsPatcher/releases) 下载 Windows 可执行文件。Windows 构建支持 `win-x64`，采用自包含单文件形式，无需另外安装 .NET 运行时。双击可执行文件即可打开桌面界面。
 
 ## 开发和贡献
 
