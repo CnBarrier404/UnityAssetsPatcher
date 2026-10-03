@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.8.0
+
+正式换上 Avalonia 桌面界面：拖入 Mod 包即可预览和安装，在管理页面查看和卸载已安装的 Mod，不再需要终端操作。同时新增桌面更新提示，并重新整理了设置、通知和错误处理。
+
+### 新增
+
+- 新增 Avalonia 桌面界面，提供 Mod 安装、Mod 管理和设置页面，支持简体中文和英文显示
+- 新增拖放 Mod ZIP 包和文件选择器入口；安装预览展示 Mod 名称、版本、作者、描述及目标游戏目录，并支持更换游戏目录和选择可选内容
+- 新增安装完成页面，展示已安装的 Mod 和本次应用的可选内容，可继续安装其他 Mod 或前往管理页面
+- 新增 Mod 管理页面，按安装时间展示已安装的 Mod，支持刷新和卸载；卸载前检查文件完整性与 Mod 依赖，并通过确认对话框确认操作
+- 新增启动时自动检查更新和设置中的手动检查更新；发现新版本后可打开 GitHub 发布页，手动检查会提示已是最新版本或检查失败
+- 设置页面新增打开日志目录入口，并支持实时切换本次运行的详细日志
+
+### 改进
+
+- 统一页面排版、卡片、按钮和确认对话框样式，并使用带动画的本地化通知展示操作结果与可预期错误
+- 安装、Mod 列表读取和卸载中的文件处理在后台执行，减少操作期间界面阻塞
+- 更新检查直接读取 GitHub 最新稳定版本信息，不再依赖单独的更新清单文件；启动检查失败时保持静默
+- 统一进程级意外异常处理，记录完整诊断信息并以非零退出码结束；底层异常保留原始类型，避免将意外故障误判为正常操作失败
+- 更新用户文档，使开始使用、常见问题和 Mod Manifest 指南与桌面操作流程一致
+
+### 破坏性变更
+
+- 移除 CLI 和 TUI，启动程序现在直接打开桌面窗口；旧命令行参数、JSON 输出及依赖这些接口的自动化脚本不再受支持
+- 当前桌面界面尚未提供原 CLI/TUI 的 Assets 浏览、独立 manifest 校验、中断操作恢复和旧格式仓库重置入口；需要这些功能时请保留旧版本。检测到需要恢复的事务时，安装和卸载仍会被阻止
+
+---
+
+Introduces an Avalonia desktop interface. Drag in a mod package to preview and install it, then view and uninstall installed mods from the management page. It also adds desktop update prompts and refreshes settings, notifications, and error handling.
+
+### Added
+
+- Added an Avalonia desktop interface with mod installation, mod management, and settings pages, supporting Simplified Chinese and English
+- Added drag-and-drop and file-picker support for Mod ZIP packages; installation previews show the mod name, version, author, description, and target game directory, with controls to change the directory and select optional content
+- Added an installation completion page showing the installed mod and applied optional content, with actions to install another mod or open mod management
+- Added a mod management page listing installed mods by installation time, with refresh and uninstall actions; uninstallation checks file integrity and mod dependencies before asking for confirmation
+- Added automatic update checks at startup and manual checks in Settings; available updates can open the GitHub release page, while manual checks also report when no update is available or the check fails
+- Added an action to open the log directory from Settings and a verbose logging toggle that takes effect immediately for the current session
+
+### Improved
+
+- Unified page typography, cards, buttons, and confirmation dialogs, with animated localized notifications for operation results and expected errors
+- File processing during installation, installed-mod queries, and uninstallation runs in the background to reduce UI blocking
+- Update checks now read the latest stable release directly from GitHub without a separate update manifest file; startup check failures remain silent
+- Centralized unexpected-exception handling at the process boundary, recording full diagnostics and exiting with a non-zero code; underlying exception types are preserved so unexpected faults are not mistaken for normal operation failures
+- Updated the getting started, FAQ, and mod manifest documentation to match the desktop workflows
+
+### Breaking Changes
+
+- Removed the CLI and TUI. Launching the executable now opens the desktop window; previous command-line options, JSON output, and automation scripts relying on these interfaces are no longer supported
+- The desktop interface does not yet provide the former CLI/TUI entry points for Assets inspection, standalone manifest validation, interrupted-operation recovery, or resetting unsupported repository formats; keep an older version if you need these tools. Installation and uninstallation remain blocked when a transaction requires recovery
+
 ## v0.7.2
 
 修复跨 Unity 版本或序列化头格式不同但其他结构兼容的资产替换被拒绝的问题，同时保留目标平台、TypeTree、字段布局和引用安全检查。
